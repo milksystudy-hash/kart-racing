@@ -1,0 +1,39 @@
+# ---------------------------------------------------------------
+# 줄바꿈 문자를 통일해서, 내용이 안 바뀐 파일이 "바뀐 것"으로 잡히지 않게 합니다.
+# ---------------------------------------------------------------
+* text=auto
+
+# Unity 텍스트 자산 (YAML) — 텍스트로 다룹니다
+*.cs        text diff=csharp
+*.shader    text
+*.cginc     text
+*.hlsl      text
+*.compute   text
+*.asset     text
+*.meta      text
+*.unity     text
+*.prefab    text
+*.mat       text
+*.anim      text
+*.controller text
+*.asmdef    text
+*.json      text
+*.md        text
+
+# 바이너리 — 병합하려 하지 말고 그대로 다룹니다
+*.fbx       binary
+*.blend     binary
+*.blend1    binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.tga       binary
+*.psd       binary
+*.wav       binary
+*.mp3       binary
+*.ogg       binary
+*.mp4       binary
+*.ttf       binary
+*.otf       binary
+*.dll       binary
+*.unitypackage binary
