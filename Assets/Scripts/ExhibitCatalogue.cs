@@ -16,27 +16,29 @@ public static class ExhibitCatalogue
         public string id;
         public string name;
         public string chapter;
+        /// <summary>이 물건이 나오는 장. 0 프롤로그 · 1~3 메인 · 4 마지막 장.</summary>
+        public int chapterIndex;
         public string description;
         public Shape shape;
     }
 
     public static readonly Entry[] All =
     {
-        new Entry { id = "coin", name = "기념 코인", chapter = "제1장 · 사라진 관람객", shape = Shape.원반,
+        new Entry { id = "coin", name = "기념 코인", chapter = "제1장 · 사라진 관람객", chapterIndex = 1, shape = Shape.원반,
             description = "박물관 입장 때 나눠주던 코인. 뒷면에 관람 일자가 찍혀 있어서, 모으면 그날 누가 다녀갔는지가 드러난다." },
-        new Entry { id = "ledger", name = "관람 기록부", chapter = "제1장 · 사라진 관람객", shape = Shape.종이,
+        new Entry { id = "ledger", name = "관람 기록부", chapter = "제1장 · 사라진 관람객", chapterIndex = 1, shape = Shape.종이,
             description = "코인에서 복원한 방문객 명단. 시에서 발표한 관람객 수보다 훨씬 많은 이름이 적혀 있었다." },
-        new Entry { id = "survey", name = "안전진단서 원본", chapter = "제2장 · 조작된 안전진단", shape = Shape.종이,
+        new Entry { id = "survey", name = "안전진단서 원본", chapter = "제2장 · 조작된 안전진단", chapterIndex = 2, shape = Shape.종이,
             description = "원본의 결론은 '보수 필요' 였다. 공개된 사본에는 '즉시 철거' 로 바뀌어 있었다." },
-        new Entry { id = "marker", name = "붉은 철거 표식", chapter = "제2장 · 조작된 안전진단", shape = Shape.상자,
+        new Entry { id = "marker", name = "붉은 철거 표식", chapter = "제2장 · 조작된 안전진단", chapterIndex = 2, shape = Shape.상자,
             description = "개발업자 측이 트랙에 세워 둔 표식. 부딪혀 뜯어보니 안쪽에 서류 조각이 접혀 있었다." },
-        new Entry { id = "signature", name = "관장의 서명", chapter = "제3장 · 관장의 서명", shape = Shape.종이,
+        new Entry { id = "signature", name = "관장의 서명", chapter = "제3장 · 관장의 서명", chapterIndex = 3, shape = Shape.종이,
             description = "조건부 매각 문서에 남은 서명. 비리를 계획하지는 않았지만, 사실을 숨긴 대가가 여기 남았다." },
-        new Entry { id = "contract", name = "비밀 계약서", chapter = "제3장 · 관장의 서명", shape = Shape.종이,
+        new Entry { id = "contract", name = "비밀 계약서", chapter = "제3장 · 관장의 서명", chapterIndex = 3, shape = Shape.종이,
             description = "시의원과 개발업자 사이의 이면 계약. 선거 지원과 이권이 항목으로 적혀 있다." },
-        new Entry { id = "recorder", name = "중계 기록 장치", chapter = "마지막 장 · 철거 전야", shape = Shape.상자,
+        new Entry { id = "recorder", name = "중계 기록 장치", chapter = "마지막 장 · 철거 전야", chapterIndex = 4, shape = Shape.상자,
             description = "어두워진 트랙을 가로질러 결승선까지 옮긴 장치. 이것으로 전말이 시 전역에 생중계됐다." },
-        new Entry { id = "blueprint", name = "골든베어 조감도", chapter = "프롤로그 · 철거 통지서", shape = Shape.종이,
+        new Entry { id = "blueprint", name = "골든베어 조감도", chapter = "프롤로그 · 철거 통지서", chapterIndex = 0, shape = Shape.종이,
             description = "박물관 자리에 세우려던 리조트 조감도. 없애지 않고 전시실에 남겨 두기로 했다." },
     };
 

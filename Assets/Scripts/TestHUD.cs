@@ -14,6 +14,7 @@ public class TestHUD : MonoBehaviour
     public FirstPersonController player;
     public KartController kart;
     public LapTracker tracker;
+    public RaceStandings standings;
 
     [Header("폰트 (비워 두면 OS 한글 폰트를 쓴다)")]
     public Font uiFont;
@@ -33,12 +34,30 @@ public class TestHUD : MonoBehaviour
         pickupTex  = Solid(new Color(1f, 0.86f, 0.25f, 0.95f));
     }
 
+    [Header("테스트 도우미")]
+    [Tooltip("켜두면 F7 로 다음 장, F8 로 첫 장. 임무 판정이 붙으면 필요 없어진다")]
+    public bool chapterDebugKeys = true;
+
     void Update()
     {
         if (tracker != null && tracker.Finished && KartInput.RestartPressed)
         {
             tracker.ResetRace();
             KartInput.Clear();
+        }
+
+        if (!chapterDebugKeys || UnityEngine.InputSystem.Keyboard.current == null) return;
+
+        // 아직 임무 판정이 없어서 장이 저절로 안 넘어간다. 손으로 넘겨보는 용도.
+        if (UnityEngine.InputSystem.Keyboard.current.f7Key.wasPressedThisFrame)
+        {
+            StoryProgress.AdvanceChapter();
+            SceneNavigator.Reload();
+        }
+        if (UnityEngine.InputSystem.Keyboard.current.f8Key.wasPressedThisFrame)
+        {
+            StoryProgress.CurrentChapter = 1;
+            SceneNavigator.Reload();
         }
     }
 
@@ -100,22 +119,39 @@ public class TestHUD : MonoBehaviour
         GUI.Label(new Rect(196, 22, 60, 16), "상태", labelStyle);
         GUI.Label(new Rect(196, 36, 60, 20),
                   mode, new GUIStyle(labelStyle) { fontSize = 14, fontStyle = FontStyle.Bold });
+
+        // 지금 몇 장인지 — 어떤 수집품이 나올지를 이게 정한다
+        GUI.DrawTexture(new Rect(16, 84, 250, 40), panelTex);
+        GUI.Label(new Rect(30, 88, 230, 16), "진행 중", labelStyle);
+        GUI.Label(new Rect(30, 102, 230, 18),
+                  StoryProgress.CurrentName, new GUIStyle(labelStyle) { fontSize = 13 });
     }
 
     void DrawRacePanels(float w, float h)
     {
         if (tracker != null)
         {
-            GUI.DrawTexture(new Rect(16, 88, 240, 108), panelTex);
-            GUI.Label(new Rect(30, 94, 200, 16), "랩", labelStyle);
-            GUI.Label(new Rect(30, 108, 200, 26),
+            GUI.DrawTexture(new Rect(16, 132, 240, 108), panelTex);
+            GUI.Label(new Rect(30, 138, 200, 16), "랩", labelStyle);
+            GUI.Label(new Rect(30, 152, 200, 26),
                       $"{Mathf.Min(tracker.CurrentLap, tracker.totalLaps)} / {tracker.totalLaps}", valueStyle);
 
-            GUI.Label(new Rect(30, 138, 100, 16), "현재 랩", labelStyle);
-            GUI.Label(new Rect(30, 152, 100, 26), LapTracker.FormatTime(tracker.LapTime), valueStyle);
+            GUI.Label(new Rect(30, 182, 100, 16), "현재 랩", labelStyle);
+            GUI.Label(new Rect(30, 196, 100, 26), LapTracker.FormatTime(tracker.LapTime), valueStyle);
 
-            GUI.Label(new Rect(140, 138, 110, 16), "최고 랩", labelStyle);
-            GUI.Label(new Rect(140, 152, 110, 26), LapTracker.FormatTime(tracker.BestLapTime), valueStyle);
+            GUI.Label(new Rect(140, 182, 110, 16), "최고 랩", labelStyle);
+            GUI.Label(new Rect(140, 196, 110, 26), LapTracker.FormatTime(tracker.BestLapTime), valueStyle);
+        }
+
+        // 등수 — 필수 조건은 아니지만 달리는 내내 보인다
+        if (standings != null && standings.RacerCount > 0)
+        {
+            GUI.DrawTexture(new Rect(w - 150, 16, 134, 66), panelTex);
+            GUI.Label(new Rect(w - 136, 22, 110, 16), "순위", labelStyle);
+            GUI.Label(new Rect(w - 136, 36, 110, 34),
+                      $"{RaceStandings.PlaceLabel(standings.PlayerPlace)}",
+                      new GUIStyle(valueStyle) { fontSize = 26 });
+            GUI.Label(new Rect(w - 62, 46, 46, 20), $"/ {standings.RacerCount}", labelStyle);
         }
 
         if (kart == null) return;
@@ -153,7 +189,8 @@ public class TestHUD : MonoBehaviour
         {
             keys = "WASD 이동     마우스 시선     SHIFT 달리기     SPACE 점프     F 비행";
         }
-        keys += "     F1·F2 씬 이동     ESC 커서";
+        keys += "     F1·F2 씬 이동";
+        if (chapterDebugKeys) keys += "     F7 다음 장 / F8 첫 장";
 
         GUI.Label(new Rect(0, h - 26, w, 20), keys, centerHint);
     }
@@ -184,7 +221,7 @@ public class TestHUD : MonoBehaviour
 
     void DrawFinish(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 170, h * 0.5f - 70, 340, 140);
+        var box = new Rect(w * 0.5f - 170, h * 0.5f - 86, 340, 172);
         GUI.DrawTexture(box, panelTex);
 
         var center = new GUIStyle(valueStyle) { alignment = TextAnchor.MiddleCenter, fontSize = 28 };
@@ -196,6 +233,16 @@ public class TestHUD : MonoBehaviour
         GUI.Label(new Rect(box.x, box.y + 80, box.width, 24),
                   $"최고 랩   {LapTracker.FormatTime(tracker.BestLapTime)}", sub);
 
-        GUI.Label(new Rect(box.x, box.y + 108, box.width, 20), "ENTER 를 누르면 다시 시작", centerHint);
+        // 선택 임무 — 1위는 보너스다. 못 해도 이야기는 진행된다.
+        if (standings != null && standings.RacerCount > 1)
+        {
+            bool first = standings.PlayerFinishedFirst;
+            var line = new GUIStyle(centerHint) { fontSize = 14 };
+            line.normal.textColor = first ? new Color(1f, 0.86f, 0.25f) : new Color(1f, 1f, 1f, 0.45f);
+            GUI.Label(new Rect(box.x, box.y + 102, box.width, 20),
+                      first ? "◆ 선택 임무 달성 — 1위로 완주" : "선택 임무 — 1위로 완주 (미달성)", line);
+        }
+
+        GUI.Label(new Rect(box.x, box.y + 136, box.width, 20), "ENTER 를 누르면 다시 시작", centerHint);
     }
 }

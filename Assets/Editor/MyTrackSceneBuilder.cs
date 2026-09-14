@@ -54,6 +54,7 @@ public static class MyTrackSceneBuilder
 
         var tracker = rig.AddComponent<LapTracker>();
         tracker.kart = kart;
+        tracker.progress = kart.GetComponent<RaceProgress>();
         tracker.checkpointCount = 0;   // 맵이 정해지면 그때 체크포인트를 놓는다
         tracker.totalLaps = 3;
 
@@ -61,10 +62,14 @@ public static class MyTrackSceneBuilder
         switcher.kart = kart;
         switcher.kartCamera = kartCam;
 
+        var standings = rig.AddComponent<RaceStandings>();
+        standings.playerRacer = kart.GetComponent<RaceProgress>();
+
         var hud = rig.AddComponent<TestHUD>();
         hud.modeSwitcher = switcher;
         hud.kart = kart;
         hud.tracker = tracker;
+        hud.standings = standings;
 
         EditorSceneManager.SaveScene(scene, MyTrackPath);
         LobbySceneBuilder.RegisterScenes();

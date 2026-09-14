@@ -1,89 +1,107 @@
 using UnityEngine;
 
 /// <summary>
-/// 랩 카운트와 랩타임. 체크포인트를 순서대로 통과해야만 인정되기 때문에
-/// 역주행이나 지름길로 랩을 올릴 수 없다.
+/// 플레이어의 랩타임과 완주 판정. 랩을 세는 일 자체는 <see cref="RaceProgress"/> 가 하고,
+/// 여기서는 그 값이 바뀌는 순간을 지켜보며 시간을 찍는다.
+///
+/// 왜 나눠뒀냐면 — AI 카트도 랩을 세야 순위가 나오는데, 시계는 플레이어에게만 필요하다.
+/// 한 스크립트가 둘 다 하면 카트가 늘어날 때마다 꼬인다.
 /// </summary>
 public class LapTracker : MonoBehaviour
 {
+    [Header("연결")]
+    public KartController kart;
+    [Tooltip("플레이어 카트의 RaceProgress. 비워두면 kart 에서 찾는다")]
+    public RaceProgress progress;
+
     [Header("규칙")]
-    public int checkpointCount = 8;
+    public int checkpointCount = 12;
     public int totalLaps = 3;
 
     [Header("추락 처리")]
     [Tooltip("이 높이보다 아래로 떨어지면 마지막 체크포인트로 되돌린다")]
     public float killPlaneY = -8f;
 
-    public KartController kart;
-
     // --- HUD 가 읽어가는 값 ---
-    public int CurrentLap { get; private set; } = 1;
-    public int NextCheckpoint { get; private set; } = 1;
+    public int CurrentLap => progress != null ? progress.Lap : 1;
+    public bool Finished => progress != null && progress.Finished;
     public float LapTime { get; private set; }
     public float BestLapTime { get; private set; } = -1f;
-    public float TotalTime { get; private set; }
-    public bool Finished { get; private set; }
     public float LastLapTime { get; private set; } = -1f;
+    public float TotalTime { get; private set; }
 
-    Checkpoint lastPassed;
+    int watchedLap = 1;
+    bool watchedFinished;
+
+    void Awake()
+    {
+        if (progress == null && kart != null) progress = kart.GetComponent<RaceProgress>();
+        if (progress != null)
+        {
+            progress.totalCheckpoints = checkpointCount;
+            progress.totalLaps = totalLaps;
+            watchedLap = progress.Lap;
+        }
+    }
 
     void Update()
     {
-        if (Finished) return;
+        if (progress == null) return;
 
-        LapTime += Time.deltaTime;
-        TotalTime += Time.deltaTime;
+        if (!progress.Finished)
+        {
+            LapTime += Time.deltaTime;
+            TotalTime += Time.deltaTime;
+        }
+
+        // 랩이 넘어간 순간을 잡아서 시간을 찍는다
+        if (progress.Lap != watchedLap)
+        {
+            watchedLap = progress.Lap;
+            RecordLap();
+        }
+        else if (progress.Finished && !watchedFinished)
+        {
+            watchedFinished = true;
+            RecordLap();
+        }
 
         if (kart != null && kart.transform.position.y < killPlaneY)
             RespawnAtLastCheckpoint();
     }
 
-    public void PassCheckpoint(int index, Checkpoint checkpoint)
-    {
-        if (Finished) return;
-
-        // 순서가 안 맞으면 무시한다
-        if (index != NextCheckpoint) return;
-
-        lastPassed = checkpoint;
-        NextCheckpoint = (NextCheckpoint + 1) % Mathf.Max(1, checkpointCount);
-
-        // 0번(결승선)을 제대로 밟고 지나갔다면 한 바퀴 완주
-        if (index == 0) CompleteLap();
-    }
-
-    void CompleteLap()
+    void RecordLap()
     {
         LastLapTime = LapTime;
         if (BestLapTime < 0f || LapTime < BestLapTime) BestLapTime = LapTime;
         LapTime = 0f;
-
-        if (CurrentLap >= totalLaps) Finished = true;
-        else CurrentLap++;
     }
 
     void RespawnAtLastCheckpoint()
     {
         if (kart == null) return;
 
-        if (lastPassed != null && lastPassed.respawnPoint != null)
-            kart.RespawnAt(lastPassed.respawnPoint.position + Vector3.up * 0.6f,
-                           lastPassed.respawnPoint.rotation);
+        var last = progress != null ? progress.LastPassed : null;
+        if (last != null && last.respawnPoint != null)
+            kart.RespawnAt(last.respawnPoint.position + Vector3.up * 0.6f, last.respawnPoint.rotation);
         else
             kart.Respawn();
     }
 
     public void ResetRace()
     {
-        CurrentLap = 1;
-        NextCheckpoint = 1;
         LapTime = 0f;
         TotalTime = 0f;
         BestLapTime = -1f;
         LastLapTime = -1f;
-        Finished = false;
-        lastPassed = null;
+        watchedLap = 1;
+        watchedFinished = false;
+
+        if (progress != null) progress.ResetRace();
         if (kart != null) kart.Respawn();
+
+        var standings = FindFirstObjectByType<RaceStandings>();
+        if (standings != null) standings.ResetRace();
     }
 
     public static string FormatTime(float seconds)

@@ -15,6 +15,8 @@ public class ExhibitPickup : MonoBehaviour
     [Header("무엇을 주우나")]
     [Tooltip("ExhibitCatalogue 의 id 와 같아야 전시실에 들어간다")]
     public string itemId = "";
+    [Tooltip("이 장을 진행 중일 때만 트랙에 나타난다. 0 프롤로그 · 1~3 메인 · 4 마지막 장")]
+    public int chapter = 1;
 
     [Header("아직 안 주웠을 때")]
     [Tooltip("돌면서 위아래로 떠다니는 부분. 주우면 사라진다")]
@@ -48,7 +50,11 @@ public class ExhibitPickup : MonoBehaviour
         GetComponent<Collider>().isTrigger = true;
         if (visual != null) visualHome = visual.localPosition;
 
-        // 이미 모은 것은 트랙에 나타나지 않는다
+        // 이번 장의 물건이 아니면 트랙에 안 나온다.
+        // 여덟 개를 한꺼번에 깔아두면 한 바퀴에 다 주워버려서, 장마다 얻는 구조가 무너진다.
+        if (chapter != StoryProgress.CurrentChapter) { gameObject.SetActive(false); return; }
+
+        // 이미 모은 것도 안 나온다. 같은 걸 두 번 주울 이유가 없으니까.
         if (CollectionState.Has(itemId)) gameObject.SetActive(false);
     }
 
@@ -65,7 +71,11 @@ public class ExhibitPickup : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         if (taken) return;
-        if (other.GetComponentInParent<KartController>() == null) return;
+
+        // 플레이어 카트만 줍는다. AI 가 이야기 증거를 먼저 가져가면
+        // 플레이어가 챕터를 넘길 수 없게 막혀버린다.
+        if (other.GetComponentInParent<PlayerKart>() == null) return;
+
         Take();
     }
 

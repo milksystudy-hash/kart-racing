@@ -145,8 +145,12 @@ public static class TestSceneBuilder
 
         var tracker = rig.AddComponent<LapTracker>();
         tracker.kart = kart;
+        tracker.progress = kart.GetComponent<RaceProgress>();
         tracker.checkpointCount = track.checkpointCount;
         tracker.totalLaps = 3;
+
+        var standings = rig.AddComponent<RaceStandings>();
+        standings.playerRacer = kart.GetComponent<RaceProgress>();
 
         var switcher = rig.AddComponent<PlayerModeSwitcher>();
         switcher.kart = kart;
@@ -156,6 +160,7 @@ public static class TestSceneBuilder
         hud.modeSwitcher = switcher;
         hud.kart = kart;
         hud.tracker = tracker;
+        hud.standings = standings;
 
         EditorSceneManager.SaveScene(scene, TrackPath);
     }
@@ -164,10 +169,11 @@ public static class TestSceneBuilder
     //  트랙 위 수집품
     // ==================================================================
     /// <summary>
-    /// 전시품 여덟 점을 코스를 따라 흩어 놓는다. 카트가 지나가면 전시실에 영구히 등록된다.
+    /// 전시품을 코스에 놓는다. 여덟 개를 전부 깔지만 **그 장의 것만 실제로 나타난다** —
+    /// 한 경기에 하나씩 얻는 구조라, 한꺼번에 깔면 한 바퀴에 다 먹어버린다.
     ///
-    /// 좌우로 번갈아 놓아서, 한 바퀴에 전부 줍기보다 **선을 골라야** 하게 만들었다 —
-    /// 안쪽 지름길로 가면 바깥 것을 놓친다. 그게 코스를 여러 번 돌 이유가 된다.
+    /// 장마다 두 점씩이고, 그 둘은 코스 반대편에 놓는다. 좌우로도 번갈아 놓아서
+    /// 안쪽 지름길로 가면 바깥 것을 놓치게 했다 — 선을 골라야 하는 이유가 된다.
     /// </summary>
     static void MakeExhibitPickups(TrackBuilder track)
     {
@@ -176,7 +182,16 @@ public static class TestSceneBuilder
         for (int i = 0; i < ExhibitCatalogue.Count; i++)
         {
             var item = ExhibitCatalogue.All[i];
-            float t = (i + 0.5f) / ExhibitCatalogue.Count;
+
+            // 같은 장의 물건끼리 코스에 고르게 퍼지도록, 장 안에서의 순번으로 위치를 잡는다
+            int inChapter = 0, chapterTotal = 0;
+            for (int j = 0; j < ExhibitCatalogue.Count; j++)
+            {
+                if (ExhibitCatalogue.All[j].chapterIndex != item.chapterIndex) continue;
+                if (j < i) inChapter++;
+                chapterTotal++;
+            }
+            float t = (inChapter + 0.5f) / Mathf.Max(1, chapterTotal);
 
             Vector3 on = track.PointOnPath(t);
             Vector3 side = Vector3.Cross(Vector3.up, track.TangentOnPath(t));
@@ -210,6 +225,7 @@ public static class TestSceneBuilder
 
             var pickup = go.AddComponent<ExhibitPickup>();
             pickup.itemId = item.id;
+            pickup.chapter = item.chapterIndex;
             pickup.visual = visual;
             pickup.idleLight = idle;
         }
@@ -301,7 +317,8 @@ public static class TestSceneBuilder
         return cam;
     }
 
-    public static KartController MakeKart(Vector3 position, Quaternion rotation)
+    /// <summary>isPlayer 가 false 면 AI 카트다 — 이야기 수집품을 줍지 못한다.</summary>
+    public static KartController MakeKart(Vector3 position, Quaternion rotation, bool isPlayer = true)
     {
         var go = new GameObject("Kart");
         go.transform.SetPositionAndRotation(position, rotation);
@@ -339,6 +356,13 @@ public static class TestSceneBuilder
         Capsule(driver, "Torso", new Vector3(0f, 0.33f, -0.10f), new Vector3(0.34f, 0.26f, 0.34f), ColRefSage, false);
         Primitive(driver, PrimitiveType.Sphere, "Head", new Vector3(0f, 0.76f, -0.10f),
                   new Vector3(0.42f, 0.42f, 0.42f), ColSkin, false);
+
+        // 이야기 수집품은 이 표시가 붙은 카트만 주울 수 있다. AI 카트에는 안 붙인다.
+        if (isPlayer) go.AddComponent<PlayerKart>();
+
+        // 순위 계산용. 플레이어든 AI 든 한 대씩 달고 다닌다.
+        var progress = go.AddComponent<RaceProgress>();
+        progress.racerName = isPlayer ? "나" : go.name;
 
         var kart = go.AddComponent<KartController>();
         kart.visual = visual;
