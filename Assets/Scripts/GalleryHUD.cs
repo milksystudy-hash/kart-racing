@@ -98,16 +98,22 @@ public class GalleryHUD : MonoBehaviour
 
     void DrawProgress()
     {
-        GUI.DrawTexture(new Rect(16, 16, 250, 84), panelTex);
-        GUI.Label(new Rect(30, 22, 220, 26), "전시실", titleStyle);
+        // 제목과 숫자를 같은 줄 양끝에 두고, 설명과 막대를 그 아래로 내린다.
+        // 예전엔 세로로 쌓았는데 한글 폰트가 22px 에서 줄높이를 넘겨서 글자가 겹쳤다.
+        const float x = 16f, y = 16f, w = 256f, h = 88f;
+        GUI.DrawTexture(new Rect(x, y, w, h), panelTex);
 
         int got = selector != null ? selector.CollectedCount : 0;
         int total = selector != null ? Mathf.Max(1, selector.TotalCount) : 1;
 
-        GUI.Label(new Rect(30, 50, 220, 14), "모은 전시품", labelStyle);
-        GUI.Label(new Rect(30, 62, 220, 24), $"{got} / {total}", valueStyle);
+        GUI.Label(new Rect(x + 16, y + 10, 140, 32), "전시실", titleStyle);
 
-        var bar = new Rect(30, 88, 220, 6);
+        var countStyle = new GUIStyle(valueStyle) { alignment = TextAnchor.MiddleRight };
+        GUI.Label(new Rect(x + 150, y + 12, w - 166, 28), $"{got} / {total}", countStyle);
+
+        GUI.Label(new Rect(x + 16, y + 46, w - 32, 18), "모은 전시품", labelStyle);
+
+        var bar = new Rect(x + 16, y + 70, w - 32, 6);
         GUI.DrawTexture(bar, dimTex);
         GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * ((float)got / total), bar.height), accentTex);
     }

@@ -18,7 +18,7 @@ public class TestHUD : MonoBehaviour
     [Header("폰트 (비워 두면 OS 한글 폰트를 쓴다)")]
     public Font uiFont;
 
-    Texture2D panelTex, barBgTex, barFillTex, accentTex;
+    Texture2D panelTex, barBgTex, barFillTex, accentTex, pickupTex;
     GUIStyle bigStyle, labelStyle, valueStyle, hintStyle, centerHint;
     bool stylesReady;
 
@@ -30,6 +30,7 @@ public class TestHUD : MonoBehaviour
         barBgTex   = Solid(new Color(1f, 1f, 1f, 0.16f));
         barFillTex = Solid(new Color(0.61f, 0.77f, 0.54f, 0.95f));
         accentTex  = Solid(new Color(0.85f, 0.55f, 0.42f, 0.95f));
+        pickupTex  = Solid(new Color(1f, 0.86f, 0.25f, 0.95f));
     }
 
     void Update()
@@ -81,6 +82,7 @@ public class TestHUD : MonoBehaviour
 
         DrawStatusPanel();
         if (InKart) DrawRacePanels(w, h);
+        DrawPickupToast(w, h);
         DrawControlsLine(w, h);
         DrawCrosshair(w, h);
         if (tracker != null && tracker.Finished && InKart) DrawFinish(w, h);
@@ -154,6 +156,23 @@ public class TestHUD : MonoBehaviour
         keys += "     F1·F2 씬 이동     ESC 커서";
 
         GUI.Label(new Rect(0, h - 26, w, 20), keys, centerHint);
+    }
+
+    /// <summary>수집품을 주우면 잠깐 뜨는 안내. 전광등만으로는 뭘 주웠는지 모르니까.</summary>
+    void DrawPickupToast(float w, float h)
+    {
+        const float showSeconds = 3f;
+        float age = Time.time - ExhibitPickup.LastMessageTime;
+        if (age > showSeconds || string.IsNullOrEmpty(ExhibitPickup.LastMessage)) return;
+
+        var box = new Rect(w * 0.5f - 210, h * 0.16f, 420, 46);
+        GUI.DrawTexture(box, panelTex);
+
+        // 노란 띠 — 전광등과 같은 색이라 둘이 한 사건으로 읽힌다
+        GUI.DrawTexture(new Rect(box.x, box.y, 5f, box.height), pickupTex);
+
+        var style = new GUIStyle(valueStyle) { alignment = TextAnchor.MiddleCenter, fontSize = 17 };
+        GUI.Label(box, ExhibitPickup.LastMessage, style);
     }
 
     void DrawCrosshair(float w, float h)

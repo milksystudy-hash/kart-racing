@@ -24,39 +24,26 @@ public static class GallerySceneBuilder
     const float WallHeight = 6.5f;
     const float CaseRadius = 8.2f;
 
-    // 로비와 같은 재료 — 같은 건물 안이니까
-    static readonly Color ColFloor     = new Color32(0xC6, 0xC0, 0xB2, 0xFF);
-    static readonly Color ColFloorTrim = new Color32(0x8A, 0x6A, 0x48, 0xFF);
-    static readonly Color ColWallCream = new Color32(0xEF, 0xE7, 0xD6, 0xFF);
-    static readonly Color ColWallMint  = new Color32(0xB4, 0xCD, 0xBC, 0xFF);
-    static readonly Color ColWoodDark  = new Color32(0x6B, 0x4A, 0x33, 0xFF);
-    static readonly Color ColRoofTeal  = new Color32(0x4E, 0x7A, 0x70, 0xFF);
-    static readonly Color ColStone     = new Color32(0xB0, 0xAC, 0xA0, 0xFF);
+    // 전시실은 로비보다 어둡다. 어두운 방에 전시품만 밝게 떠 있어야 박물관처럼 보인다.
+    // 벽은 기획서 §4.4 가 지정한 짙은 남색 — 밝은 벽은 조명 웅덩이를 지워버린다.
+    static readonly Color ColFloor     = new Color32(0x7A, 0x74, 0x6A, 0xFF);
+    static readonly Color ColFloorTrim = new Color32(0x4A, 0x38, 0x28, 0xFF);
+    static readonly Color ColWallNavy  = new Color32(0x3E, 0x4A, 0x6B, 0xFF);
+    static readonly Color ColWallPanel = new Color32(0x31, 0x3B, 0x56, 0xFF);
+    static readonly Color ColWoodDark  = new Color32(0x4E, 0x36, 0x26, 0xFF);
+    static readonly Color ColRoofTeal  = new Color32(0x33, 0x52, 0x4C, 0xFF);
+    static readonly Color ColStone     = new Color32(0x96, 0x92, 0x88, 0xFF);
     static readonly Color ColLantern   = new Color32(0xF5, 0xC0, 0x69, 0xFF);
-    static readonly Color ColCaseGlass = new Color32(0xD6, 0xE4, 0xDC, 0xFF);
+    static readonly Color ColCaseGlass = new Color32(0xE8, 0xEF, 0xE8, 0xFF);
+    static readonly Color ColFixture   = new Color32(0x1E, 0x20, 0x24, 0xFF);
+    // 번호 스티커용 — 본관 박공의 곰 얼굴과 같은 색
+    static readonly Color ColBearFace  = new Color32(0xE6, 0xDA, 0xC4, 0xFF);
+    static readonly Color ColBearFur   = new Color32(0xA5, 0x75, 0x4A, 0xFF);
+    static readonly Color ColRibbon    = new Color32(0xC4, 0x45, 0x3E, 0xFF);
+    static readonly Color ColNumber    = new Color32(0x4A, 0x33, 0x26, 0xFF);
 
-    enum Shape { 원반, 종이, 상자 }
-
-    /// <summary>전시품 목록. 전부 기획서의 줄거리에서 나오는 물건들이다.</summary>
-    static readonly (string id, string name, string chapter, Shape shape, string desc)[] Items =
-    {
-        ("coin",      "기념 코인",        "제1장 · 사라진 관람객", Shape.원반,
-         "박물관 입장 때 나눠주던 코인. 뒷면에 관람 일자가 찍혀 있어서, 모으면 그날 누가 다녀갔는지가 드러난다."),
-        ("ledger",    "관람 기록부",      "제1장 · 사라진 관람객", Shape.종이,
-         "코인에서 복원한 방문객 명단. 시에서 발표한 관람객 수보다 훨씬 많은 이름이 적혀 있었다."),
-        ("survey",    "안전진단서 원본",  "제2장 · 조작된 안전진단", Shape.종이,
-         "원본의 결론은 '보수 필요' 였다. 공개된 사본에는 '즉시 철거' 로 바뀌어 있었다."),
-        ("marker",    "붉은 철거 표식",   "제2장 · 조작된 안전진단", Shape.상자,
-         "개발업자 측이 트랙에 세워 둔 표식. 부딪혀 뜯어보니 안쪽에 서류 조각이 접혀 있었다."),
-        ("signature", "관장의 서명",      "제3장 · 관장의 서명",    Shape.종이,
-         "조건부 매각 문서에 남은 서명. 비리를 계획하지는 않았지만, 사실을 숨긴 대가가 여기 남았다."),
-        ("contract",  "비밀 계약서",      "제3장 · 관장의 서명",    Shape.종이,
-         "시의원과 개발업자 사이의 이면 계약. 선거 지원과 이권이 항목으로 적혀 있다."),
-        ("recorder",  "중계 기록 장치",   "마지막 장 · 철거 전야",  Shape.상자,
-         "어두워진 트랙을 가로질러 결승선까지 옮긴 장치. 이것으로 전말이 시 전역에 생중계됐다."),
-        ("blueprint", "골든베어 조감도",  "프롤로그 · 철거 통지서", Shape.종이,
-         "박물관 자리에 세우려던 리조트 조감도. 없애지 않고 전시실에 남겨 두기로 했다."),
-    };
+    // 전시품 목록은 ExhibitCatalogue 하나로 모았다.
+    // 트랙에 놓는 수집품도 같은 목록을 읽어서, 주운 물건과 진열장이 어긋날 수가 없다.
 
     [MenuItem("Racing/전시실 씬 만들기")]
     public static void BuildGallery()
@@ -64,7 +51,7 @@ public static class GallerySceneBuilder
         Directory.CreateDirectory(SceneFolder);
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-        TestSceneBuilder.MakeSun();
+        MakeGalleryLighting();
         MakeHall();
         MakeLanterns();
 
@@ -88,6 +75,152 @@ public static class GallerySceneBuilder
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log("[Racing] Gallery.unity 생성 완료. F1 로비 / F2 트랙 / F3 전시실 / F4 테스트베드.");
+    }
+
+    // ==================================================================
+    //  조명 — 박물관 전시실의 핵심
+    // ==================================================================
+    /// <summary>
+    /// 방 전체를 밝히지 않는다. 어둡게 깔고 전시품 위에만 빛을 떨어뜨린다 —
+    /// 실제 박물관이 그렇게 하는 이유는 시선이 유물로 모이기 때문이야.
+    ///
+    /// 그림자는 끈다. 기획서 §7.6 이 "실시간 그림자는 주요 조명 하나만" 이라고 정해뒀고,
+    /// 웅덩이 느낌은 스포트 원뿔에서 나오지 그림자에서 나오는 게 아니다.
+    /// </summary>
+    static void MakeGalleryLighting()
+    {
+        // 천장 너머로 스며드는 차가운 빛. 형태만 겨우 보이는 정도.
+        var go = new GameObject("Skylight");
+        var light = go.AddComponent<Light>();
+        light.type = LightType.Directional;
+        light.color = new Color(0.74f, 0.79f, 0.90f);
+        light.intensity = 0.85f;
+        light.shadows = LightShadows.None;
+        go.transform.rotation = Quaternion.Euler(72f, 18f, 0f);
+
+        // 방이 보일 만큼은 밝게. 박물관은 어둑하지만 동굴은 아니다 —
+        // 전시품이 도드라지는 건 방이 캄캄해서가 아니라 스포트가 더 밝아서야.
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor     = new Color(0.40f, 0.43f, 0.52f);
+        RenderSettings.ambientEquatorColor = new Color(0.30f, 0.31f, 0.36f);
+        RenderSettings.ambientGroundColor  = new Color(0.18f, 0.17f, 0.18f);
+        RenderSettings.fog = false;
+    }
+
+    /// <summary>진열장 바로 위에서 떨어지는 따뜻한 조명 한 점.</summary>
+    static void MakeCaseLight(Transform parent)
+    {
+        // 레일 조명 기구 — 빛만 허공에 떠 있으면 어색하다
+        TestSceneBuilder.Cube(parent, "Fixture", new Vector3(0f, 4.35f, 0f),
+                              new Vector3(0.22f, 0.3f, 0.22f), ColFixture, keepCollider: false);
+
+        var go = new GameObject("CaseLight");
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = new Vector3(0f, 4.15f, 0f);
+        go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);   // 똑바로 아래로
+
+        var spot = go.AddComponent<Light>();
+        spot.type = LightType.Spot;
+        spot.color = new Color(1f, 0.87f, 0.68f);
+        spot.intensity = 26f;
+        spot.range = 7.5f;
+        spot.spotAngle = 40f;
+        spot.innerSpotAngle = 16f;
+        spot.shadows = LightShadows.None;
+    }
+
+    // ==================================================================
+    //  번호 스티커
+    // ==================================================================
+    /// <summary>
+    /// 진열장 앞에 붙는 곰 얼굴 배지. 가운데에 1~8 번호가 찍혀 있다.
+    /// 나중에 전시품을 넣을 때 "몇 번 진열장" 인지 바로 알아보라고 붙인 것.
+    ///
+    /// 숫자는 글꼴 대신 **막대 일곱 개(7세그먼트)** 로 그린다. URP 에서 옛날 TextMesh 는
+    /// 셰이더가 없어서 자홍색으로 깨지는 일이 있는데, 도형으로 그리면 그 위험이 아예 없다.
+    ///
+    /// 네가 그린 진짜 2D 스티커로 바꾸려면 이 `NumberSticker` 오브젝트를 지우고
+    /// 같은 자리에 이미지 평면을 넣으면 된다.
+    /// </summary>
+    static void MakeNumberSticker(Transform parent, int number)
+    {
+        var root = new GameObject("NumberSticker").transform;
+        root.SetParent(parent, false);
+        root.localPosition = new Vector3(0f, 0.72f, 0.57f);   // 받침대 앞면
+
+        // 귀는 얼굴 뒤로 살짝 물러나 있어야 삐져나온 것처럼 보인다
+        FacingDisc(root, "Ear_L", new Vector3(-0.135f, 0.135f, -0.003f), 0.15f, ColBearFur);
+        FacingDisc(root, "Ear_R", new Vector3( 0.135f, 0.135f, -0.003f), 0.15f, ColBearFur);
+        FacingDisc(root, "Face",  Vector3.zero, 0.38f, ColBearFace);
+
+        MakeSevenSegment(root, number, new Vector3(0f, 0.015f, 0.012f));
+
+        // 본관 곰의 그 빨간 리본
+        TestSceneBuilder.Cube(root, "Bow_L", new Vector3(-0.055f, -0.155f, 0.008f),
+                              new Vector3(0.07f, 0.05f, 0.02f), ColRibbon, keepCollider: false);
+        TestSceneBuilder.Cube(root, "Bow_R", new Vector3( 0.055f, -0.155f, 0.008f),
+                              new Vector3(0.07f, 0.05f, 0.02f), ColRibbon, keepCollider: false);
+        TestSceneBuilder.Cube(root, "Bow_Knot", new Vector3(0f, -0.155f, 0.012f),
+                              new Vector3(0.035f, 0.035f, 0.02f), ColRibbon, keepCollider: false);
+    }
+
+    /// <summary>보는 쪽(+Z)을 향하는 납작한 원반. 원기둥을 눕혀서 만든다.</summary>
+    static void FacingDisc(Transform parent, string name, Vector3 localPosition,
+                           float diameter, Color color)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        go.name = name;
+        Object.DestroyImmediate(go.GetComponent<Collider>());
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPosition;
+        go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);   // 원기둥 축을 +Z 로
+        go.transform.localScale = new Vector3(diameter, 0.008f, diameter);
+        go.GetComponent<Renderer>().sharedMaterial = TestSceneBuilder.MaterialAsset(color);
+    }
+
+    /// <summary>
+    /// 계산기 숫자처럼 막대 일곱 개로 1~8 을 그린다.
+    ///   a 위 · b 오른위 · c 오른아래 · d 아래 · e 왼아래 · f 왼위 · g 가운데
+    /// </summary>
+    static void MakeSevenSegment(Transform parent, int digit, Vector3 origin)
+    {
+        bool[] on = digit switch
+        {                //  a      b      c      d      e      f      g
+            1 => new[] { false, true,  true,  false, false, false, false },
+            2 => new[] { true,  true,  false, true,  true,  false, true  },
+            3 => new[] { true,  true,  true,  true,  false, false, true  },
+            4 => new[] { false, true,  true,  false, false, true,  true  },
+            5 => new[] { true,  false, true,  true,  false, true,  true  },
+            6 => new[] { true,  false, true,  true,  true,  true,  true  },
+            7 => new[] { true,  true,  true,  false, false, false, false },
+            _ => new[] { true,  true,  true,  true,  true,  true,  true  },   // 8
+        };
+
+        Vector3[] offsets =
+        {
+            new Vector3( 0f,     0.065f, 0f),   // a
+            new Vector3( 0.043f, 0.033f, 0f),   // b
+            new Vector3( 0.043f,-0.033f, 0f),   // c
+            new Vector3( 0f,    -0.065f, 0f),   // d
+            new Vector3(-0.043f,-0.033f, 0f),   // e
+            new Vector3(-0.043f, 0.033f, 0f),   // f
+            new Vector3( 0f,     0f,     0f),   // g
+        };
+        Vector3 horizontal = new Vector3(0.085f, 0.022f, 0.012f);
+        Vector3 vertical   = new Vector3(0.022f, 0.070f, 0.012f);
+        string[] names = { "a", "b", "c", "d", "e", "f", "g" };
+
+        var root = new GameObject($"Digit_{digit}").transform;
+        root.SetParent(parent, false);
+        root.localPosition = origin;
+
+        for (int i = 0; i < 7; i++)
+        {
+            if (!on[i]) continue;
+            bool isHorizontal = i == 0 || i == 3 || i == 6;
+            TestSceneBuilder.Cube(root, names[i], offsets[i],
+                                  isHorizontal ? horizontal : vertical, ColNumber, keepCollider: false);
+        }
     }
 
     // ==================================================================
@@ -133,14 +266,14 @@ public static class GallerySceneBuilder
     static void Wall(Transform parent, string name, Vector3 basePosition, Vector2 footprint)
     {
         var go = TestSceneBuilder.Cube(parent, name, basePosition + Vector3.up * (WallHeight * 0.5f),
-                                       new Vector3(footprint.x, WallHeight, footprint.y), ColWallCream);
+                                       new Vector3(footprint.x, WallHeight, footprint.y), ColWallNavy);
         go.isStatic = true;
 
         bool alongX = footprint.x > footprint.y;
         Vector3 panel = alongX ? new Vector3(footprint.x - 1.5f, 2.1f, footprint.y + 0.12f)
                                : new Vector3(footprint.x + 0.12f, 2.1f, footprint.y - 1.5f);
         TestSceneBuilder.Cube(parent, name + "_Panel", basePosition + Vector3.up * 1.55f, panel,
-                              ColWallMint, keepCollider: false).isStatic = true;
+                              ColWallPanel, keepCollider: false).isStatic = true;
 
         // 벽 위 청록 기와 띠
         Vector3 cap = alongX ? new Vector3(footprint.x + 1.2f, 0.25f, footprint.y + 1.2f)
@@ -187,8 +320,8 @@ public static class GallerySceneBuilder
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Point;
             light.color = new Color(1f, 0.85f, 0.6f);
-            light.intensity = 2f;
-            light.range = 10f;
+            light.intensity = 1.8f;
+            light.range = 7f;
             light.shadows = LightShadows.None;
         }
     }
@@ -199,12 +332,12 @@ public static class GallerySceneBuilder
     static GalleryCase[] MakeCases()
     {
         var root = new GameObject("DisplayCases").transform;
-        var result = new GalleryCase[Items.Length];
+        var result = new GalleryCase[ExhibitCatalogue.Count];
 
-        for (int i = 0; i < Items.Length; i++)
+        for (int i = 0; i < ExhibitCatalogue.Count; i++)
         {
-            var item = Items[i];
-            float angle = ((float)i / Items.Length) * Mathf.PI * 2f + Mathf.PI * 0.5f;
+            var item = ExhibitCatalogue.All[i];
+            float angle = ((float)i / ExhibitCatalogue.Count) * Mathf.PI * 2f + Mathf.PI * 0.5f;
             Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * CaseRadius;
 
             var go = new GameObject($"Case_{i + 1}_{item.id}");
@@ -216,6 +349,9 @@ public static class GallerySceneBuilder
             pick.size = new Vector3(1.5f, 2.6f, 1.5f);
             pick.center = new Vector3(0f, 1.3f, 0f);
             pick.isTrigger = true;
+
+            MakeCaseLight(go.transform);
+            MakeNumberSticker(go.transform, i + 1);
 
             TestSceneBuilder.Cube(go.transform, "Base", new Vector3(0f, 0.5f, 0f),
                                   new Vector3(1.1f, 1f, 1.1f), ColWoodDark, keepCollider: false);
@@ -231,8 +367,8 @@ public static class GallerySceneBuilder
                                   new Vector3(1.06f, 0.1f, 1.06f), ColCaseGlass, keepCollider: false);
 
             // 명판 — 마우스를 올리면 색이 바뀌는 부분
-            var plaque = TestSceneBuilder.Cube(go.transform, "Plaque", new Vector3(0f, 0.62f, 0.58f),
-                                               new Vector3(0.8f, 0.26f, 0.06f), ColWallMint,
+            var plaque = TestSceneBuilder.Cube(go.transform, "Plaque", new Vector3(0f, 0.28f, 0.58f),
+                                               new Vector3(0.8f, 0.22f, 0.06f), ColWallPanel,
                                                keepCollider: false);
 
             var anchor = new GameObject("ItemAnchor").transform;
@@ -245,7 +381,7 @@ public static class GallerySceneBuilder
             display.itemId = item.id;
             display.displayName = item.name;
             display.chapter = item.chapter;
-            display.description = item.desc;
+            display.description = item.description;
             display.itemAnchor = anchor;
             display.placeholder = placeholder;
             display.itemRenderer = placeholder.GetComponent<Renderer>();
@@ -257,11 +393,11 @@ public static class GallerySceneBuilder
     }
 
     /// <summary>전시품 임시 모양. 물건 종류가 눈으로 구분되게 셋으로 나눴다.</summary>
-    static GameObject MakePlaceholder(Transform parent, Shape shape)
+    static GameObject MakePlaceholder(Transform parent, ExhibitCatalogue.Shape shape)
     {
         switch (shape)
         {
-            case Shape.원반:
+            case ExhibitCatalogue.Shape.원반:
                 var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 disc.name = "Placeholder";
                 Object.DestroyImmediate(disc.GetComponent<Collider>());
@@ -272,7 +408,7 @@ public static class GallerySceneBuilder
                 disc.GetComponent<Renderer>().sharedMaterial = TestSceneBuilder.MaterialAsset(Color.grey);
                 return disc;
 
-            case Shape.종이:
+            case ExhibitCatalogue.Shape.종이:
                 return TestSceneBuilder.Cube(parent, "Placeholder", new Vector3(0f, 0.03f, 0f),
                                              new Vector3(0.44f, 0.04f, 0.6f), Color.grey,
                                              keepCollider: false);

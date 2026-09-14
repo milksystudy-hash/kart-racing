@@ -21,6 +21,7 @@ public static class LobbySceneBuilder
     const string TrackPath   = SceneFolder + "/Track.unity";
     const string GalleryPath = SceneFolder + "/Gallery.unity";
     const string TestbedPath = SceneFolder + "/Testbed.unity";
+    const string MyTrackPath = SceneFolder + "/MyTrack.unity";
 
     // ---- 홀 크기 ----
     const float HallWidth = 36f;   // X
@@ -105,7 +106,7 @@ public static class LobbySceneBuilder
     public static void RegisterScenes()
     {
         var list = new System.Collections.Generic.List<EditorBuildSettingsScene>();
-        foreach (var path in new[] { LobbyPath, TrackPath, GalleryPath, TestbedPath })
+        foreach (var path in new[] { LobbyPath, TrackPath, GalleryPath, TestbedPath, MyTrackPath })
             if (File.Exists(path)) list.Add(new EditorBuildSettingsScene(path, true));
 
         EditorBuildSettings.scenes = list.ToArray();

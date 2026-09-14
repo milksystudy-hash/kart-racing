@@ -31,6 +31,9 @@ public static class TestSceneBuilder
     static readonly Color ColSeat     = new Color32(0x6E, 0x73, 0x70, 0xFF);
     static readonly Color ColTire     = new Color32(0x2B, 0x2D, 0x2B, 0xFF);
     static readonly Color ColSkin     = new Color32(0xEF, 0xE0, 0xBE, 0xFF);
+    // 트랙 위 수집품 — 노란 신호색
+    static readonly Color ColPickupGlow = new Color32(0xFF, 0xDB, 0x40, 0xFF);
+    static readonly Color ColPickupItem = new Color32(0xF2, 0xE4, 0xC0, 0xFF);
 
     [MenuItem("Racing/테스트 씬 두 개 다시 만들기")]
     public static void BuildAll()
@@ -132,6 +135,8 @@ public static class TestSceneBuilder
         // 레이스 씬에는 걸어다니는 플레이어를 두지 않는다.
         // 맵을 걸어서 확인하고 싶으면 Testbed 씬(F3)을 쓰면 돼.
 
+        MakeExhibitPickups(track);
+
         // 평균 14 m/s 는 최고속 22 에서 코너 감속을 감안한 어림값
         Debug.Log($"[Racing] 트랙 한 바퀴 {track.LapLength:0} m · 약 {track.LapLength / 14f:0} 초/랩 예상");
 
@@ -153,6 +158,87 @@ public static class TestSceneBuilder
         hud.tracker = tracker;
 
         EditorSceneManager.SaveScene(scene, TrackPath);
+    }
+
+    // ==================================================================
+    //  트랙 위 수집품
+    // ==================================================================
+    /// <summary>
+    /// 전시품 여덟 점을 코스를 따라 흩어 놓는다. 카트가 지나가면 전시실에 영구히 등록된다.
+    ///
+    /// 좌우로 번갈아 놓아서, 한 바퀴에 전부 줍기보다 **선을 골라야** 하게 만들었다 —
+    /// 안쪽 지름길로 가면 바깥 것을 놓친다. 그게 코스를 여러 번 돌 이유가 된다.
+    /// </summary>
+    static void MakeExhibitPickups(TrackBuilder track)
+    {
+        var root = new GameObject("ExhibitPickups").transform;
+
+        for (int i = 0; i < ExhibitCatalogue.Count; i++)
+        {
+            var item = ExhibitCatalogue.All[i];
+            float t = (i + 0.5f) / ExhibitCatalogue.Count;
+
+            Vector3 on = track.PointOnPath(t);
+            Vector3 side = Vector3.Cross(Vector3.up, track.TangentOnPath(t));
+            float lane = (i % 2 == 0 ? 1f : -1f) * track.WidthOnPath(t) * 0.26f;
+
+            var go = new GameObject($"Pickup_{i + 1}_{item.id}");
+            go.transform.SetParent(root, false);
+            go.transform.position = on + side * lane + Vector3.up * 1.1f;
+
+            var trigger = go.AddComponent<SphereCollider>();
+            trigger.isTrigger = true;
+            trigger.radius = 2.2f;
+
+            // 돌면서 떠다니는 부분. 주우면 이것만 사라지고 전광등이 올라온다.
+            var visual = new GameObject("Visual").transform;
+            visual.SetParent(go.transform, false);
+            MakePickupShape(visual, item.shape);
+
+            // 멀리서도 보이라고 발밑에 노란 고리
+            Capsule(visual, "Glow", new Vector3(0f, -0.55f, 0f),
+                    new Vector3(0.9f, 0.06f, 0.9f), ColPickupGlow, keepCollider: false);
+
+            var lightGo = new GameObject("IdleLight");
+            lightGo.transform.SetParent(go.transform, false);
+            var idle = lightGo.AddComponent<Light>();
+            idle.type = LightType.Point;
+            idle.color = ColPickupGlow;
+            idle.range = 9f;
+            idle.intensity = 3.2f;
+            idle.shadows = LightShadows.None;
+
+            var pickup = go.AddComponent<ExhibitPickup>();
+            pickup.itemId = item.id;
+            pickup.visual = visual;
+            pickup.idleLight = idle;
+        }
+    }
+
+    static void MakePickupShape(Transform parent, ExhibitCatalogue.Shape shape)
+    {
+        switch (shape)
+        {
+            case ExhibitCatalogue.Shape.원반:
+                var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                disc.name = "Shape";
+                Object.DestroyImmediate(disc.GetComponent<Collider>());
+                disc.transform.SetParent(parent, false);
+                disc.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                disc.transform.localScale = new Vector3(0.8f, 0.06f, 0.8f);
+                disc.GetComponent<Renderer>().sharedMaterial = MaterialAsset(ColPickupItem);
+                break;
+
+            case ExhibitCatalogue.Shape.종이:
+                Cube(parent, "Shape", Vector3.zero, new Vector3(0.62f, 0.08f, 0.82f),
+                     ColPickupItem, keepCollider: false);
+                break;
+
+            default:
+                Cube(parent, "Shape", Vector3.zero, new Vector3(0.55f, 0.5f, 0.42f),
+                     ColPickupItem, keepCollider: false);
+                break;
+        }
     }
 
     // ==================================================================
@@ -215,7 +301,7 @@ public static class TestSceneBuilder
         return cam;
     }
 
-    static KartController MakeKart(Vector3 position, Quaternion rotation)
+    public static KartController MakeKart(Vector3 position, Quaternion rotation)
     {
         var go = new GameObject("Kart");
         go.transform.SetPositionAndRotation(position, rotation);
@@ -262,7 +348,7 @@ public static class TestSceneBuilder
         return kart;
     }
 
-    static KartCamera MakeKartCamera(KartController kart)
+    public static KartCamera MakeKartCamera(KartController kart)
     {
         var go = new GameObject("KartCamera");
         SetUpCamera(go);
