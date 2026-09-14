@@ -10,7 +10,6 @@ public class LobbyHUD : MonoBehaviour
 {
     public LobbySelector selector;
     public StartGate gate;
-    public FirstPersonController player;
 
     [Header("폰트 (비워 두면 OS 한글 폰트를 쓴다)")]
     public Font uiFont;
@@ -82,7 +81,7 @@ public class LobbyHUD : MonoBehaviour
         }
 
         // ---------- 출발문 ----------
-        if (gate != null && gate.PlayerInside)
+        if (gate != null && (gate.Hovered || gate.CountingDown))
         {
             var box = new Rect(w * 0.5f - 160, h * 0.30f, 320, 76);
             GUI.DrawTexture(box, panelTex);
@@ -91,9 +90,9 @@ public class LobbyHUD : MonoBehaviour
             {
                 GUI.Label(new Rect(box.x, box.y + 14, box.width, 24), "먼저 드라이버를 고르세요", promptStyle);
                 GUI.Label(new Rect(box.x, box.y + 44, box.width, 20),
-                          "받침대로 가서 E 를 누르세요", hintStyle);
+                          "받침대 위 캐릭터를 클릭하세요", hintStyle);
             }
-            else
+            else if (gate.CountingDown)
             {
                 GUI.Label(new Rect(box.x, box.y + 12, box.width, 26), "레이스 시작", promptStyle);
 
@@ -102,15 +101,17 @@ public class LobbyHUD : MonoBehaviour
                 GUI.DrawTexture(bar, dimTex);
                 GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * fill, bar.height), accentTex);
             }
+            else
+            {
+                GUI.Label(new Rect(box.x, box.y + 14, box.width, 24), "출발문", promptStyle);
+                GUI.Label(new Rect(box.x, box.y + 44, box.width, 20),
+                          "클릭하면 레이스가 시작됩니다", hintStyle);
+            }
         }
 
         // ---------- 하단: 조작법 ----------
-        string keys = "WASD 이동     마우스 시선     SHIFT 달리기     E 선택";
-        if (player != null) keys += "     F 비행";
-        keys += "     F1·F2 씬 이동     ESC 커서";
-        GUI.Label(new Rect(0, h - 26, w, 20), keys, hintStyle);
-
-        // ---------- 조준점 ----------
-        GUI.DrawTexture(new Rect(w * 0.5f - 2f, h * 0.5f - 2f, 4f, 4f), dimTex);
+        GUI.Label(new Rect(0, h - 26, w, 20),
+                  "마우스 끌기 둘러보기     휠 확대·축소     클릭 선택     F1·F2 씬 이동",
+                  hintStyle);
     }
 }

@@ -4,10 +4,13 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 
 /// <summary>
-/// 로비 씬을 만든다. 걸어다니면서 캐릭터를 고르고 출발문으로 들어가면 트랙이 시작되는 곳.
+/// 로비 씬 — 환웅박물관 중앙홀 내부.
 ///
-/// 캐릭터 자리는 6개. 3명만 만들어도 나머지는 "coming soon" 으로 뜨니까 비어 보이지 않아.
-/// **네 캐릭터 FBX 는 각 자리의 `ModelAnchor` 에 자식으로 넣으면 돼.**
+/// 참고 그림(곰인형 박물관 외관)에 맞춘 재료: 청록 기와, 크림 벽에 민트 패널,
+/// 짙은 목재 기둥과 보, 석재 바닥, 석등, 그리고 곳곳의 발바닥 문양.
+///
+/// 걸어다니지 않는다. 카메라가 홀 가운데를 중심으로 돌고, 마우스로 캐릭터를 고른다.
+/// 천장은 일부러 안 덮었다 — 보만 걸어두면 위에서 내려다볼 수 있어서 홀 전체가 보인다.
 ///
 /// 이 메뉴를 다시 누르면 Lobby.unity 를 **덮어쓴다.** 손으로 뭘 넣기 시작한 뒤엔 누르지 마.
 /// </summary>
@@ -18,68 +21,86 @@ public static class LobbySceneBuilder
     const string TrackPath   = SceneFolder + "/Track.unity";
     const string TestbedPath = SceneFolder + "/Testbed.unity";
 
-    // 디저트 랜드 팔레트
-    static readonly Color ColFloor    = new Color32(0xF2, 0xE4, 0xC9, 0xFF);  // 바닐라 바닥
-    static readonly Color ColFloorInlay= new Color32(0xE6, 0xC9, 0xA8, 0xFF); // 무늬
-    static readonly Color ColFencePink = new Color32(0xF0, 0x9B, 0xB0, 0xFF); // 사탕 분홍
-    static readonly Color ColFenceWhite= new Color32(0xFB, 0xF6, 0xEE, 0xFF);
-    static readonly Color ColPedestal  = new Color32(0x8A, 0x7E, 0x74, 0xFF); // 초콜릿 받침
-    static readonly Color ColGateBanner= new Color32(0x7F, 0xD4, 0xA8, 0xFF); // 멜론소다
+    // ---- 홀 크기 ----
+    const float HallWidth = 36f;   // X
+    const float HallDepth = 30f;   // Z
+    const float WallHeight = 7f;
 
-    // 6명 자리의 임시 색 — 디저트 맛으로 구분
-    static readonly (string name, Color color)[] Flavors =
+    // ---- 참고 그림에서 뽑은 색 ----
+    static readonly Color ColFloorStone = new Color32(0xC6, 0xC0, 0xB2, 0xFF);
+    static readonly Color ColFloorTrim  = new Color32(0x8A, 0x6A, 0x48, 0xFF);
+    static readonly Color ColWallCream  = new Color32(0xEF, 0xE7, 0xD6, 0xFF);
+    static readonly Color ColWallMint   = new Color32(0xB4, 0xCD, 0xBC, 0xFF);
+    static readonly Color ColWoodDark   = new Color32(0x6B, 0x4A, 0x33, 0xFF);
+    static readonly Color ColWoodLight  = new Color32(0xA8, 0x78, 0x4C, 0xFF);
+    static readonly Color ColRoofTeal   = new Color32(0x4E, 0x7A, 0x70, 0xFF);
+    static readonly Color ColStone      = new Color32(0xB0, 0xAC, 0xA0, 0xFF);
+    static readonly Color ColLanternLit = new Color32(0xF5, 0xC0, 0x69, 0xFF);
+    static readonly Color ColBearFur    = new Color32(0xA5, 0x75, 0x4A, 0xFF);
+    static readonly Color ColBearMuzzle = new Color32(0xE2, 0xD2, 0xB4, 0xFF);
+    static readonly Color ColBearDark   = new Color32(0x4A, 0x33, 0x26, 0xFF);
+    static readonly Color ColRibbon     = new Color32(0xC4, 0x45, 0x3E, 0xFF);
+    static readonly Color ColPaw        = new Color32(0x9A, 0x8E, 0x80, 0xFF);
+    static readonly Color ColScreen     = new Color32(0x1B, 0x22, 0x2E, 0xFF);
+    static readonly Color ColPedestal   = new Color32(0xB0, 0xAC, 0xA0, 0xFF);
+
+    /// <summary>기획서 §3.5 레이서 자리. 5·6번은 잠긴 자리.</summary>
+    static readonly (string id, string name, Color color, bool locked)[] Racers =
     {
-        ("Melon Soda", new Color32(0x7F, 0xD4, 0xA8, 0xFF)),
-        ("Strawberry", new Color32(0xF0, 0x9B, 0xB0, 0xFF)),
-        ("Lemon",      new Color32(0xF5, 0xD9, 0x82, 0xFF)),
-        ("Grape",      new Color32(0xB4, 0x9B, 0xD8, 0xFF)),
-        ("Chocolate",  new Color32(0x8B, 0x5E, 0x3C, 0xFF)),
-        ("Mint",       new Color32(0x9B, 0xD8, 0xD0, 0xFF)),
+        ("Igam",     "정이감",   new Color32(0x4E, 0x7B, 0xB5, 0xFF), false),
+        ("Siwoo",    "한시우",   new Color32(0x8A, 0x64, 0x40, 0xFF), false),
+        ("Sewoon",   "한세운",   new Color32(0xD9, 0x91, 0x5F, 0xFF), false),
+        ("Sejin",    "한세진",   new Color32(0xC0, 0x45, 0x3C, 0xFF), false),
+        ("Developer","개발업자", new Color32(0x3A, 0x3E, 0x48, 0xFF), true),
+        ("Council",  "시의원",   new Color32(0x3A, 0x3E, 0x48, 0xFF), true),
     };
-
-    const float FloorRadius = 18f;
-    const float StandRadius = 9f;
-    const float FenceRadius = 17.4f;
 
     [MenuItem("Racing/로비 씬 만들기")]
     public static void BuildLobby()
     {
         Directory.CreateDirectory(SceneFolder);
-
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-        TestSceneBuilder.MakeSun();
+        MakeLighting();
         MakeFloor();
-        MakeFence();
+        MakePawMedallion(new Vector3(0f, 0.02f, 0f), 1f);
+        MakeWalls();
+        MakeBeams();
+        MakeStoneLanterns();
+
+        MakeBearStatue(new Vector3(0f, 0f, -11.5f));
+        MakeReceptionDesk(new Vector3(11.5f, 0f, 4f));
+        MakeBroadcastScreen(new Vector3(-17.4f, 3.6f, -2f));
 
         var stands = MakeStands();
-        var gate = MakeGate(new Vector3(0f, 0f, 11f));
+        var gate = MakeGate(new Vector3(0f, 0f, 10.5f));
+        var orbit = MakeOrbitCamera();
+        var cam = orbit.GetComponent<Camera>();
 
-        // 자리들이 -Z 쪽에 늘어서 있으니, 플레이어는 그쪽을 보고 시작한다
-        var player = TestSceneBuilder.MakePlayer(new Vector3(0f, 0.2f, 2.5f), 180f);
-        gate.player = player.controller.transform;
+        gate.lobbyCamera = cam;
+        gate.orbit = orbit;
 
         var rig = new GameObject("GameRig");
         rig.AddComponent<SceneNavigator>();
 
         var selector = rig.AddComponent<LobbySelector>();
-        selector.player = player.controller.transform;
+        selector.lobbyCamera = cam;
+        selector.orbit = orbit;
         selector.stands = stands;
 
         var hud = rig.AddComponent<LobbyHUD>();
         hud.selector = selector;
         hud.gate = gate;
-        hud.player = player.controller;
 
         EditorSceneManager.SaveScene(scene, LobbyPath);
         RegisterScenes();
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        Debug.Log("[Racing] Lobby.unity 생성 완료. F1 로비 / F2 트랙 / F3 테스트베드.");
+        Debug.Log("[Racing] Lobby.unity(중앙홀) 생성 완료. F1 로비 / F2 트랙 / F3 테스트베드.");
     }
 
-    /// <summary>있는 씬만 골라서 순서대로 빌드 설정에 넣는다. Lobby → Track → Testbed.</summary>
+    /// <summary>있는 씬만 골라 순서대로 빌드 설정에 넣는다. Lobby → Track → Testbed.</summary>
     public static void RegisterScenes()
     {
         var list = new System.Collections.Generic.List<EditorBuildSettingsScene>();
@@ -89,106 +110,341 @@ public static class LobbySceneBuilder
         EditorBuildSettings.scenes = list.ToArray();
     }
 
-    // ------------------------------------------------------------------
-
-    /// <summary>
-    /// 원기둥 모양이지만 콜라이더는 상자로 붙인다.
-    ///
-    /// 유니티 원기둥에는 CapsuleCollider 가 딸려오는데, 납작하게 눌러 놓으면
-    /// 캡슐이 "지름만큼 커다란 공" 으로 변해서 바닥 역할을 전혀 못 한다.
-    /// (반지름 18m 짜리 공 안에 서 있게 되니 계속 아래로 빠진다.)
-    ///
-    /// 원기둥 메시는 높이가 2 단위라서, BoxCollider 크기를 (1, 2, 1) 로 줘야
-    /// 눈에 보이는 윗면과 실제로 밟히는 면이 같은 높이가 된다.
-    /// </summary>
-    static GameObject Disc(Transform parent, string name, Vector3 localPosition,
-                           Vector3 scale, Color color)
+    // ==================================================================
+    //  조명 — 실내라 등불 느낌으로 따뜻하게
+    // ==================================================================
+    static void MakeLighting()
     {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        go.name = name;
-        Object.DestroyImmediate(go.GetComponent<Collider>());
-        go.AddComponent<BoxCollider>().size = new Vector3(1f, 2f, 1f);
+        var go = new GameObject("Sun");
+        var light = go.AddComponent<Light>();
+        light.type = LightType.Directional;
+        light.color = new Color(1f, 0.95f, 0.86f);
+        light.intensity = 1.0f;
+        light.shadows = LightShadows.Soft;
+        go.transform.rotation = Quaternion.Euler(52f, 24f, 0f);
 
-        if (parent != null) go.transform.SetParent(parent, false);
-        go.transform.localPosition = localPosition;
-        go.transform.localScale = scale;
-        go.GetComponent<Renderer>().sharedMaterial = TestSceneBuilder.MaterialAsset(color);
-        return go;
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor     = new Color(0.62f, 0.60f, 0.55f);
+        RenderSettings.ambientEquatorColor = new Color(0.48f, 0.45f, 0.40f);
+        RenderSettings.ambientGroundColor  = new Color(0.26f, 0.23f, 0.20f);
+        RenderSettings.fog = false;
     }
 
+    // ==================================================================
+    //  바닥
+    // ==================================================================
     static void MakeFloor()
     {
-        // 윗면이 정확히 y = 0
-        var floor = Disc(null, "Floor", new Vector3(0f, -0.5f, 0f),
-                         new Vector3(FloorRadius * 2f, 0.5f, FloorRadius * 2f), ColFloor);
-        floor.isStatic = true;
+        var root = new GameObject("Floor").transform;
 
-        // 가운데 원형 무늬 — 위치 감각을 잡아주는 용도
-        var inlay = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        inlay.name = "FloorInlay";
-        Object.DestroyImmediate(inlay.GetComponent<Collider>());
-        inlay.transform.position = new Vector3(0f, 0.01f, 0f);
-        inlay.transform.localScale = new Vector3(11f, 0.01f, 11f);
-        inlay.GetComponent<Renderer>().sharedMaterial = TestSceneBuilder.MaterialAsset(ColFloorInlay);
+        // 석재 바닥. 윗면이 y = 0
+        var slab = TestSceneBuilder.Cube(root, "FloorSlab", new Vector3(0f, -0.25f, 0f),
+                                         new Vector3(HallWidth, 0.5f, HallDepth), ColFloorStone);
+        slab.isStatic = true;
+
+        // 가장자리 나무 테두리 — 바닥 판 위에 얇게 얹는다
+        float halfW = HallWidth * 0.5f, halfD = HallDepth * 0.5f;
+        Strip(root, "TrimNorth", new Vector3(0f, 0.01f, -halfD + 1f), new Vector3(HallWidth, 0.02f, 2f));
+        Strip(root, "TrimSouth", new Vector3(0f, 0.01f,  halfD - 1f), new Vector3(HallWidth, 0.02f, 2f));
+        Strip(root, "TrimWest",  new Vector3(-halfW + 1f, 0.01f, 0f), new Vector3(2f, 0.02f, HallDepth));
+        Strip(root, "TrimEast",  new Vector3( halfW - 1f, 0.01f, 0f), new Vector3(2f, 0.02f, HallDepth));
     }
 
-    /// <summary>가장자리 사탕 울타리. 장식이면서 동시에 떨어지는 걸 막는 벽이다.</summary>
-    static void MakeFence()
+    static void Strip(Transform parent, string name, Vector3 position, Vector3 scale)
     {
-        var fence = new GameObject("Fence").transform;
-        const int segments = 40;
+        var go = TestSceneBuilder.Cube(parent, name, position, scale, ColFloorTrim, keepCollider: false);
+        go.isStatic = true;
+    }
 
-        for (int i = 0; i < segments; i++)
+    /// <summary>바깥 광장과 같은 발바닥 문양. 홀 한가운데 바닥에 새긴다.</summary>
+    static void MakePawMedallion(Vector3 center, float scale)
+    {
+        var root = new GameObject("PawMedallion").transform;
+        root.position = center;
+
+        // 바깥 원반
+        Disc(root, "Ring", Vector3.zero, new Vector3(11f * scale, 0.004f, 11f * scale), ColStone, false);
+        Disc(root, "Inner", new Vector3(0f, 0.004f, 0f),
+             new Vector3(8.4f * scale, 0.004f, 8.4f * scale), ColFloorStone, false);
+
+        // 발바닥 — 큰 발볼 하나 + 발가락 네 개
+        Disc(root, "PawPad", new Vector3(0f, 0.01f, -0.5f * scale),
+             new Vector3(3.1f * scale, 0.004f, 2.6f * scale), ColPaw, false);
+
+        float[] toeX = { -1.75f, -0.6f, 0.6f, 1.75f };
+        float[] toeZ = { 1.25f, 1.95f, 1.95f, 1.25f };
+        for (int i = 0; i < 4; i++)
         {
-            Vector3 p0 = OnCircle((float)i / segments, FenceRadius);
-            Vector3 p1 = OnCircle((float)(i + 1) / segments, FenceRadius);
-            Vector3 mid = (p0 + p1) * 0.5f;
-            Vector3 dir = p1 - p0;
-            float len = dir.magnitude;
-
-            var seg = TestSceneBuilder.Cube(fence, $"Fence_{i:00}", Vector3.zero,
-                                            new Vector3(0.35f, 1.3f, len * 1.06f),
-                                            i % 2 == 0 ? ColFencePink : ColFenceWhite);
-            seg.transform.SetPositionAndRotation(mid + Vector3.up * 0.65f,
-                                                 Quaternion.LookRotation(dir.normalized, Vector3.up));
-            seg.isStatic = true;
+            Disc(root, $"PawToe_{i}", new Vector3(toeX[i] * scale, 0.01f, toeZ[i] * scale),
+                 new Vector3(1.15f * scale, 0.004f, 1.15f * scale), ColPaw, false);
         }
     }
 
+    // ==================================================================
+    //  벽 · 기둥 · 보
+    // ==================================================================
+    static void MakeWalls()
+    {
+        var root = new GameObject("Walls").transform;
+        float halfW = HallWidth * 0.5f, halfD = HallDepth * 0.5f;
+
+        Wall(root, "WallNorth", new Vector3(0f, 0f, -halfD - 0.25f), new Vector3(HallWidth + 1f, 1f, 0.5f));
+        Wall(root, "WallSouth", new Vector3(0f, 0f,  halfD + 0.25f), new Vector3(HallWidth + 1f, 1f, 0.5f));
+        Wall(root, "WallWest",  new Vector3(-halfW - 0.25f, 0f, 0f), new Vector3(0.5f, 1f, HallDepth + 1f));
+        Wall(root, "WallEast",  new Vector3( halfW + 0.25f, 0f, 0f), new Vector3(0.5f, 1f, HallDepth + 1f));
+
+        MakeColumns(root);
+    }
+
+    /// <summary>크림 벽 + 아래쪽 민트 패널 한 겹. 참고 그림의 벽 구성.</summary>
+    static void Wall(Transform parent, string name, Vector3 basePosition, Vector3 footprint)
+    {
+        var go = TestSceneBuilder.Cube(parent, name,
+                                       basePosition + Vector3.up * (WallHeight * 0.5f),
+                                       new Vector3(footprint.x, WallHeight, footprint.z), ColWallCream);
+        go.isStatic = true;
+
+        // 민트 허리 패널 — 벽 안쪽으로 살짝 튀어나오게
+        bool alongX = footprint.x > footprint.z;
+        Vector3 panelScale = alongX ? new Vector3(footprint.x - 1.5f, 2.2f, footprint.z + 0.12f)
+                                    : new Vector3(footprint.x + 0.12f, 2.2f, footprint.z - 1.5f);
+
+        var panel = TestSceneBuilder.Cube(parent, name + "_Panel",
+                                          basePosition + Vector3.up * 1.6f, panelScale,
+                                          ColWallMint, keepCollider: false);
+        panel.isStatic = true;
+    }
+
+    /// <summary>한옥 목재 기둥. 벽을 따라 일정 간격으로 세운다.</summary>
+    static void MakeColumns(Transform parent)
+    {
+        var root = new GameObject("Columns").transform;
+        root.SetParent(parent, false);
+
+        float halfW = HallWidth * 0.5f - 0.6f;
+        float halfD = HallDepth * 0.5f - 0.6f;
+
+        for (int i = -2; i <= 2; i++)
+        {
+            float x = i * (halfW / 2.4f);
+            Column(root, $"Col_N{i + 2}", new Vector3(x, 0f, -halfD));
+            Column(root, $"Col_S{i + 2}", new Vector3(x, 0f,  halfD));
+        }
+        for (int i = -1; i <= 1; i++)
+        {
+            float z = i * (halfD / 1.6f);
+            Column(root, $"Col_W{i + 1}", new Vector3(-halfW, 0f, z));
+            Column(root, $"Col_E{i + 1}", new Vector3( halfW, 0f, z));
+        }
+    }
+
+    static void Column(Transform parent, string name, Vector3 position)
+    {
+        var col = TestSceneBuilder.Cube(parent, name, position + Vector3.up * (WallHeight * 0.5f),
+                                        new Vector3(0.55f, WallHeight, 0.55f), ColWoodDark,
+                                        keepCollider: false);
+        col.isStatic = true;
+
+        // 주춧돌
+        var footing = TestSceneBuilder.Cube(parent, name + "_Base", position + Vector3.up * 0.18f,
+                                            new Vector3(0.85f, 0.36f, 0.85f), ColStone,
+                                            keepCollider: false);
+        footing.isStatic = true;
+    }
+
+    /// <summary>천장은 덮지 않고 보만 건다. 위에서 홀 안을 들여다볼 수 있게.</summary>
+    static void MakeBeams()
+    {
+        var root = new GameObject("Beams").transform;
+        float halfD = HallDepth * 0.5f;
+
+        for (int i = -3; i <= 3; i++)
+        {
+            float z = i * (halfD / 3.6f);
+            var beam = TestSceneBuilder.Cube(root, $"Beam_{i + 3}",
+                                             new Vector3(0f, WallHeight - 0.35f, z),
+                                             new Vector3(HallWidth, 0.45f, 0.6f), ColWoodDark,
+                                             keepCollider: false);
+            beam.isStatic = true;
+        }
+
+        // 벽 위를 두르는 청록 기와 띠. 가운데는 뚫려 있어야 위에서 홀 안이 보인다 —
+        // 판 하나로 덮으면 카메라를 올렸을 때 화면이 통째로 막힌다.
+        float halfW = HallWidth * 0.5f + 0.6f;
+        float capW = HallWidth + 1.2f, capD = HallDepth + 1.2f;
+        float y = WallHeight + 0.12f;
+
+        RoofTrim(root, "RoofTrim_N", new Vector3(0f, y, -(HallDepth * 0.5f + 0.35f)), new Vector3(capW, 0.25f, 1.3f));
+        RoofTrim(root, "RoofTrim_S", new Vector3(0f, y,  (HallDepth * 0.5f + 0.35f)), new Vector3(capW, 0.25f, 1.3f));
+        RoofTrim(root, "RoofTrim_W", new Vector3(-halfW + 0.25f, y, 0f), new Vector3(1.3f, 0.25f, capD));
+        RoofTrim(root, "RoofTrim_E", new Vector3( halfW - 0.25f, y, 0f), new Vector3(1.3f, 0.25f, capD));
+    }
+
+    static void RoofTrim(Transform parent, string name, Vector3 position, Vector3 scale)
+    {
+        var go = TestSceneBuilder.Cube(parent, name, position, scale, ColRoofTeal, keepCollider: false);
+        go.isStatic = true;
+    }
+
+    // ==================================================================
+    //  석등 — 바깥 정원에 있던 그 등
+    // ==================================================================
+    static void MakeStoneLanterns()
+    {
+        var root = new GameObject("StoneLanterns").transform;
+
+        Vector3[] spots =
+        {
+            new Vector3(-13f, 0f, -8f), new Vector3( 13f, 0f, -8f),
+            new Vector3(-13f, 0f,  7f), new Vector3( 13f, 0f,  7f),
+        };
+
+        for (int i = 0; i < spots.Length; i++)
+        {
+            var go = new GameObject($"Lantern_{i + 1}");
+            go.transform.SetParent(root, false);
+            go.transform.position = spots[i];
+
+            TestSceneBuilder.Cube(go.transform, "Base", new Vector3(0f, 0.15f, 0f),
+                                  new Vector3(0.9f, 0.3f, 0.9f), ColStone, keepCollider: false);
+            TestSceneBuilder.Cube(go.transform, "Shaft", new Vector3(0f, 0.95f, 0f),
+                                  new Vector3(0.34f, 1.3f, 0.34f), ColStone, keepCollider: false);
+            TestSceneBuilder.Cube(go.transform, "Housing", new Vector3(0f, 1.9f, 0f),
+                                  new Vector3(0.78f, 0.62f, 0.78f), ColLanternLit, keepCollider: false);
+            TestSceneBuilder.Cube(go.transform, "Cap", new Vector3(0f, 2.32f, 0f),
+                                  new Vector3(1.15f, 0.22f, 1.15f), ColRoofTeal, keepCollider: false);
+
+            var lightGo = new GameObject("Light");
+            lightGo.transform.SetParent(go.transform, false);
+            lightGo.transform.localPosition = new Vector3(0f, 1.9f, 0f);
+            var light = lightGo.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.84f, 0.58f);
+            light.intensity = 2.2f;
+            light.range = 11f;
+            light.shadows = LightShadows.None;   // 저사양 노트북 기준(기획서 §7.6)
+        }
+    }
+
+    // ==================================================================
+    //  대형 곰 조형물 — 정면 박공의 곰 얼굴을 입체로
+    // ==================================================================
+    static void MakeBearStatue(Vector3 position)
+    {
+        var root = new GameObject("BearStatue").transform;
+        root.position = position;
+
+        // 석재 좌대
+        Disc(root, "Plinth", new Vector3(0f, 0.3f, 0f), new Vector3(5.4f, 0.3f, 5.4f), ColStone, false);
+        Disc(root, "PlinthTop", new Vector3(0f, 0.62f, 0f), new Vector3(4.6f, 0.06f, 4.6f), ColFloorStone, false);
+
+        var bear = new GameObject("Bear").transform;
+        bear.SetParent(root, false);
+        bear.localPosition = new Vector3(0f, 0.66f, 0f);
+
+        Ball(bear, "Leg_L",  new Vector3(-0.85f, 0.55f,  0.35f), new Vector3(1.0f, 1.0f, 1.1f), ColBearFur);
+        Ball(bear, "Leg_R",  new Vector3( 0.85f, 0.55f,  0.35f), new Vector3(1.0f, 1.0f, 1.1f), ColBearFur);
+        Ball(bear, "Body",   new Vector3(0f, 1.85f, 0f),         new Vector3(2.6f, 2.7f, 2.3f), ColBearFur);
+        Ball(bear, "Arm_L",  new Vector3(-1.55f, 2.15f, 0.35f),  new Vector3(0.95f, 1.5f, 0.95f), ColBearFur);
+        Ball(bear, "Arm_R",  new Vector3( 1.55f, 2.15f, 0.35f),  new Vector3(0.95f, 1.5f, 0.95f), ColBearFur);
+        Ball(bear, "Head",   new Vector3(0f, 3.85f, 0f),         new Vector3(2.2f, 2.1f, 2.0f), ColBearFur);
+        Ball(bear, "Ear_L",  new Vector3(-0.85f, 4.75f, -0.1f),  new Vector3(0.85f, 0.85f, 0.6f), ColBearFur);
+        Ball(bear, "Ear_R",  new Vector3( 0.85f, 4.75f, -0.1f),  new Vector3(0.85f, 0.85f, 0.6f), ColBearFur);
+        Ball(bear, "Muzzle", new Vector3(0f, 3.55f, 0.85f),      new Vector3(1.1f, 0.85f, 0.8f), ColBearMuzzle);
+        Ball(bear, "Nose",   new Vector3(0f, 3.72f, 1.22f),      new Vector3(0.34f, 0.26f, 0.26f), ColBearDark);
+        Ball(bear, "Eye_L",  new Vector3(-0.55f, 4.12f, 0.86f),  new Vector3(0.22f, 0.26f, 0.18f), ColBearDark);
+        Ball(bear, "Eye_R",  new Vector3( 0.55f, 4.12f, 0.86f),  new Vector3(0.22f, 0.26f, 0.18f), ColBearDark);
+
+        // 빨간 리본 — 외관 박공에 달려 있던 그거
+        Ball(bear, "Bow_L",   new Vector3(-0.78f, 2.72f, 1.02f), new Vector3(0.85f, 0.62f, 0.36f), ColRibbon);
+        Ball(bear, "Bow_R",   new Vector3( 0.78f, 2.72f, 1.02f), new Vector3(0.85f, 0.62f, 0.36f), ColRibbon);
+        Ball(bear, "BowKnot", new Vector3(0f, 2.72f, 1.10f),     new Vector3(0.42f, 0.42f, 0.34f), ColRibbon);
+    }
+
+    // ==================================================================
+    //  안내 데스크 · 중계 화면
+    // ==================================================================
+    static void MakeReceptionDesk(Vector3 position)
+    {
+        var root = new GameObject("ReceptionDesk").transform;
+        root.position = position;
+        root.rotation = Quaternion.Euler(0f, -28f, 0f);
+
+        TestSceneBuilder.Cube(root, "Counter", new Vector3(0f, 0.55f, 0f),
+                              new Vector3(5.2f, 1.1f, 1.0f), ColWoodLight);
+        TestSceneBuilder.Cube(root, "CounterTop", new Vector3(0f, 1.14f, 0.06f),
+                              new Vector3(5.6f, 0.12f, 1.3f), ColWoodDark, keepCollider: false);
+        TestSceneBuilder.Cube(root, "SideWing", new Vector3(3.1f, 0.55f, -1.5f),
+                              new Vector3(1.0f, 1.1f, 3.0f), ColWoodLight);
+        TestSceneBuilder.Cube(root, "SideWingTop", new Vector3(3.1f, 1.14f, -1.5f),
+                              new Vector3(1.3f, 0.12f, 3.3f), ColWoodDark, keepCollider: false);
+
+        // 데스크 뒤 안내판
+        TestSceneBuilder.Cube(root, "SignBoard", new Vector3(0f, 2.5f, -1.1f),
+                              new Vector3(4.2f, 1.5f, 0.18f), ColWallMint, keepCollider: false);
+        TestSceneBuilder.Cube(root, "SignFrame", new Vector3(0f, 2.5f, -1.2f),
+                              new Vector3(4.5f, 1.75f, 0.12f), ColWoodDark, keepCollider: false);
+    }
+
+    static void MakeBroadcastScreen(Vector3 position)
+    {
+        var root = new GameObject("BroadcastScreen").transform;
+        root.position = position;
+
+        TestSceneBuilder.Cube(root, "Frame", Vector3.zero,
+                              new Vector3(0.3f, 4.2f, 7.6f), ColWoodDark, keepCollider: false);
+        TestSceneBuilder.Cube(root, "Panel", new Vector3(0.22f, 0f, 0f),
+                              new Vector3(0.12f, 3.6f, 7.0f), ColScreen, keepCollider: false);
+        TestSceneBuilder.Cube(root, "Valance", new Vector3(0.1f, 2.35f, 0f),
+                              new Vector3(0.5f, 0.35f, 8.2f), ColRoofTeal, keepCollider: false);
+    }
+
+    // ==================================================================
+    //  캐릭터 자리 여섯
+    // ==================================================================
     static CharacterStand[] MakeStands()
     {
         var root = new GameObject("CharacterStands").transform;
-        var result = new CharacterStand[GameSelection.StandCount];
+        var result = new CharacterStand[Racers.Length];
+        const float arcRadius = 8.5f;
 
-        for (int i = 0; i < GameSelection.StandCount; i++)
+        for (int i = 0; i < Racers.Length; i++)
         {
-            float t = GameSelection.StandCount == 1 ? 0.5f : (float)i / (GameSelection.StandCount - 1);
-            float angle = Mathf.Lerp(205f, 335f, t) * Mathf.Deg2Rad;
-            Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * StandRadius;
+            var racer = Racers[i];
+            float t = (float)i / (Racers.Length - 1);
+            float angle = Mathf.Lerp(208f, 332f, t) * Mathf.Deg2Rad;
+            Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * arcRadius;
 
-            var go = new GameObject($"Stand_{i + 1}_{Flavors[i].name.Replace(" ", "")}");
+            var go = new GameObject($"Stand_{i + 1}_{racer.id}");
             go.transform.SetParent(root, false);
-            // 가운데를 바라보게 세운다
             go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(-pos.normalized, Vector3.up));
 
-            // 받침대 — 지름 1.6, 높이 0.4. 바닥과 같은 이유로 콜라이더는 상자.
-            var pedestal = Disc(go.transform, "Pedestal", new Vector3(0f, 0.2f, 0f),
-                                new Vector3(1.6f, 0.2f, 1.6f), ColPedestal);
+            // 마우스 광선이 맞을 판정 상자 — 받침대와 캐릭터를 통째로 덮는다
+            var pick = go.AddComponent<BoxCollider>();
+            pick.size = new Vector3(1.9f, 2.4f, 1.9f);
+            pick.center = new Vector3(0f, 1.2f, 0f);
+            pick.isTrigger = true;
 
-            // ★ 캐릭터 FBX 가 들어갈 자리
+            // 석재 받침대
+            var pedestal = Disc(go.transform, "Pedestal", new Vector3(0f, 0.22f, 0f),
+                                new Vector3(1.7f, 0.22f, 1.7f), ColPedestal, true);
+            Disc(go.transform, "PedestalTrim", new Vector3(0f, 0.46f, 0f),
+                 new Vector3(1.9f, 0.04f, 1.9f), ColWoodDark, false);
+
             var anchor = new GameObject("ModelAnchor").transform;
             anchor.SetParent(go.transform, false);
-            anchor.localPosition = new Vector3(0f, 0.4f, 0f);
+            anchor.localPosition = new Vector3(0f, 0.48f, 0f);
 
             // 임시 자리표시 — 치비 서 있는 키 1.15m (규격서)
             var placeholder = TestSceneBuilder.Capsule(anchor, "Placeholder",
                                                        new Vector3(0f, 0.575f, 0f),
                                                        new Vector3(0.45f, 0.575f, 0.45f),
-                                                       Flavors[i].color, keepCollider: false);
+                                                       racer.color, keepCollider: false);
 
             var stand = go.AddComponent<CharacterStand>();
             stand.index = i;
-            stand.displayName = Flavors[i].name;
+            stand.displayName = racer.name;
+            stand.locked = racer.locked;
             stand.modelAnchor = anchor;
             stand.placeholder = placeholder;
             stand.baseRenderer = pedestal.GetComponent<Renderer>();
@@ -199,35 +455,109 @@ public static class LobbySceneBuilder
         return result;
     }
 
+    // ==================================================================
+    //  출발 게이트 — 바깥 정문과 같은 한옥 문
+    // ==================================================================
     static StartGate MakeGate(Vector3 position)
     {
         var go = new GameObject("StartGate");
         go.transform.position = position;
 
-        // 사탕 지팡이 기둥 두 개 + 위에 걸린 현수막
         for (int side = -1; side <= 1; side += 2)
         {
-            var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            post.name = side < 0 ? "Post_L" : "Post_R";
-            post.transform.SetParent(go.transform, false);
-            post.transform.localPosition = new Vector3(side * 2.4f, 2f, 0f);
-            post.transform.localScale = new Vector3(0.3f, 2f, 0.3f);
-            post.GetComponent<Renderer>().sharedMaterial = TestSceneBuilder.MaterialAsset(ColFencePink);
+            TestSceneBuilder.Cube(go.transform, side < 0 ? "Post_L" : "Post_R",
+                                  new Vector3(side * 3.0f, 2.1f, 0f),
+                                  new Vector3(0.62f, 4.2f, 0.62f), ColWoodDark);
+            TestSceneBuilder.Cube(go.transform, side < 0 ? "Footing_L" : "Footing_R",
+                                  new Vector3(side * 3.0f, 0.2f, 0f),
+                                  new Vector3(1.0f, 0.4f, 1.0f), ColStone, keepCollider: false);
         }
 
-        var banner = TestSceneBuilder.Cube(go.transform, "Banner", new Vector3(0f, 4.2f, 0f),
-                                           new Vector3(5.4f, 0.9f, 0.3f), ColGateBanner,
+        TestSceneBuilder.Cube(go.transform, "Lintel", new Vector3(0f, 4.4f, 0f),
+                              new Vector3(7.4f, 0.55f, 0.8f), ColWoodDark, keepCollider: false);
+
+        // 청록 기와 지붕
+        var roof = TestSceneBuilder.Cube(go.transform, "Roof", new Vector3(0f, 4.95f, 0f),
+                                         new Vector3(8.6f, 0.5f, 2.2f), ColRoofTeal,
+                                         keepCollider: false);
+        TestSceneBuilder.Cube(go.transform, "RoofRidge", new Vector3(0f, 5.28f, 0f),
+                              new Vector3(7.2f, 0.28f, 1.5f), ColRoofTeal, keepCollider: false);
+
+        // 현판
+        var plaque = TestSceneBuilder.Cube(go.transform, "Plaque", new Vector3(0f, 3.75f, 0.42f),
+                                           new Vector3(3.0f, 0.8f, 0.14f), ColWallMint,
                                            keepCollider: false);
-        banner.isStatic = true;
+
+        // 클릭 판정 — 문간 전체
+        var pick = go.AddComponent<BoxCollider>();
+        pick.size = new Vector3(6.6f, 4.4f, 1.6f);
+        pick.center = new Vector3(0f, 2.2f, 0f);
+        pick.isTrigger = true;
 
         var gate = go.AddComponent<StartGate>();
         gate.targetScene = "Track";
+        gate.highlightRenderer = plaque.GetComponent<Renderer>();
+        gate.idleColor = ColWallMint;
         return gate;
     }
 
-    static Vector3 OnCircle(float t01, float radius)
+    // ==================================================================
+    //  카메라
+    // ==================================================================
+    static LobbyOrbitCamera MakeOrbitCamera()
     {
-        float a = t01 * Mathf.PI * 2f;
-        return new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * radius;
+        var pivot = new GameObject("CameraPivot").transform;
+        pivot.position = new Vector3(0f, 1.6f, -1f);
+
+        var go = new GameObject("LobbyCamera");
+        var cam = TestSceneBuilder.SetUpCamera(go);
+        cam.backgroundColor = new Color(0.10f, 0.11f, 0.13f);
+        cam.farClipPlane = 120f;
+
+        var orbit = go.AddComponent<LobbyOrbitCamera>();
+        orbit.pivot = pivot;
+        orbit.distance = 12f;
+        orbit.minDistance = 7f;
+        orbit.maxDistance = 13f;   // 더 멀어지면 카메라가 벽을 뚫고 나간다
+        orbit.yaw = 0f;
+        orbit.pitch = 24f;
+        orbit.minPitch = 4f;
+        orbit.maxPitch = 55f;
+        return orbit;
+    }
+
+    // ==================================================================
+    //  도우미
+    // ==================================================================
+    /// <summary>
+    /// 원기둥 모양에 상자 콜라이더. 유니티 원기둥의 CapsuleCollider 는 납작하게 누르면
+    /// 커다란 공으로 변해서 바닥 역할을 못 한다. 원기둥 메시가 2단위 높이라 크기는 (1,2,1).
+    /// </summary>
+    static GameObject Disc(Transform parent, string name, Vector3 localPosition,
+                           Vector3 scale, Color color, bool keepCollider)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        go.name = name;
+        Object.DestroyImmediate(go.GetComponent<Collider>());
+        if (keepCollider) go.AddComponent<BoxCollider>().size = new Vector3(1f, 2f, 1f);
+
+        if (parent != null) go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPosition;
+        go.transform.localScale = scale;
+        go.GetComponent<Renderer>().sharedMaterial = TestSceneBuilder.MaterialAsset(color);
+        return go;
+    }
+
+    static GameObject Ball(Transform parent, string name, Vector3 localPosition,
+                           Vector3 scale, Color color)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        go.name = name;
+        Object.DestroyImmediate(go.GetComponent<Collider>());
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPosition;
+        go.transform.localScale = scale;
+        go.GetComponent<Renderer>().sharedMaterial = TestSceneBuilder.MaterialAsset(color);
+        return go;
     }
 }

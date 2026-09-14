@@ -1,61 +1,110 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// 로비의 출발문. 걸어 들어가면 카운트다운이 돌고 트랙 씬으로 넘어간다.
-/// 문을 벗어나면 취소돼서, 실수로 지나가도 레이스가 시작되지 않는다.
+/// 로비의 출발문. 마우스로 클릭하면 카운트다운이 돌고 레이스 씬으로 넘어간다.
+/// (엔터 키로도 된다.)
 ///
-/// 물리 트리거 대신 거리로 판정한다 — CharacterController 는 트리거가 가끔 안 잡혀서,
-/// 거리 재는 쪽이 훨씬 확실해.
+/// 캐릭터를 안 골랐으면 막힌다 — 그래야 잠긴 자리를 고른 채로 출발하는 일이 없다.
+/// 카운트다운 중에 다시 클릭하면 취소된다.
 /// </summary>
 public class StartGate : MonoBehaviour
 {
-    [Tooltip("이 거리 안에 들어오면 카운트다운 시작")]
-    public float triggerRadius = 2.6f;
-    [Tooltip("넘어가기까지 몇 초")]
-    public float countdownSeconds = 1.5f;
-
-    [Tooltip("넘어갈 씬 이름. 빌드 설정에 등록돼 있어야 한다")]
+    [Header("넘어갈 씬")]
+    [Tooltip("빌드 설정에 등록돼 있어야 한다")]
     public string targetScene = "Track";
 
+    [Header("동작")]
+    public float countdownSeconds = 1.5f;
     [Tooltip("캐릭터를 안 골랐으면 못 들어가게 할지")]
     public bool requireSelection = true;
 
-    public Transform player;
+    [Header("보는 카메라")]
+    public Camera lobbyCamera;
+    public LobbyOrbitCamera orbit;
 
-    public bool PlayerInside { get; private set; }
+    [Header("연출")]
+    public Renderer highlightRenderer;
+    public Color idleColor  = new Color32(0x9C, 0x8A, 0x66, 0xFF);
+    public Color hoverColor = new Color32(0xF0, 0xB5, 0x4A, 0xFF);
+
+    public bool Hovered { get; private set; }
+    public bool CountingDown { get; private set; }
     public float Remaining { get; private set; }
     public bool Blocked => requireSelection && !GameSelection.HasSelection;
 
     bool loading;
+    bool appliedHover;
 
     void Awake()
     {
-        if (player == null)
-        {
-            var fpc = FindFirstObjectByType<FirstPersonController>();
-            if (fpc != null) player = fpc.transform;
-        }
+        if (lobbyCamera == null) lobbyCamera = Camera.main;
+        if (orbit == null && lobbyCamera != null) orbit = lobbyCamera.GetComponent<LobbyOrbitCamera>();
         Remaining = countdownSeconds;
+        ApplyColor();
     }
 
     void Update()
     {
-        if (loading || player == null) return;
+        if (loading) return;
 
-        // 높이는 무시하고 바닥 거리만 잰다 (점프해도 판정이 흔들리지 않게)
-        Vector3 a = transform.position; a.y = 0f;
-        Vector3 b = player.position;    b.y = 0f;
-        PlayerInside = Vector3.Distance(a, b) <= triggerRadius;
+        Hovered = (orbit != null && orbit.IsDragging) ? false : PointerIsOnGate();
+        if (Hovered != appliedHover) { appliedHover = Hovered; ApplyColor(); }
 
-        if (!PlayerInside || Blocked)
-        {
-            Remaining = countdownSeconds;
-            return;
-        }
+        if (WasActivated()) Toggle();
+
+        if (!CountingDown) return;
 
         Remaining -= Time.deltaTime;
         if (Remaining <= 0f) Go();
+    }
+
+    bool WasActivated()
+    {
+        bool enterPressed = Keyboard.current != null &&
+                            (Keyboard.current.enterKey.wasPressedThisFrame ||
+                             Keyboard.current.numpadEnterKey.wasPressedThisFrame);
+        if (enterPressed) return true;
+
+        bool clicked = orbit != null
+            ? orbit.ClickedWithoutDragging
+            : (Mouse.current != null && Mouse.current.leftButton.wasReleasedThisFrame);
+
+        return clicked && Hovered;
+    }
+
+    void Toggle()
+    {
+        if (Blocked) return;
+
+        CountingDown = !CountingDown;
+        Remaining = countdownSeconds;
+    }
+
+    bool PointerIsOnGate()
+    {
+        if (lobbyCamera == null || Mouse.current == null) return false;
+
+        Vector2 screen = Mouse.current.position.ReadValue();
+        if (screen.x < 0f || screen.y < 0f || screen.x > Screen.width || screen.y > Screen.height)
+            return false;
+
+        Ray ray = lobbyCamera.ScreenPointToRay(screen);
+        if (!Physics.Raycast(ray, out RaycastHit hit, 200f, ~0, QueryTriggerInteraction.Collide))
+            return false;
+
+        return hit.collider.GetComponentInParent<StartGate>() == this;
+    }
+
+    void ApplyColor()
+    {
+        if (highlightRenderer == null) return;
+
+        Color c = Blocked ? idleColor : (Hovered ? hoverColor : idleColor);
+        var mat = highlightRenderer.material;
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", c);
     }
 
     void Go()
@@ -72,6 +121,7 @@ public class StartGate : MonoBehaviour
             Debug.LogWarning($"[StartGate] '{targetScene}' 씬을 빌드 설정에서 못 찾았어. " +
                              "File → Build Profiles 에서 씬 목록을 확인해줘.");
             loading = false;
+            CountingDown = false;
             Remaining = countdownSeconds;
         }
     }
