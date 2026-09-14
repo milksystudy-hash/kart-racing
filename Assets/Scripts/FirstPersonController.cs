@@ -36,6 +36,10 @@ public class FirstPersonController : MonoBehaviour
     public float flySpeed = 12f;
     [Tooltip("비행 중 Shift 를 누르면 몇 배 빨라지는지")]
     public float flySprintMultiplier = 3f;
+    [Tooltip("Space 를 안 누를 때 저절로 내려오는 속도. 0 이면 공중에 멈춰 있는다")]
+    public float flySinkSpeed = 3.5f;
+    [Tooltip("바닥에 닿으면 비행을 자동으로 푼다")]
+    public bool landAutomatically = true;
 
     /// <summary>카트를 타고 있는 동안처럼, 조작을 잠시 꺼야 할 때 false 로.</summary>
     public bool ControlEnabled { get; set; } = true;
@@ -122,9 +126,17 @@ public class FirstPersonController : MonoBehaviour
             if (keyboard.leftCtrlKey.isPressed || keyboard.cKey.isPressed) up -= 1f;
 
             float speed = flySpeed * (sprint ? flySprintMultiplier : 1f);
-            Vector3 fly = wish + Vector3.up * up;
-            controller.Move(fly * (speed * Time.deltaTime));
+            float vertical = up * speed;
+
+            // 위로 올리는 키를 안 누르면 저절로 가라앉는다.
+            // 이게 없으면 한 번 뜬 뒤로 계속 떠 있어서 "내려오질 않는다" 가 된다.
+            if (Mathf.Approximately(up, 0f)) vertical = -flySinkSpeed;
+
+            controller.Move((wish * speed + Vector3.up * vertical) * Time.deltaTime);
             verticalVelocity = 0f;
+
+            // 바닥에 닿으면 알아서 비행이 풀린다 — 뛰었다가 착지하는 느낌으로
+            if (landAutomatically && up <= 0f && controller.isGrounded) flyMode = false;
             return;
         }
 

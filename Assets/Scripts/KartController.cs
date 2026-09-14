@@ -11,8 +11,8 @@ using UnityEngine;
 public class KartController : MonoBehaviour
 {
     [Header("주행 — 숫자 만져보면서 감 잡으면 돼")]
-    [Tooltip("최고 속도 (m/s). 22 정도가 시속 80km 느낌")]
-    public float maxSpeed = 22f;
+    [Tooltip("최고 속도 (m/s). 17 이면 대략 시속 61km. 실내 트랙이라 이 정도가 무난하다")]
+    public float maxSpeed = 17f;
     public float maxReverseSpeed = 8f;
     [Tooltip("가속력. 높을수록 출발이 빠릿함")]
     public float acceleration = 22f;
@@ -26,7 +26,7 @@ public class KartController : MonoBehaviour
     public float steerDegreesPerSecond = 130f;
     [Range(0f, 0.9f)]
     [Tooltip("빠를수록 덜 꺾이게. 0이면 고속에서도 제자리 회전")]
-    public float highSpeedSteerCut = 0.45f;
+    public float highSpeedSteerCut = 0.30f;
 
     [Header("드리프트 (스페이스바)")]
     public float driftSteerMultiplier = 1.7f;
@@ -38,6 +38,14 @@ public class KartController : MonoBehaviour
     public float boostChargeMax = 8f;
     [Tooltip("드리프트를 놓았을 때 부스트가 지속되는 시간(초)")]
     public float boostDuration = 1.3f;
+
+    [Header("호핑 — 드리프트 키를 톡 누르면 통통")]
+    [Tooltip("튀어오르는 세기. 3.2 면 약 0.5m 높이")]
+    public float hopVelocity = 3.2f;
+    [Tooltip("튀어오른 뒤 이 시간 동안은 서스펜션이 쉰다. 안 그러면 스프링이 바로 눌러버린다")]
+    public float hopAirTime = 0.35f;
+    [Tooltip("연속으로 통통 튀는 걸 막는 최소 간격")]
+    public float hopCooldown = 0.25f;
 
     [Header("서스펜션 (바닥에서 띄우는 높이)")]
     public float rideHeight = 0.38f;
@@ -62,7 +70,8 @@ public class KartController : MonoBehaviour
 
     Rigidbody rb;
     float throttleInput, steerInput;
-    bool driftHeld;
+    bool driftHeld, hopQueued;
+    float hopTimer, hopCooldownTimer;
     float boostTimer, boostAmount;
     Vector3 spawnPosition;
     Quaternion spawnRotation;
@@ -76,8 +85,34 @@ public class KartController : MonoBehaviour
         // 무게중심을 낮추면 벽에 부딪혀도 덜 튄다
         rb.centerOfMass = new Vector3(0f, -0.2f, 0f);
 
+        ApplySlipperyShell();
+
         spawnPosition = transform.position;
         spawnRotation = transform.rotation;
+    }
+
+    /// <summary>
+    /// 카트 껍데기를 미끄럽게 만든다. 벽에 스치면 걸려서 멈추는 걸 막는 장치야.
+    ///
+    /// 유니티 기본 마찰이면 상자끼리 닿는 순간 붙잡혀서, 벽을 따라 미끄러지는 게 아니라
+    /// 벽에 달라붙는다. 마찰을 0 으로 두고 "둘 중 낮은 쪽을 쓴다(Minimum)" 로 맞추면
+    /// 상대가 뭐든 미끄러진다. 아케이드 레이싱에서 흔히 쓰는 방법.
+    ///
+    /// 노면 접지력은 이것과 무관하다 — 그건 ApplyGrip() 이 따로 계산한다.
+    /// </summary>
+    void ApplySlipperyShell()
+    {
+        var slide = new PhysicsMaterial("KartSlide")
+        {
+            dynamicFriction = 0f,
+            staticFriction = 0f,
+            frictionCombine = PhysicsMaterialCombine.Minimum,
+            bounciness = 0.05f,
+            bounceCombine = PhysicsMaterialCombine.Minimum,
+        };
+
+        foreach (var collider in GetComponentsInChildren<Collider>())
+            if (!collider.isTrigger) collider.sharedMaterial = slide;
     }
 
     void Update()
@@ -87,6 +122,7 @@ public class KartController : MonoBehaviour
         throttleInput = KartInput.Throttle;
         steerInput = KartInput.Steer;
         driftHeld = KartInput.Drift;
+        if (KartInput.DriftPressed) hopQueued = true;   // 물리는 FixedUpdate 에서 처리한다
 
         if (KartInput.RespawnPressed) Respawn();
 
@@ -96,6 +132,7 @@ public class KartController : MonoBehaviour
     void FixedUpdate()
     {
         float dt = Time.fixedDeltaTime;
+        TryHop(dt);
         ApplySuspension(dt);
         ApplyDrive(dt);
         ApplySteering(dt);
@@ -104,6 +141,31 @@ public class KartController : MonoBehaviour
 
         // 공중에서 붕 뜨는 느낌을 줄이려고 중력을 조금 더 준다
         if (!IsGrounded) rb.AddForce(Vector3.down * extraGravity, ForceMode.Acceleration);
+    }
+
+    /// <summary>
+    /// 드리프트 키를 톡 누르면 카트가 짧게 튀어오른다 — 마리오 카트의 그 호핑.
+    /// 같은 키를 꾹 누른 채 꺾으면 드리프트로 이어지니까 키를 하나 더 쓸 필요가 없다.
+    /// </summary>
+    void TryHop(float dt)
+    {
+        // 타이머는 공중이든 땅이든 무조건 흐르게 한다.
+        // 예전엔 ApplySuspension 안에서 줄였는데, 튀어올라서 공중에 뜨면 그 함수가 먼저
+        // 빠져나가버려서 타이머가 멈췄다 — 착지한 뒤에도 한동안 서스펜션이 죽어 있었다.
+        if (hopTimer > 0f) hopTimer -= dt;
+        if (hopCooldownTimer > 0f) hopCooldownTimer -= dt;
+
+        bool canHop = hopQueued && IsGrounded && hopTimer <= 0f && hopCooldownTimer <= 0f;
+        hopQueued = false;
+        if (!canHop) return;
+
+        // 위로 향하는 속도를 갈아끼운다. 더하면 이미 뜨고 있을 때 너무 높이 솟는다.
+        Vector3 v = rb.linearVelocity;
+        v.y = hopVelocity;
+        rb.linearVelocity = v;
+
+        hopTimer = hopAirTime;
+        hopCooldownTimer = hopAirTime + hopCooldown;
     }
 
     void ApplySuspension(float dt)
@@ -116,6 +178,10 @@ public class KartController : MonoBehaviour
         IsGrounded = Physics.Raycast(origin, Vector3.down, out RaycastHit hit,
                                      maxDistance, groundMask, QueryTriggerInteraction.Ignore);
         if (!IsGrounded) return;
+
+        // 호핑 중엔 스프링을 잠시 쉬게 한다. 안 그러면 튀어오르자마자 도로 눌러버려서
+        // 통통 튀는 게 아니라 부르르 떠는 것처럼 보인다. (타이머는 TryHop 에서 흐른다)
+        if (hopTimer > 0f) return;
 
         float restDistance = rayStartUp + rideHeight;
         float compression = restDistance - hit.distance;      // + 면 너무 낮다 → 밀어올린다

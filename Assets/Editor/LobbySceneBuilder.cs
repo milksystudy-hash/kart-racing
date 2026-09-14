@@ -19,6 +19,7 @@ public static class LobbySceneBuilder
     const string SceneFolder = "Assets/Scenes";
     const string LobbyPath   = SceneFolder + "/Lobby.unity";
     const string TrackPath   = SceneFolder + "/Track.unity";
+    const string GalleryPath = SceneFolder + "/Gallery.unity";
     const string TestbedPath = SceneFolder + "/Testbed.unity";
 
     // ---- 홀 크기 ----
@@ -104,7 +105,7 @@ public static class LobbySceneBuilder
     public static void RegisterScenes()
     {
         var list = new System.Collections.Generic.List<EditorBuildSettingsScene>();
-        foreach (var path in new[] { LobbyPath, TrackPath, TestbedPath })
+        foreach (var path in new[] { LobbyPath, TrackPath, GalleryPath, TestbedPath })
             if (File.Exists(path)) list.Add(new EditorBuildSettingsScene(path, true));
 
         EditorBuildSettings.scenes = list.ToArray();

@@ -1,0 +1,89 @@
+using UnityEngine;
+
+/// <summary>
+/// 전시실의 진열장 하나. 수집품 한 점을 올려놓는다.
+///
+/// 아직 못 모은 것은 **검은 실루엣**으로 서 있다 — 비어 있는 것보다 "찾아야 할 게 남았다" 는
+/// 신호가 훨씬 잘 보인다. 모으면 색이 들어오고 천천히 돈다.
+///
+/// **네 모델을 넣는 곳은 `ItemAnchor`야.** 거기 자식으로 넣고 `Placeholder` 를 지우면 끝.
+/// </summary>
+public class GalleryCase : MonoBehaviour
+{
+    [Header("전시품")]
+    [Tooltip("CollectionState 가 쓰는 식별자. 레이스에서 이 id 로 수집한다")]
+    public string itemId = "";
+    public string displayName = "";
+    [TextArea(2, 4)]
+    [Tooltip("클릭하면 뜨는 설명. 이야기 조각을 여기 넣으면 된다")]
+    public string description = "";
+    [Tooltip("어느 장에서 얻는지. 화면에 같이 뜬다")]
+    public string chapter = "";
+
+    [Header("모델")]
+    [Tooltip("★ 여기에 수집품 FBX 를 자식으로 넣어")]
+    public Transform itemAnchor;
+    [Tooltip("임시 자리표시. 진짜 모델이 오면 지우면 된다")]
+    public GameObject placeholder;
+    public Renderer itemRenderer;
+
+    [Header("연출")]
+    public Renderer plaqueRenderer;
+    public Color plaqueIdle     = new Color32(0xB4, 0xCD, 0xBC, 0xFF);
+    public Color plaqueHover    = new Color32(0xF0, 0xB5, 0x4A, 0xFF);
+    public Color plaqueLocked   = new Color32(0x5A, 0x5E, 0x62, 0xFF);
+    [Tooltip("아직 못 모은 전시품의 색")]
+    public Color silhouetteColor = new Color32(0x2A, 0x2C, 0x30, 0xFF);
+    public Color revealedColor   = new Color32(0xD8, 0xB4, 0x6C, 0xFF);
+    public float spinSpeed = 28f;
+
+    public bool IsCollected => CollectionState.Has(itemId);
+    public string Label => string.IsNullOrEmpty(displayName) ? itemId : displayName;
+
+    bool highlighted;
+    Color revealed;
+
+    void Awake()
+    {
+        revealed = revealedColor;
+        ApplyLook();
+    }
+
+    void Update()
+    {
+        // 모은 전시품만 천천히 돈다
+        if (itemAnchor != null && IsCollected)
+            itemAnchor.Rotate(0f, spinSpeed * Time.deltaTime, 0f, Space.Self);
+    }
+
+    public void SetHighlighted(bool on)
+    {
+        if (highlighted == on) return;
+        highlighted = on;
+        ApplyLook();
+    }
+
+    /// <summary>수집 상태가 바뀌었을 때 다시 칠한다.</summary>
+    public void Refresh() => ApplyLook();
+
+    void ApplyLook()
+    {
+        bool collected = IsCollected;
+
+        if (plaqueRenderer != null)
+        {
+            Color c = !collected ? plaqueLocked : (highlighted ? plaqueHover : plaqueIdle);
+            Paint(plaqueRenderer, c);
+        }
+
+        if (itemRenderer != null)
+            Paint(itemRenderer, collected ? revealed : silhouetteColor);
+    }
+
+    static void Paint(Renderer renderer, Color color)
+    {
+        var mat = renderer.material;   // 인스턴스를 써서 공유 머티리얼을 안 건드린다
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+    }
+}

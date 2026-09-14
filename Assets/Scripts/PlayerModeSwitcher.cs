@@ -1,11 +1,10 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 /// <summary>
-/// Tab 으로 "걸어다니기 ↔ 카트 타기" 를 오간다.
+/// 씬이 시작할 때 조작 방식을 정한다 — 카트가 있으면 타고, 없으면 걷는다.
 ///
-/// 트랙을 걸어서 둘러본 다음 바로 타고 달려볼 수 있어서, 맵을 만들면서 확인하기에 제일 편하다.
-/// 씬에 카트가 없으면 그냥 걷기만 된다 — 빈 맵에서도 문제없이 동작해.
+/// 트랙 씬은 카트만, Testbed 씬은 걷기만 쓴다. 한 씬에서 둘을 오가지 않는 이유는
+/// 조작이 섞이면 헷갈리기 때문 — 레이스 중에 마우스 시점과 점프가 끼어들면 안 된다.
 /// </summary>
 public class PlayerModeSwitcher : MonoBehaviour
 {
@@ -25,16 +24,17 @@ public class PlayerModeSwitcher : MonoBehaviour
 
     void Start()
     {
-        Apply(false);
+        // 카트가 있는 씬(트랙)이면 처음부터 타고 시작한다.
+        // 레이스인데 걸어다니는 상태로 떨어지면, 점프하다 비행 모드에 갇히거나
+        // 마우스 시점이 끼어들어서 헷갈린다. 둘러보고 싶으면 Tab 으로 내리면 돼.
+        Apply(HasKart);
     }
 
-    void Update()
-    {
-        if (Keyboard.current == null) return;
-
-        if (Keyboard.current.tabKey.wasPressedThisFrame && HasKart)
-            Apply(!InKart);
-    }
+    // Tab 으로 내려서 걸어다니는 기능은 없앴다.
+    // 레이스 도중에 내릴 일이 없고, 걷기 모드가 켜지면 마우스 시점과 점프가 끼어들어서
+    // 조작이 헷갈려진다. 맵을 걸어서 확인하고 싶으면 Testbed 씬(F3)을 쓰면 된다.
+    //
+    // 다시 필요해지면 SetMode(false) 를 부르면 되게 남겨뒀다.
 
     void Apply(bool intoKart)
     {

@@ -29,6 +29,7 @@ public class SceneNavigator : MonoBehaviour
         if (keyboard.f1Key.wasPressedThisFrame) LoadByIndex(0);
         if (keyboard.f2Key.wasPressedThisFrame) LoadByIndex(1);
         if (keyboard.f3Key.wasPressedThisFrame) LoadByIndex(2);
+        if (keyboard.f4Key.wasPressedThisFrame) LoadByIndex(3);
         if (keyboard.f5Key.wasPressedThisFrame) Reload();
     }
 

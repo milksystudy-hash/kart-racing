@@ -16,6 +16,10 @@ public static class KartInput
     public static float Steer { get; private set; }
     public static bool Drift { get; private set; }
 
+    /// <summary>드리프트 키를 "톡" 누른 순간. 마리오 카트처럼 호핑에 쓴다.
+    /// 같은 키를 눌러서 뛰고, 꾹 누른 채 꺾으면 드리프트가 된다.</summary>
+    public static bool DriftPressed { get; private set; }
+
     public static bool RespawnPressed =>
         (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) ||
         (Gamepad.current != null && Gamepad.current.buttonNorth.wasPressedThisFrame);
@@ -68,7 +72,11 @@ public static class KartInput
             if (!Mathf.Approximately(horizontal, 0f)) { steerTarget = horizontal; analog = false; }
             if (!Mathf.Approximately(vertical, 0f))   { throttleTarget = vertical; analog = false; }
 
-            drift |= keyboard.spaceKey.isPressed;
+            // 드리프트는 스페이스와 시프트 둘 다 받는다.
+            // 화살표로 운전하면 왼손이 놀기 때문에, 어느 쪽이 편하든 그냥 되게 해두는 게 낫다.
+            drift |= keyboard.spaceKey.isPressed
+                  || keyboard.leftShiftKey.isPressed
+                  || keyboard.rightShiftKey.isPressed;
         }
 
         float steerRate = analog ? AnalogRate : KeyboardSteerRate;
@@ -76,6 +84,8 @@ public static class KartInput
 
         Steer = Mathf.MoveTowards(Steer, steerTarget, steerRate * deltaTime);
         Throttle = Mathf.MoveTowards(Throttle, throttleTarget, throttleRate * deltaTime);
+
+        DriftPressed = drift && !Drift;   // 이번 프레임에 막 눌린 순간만 true
         Drift = drift;
     }
 

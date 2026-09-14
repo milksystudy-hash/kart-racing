@@ -1,0 +1,151 @@
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+/// <summary>
+/// 전시실용 임시 화면 표시. 수집 현황, 눈앞의 전시품 이름, 클릭했을 때의 설명.
+/// 진짜 UI 를 만들 때 통째로 버릴 스크립트야.
+/// </summary>
+public class GalleryHUD : MonoBehaviour
+{
+    public GallerySelector selector;
+
+    [Header("폰트 (비워 두면 프로젝트 한글 폰트를 쓴다)")]
+    public Font uiFont;
+
+    [Header("테스트 도우미")]
+    [Tooltip("켜두면 F9 로 전부 수집, F10 으로 전부 초기화. 제출 전에 꺼")]
+    public bool debugKeys = true;
+
+    Texture2D panelTex, dimTex, accentTex;
+    GUIStyle titleStyle, labelStyle, valueStyle, promptStyle, bodyStyle, hintStyle;
+    bool ready;
+
+    void Awake()
+    {
+        panelTex  = Solid(new Color(0.09f, 0.10f, 0.08f, 0.78f));
+        dimTex    = Solid(new Color(1f, 1f, 1f, 0.16f));
+        accentTex = Solid(new Color(0.94f, 0.71f, 0.29f, 0.95f));
+    }
+
+    void Update()
+    {
+        if (!debugKeys || Keyboard.current == null || selector == null) return;
+
+        if (Keyboard.current.f9Key.wasPressedThisFrame)
+        {
+            foreach (var c in selector.cases)
+                if (c != null) CollectionState.Collect(c.itemId);
+            selector.RecountCollected();
+        }
+        if (Keyboard.current.f10Key.wasPressedThisFrame)
+        {
+            CollectionState.ClearAll();
+            selector.RecountCollected();
+        }
+    }
+
+    static Texture2D Solid(Color c)
+    {
+        var t = new Texture2D(1, 1);
+        t.SetPixel(0, 0, c);
+        t.Apply();
+        t.hideFlags = HideFlags.HideAndDontSave;
+        return t;
+    }
+
+    void BuildStyles()
+    {
+        var font = HudFont.Resolve(uiFont);
+
+        titleStyle = HudFont.With(new GUIStyle(GUI.skin.label)
+        { fontSize = 22, fontStyle = FontStyle.Bold }, font);
+        titleStyle.normal.textColor = Color.white;
+
+        labelStyle = HudFont.With(new GUIStyle(GUI.skin.label) { fontSize = 12 }, font);
+        labelStyle.normal.textColor = new Color(1f, 1f, 1f, 0.55f);
+
+        valueStyle = HudFont.With(new GUIStyle(GUI.skin.label)
+        { fontSize = 18, fontStyle = FontStyle.Bold }, font);
+        valueStyle.normal.textColor = Color.white;
+
+        promptStyle = HudFont.With(new GUIStyle(GUI.skin.label)
+        { fontSize = 17, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }, font);
+        promptStyle.normal.textColor = Color.white;
+
+        bodyStyle = HudFont.With(new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true }, font);
+        bodyStyle.normal.textColor = new Color(1f, 1f, 1f, 0.85f);
+
+        hintStyle = HudFont.With(new GUIStyle(GUI.skin.label)
+        { fontSize = 13, alignment = TextAnchor.MiddleCenter }, font);
+        hintStyle.normal.textColor = new Color(1f, 1f, 1f, 0.5f);
+
+        ready = true;
+    }
+
+    void OnGUI()
+    {
+        if (!ready) BuildStyles();
+        float w = Screen.width, h = Screen.height;
+
+        DrawProgress();
+        DrawHoverName(w, h);
+        DrawOpenedPanel(w, h);
+
+        string keys = "마우스 끌기 둘러보기     휠 확대·축소     클릭 전시품 보기     F1·F2 씬 이동";
+        if (debugKeys) keys += "     F9 전부수집 / F10 초기화";
+        GUI.Label(new Rect(0, h - 26, w, 20), keys, hintStyle);
+    }
+
+    void DrawProgress()
+    {
+        GUI.DrawTexture(new Rect(16, 16, 250, 84), panelTex);
+        GUI.Label(new Rect(30, 22, 220, 26), "전시실", titleStyle);
+
+        int got = selector != null ? selector.CollectedCount : 0;
+        int total = selector != null ? Mathf.Max(1, selector.TotalCount) : 1;
+
+        GUI.Label(new Rect(30, 50, 220, 14), "모은 전시품", labelStyle);
+        GUI.Label(new Rect(30, 62, 220, 24), $"{got} / {total}", valueStyle);
+
+        var bar = new Rect(30, 88, 220, 6);
+        GUI.DrawTexture(bar, dimTex);
+        GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * ((float)got / total), bar.height), accentTex);
+    }
+
+    void DrawHoverName(float w, float h)
+    {
+        var hovered = selector != null ? selector.Hovered : null;
+        if (hovered == null || hovered == (selector != null ? selector.Opened : null)) return;
+
+        string text = hovered.IsCollected ? $"{hovered.Label}  —  클릭해서 보기"
+                                          : $"???  —  아직 찾지 못함";
+        var box = new Rect(w * 0.5f - 190, h * 0.66f, 380, 36);
+        GUI.DrawTexture(box, panelTex);
+        GUI.Label(box, text, promptStyle);
+    }
+
+    void DrawOpenedPanel(float w, float h)
+    {
+        var opened = selector != null ? selector.Opened : null;
+        if (opened == null) return;
+
+        var box = new Rect(w - 380, 120, 356, 200);
+        GUI.DrawTexture(box, panelTex);
+
+        if (!opened.IsCollected)
+        {
+            GUI.Label(new Rect(box.x + 20, box.y + 20, box.width - 40, 26), "???", valueStyle);
+            GUI.Label(new Rect(box.x + 20, box.y + 54, box.width - 40, 100),
+                      "아직 찾지 못한 전시품입니다.\n레이스에서 수집하면 여기 진열됩니다.", bodyStyle);
+            if (!string.IsNullOrEmpty(opened.chapter))
+                GUI.Label(new Rect(box.x + 20, box.y + 160, box.width - 40, 20),
+                          $"출처  {opened.chapter}", labelStyle);
+            return;
+        }
+
+        GUI.Label(new Rect(box.x + 20, box.y + 18, box.width - 40, 28), opened.Label, valueStyle);
+        if (!string.IsNullOrEmpty(opened.chapter))
+            GUI.Label(new Rect(box.x + 20, box.y + 46, box.width - 40, 18), opened.chapter, labelStyle);
+        GUI.Label(new Rect(box.x + 20, box.y + 70, box.width - 40, 110), opened.description, bodyStyle);
+    }
+}

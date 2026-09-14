@@ -140,12 +140,16 @@ public class TestHUD : MonoBehaviour
         string keys;
         if (InKart)
         {
-            keys = "WASD 운전     SPACE 드리프트     R 제자리로     TAB 내리기";
+            keys = "화살표·WASD 운전     SPACE 톡 호핑 / 꾹 드리프트     R 제자리로";
+        }
+        else if (player != null && player.IsFlying)
+        {
+            // 비행 중에 빠져나오는 법을 제일 앞에 둔다. 모르면 공중에 갇힌 것처럼 느껴진다.
+            keys = "◆ 비행 중 — F 를 누르면 착지     WASD 이동     SPACE 위 / CTRL 아래";
         }
         else
         {
             keys = "WASD 이동     마우스 시선     SHIFT 달리기     SPACE 점프     F 비행";
-            if (modeSwitcher != null && modeSwitcher.HasKart) keys += "     TAB 카트 타기";
         }
         keys += "     F1·F2 씬 이동     ESC 커서";
 

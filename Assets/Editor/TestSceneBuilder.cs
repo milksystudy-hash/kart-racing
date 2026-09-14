@@ -9,7 +9,7 @@ using UnityEngine.Rendering.Universal;
 /// 테스트용 씬 두 개를 만들어서 저장하고 빌드 설정에 등록한다.
 ///
 ///   Testbed  — 아무것도 없는 회색 맵. 블렌더에서 만든 걸 던져 넣고 크기를 눈으로 확인하는 곳.
-///   Track    — 지난주에 만든 타원 트랙. 걸어서 둘러보다가 Tab 으로 카트를 탈 수 있다.
+///   Track    — 환웅박물관 야외 캠퍼스 순환 트랙(회색 상자). 카트만 탄다.
 ///
 /// 상단 메뉴 [Racing] 에서 언제든 다시 만들 수 있어. 다만 **다시 만들면 그 씬에
 /// 네가 손으로 넣어둔 건 사라지니까**, 작업을 시작한 뒤에는 함부로 누르지 마.
@@ -90,9 +90,9 @@ public static class TestSceneBuilder
         Capsule(root, "Ref_Human_1.7m", new Vector3(-1.5f, 0.85f, 0f),
                 new Vector3(0.5f, 0.85f, 0.5f), ColRefSage);
 
-        // 치비 캐릭터 서 있는 키 1.15m (규격서)
-        Capsule(root, "Ref_Chibi_1.15m", new Vector3(0.5f, 0.575f, 0f),
-                new Vector3(0.45f, 0.575f, 0.45f), ColRefSage);
+        // 치비 캐릭터 서 있는 키 1.25m — 3등신 (규격)
+        Capsule(root, "Ref_Chibi_1.25m", new Vector3(0.5f, 0.625f, 0f),
+                new Vector3(0.48f, 0.625f, 0.48f), ColRefSage);
 
         // 카트 크기 상자 — 전장 1.5 / 전폭 1.1 / 높이 0.55 (규격서)
         Cube(root, "Ref_Kart_1.5x1.1x0.55", new Vector3(3f, 0.275f, 0f),
@@ -116,19 +116,24 @@ public static class TestSceneBuilder
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         MakeSun();
-        MakeGround(400f);
 
+        // 야외 캠퍼스라 회색 바닥판 대신 CampusBuilder 가 잔디를 깐다
         var trackGo = new GameObject("Track");
         var track = trackGo.AddComponent<TrackBuilder>();
+        trackGo.AddComponent<CampusBuilder>();
 
-        // 결승선 위치와 방향. TrackBuilder 의 기본값과 같은 계산.
-        var startPos = new Vector3(track.radiusX, 0f, 0f);
+        // 결승선 위치와 방향은 TrackBuilder 가 계산해준다 (조절점을 바꿔도 따라온다)
+        Vector3 startPos = track.StartPosition;
+        Quaternion startRot = track.StartRotation;
 
-        var kart = MakeKart(startPos + Vector3.up * 0.38f, Quaternion.identity);
+        var kart = MakeKart(startPos, startRot);
         var kartCam = MakeKartCamera(kart);
 
-        // 플레이어는 결승선 옆 인도에 서서 시작한다
-        var player = MakePlayer(startPos + new Vector3(0f, 0.1f, -4f), 0f);
+        // 레이스 씬에는 걸어다니는 플레이어를 두지 않는다.
+        // 맵을 걸어서 확인하고 싶으면 Testbed 씬(F3)을 쓰면 돼.
+
+        // 평균 14 m/s 는 최고속 22 에서 코너 감속을 감안한 어림값
+        Debug.Log($"[Racing] 트랙 한 바퀴 {track.LapLength:0} m · 약 {track.LapLength / 14f:0} 초/랩 예상");
 
         var rig = new GameObject("GameRig");
         rig.AddComponent<SceneNavigator>();
@@ -139,14 +144,11 @@ public static class TestSceneBuilder
         tracker.totalLaps = 3;
 
         var switcher = rig.AddComponent<PlayerModeSwitcher>();
-        switcher.player = player.controller;
-        switcher.playerCamera = player.camera;
         switcher.kart = kart;
         switcher.kartCamera = kartCam;
 
         var hud = rig.AddComponent<TestHUD>();
         hud.modeSwitcher = switcher;
-        hud.player = player.controller;
         hud.kart = kart;
         hud.tracker = tracker;
 
@@ -171,7 +173,7 @@ public static class TestSceneBuilder
     {
         // 윗면이 정확히 y = 0 에 오게 두께의 절반만큼 내린다
         float thickness = Mathf.Max(1f, size * 0.025f);
-        var go = Cube(null, "Ground", new Vector3(0f, -thickness * 0.5f, 0f),
+        var go = Cube(null, "Ground", new Vector3(0f, -thickness * 0.5f - 0.05f, 0f),
                       new Vector3(size, thickness, size), ColGround);
         go.isStatic = true;
     }
@@ -264,7 +266,7 @@ public static class TestSceneBuilder
     {
         var go = new GameObject("KartCamera");
         SetUpCamera(go);
-        go.tag = "Untagged";   // MainCamera 태그는 플레이어 카메라가 갖는다
+        // 레이스 씬엔 다른 카메라가 없으니 이게 MainCamera 다 (SetUpCamera 가 이미 태그함)
 
         var follow = go.AddComponent<KartCamera>();
         follow.target = kart.transform;
