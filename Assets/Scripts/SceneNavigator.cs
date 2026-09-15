@@ -3,7 +3,8 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// 재생 중에 씬을 바꾼다. F1 = 첫 번째 씬, F2 = 두 번째 씬, F5 = 지금 씬 다시 시작.
+/// 재생 중에 씬을 바꾼다.
+/// F1 로비 · F2 트랙 · F3 전시실 · F4 테스트베드 · F6 내 맵 · F5 다시 시작.
 ///
 /// 씬이 Build Settings 에 등록돼 있어야 동작한다.
 /// (File → Build Profiles 에서 확인 — 에디터 스크립트가 이미 등록해뒀어)

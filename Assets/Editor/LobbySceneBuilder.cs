@@ -94,6 +94,9 @@ public static class LobbySceneBuilder
         hud.selector = selector;
         hud.gate = gate;
 
+        // 이야기 장면은 이 방 안에서 돈다. 전용 씬을 만들면 중앙홀이 두 벌이 되니까.
+        StoryRigBuilder.EnsureRig();
+
         EditorSceneManager.SaveScene(scene, LobbyPath);
         RegisterScenes();
 
@@ -102,7 +105,12 @@ public static class LobbySceneBuilder
         Debug.Log("[Racing] Lobby.unity(중앙홀) 생성 완료. F1 로비 / F2 트랙 / F3 테스트베드.");
     }
 
-    /// <summary>있는 씬만 골라 순서대로 빌드 설정에 넣는다. Lobby → Track → Testbed.</summary>
+    /// <summary>
+    /// 있는 씬만 골라 순서대로 빌드 설정에 넣는다.
+    /// F1 로비 · F2 트랙 · F3 전시실 · F4 테스트베드 · F6 내 맵.
+    /// 새 씬은 <b>뒤에 붙인다</b> — 중간에 끼우면 이미 외운 F 키들이 전부 밀린다.
+    /// 이야기 장면은 씬이 아니라 로비 안에서 돈다(StoryStage) — 중앙홀을 두 벌로 만들지 않으려고.
+    /// </summary>
     public static void RegisterScenes()
     {
         var list = new System.Collections.Generic.List<EditorBuildSettingsScene>();

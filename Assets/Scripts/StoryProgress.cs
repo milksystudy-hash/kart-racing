@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -47,4 +48,46 @@ public static class StoryProgress
     };
 
     public static string CurrentName => NameOf(CurrentChapter);
+
+    // ==================================================================
+    //  이미 본 이야기 장면
+    //  같은 장면이 로비에 들를 때마다 다시 뜨면 성가시니까 한 번 본 건 기억한다.
+    //  기획서 §3.7 의 "챕터 선택 화면에서 이미 본 이야기를 다시 볼 수 있다" 도 이 목록을 쓴다.
+    // ==================================================================
+
+    const string SeenKey = "Racing.StorySeen";
+
+    static HashSet<string> seen;
+
+    static HashSet<string> Seen
+    {
+        get
+        {
+            if (seen != null) return seen;
+
+            seen = new HashSet<string>();
+            foreach (var id in PlayerPrefs.GetString(SeenKey, "").Split(','))
+                if (!string.IsNullOrWhiteSpace(id)) seen.Add(id.Trim());
+
+            return seen;
+        }
+    }
+
+    public static bool HasSeen(string sceneId) =>
+        !string.IsNullOrEmpty(sceneId) && Seen.Contains(sceneId);
+
+    public static void MarkSeen(string sceneId)
+    {
+        if (string.IsNullOrEmpty(sceneId) || !Seen.Add(sceneId)) return;
+        PlayerPrefs.SetString(SeenKey, string.Join(",", Seen));
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>테스트용. 처음부터 다시 보고 싶을 때.</summary>
+    public static void ClearSeen()
+    {
+        Seen.Clear();
+        PlayerPrefs.SetString(SeenKey, "");
+        PlayerPrefs.Save();
+    }
 }
