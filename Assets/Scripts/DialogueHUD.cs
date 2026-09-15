@@ -200,8 +200,13 @@ public class DialogueHUD : MonoBehaviour
         float plateW = Mathf.Max(104f, nameStyle.CalcSize(new GUIContent(name)).x + 36f);
         var plate = new Rect(box.x + 26f + pw + 14f, box.y - 34f, plateW, 34f);
 
-        Fill(plate, Cast.ColorOf(line.speakerId));
-        GUI.Label(plate, name, nameStyle);
+        var plateColor = Cast.ColorOf(line.speakerId);
+        Fill(plate, plateColor);
+
+        // 금색처럼 밝은 이름표 위에서는 흰 글자가 사라진다. 바탕 밝기를 보고 고른다.
+        var style = new GUIStyle(nameStyle);
+        style.normal.textColor = Cast.TextOn(plateColor);
+        GUI.Label(plate, name, style);
     }
 
     void DrawText(Rect box, DialogueLine line)

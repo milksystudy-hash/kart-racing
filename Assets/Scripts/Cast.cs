@@ -34,16 +34,22 @@ public static class Cast
         public string note;
     }
 
+    // ── 색은 카트 색에 맞춘다 (2026-09-15 유저 확정) ─────────────────────────
+    //   한세진 초록 · 한세운 하늘 · 한시우 파랑 · 정이감 빨강
+    //
+    // 이름표는 흰 글자를 얹기 때문에 카트 색 그대로 쓰면 글자가 안 읽힌다
+    // (카트 라임 #67A829 는 흰 글자 대비 2.9 로 기준 미달). 같은 색조에서 한 단계
+    // 어둡게 잡아 대비 4 이상을 맞췄다 — 색은 같은 계열로 읽히고 글자는 살아남는다.
     public static readonly Member[] All =
     {
-        new Member { id = "이감", name = "정이감",  color = Hex(0x4C7BA6),
+        new Member { id = "이감", name = "정이감",  color = Hex(0xC2403C),
             note = "인간 주인공. 관찰하고 증거를 연결한다. 곰 삼 형제를 가족으로 대한다." },
-        new Member { id = "시우", name = "한시우",  color = Hex(0xC2703F),
+        new Member { id = "시우", name = "한시우",  color = Hex(0x2B4E9B),
             note = "장남. 책임감이 강하고 안전을 우선한다 (ENFJ). 말리는 쪽." },
-        new Member { id = "세운", name = "한세운",  color = Hex(0x6FA860),
-            note = "둘째. 다정하고 분위기를 살린다 (ENFP). 농담으로 공기를 푼다." },
-        new Member { id = "세진", name = "한세진",  color = Hex(0xC9514F),
-            note = "막내. 행동이 빠르고 위험을 즐긴다 (ESTP). 사고를 친다." },
+        new Member { id = "세운", name = "한세운",  color = Hex(0x357FB0),
+            note = "둘째. 다정하고 분위기를 살린다 (ENFP). 농담으로 공기를 푼다. 카트 WOON_CART_FIN(하늘)." },
+        new Member { id = "세진", name = "한세진",  color = Hex(0x4F8C24),
+            note = "막내. 행동이 빠르고 위험을 즐긴다 (ESTP). 사고를 친다. 카트 JIN_FIN_CART(초록)." },
         new Member { id = "관장", name = "박물관장", color = Hex(0x8C7B9E),
             note = "조건부 매각에 서명했다. 비리를 계획하진 않았지만 사실을 숨겼다." },
         // 악당 둘은 기획서 §4.4 대로 금색·자홍색 — 박물관 색조와 일부러 부딪히게
@@ -72,6 +78,28 @@ public static class Cast
 
     public static Color ColorOf(string id) =>
         string.IsNullOrEmpty(id) ? NarratorColor : Of(id).color;
+
+    /// <summary>
+    /// 그 색 위에 글자를 얹을 때 쓸 글자 색. 밝은 바탕이면 검정, 어두우면 흰색.
+    ///
+    /// 이름표를 늘 흰 글자로 그렸더니 개발업자의 금색(#C9A227) 위에서 글자가 사라졌다.
+    /// 금색은 기획서 §4.4 가 정한 악당 색이라 바꿀 게 아니라 글자 쪽을 바꿔야 한다.
+    /// 나중에 네가 색을 바꿔도 이 판정이 알아서 따라간다.
+    /// </summary>
+    public static Color TextOn(Color background)
+    {
+        float luminance = 0.2126f * ToLinear(background.r)
+                        + 0.7152f * ToLinear(background.g)
+                        + 0.0722f * ToLinear(background.b);
+
+        // 흰 글자 대비가 4 를 넘으면 흰색, 아니면 검정이 낫다
+        return (1.05f / (luminance + 0.05f)) >= 4f
+            ? Color.white
+            : new Color(0.10f, 0.08f, 0.06f);
+    }
+
+    static float ToLinear(float v) =>
+        v <= 0.03928f ? v / 12.92f : Mathf.Pow((v + 0.055f) / 1.055f, 2.4f);
 
     // ------------------------------------------------------------------
     //  초상화 — 있으면 쓰고, 없으면 null (HUD 가 자리표시를 그린다)

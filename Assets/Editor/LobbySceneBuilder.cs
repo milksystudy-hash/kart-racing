@@ -47,14 +47,23 @@ public static class LobbySceneBuilder
     static readonly Color ColPedestal   = new Color32(0xB0, 0xAC, 0xA0, 0xFF);
 
     /// <summary>기획서 §3.5 레이서 자리. 5·6번은 잠긴 자리.</summary>
-    static readonly (string id, string name, Color color, bool locked)[] Racers =
+    /// <summary>
+    /// 캐릭터 자리. <b>색은 여기 안 적는다</b> — Cast.cs 에서 가져온다.
+    ///
+    /// 예전엔 여기와 Cast.cs 두 군데에 색이 따로 적혀 있었고, 둘이 서로 달랐다.
+    /// 로비 받침대의 세운은 주황, 대화창 이름표의 세운은 초록, 실제 카트는 하늘색이었다.
+    /// 색이 캐릭터를 가리키는 표시인데 자리마다 다르면 표시 구실을 못 한다.
+    ///
+    /// castId 는 Cast.cs 의 id 와 같아야 한다. id 쪽은 저장된 선택값이 걸려 있어서 안 바꾼다.
+    /// </summary>
+    static readonly (string id, string castId, string name, bool locked)[] Racers =
     {
-        ("Igam",     "정이감",   new Color32(0x4E, 0x7B, 0xB5, 0xFF), false),
-        ("Siwoo",    "한시우",   new Color32(0x8A, 0x64, 0x40, 0xFF), false),
-        ("Sewoon",   "한세운",   new Color32(0xD9, 0x91, 0x5F, 0xFF), false),
-        ("Sejin",    "한세진",   new Color32(0xC0, 0x45, 0x3C, 0xFF), false),
-        ("Developer","개발업자", new Color32(0x3A, 0x3E, 0x48, 0xFF), true),
-        ("Council",  "시의원",   new Color32(0x3A, 0x3E, 0x48, 0xFF), true),
+        ("Igam",     "이감",     "정이감",   false),
+        ("Siwoo",    "시우",     "한시우",   false),
+        ("Sewoon",   "세운",     "한세운",   false),
+        ("Sejin",    "세진",     "한세진",   false),
+        ("Developer","개발업자", "개발업자", true),
+        ("Council",  "시의원",   "시의원",   true),
     };
 
     [MenuItem("Racing/로비 씬 만들기")]
@@ -447,10 +456,11 @@ public static class LobbySceneBuilder
             anchor.localPosition = new Vector3(0f, 0.48f, 0f);
 
             // 임시 자리표시 — 치비 서 있는 키 1.15m (규격서)
+            // 색은 Cast.cs 가 정한다. 잠긴 자리(개발업자·시의원)도 거기 색을 그대로 쓴다.
             var placeholder = TestSceneBuilder.Capsule(anchor, "Placeholder",
                                                        new Vector3(0f, 0.575f, 0f),
                                                        new Vector3(0.45f, 0.575f, 0.45f),
-                                                       racer.color, keepCollider: false);
+                                                       Cast.ColorOf(racer.castId), keepCollider: false);
 
             var stand = go.AddComponent<CharacterStand>();
             stand.index = i;
