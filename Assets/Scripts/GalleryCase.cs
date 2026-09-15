@@ -41,12 +41,29 @@ public class GalleryCase : MonoBehaviour
     public string Label => string.IsNullOrEmpty(displayName) ? itemId : displayName;
 
     bool highlighted;
+    [Header("진열 조명")]
+    [Tooltip("이 진열장 위의 스포트. 모은 것만 불이 켜진다 — 방을 보면 몇 개 모았는지 바로 보인다")]
+    public Light caseLight;
+    public float litIntensity = 26f;
+    public float unlitIntensity = 3f;
+
     Color revealed;
 
     void Awake()
     {
         revealed = revealedColor;
         ApplyLook();
+        ApplyLight();
+    }
+
+    /// <summary>
+    /// 모은 진열장에만 불을 켠다. 노란 불빛은 원래 여기 있어야 하는 것 —
+    /// 달리는 중이 아니라 전시실에서, 모은 개수만큼 방이 밝아진다.
+    /// </summary>
+    void ApplyLight()
+    {
+        if (caseLight == null) return;
+        caseLight.intensity = IsCollected ? litIntensity : unlitIntensity;
     }
 
     void Update()

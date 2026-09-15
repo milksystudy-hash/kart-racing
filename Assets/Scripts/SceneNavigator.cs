@@ -22,8 +22,14 @@ public class SceneNavigator : MonoBehaviour
         if (persistAcrossScenes) DontDestroyOnLoad(gameObject);
     }
 
+    [Tooltip("F1~F3 으로 씬을 건너뛰는 개발용 단축키. 빌드한 게임에서는 자동으로 꺼진다")]
+    public bool debugKeys = true;
+
     void Update()
     {
+        // 플레이어는 씬을 마음대로 건너뛰면 안 된다. 에디터에서만 듣는다.
+        if (!debugKeys || !Application.isEditor) return;
+
         var keyboard = Keyboard.current;
         if (keyboard == null) return;
 

@@ -127,6 +127,9 @@ public class KartController : MonoBehaviour
     [Tooltip("벽에 비비며 달릴 때 초당 잃는 속도(m/s). 벽을 타고 코너를 도는 걸 막는다")]
     public float wallScrubPerSecond = 5f;
 
+    /// <summary>벽에 비벼도 이 속도 아래로는 안 깎는다. 벽에서 빠져나올 힘은 남겨둬야 한다.</summary>
+    const float WallScrubFloor = 3f;
+
     /// <summary>
     /// 껍데기 마찰을 0 으로 둔 대가로 <b>벽이 공짜가 됐다</b> — 벽에 기대 풀악셀로 코너를
     /// 통과할 수 있어서 라인을 고를 이유가 사라진다. 마찰을 되살리면 다시 벽에 걸리니까,
@@ -155,9 +158,14 @@ public class KartController : MonoBehaviour
         }
         else if (wallScrubPerSecond > 0f)
         {
-            // 붙어서 달리는 동안 계속 깎인다. 한 번 부딪히는 것보다 오래 비비는 게 더 손해다.
-            rb.linearVelocity = Vector3.MoveTowards(velocity, Vector3.zero,
-                                                    wallScrubPerSecond * Time.fixedDeltaTime);
+            // 붙어서 달리는 동안 깎인다. 다만 **0 까지는 안 깎는다** —
+            // 0 으로 보내면 벽에 박힌 채 악셀을 밟아도 매 프레임 속도가 지워져서 영영 못 빠져나온다.
+            // (부스터 위에서 벽에 박히면 안 움직이던 게 이거였다.)
+            float speed = velocity.magnitude;
+            if (speed <= WallScrubFloor) return;
+
+            float drop = Mathf.Min(wallScrubPerSecond * Time.fixedDeltaTime, speed - WallScrubFloor);
+            rb.linearVelocity = velocity * ((speed - drop) / speed);
         }
     }
 

@@ -45,7 +45,7 @@ public static class GallerySceneBuilder
     // 전시품 목록은 ExhibitCatalogue 하나로 모았다.
     // 트랙에 놓는 수집품도 같은 목록을 읽어서, 주운 물건과 진열장이 어긋날 수가 없다.
 
-    [MenuItem("Racing/씬 하나만 다시 만들기/전시실", false, 102)]
+    [MenuItem("Racing/전시실 씬 만들기", false, 3)]
     public static void BuildGallery()
     {
         Directory.CreateDirectory(SceneFolder);
@@ -115,7 +115,7 @@ public static class GallerySceneBuilder
     }
 
     /// <summary>진열장 바로 위에서 떨어지는 따뜻한 조명 한 점.</summary>
-    static void MakeCaseLight(Transform parent)
+    static Light MakeCaseLight(Transform parent)
     {
         // 레일 조명 기구 — 빛만 허공에 떠 있으면 어색하다
         TestSceneBuilder.Cube(parent, "Fixture", new Vector3(0f, 4.35f, 0f),
@@ -140,6 +140,7 @@ public static class GallerySceneBuilder
         spot.spotAngle = 40f;
         spot.innerSpotAngle = 16f;
         spot.shadows = LightShadows.None;
+        return spot;
     }
 
     // ==================================================================
@@ -439,7 +440,7 @@ public static class GallerySceneBuilder
             pick.center = new Vector3(0f, 1.3f, 0f);
             pick.isTrigger = true;
 
-            MakeCaseLight(go.transform);
+            var caseLight = MakeCaseLight(go.transform);
             MakeNumberSticker(go.transform, i + 1);
 
             TestSceneBuilder.Cube(go.transform, "Base", new Vector3(0f, 0.5f, 0f),
@@ -493,6 +494,7 @@ public static class GallerySceneBuilder
             display.placeholder = placeholder;
             display.itemRenderer = placeholder.GetComponent<Renderer>();
             display.plaqueRenderer = plaque.GetComponent<Renderer>();
+            display.caseLight = caseLight;
 
             result[i] = display;
         }

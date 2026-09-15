@@ -23,8 +23,7 @@ public static class MuseumLook
     const string ProfilePath    = SettingsFolder + "/MuseumLook.asset";
     const string VolumeName     = "PostFX (박물관 룩)";
 
-    [MenuItem("Racing/도구/박물관 느낌 입히기 (지금 열린 씬)", false, 202)]
-    public static void ApplyToOpenSceneMenu()
+    static void ApplyToOpenSceneMenu()
     {
         int cameras = ApplyToOpenScene();
 

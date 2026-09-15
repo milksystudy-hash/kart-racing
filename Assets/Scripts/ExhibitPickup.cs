@@ -1,13 +1,13 @@
 using UnityEngine;
 
 /// <summary>
-/// 트랙에 놓인 수집품. 카트가 지나가면 전시실에 영구히 등록된다.
+/// 트랙에 놓인 수집품. 플레이어 카트가 지나가면 전시실에 영구히 등록된다.
 ///
-/// 주우면 **노란 전광등**이 하늘로 솟았다가 사라진다 — 레이스 중엔 화면을 볼 겨를이 없으니
-/// 큼직한 신호가 필요해. 아직 안 주운 것은 은은하게 빛나면서 돌고 있어서 멀리서도 보인다.
+/// 주우면 그냥 사라지고 화면에 안내문만 잠깐 뜬다.
+/// (레이스 중에 하늘로 솟는 전광등을 쐈었는데, 원래 노란 불빛은 **전시실에서** 모은 개수만큼
+///  켜지는 거였다 — 2026-09-16 에 바로잡았다. 달리는 중엔 화면이 조용한 게 낫다.)
 ///
-/// 이미 모은 것은 다음 레이스부터 아예 안 나타난다. 같은 걸 두 번 주울 이유가 없으니까.
-/// (코인처럼 매번 리셋되는 점수용 수집품과는 다른 물건이야 — 이건 한 번 얻으면 영구다.)
+/// 이미 모은 것과 이번 장 것이 아닌 것은 아예 안 나타난다.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class ExhibitPickup : MonoBehaviour
@@ -19,19 +19,12 @@ public class ExhibitPickup : MonoBehaviour
     public int chapter = 1;
 
     [Header("아직 안 주웠을 때")]
-    [Tooltip("돌면서 위아래로 떠다니는 부분. 주우면 사라진다")]
+    [Tooltip("돌면서 위아래로 떠다니는 부분")]
     public Transform visual;
     public float spinSpeed = 70f;
     public float bobHeight = 0.25f;
     public float bobSpeed = 1.6f;
     public Light idleLight;
-
-    [Header("주웠을 때 — 노란 전광등")]
-    public float beaconSeconds = 1.5f;
-    public float beaconHeight = 18f;
-    public float beaconRadius = 0.7f;
-    public Color beaconColor = new Color(1f, 0.86f, 0.25f);
-    public float beaconLightIntensity = 40f;
 
     /// <summary>HUD 가 잠깐 띄울 안내문. 가장 최근에 주운 것.</summary>
     public static string LastMessage { get; private set; } = "";
@@ -39,25 +32,44 @@ public class ExhibitPickup : MonoBehaviour
 
     Vector3 visualHome;
     float bobPhase;
-    bool taken;
-
-    Transform beacon;
-    Light beaconLight;
-    float beaconTimer;
 
     void Awake()
     {
         GetComponent<Collider>().isTrigger = true;
         if (visual != null) visualHome = visual.localPosition;
 
-        // 이번 장의 물건이 아니면 트랙에 안 나온다.
-        // 여덟 개를 한꺼번에 깔아두면 한 바퀴에 다 주워버려서, 장마다 얻는 구조가 무너진다.
+        // 이번 장의 물건이 아니면 안 나온다. 여덟 개를 한꺼번에 깔면 한 바퀴에 다 주워버린다.
         if (chapter != StoryProgress.CurrentChapter) { gameObject.SetActive(false); return; }
 
-        // 이미 모은 것도 안 나온다. 같은 걸 두 번 주울 이유가 없으니까.
+        // 이미 모은 것도 안 나온다.
         if (CollectionState.Has(itemId)) gameObject.SetActive(false);
 
         경고_한번만();
+    }
+
+    void Update()
+    {
+        if (visual == null) return;
+        visual.Rotate(0f, spinSpeed * Time.deltaTime, 0f, Space.Self);
+        bobPhase += Time.deltaTime * bobSpeed;
+        visual.localPosition = visualHome + Vector3.up * (Mathf.Sin(bobPhase) * bobHeight);
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        // 플레이어 카트만 줍는다. AI 가 이야기 증거를 먼저 가져가면
+        // 플레이어가 챕터를 넘길 수 없게 막혀버린다 (기획서 §3.3).
+        if (other.GetComponentInParent<PlayerKart>() == null) return;
+
+        CollectionState.Collect(itemId);
+
+        int caseNumber = ExhibitCatalogue.CaseNumberOf(itemId);
+        LastMessage = caseNumber > 0
+            ? $"{ExhibitCatalogue.NameOf(itemId)}  ·  전시실 {caseNumber}번에 등록"
+            : ExhibitCatalogue.NameOf(itemId);
+        LastMessageTime = Time.time;
+
+        Destroy(gameObject);
     }
 
     static bool 경고했다;
@@ -74,92 +86,6 @@ public class ExhibitPickup : MonoBehaviour
         if (FindFirstObjectByType<PlayerKart>() != null) return;
 
         Debug.LogWarning("[수집품] 씬에 PlayerKart 표시가 붙은 카트가 없어. " +
-                         "아이템이 보여도 주울 수가 없다 — " +
-                         "메뉴 Racing → 테스트 씬 두 개 다시 만들기 를 누르면 고쳐진다.");
-    }
-
-    void Update()
-    {
-        if (taken) { UpdateBeacon(); return; }
-
-        if (visual == null) return;
-        visual.Rotate(0f, spinSpeed * Time.deltaTime, 0f, Space.Self);
-        bobPhase += Time.deltaTime * bobSpeed;
-        visual.localPosition = visualHome + Vector3.up * (Mathf.Sin(bobPhase) * bobHeight);
-    }
-
-    void OnTriggerEnter(Collider other)
-    {
-        if (taken) return;
-
-        // 플레이어 카트만 줍는다. AI 가 이야기 증거를 먼저 가져가면
-        // 플레이어가 챕터를 넘길 수 없게 막혀버린다.
-        if (other.GetComponentInParent<PlayerKart>() == null) return;
-
-        Take();
-    }
-
-    void Take()
-    {
-        taken = true;
-        CollectionState.Collect(itemId);
-
-        int caseNumber = ExhibitCatalogue.CaseNumberOf(itemId);
-        LastMessage = caseNumber > 0
-            ? $"{ExhibitCatalogue.NameOf(itemId)}  ·  전시실 {caseNumber}번에 등록"
-            : ExhibitCatalogue.NameOf(itemId);
-        LastMessageTime = Time.time;
-
-        if (visual != null) visual.gameObject.SetActive(false);
-        if (idleLight != null) idleLight.enabled = false;
-        GetComponent<Collider>().enabled = false;
-
-        SpawnBeacon();
-    }
-
-    /// <summary>하늘로 솟는 노란 기둥. 투명도 대신 크기를 줄여서 사라지게 한다 —
-    /// 반투명 머티리얼을 안 쓰니 URP 설정에 상관없이 똑같이 보인다.</summary>
-    void SpawnBeacon()
-    {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        go.name = "Beacon";
-        Destroy(go.GetComponent<Collider>());
-        go.transform.SetParent(transform, false);
-        go.transform.localPosition = Vector3.zero;
-        go.transform.localScale = new Vector3(beaconRadius, 0.1f, beaconRadius);
-        go.GetComponent<Renderer>().sharedMaterial = FlatMaterial.Get(beaconColor);
-        beacon = go.transform;
-
-        var lightGo = new GameObject("BeaconLight");
-        lightGo.transform.SetParent(transform, false);
-        lightGo.transform.localPosition = Vector3.up * 2f;
-        beaconLight = lightGo.AddComponent<Light>();
-        beaconLight.type = LightType.Point;
-        beaconLight.color = beaconColor;
-        beaconLight.range = 22f;
-        beaconLight.intensity = beaconLightIntensity;
-        beaconLight.shadows = LightShadows.None;
-
-        beaconTimer = 0f;
-    }
-
-    void UpdateBeacon()
-    {
-        if (beacon == null) { Destroy(gameObject); return; }
-
-        beaconTimer += Time.deltaTime;
-        float t = Mathf.Clamp01(beaconTimer / Mathf.Max(0.01f, beaconSeconds));
-
-        // 앞쪽 35% 동안 솟아오르고, 나머지 동안 가늘어지며 사라진다
-        float rise = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.35f));
-        float fade = Mathf.SmoothStep(1f, 0f, Mathf.Clamp01((t - 0.35f) / 0.65f));
-
-        float height = beaconHeight * rise;
-        beacon.localScale = new Vector3(beaconRadius * fade, height * 0.5f, beaconRadius * fade);
-        beacon.localPosition = new Vector3(0f, height * 0.5f, 0f);
-
-        if (beaconLight != null) beaconLight.intensity = beaconLightIntensity * fade;
-
-        if (t >= 1f) Destroy(gameObject);
+                         "아이템이 보여도 주울 수가 없다 — 씬을 다시 구우면 고쳐진다.");
     }
 }
