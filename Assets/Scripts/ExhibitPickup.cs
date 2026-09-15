@@ -56,6 +56,26 @@ public class ExhibitPickup : MonoBehaviour
 
         // 이미 모은 것도 안 나온다. 같은 걸 두 번 주울 이유가 없으니까.
         if (CollectionState.Has(itemId)) gameObject.SetActive(false);
+
+        경고_한번만();
+    }
+
+    static bool 경고했다;
+
+    /// <summary>
+    /// 줍는 쪽은 PlayerKart 표시가 붙은 카트만 인정한다. 씬이 낡아서 그 표시가 없으면
+    /// 아이템은 멀쩡히 보이는데 지나가도 아무 일이 안 일어난다 — 제일 헷갈리는 종류의 고장이야.
+    /// </summary>
+    static void 경고_한번만()
+    {
+        if (경고했다) return;
+        경고했다 = true;
+
+        if (FindFirstObjectByType<PlayerKart>() != null) return;
+
+        Debug.LogWarning("[수집품] 씬에 PlayerKart 표시가 붙은 카트가 없어. " +
+                         "아이템이 보여도 주울 수가 없다 — " +
+                         "메뉴 Racing → 테스트 씬 두 개 다시 만들기 를 누르면 고쳐진다.");
     }
 
     void Update()

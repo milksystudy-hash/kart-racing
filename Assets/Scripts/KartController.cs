@@ -115,6 +115,50 @@ public class KartController : MonoBehaviour
             if (!collider.isTrigger) collider.sharedMaterial = slide;
     }
 
+    // ------------------------------------------------------------------
+    //  벽에 부딪히면 손해를 본다
+    // ------------------------------------------------------------------
+    [Header("벽 충돌")]
+    [Tooltip("정면으로 박았을 때 깎이는 속도 비율. 0 이면 벽이 공짜가 된다")]
+    [Range(0f, 1f)] public float wallImpactLoss = 0.45f;
+
+    [Tooltip("벽에 비비며 달릴 때 초당 잃는 속도(m/s). 벽을 타고 코너를 도는 걸 막는다")]
+    public float wallScrubPerSecond = 5f;
+
+    /// <summary>
+    /// 껍데기 마찰을 0 으로 둔 대가로 <b>벽이 공짜가 됐다</b> — 벽에 기대 풀악셀로 코너를
+    /// 통과할 수 있어서 라인을 고를 이유가 사라진다. 마찰을 되살리면 다시 벽에 걸리니까,
+    /// 걸리지는 않되 <b>속도만 깎는</b> 방식으로 대가를 되돌려준다.
+    ///
+    /// 바닥은 건드리지 않는다 — 접촉면이 위를 보면(그러니까 노면이면) 그냥 넘어간다.
+    /// </summary>
+    void OnCollisionEnter(Collision collision) => ScrubOnWall(collision, impact: true);
+    void OnCollisionStay(Collision collision) => ScrubOnWall(collision, impact: false);
+
+    void ScrubOnWall(Collision collision, bool impact)
+    {
+        if (rb == null || collision.contactCount == 0) return;
+
+        Vector3 normal = collision.GetContact(0).normal;
+        if (Mathf.Abs(normal.y) > 0.6f) return;   // 바닥이나 천장 — 벽이 아니다
+
+        Vector3 velocity = rb.linearVelocity;
+        float into = Vector3.Dot(velocity, -normal);   // 벽을 향해 파고드는 속도
+
+        if (impact)
+        {
+            if (into < 1.5f) return;   // 스치기만 한 건 봐준다
+            float severity = Mathf.Clamp01(into / Mathf.Max(1f, maxSpeed));
+            rb.linearVelocity = velocity * (1f - wallImpactLoss * severity);
+        }
+        else if (wallScrubPerSecond > 0f)
+        {
+            // 붙어서 달리는 동안 계속 깎인다. 한 번 부딪히는 것보다 오래 비비는 게 더 손해다.
+            rb.linearVelocity = Vector3.MoveTowards(velocity, Vector3.zero,
+                                                    wallScrubPerSecond * Time.fixedDeltaTime);
+        }
+    }
+
     void Update()
     {
         // Update 에서 입력을 읽고, FixedUpdate 에서 물리에 적용한다.

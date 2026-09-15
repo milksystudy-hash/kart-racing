@@ -36,12 +36,20 @@ public class LapTracker : MonoBehaviour
     void Awake()
     {
         if (progress == null && kart != null) progress = kart.GetComponent<RaceProgress>();
-        if (progress != null)
+
+        if (progress == null)
         {
-            progress.totalCheckpoints = checkpointCount;
-            progress.totalLaps = totalLaps;
-            watchedLap = progress.Lap;
+            // 이게 없으면 랩이 영원히 1 에 머문다. 씬이 낡아서 카트에 부품이 안 붙은 경우인데,
+            // 아무 말도 없으면 "코드가 고장났나" 로 보인다. 실제로 그렇게 한 번 헤맸다.
+            Debug.LogWarning("[레이스] 카트에 RaceProgress 가 없어서 랩이 안 세어져. " +
+                             "이 씬은 RaceProgress 가 생기기 전에 저장된 거야 — " +
+                             "메뉴 Racing → 테스트 씬 두 개 다시 만들기 를 누르면 고쳐진다.", this);
+            return;
         }
+
+        progress.totalCheckpoints = checkpointCount;
+        progress.totalLaps = totalLaps;
+        watchedLap = progress.Lap;
     }
 
     void Update()
