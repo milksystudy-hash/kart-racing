@@ -335,6 +335,162 @@ public static class TestSceneBuilder
         var visual = new GameObject("KartVisual").transform;
         visual.SetParent(go.transform, false);
 
+        // 진짜 모델이 있으면 그걸 쓰고, 없으면 회색 상자로 돌아간다.
+        // 모델이 KartVisual **안에** 들어간다 — 껍데기(콜라이더·물리)는 그대로 두고 그림만 바뀐다.
+        if (!AttachKartModel(visual)) MakeGreyBoxKart(visual);
+
+        // 캐릭터가 앉을 자리. 지금은 비어 있어도 되고, 3등신 FBX 가 오면 여기 자식으로 넣으면 된다.
+        // 발끝이 원점인 모델이 그대로 앉은 키(0.95m)에 맞는다.
+        var driverAnchor = new GameObject("DriverAnchor").transform;
+        driverAnchor.SetParent(visual, false);
+        driverAnchor.localPosition = new Vector3(0f, 0.16f, -0.06f);
+
+        // 이야기 수집품은 이 표시가 붙은 카트만 주울 수 있다. AI 카트에는 안 붙인다.
+        if (isPlayer) go.AddComponent<PlayerKart>();
+
+        // 순위 계산용. 플레이어든 AI 든 한 대씩 달고 다닌다.
+        var progress = go.AddComponent<RaceProgress>();
+        progress.racerName = isPlayer ? "나" : go.name;
+
+        var kart = go.AddComponent<KartController>();
+        kart.visual = visual;
+        kart.groundMask = ~(1 << LayerIgnoreRaycast);
+
+        // 바퀴 돌리기는 카트보다 나중에 붙는다. 여기서 연결을 맞춰준다.
+        var wheels = go.GetComponent<KartWheels>();
+        if (wheels != null) wheels.kart = kart;
+
+        SetLayerRecursive(go, LayerIgnoreRaycast);
+
+        return kart;
+    }
+
+    // ------------------------------------------------------------------
+    //  카트 모델
+    // ------------------------------------------------------------------
+    const string KartModelPath = "Assets/Cart_model/JIN_FIN_CART.fbx";
+
+    /// <summary>
+    /// 유저가 만든 카트 FBX 를 껍데기 안에 넣는다. 파일이 없으면 false 를 돌려주고
+    /// 회색 상자로 돌아간다 — 모델이 없다고 씬 만들기가 실패하면 안 되니까.
+    ///
+    /// 여기서 하는 일은 셋뿐이다:
+    ///   · 그림에 붙은 콜라이더를 전부 뗀다 (충돌은 루트 BoxCollider 하나만 맡는다)
+    ///   · 바퀴마다 **카트와 축이 맞는 껍데기**를 씌운다 (모델 방향과 무관하게 굴리고 꺾으려고)
+    ///   · KartWheels 에 그 껍데기와 바퀴를 꽂아준다
+    /// </summary>
+    static bool AttachKartModel(Transform visual)
+    {
+        var model = AssetDatabase.LoadAssetAtPath<GameObject>(KartModelPath);
+        if (model == null)
+        {
+            Debug.LogWarning($"[Racing] {KartModelPath} 를 못 찾아서 회색 상자 카트로 만들었어.");
+            return false;
+        }
+
+        EnsureModelImportSettings(KartModelPath);
+
+        var instance = (GameObject)PrefabUtility.InstantiatePrefab(model);
+
+        // 임포터가 정한 위치·회전·스케일을 그대로 둔다. 여기서 1 로 덮으면
+        // 단위 변환(100배)이 걸린 모델은 백분의 일로 쪼그라든다.
+        instance.transform.SetParent(visual, false);
+
+        // 그림에는 콜라이더를 두지 않는다. 모델을 갈아끼워도 물리가 안 바뀌게 (CLAUDE.md 규칙 2)
+        foreach (var c in instance.GetComponentsInChildren<Collider>(true))
+            Object.DestroyImmediate(c);
+
+        var wheels = visual.parent.gameObject.AddComponent<KartWheels>();
+        wheels.steeringWheel = FindDeep(instance.transform, "Steering");
+
+        var front = new System.Collections.Generic.List<Transform>();
+        var spin = new System.Collections.Generic.List<Transform>();
+
+        foreach (var name in new[] { "Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR" })
+        {
+            var wheel = FindDeep(instance.transform, name);
+            if (wheel == null) continue;
+
+            // 카트와 축이 맞는 껍데기를 만들어 그 안에 바퀴를 넣는다.
+            // 이렇게 해두면 모델이 어떤 방향으로 만들어졌든 X = 축, Y = 조향이 된다.
+            var pivot = new GameObject(name + "_Pivot").transform;
+            pivot.SetParent(visual, false);
+            pivot.SetPositionAndRotation(wheel.position, visual.rotation);
+            wheel.SetParent(pivot, worldPositionStays: true);
+
+            spin.Add(wheel);
+            if (name.StartsWith("Wheel_F")) front.Add(pivot);
+        }
+
+        wheels.steerPivots = front.ToArray();
+        wheels.spinWheels = spin.ToArray();
+
+        // 규격과 얼마나 맞는지 찍어둔다. 다음에 모델을 다시 뽑았을 때 크기가 틀어지면 여기서 보인다.
+        var bounds = new Bounds(visual.position, Vector3.zero);
+        bool first = true;
+        foreach (var r in instance.GetComponentsInChildren<Renderer>(true))
+        {
+            if (first) { bounds = r.bounds; first = false; }
+            else bounds.Encapsulate(r.bounds);
+        }
+
+        Debug.Log($"[Racing] 카트 모델 적용: {model.name}  " +
+                  $"전폭 {bounds.size.x:0.00} / 높이 {bounds.size.y:0.00} / 전장 {bounds.size.z:0.00} m " +
+                  $"(규격 1.10 × 1.50)\n" +
+                  $"바퀴 {spin.Count}개 · 앞바퀴 {front.Count}개 · " +
+                  $"운전대 {(wheels.steeringWheel != null ? "있음" : "없음")}");
+        return true;
+    }
+
+    /// <summary>
+    /// FBX 임포트 설정을 고친다. 모델이 통째로 흰색으로 나오던 이유가 여기 있었다.
+    ///
+    /// 임포터 기본값이 <b>머티리얼을 프로젝트에서 찾아 쓰기(External)</b> 라서,
+    /// 그 이름의 .mat 파일이 없으면 색을 못 찾고 기본 흰색으로 떨어진다.
+    /// FBX 안에 색이 멀쩡히 들어 있는데도 그렇다 — 모델 잘못이 아니야.
+    /// 안에 든 색을 그대로 쓰도록 바꾼다.
+    ///
+    /// 나중에 캐릭터마다 카트 색을 바꾸고 싶어지면(기획서 §3.5) 그때 머티리얼을
+    /// 바깥으로 꺼내면 된다 — 인스펙터의 Materials 탭에서 Extract Materials.
+    /// </summary>
+    static void EnsureModelImportSettings(string path)
+    {
+        if (AssetImporter.GetAtPath(path) is not ModelImporter importer) return;
+
+        bool changed = false;
+
+        if (importer.materialLocation != ModelImporterMaterialLocation.InPrefab)
+        {
+            importer.materialLocation = ModelImporterMaterialLocation.InPrefab;
+            changed = true;
+        }
+        if (importer.materialImportMode == ModelImporterMaterialImportMode.None)
+        {
+            importer.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
+            changed = true;
+        }
+        // 카메라와 조명이 딸려 오면 씬에 쓰레기가 생긴다 (블렌더 임포터도 조명 든 FBX 에서 죽는다)
+        if (importer.importCameras) { importer.importCameras = false; changed = true; }
+        if (importer.importLights) { importer.importLights = false; changed = true; }
+
+        if (!changed) return;
+
+        importer.SaveAndReimport();
+        Debug.Log($"[Racing] {System.IO.Path.GetFileName(path)} 임포트 설정을 고쳤어 — " +
+                  "FBX 안의 색을 그대로 쓰도록. (전엔 밖에서 .mat 을 찾다가 못 찾아서 흰색이었다)");
+    }
+
+    /// <summary>이름에 해당 조각이 들어간 자식을 찾는다. 빌드할 때 한 번만 쓰고, 결과는 인스펙터에 꽂는다.</summary>
+    static Transform FindDeep(Transform root, string contains)
+    {
+        foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            if (t.name.Contains(contains)) return t;
+        return null;
+    }
+
+    /// <summary>모델이 없을 때 쓰는 예전 회색 상자 카트.</summary>
+    static void MakeGreyBoxKart(Transform visual)
+    {
         Cube(visual, "Body",     new Vector3(0f, -0.06f, 0f),  new Vector3(1.1f, 0.28f, 1.5f), ColRefSage, false);
         Cube(visual, "SeatBack", new Vector3(0f, 0.30f, -0.36f), new Vector3(0.52f, 0.45f, 0.10f), ColSeat, false);
         Cube(visual, "Nose",     new Vector3(0f, -0.02f, 0.74f), new Vector3(0.85f, 0.16f, 0.22f), ColSeat, false);
@@ -350,26 +506,6 @@ public static class TestSceneBuilder
                                   new Vector3(0.4f, 0.1f, 0.4f), ColTire, false);
             wheel.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
         }
-
-        var driver = new GameObject("Driver").transform;
-        driver.SetParent(visual, false);
-        Capsule(driver, "Torso", new Vector3(0f, 0.33f, -0.10f), new Vector3(0.34f, 0.26f, 0.34f), ColRefSage, false);
-        Primitive(driver, PrimitiveType.Sphere, "Head", new Vector3(0f, 0.76f, -0.10f),
-                  new Vector3(0.42f, 0.42f, 0.42f), ColSkin, false);
-
-        // 이야기 수집품은 이 표시가 붙은 카트만 주울 수 있다. AI 카트에는 안 붙인다.
-        if (isPlayer) go.AddComponent<PlayerKart>();
-
-        // 순위 계산용. 플레이어든 AI 든 한 대씩 달고 다닌다.
-        var progress = go.AddComponent<RaceProgress>();
-        progress.racerName = isPlayer ? "나" : go.name;
-
-        var kart = go.AddComponent<KartController>();
-        kart.visual = visual;
-        kart.groundMask = ~(1 << LayerIgnoreRaycast);
-        SetLayerRecursive(go, LayerIgnoreRaycast);
-
-        return kart;
     }
 
     public static KartCamera MakeKartCamera(KartController kart)

@@ -62,6 +62,8 @@ public class KartController : MonoBehaviour
 
     // --- HUD 와 다른 스크립트가 읽어가는 값들 ---
     public float SpeedKph => Vector3.Dot(rb.linearVelocity, transform.forward) * 3.6f;
+    /// <summary>-1(좌) ~ +1(우). 바퀴와 운전대를 돌릴 때 KartWheels 가 읽는다.</summary>
+    public float SteerInput => steerInput;
     public bool IsGrounded { get; private set; }
     public bool IsDrifting { get; private set; }
     public float BoostCharge { get; private set; }
