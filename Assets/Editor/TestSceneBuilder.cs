@@ -390,22 +390,23 @@ public static class TestSceneBuilder
     //  프리미티브 + 머티리얼 에셋
     // ------------------------------------------------------------------
     public static GameObject Cube(Transform parent, string name, Vector3 localPos, Vector3 scale,
-                           Color color, bool keepCollider = true)
-        => Primitive(parent, PrimitiveType.Cube, name, localPos, scale, color, keepCollider);
+                           Color color, bool keepCollider = true, Finish finish = Finish.무광)
+        => Primitive(parent, PrimitiveType.Cube, name, localPos, scale, color, keepCollider, finish);
 
     public static GameObject Capsule(Transform parent, string name, Vector3 localPos, Vector3 scale,
-                              Color color, bool keepCollider = true)
-        => Primitive(parent, PrimitiveType.Capsule, name, localPos, scale, color, keepCollider);
+                              Color color, bool keepCollider = true, Finish finish = Finish.무광)
+        => Primitive(parent, PrimitiveType.Capsule, name, localPos, scale, color, keepCollider, finish);
 
     public static GameObject Primitive(Transform parent, PrimitiveType type, string name, Vector3 localPos,
-                                Vector3 scale, Color color, bool keepCollider = true)
+                                Vector3 scale, Color color, bool keepCollider = true,
+                                Finish finish = Finish.무광)
     {
         var go = GameObject.CreatePrimitive(type);
         go.name = name;
         if (parent != null) go.transform.SetParent(parent, false);
         go.transform.localPosition = localPos;
         go.transform.localScale = scale;
-        go.GetComponent<Renderer>().sharedMaterial = MaterialAsset(color);
+        go.GetComponent<Renderer>().sharedMaterial = MaterialAsset(color, finish);
 
         if (!keepCollider)
         {
@@ -415,11 +416,25 @@ public static class TestSceneBuilder
         return go;
     }
 
+    /// <summary>
+    /// 표면 마감. 같은 색이라도 <b>빛을 어떻게 되받느냐</b>가 다르면 다른 물건으로 보인다.
+    /// 전부 무광 한 값으로 두면 나무도 돌도 유리도 똑같은 플라스틱으로 읽히는데,
+    /// 그게 "유니티로 만든 티" 의 큰 축이야.
+    /// </summary>
+    public enum Finish { 무광, 나무, 석재, 광택, 금속, 유리, 발광 }
+
     /// <summary>단색 머티리얼을 진짜 .mat 에셋으로 만든다 (씬에 저장돼야 하니까).</summary>
-    public static Material MaterialAsset(Color color)
+    public static Material MaterialAsset(Color color) => MaterialAsset(color, Finish.무광);
+
+    public static Material MaterialAsset(Color color, Finish finish)
     {
         string hex = ColorUtility.ToHtmlStringRGB(color);
-        string path = $"{MaterialFolder}/Flat_{hex}.mat";
+
+        // 무광은 이름을 그대로 둔다 — 이미 만들어진 씬들이 Flat_XXXXXX.mat 을 가리키고 있어서,
+        // 이름이 바뀌면 그 씬들의 재질이 통째로 끊어진다.
+        string path = finish == Finish.무광
+            ? $"{MaterialFolder}/Flat_{hex}.mat"
+            : $"{MaterialFolder}/Flat_{hex}_{finish}.mat";
 
         var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (existing != null) return existing;
@@ -434,13 +449,62 @@ public static class TestSceneBuilder
         if (shader == null) shader = Shader.Find("Standard");
 
         var mat = new Material(shader);
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.08f);
-        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+        ApplyFinish(mat, color, finish);
 
         AssetDatabase.CreateAsset(mat, path);
         return mat;
+    }
+
+    static void ApplyFinish(Material mat, Color color, Finish finish)
+    {
+        float smoothness = finish switch
+        {
+            Finish.나무 => 0.30f,   // 기름 먹인 목재 — 약하게 번들거린다
+            Finish.석재 => 0.18f,   // 다듬은 돌
+            Finish.광택 => 0.40f,   // 닦은 바닥. 더 올리면 비스듬히 볼 때 어두운 천장을 그대로 비춰 새까매진다
+            Finish.금속 => 0.55f,
+            Finish.유리 => 0.95f,
+            _ => 0.08f,
+        };
+        float metallic = finish == Finish.금속 ? 0.85f : 0f;
+
+        var baseColor = finish == Finish.유리 ? new Color(color.r, color.g, color.b, 0.16f) : color;
+
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", baseColor);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", baseColor);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
+        if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", smoothness);
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", metallic);
+
+        if (finish == Finish.유리) MakeTransparent(mat);
+
+        if (finish == Finish.발광)
+        {
+            // 블룸이 켜져 있으면 이게 실제로 눈부시게 번진다. 코브 조명·간판에 쓴다.
+            mat.EnableKeyword("_EMISSION");
+            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", color * 2.2f);
+        }
+    }
+
+    /// <summary>
+    /// URP 의 투명 설정은 값 한 개로 안 끝난다. 표면 종류 · 블렌드 · 깊이 쓰기 · 키워드 · 렌더 큐를
+    /// 전부 맞춰야 하고, 하나라도 빠지면 유리가 그냥 불투명한 흰 상자로 나온다.
+    /// </summary>
+    static void MakeTransparent(Material mat)
+    {
+        mat.SetFloat("_Surface", 1f);                       // 0 불투명 / 1 투명
+        mat.SetFloat("_Blend", 0f);                         // Alpha
+        mat.SetFloat("_ZWrite", 0f);
+        mat.SetFloat("_AlphaClip", 0f);
+        mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.DisableKeyword("_ALPHATEST_ON");
+        mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+
+        mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
     }
 
     static void SetLayerRecursive(GameObject go, int layer)

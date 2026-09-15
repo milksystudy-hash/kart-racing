@@ -96,6 +96,7 @@ public static class LobbySceneBuilder
 
         // 이야기 장면은 이 방 안에서 돈다. 전용 씬을 만들면 중앙홀이 두 벌이 되니까.
         StoryRigBuilder.EnsureRig();
+        MuseumLook.ApplyToOpenScene();
 
         EditorSceneManager.SaveScene(scene, LobbyPath);
         RegisterScenes();
