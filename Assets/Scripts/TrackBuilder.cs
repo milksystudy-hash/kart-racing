@@ -90,6 +90,10 @@ public class TrackBuilder : MonoBehaviour
     static readonly Color ColKerb = new Color32(0xC4, 0x45, 0x3E, 0xFF);
     static readonly Color ColLine = new Color32(0xF2, 0xF3, 0xEE, 0xFF);
 
+    // 가속 발판 — 회색 아스팔트 위에서 멀리서도 튀어야 해서 팔레트 중 제일 센 색을 쓴다
+    static readonly Color ColBoostPad   = new Color32(0x2E, 0x4C, 0x7A, 0xFF);
+    static readonly Color ColBoostArrow = new Color32(0xFF, 0xD1, 0x3C, 0xFF);
+
     /// <summary>결승선 위치. 카트를 여기에 놓으면 된다 (지면에서 0.38m 띄운 높이).</summary>
     public Vector3 StartPosition => transform.position + PointOnPath(0f) + Vector3.up * 0.38f;
     public Quaternion StartRotation => Quaternion.LookRotation(TangentOnPath(0f), Vector3.up);
@@ -104,64 +108,256 @@ public class TrackBuilder : MonoBehaviour
         if (buildOnAwake) Build();
     }
 
+    /// <summary>
+    /// 재생 중이 아니면 Destroy 가 "edit mode 에서 부르면 안 된다" 고 에러를 낸다.
+    /// 에디터에서 Build() 를 눌러 코스 모양을 확인할 때 콘솔이 에러로 막히지 않게.
+    /// </summary>
+    static void Discard(Object target)
+    {
+        if (target == null) return;
+        if (Application.isPlaying) Destroy(target);
+        else DestroyImmediate(target);
+    }
+
     public void Build()
     {
-        if (built != null) Destroy(built.gameObject);
+        if (built != null) Discard(built.gameObject);
 
         built = new GameObject("~TrackGeometry").transform;
         built.SetParent(transform, false);
 
         BuildSurface();
         BuildStartLine();
+        BuildBoostPads();
         BuildCheckpoints();
+    }
+
+    // ------------------------------------------------------------------
+    //  가속 발판
+    // ------------------------------------------------------------------
+    /// <summary>
+    /// 코스를 도는 길에서 <b>고를 게 있는 길</b>로 바꾸는 장치.
+    ///
+    /// 자리를 코스 한가운데가 아니라 <b>한쪽 차선</b>에 둔다. 그래야 밟으려고 선을 바꾸게 되고,
+    /// 그 선이 다음 코너에 좋은 선이 아닐 때 판단할 게 생긴다. 가운데 놓으면 그냥 지나가다 먹는다.
+    ///
+    /// t 값(0~1)은 한 바퀴에서의 위치다. 자리를 옮기고 싶으면 이 표만 고치면 되고,
+    /// 나중에 네가 코스 모양(Path)을 바꿔도 발판이 알아서 따라간다.
+    /// </summary>
+    static readonly (float t, float lane)[] BoostPads =
+    {
+        (0.13f,  0.55f),   // 본관앞 직선 — 출발 직후 첫 가속
+        (0.28f, -0.50f),   // 서편전시동 코너 탈출
+        (0.47f,  0.00f),   // 정문앞 넓은 구간 — 여긴 한가운데라 누구나 먹는다
+        (0.62f, -0.55f),   // 동편연못 안쪽 라인
+        (0.86f,  0.50f),   // 매표소굽이 뒤 마지막 직선
+    };
+
+    void BuildBoostPads()
+    {
+        var root = new GameObject("BoostPads").transform;
+        root.SetParent(built, false);
+
+        for (int i = 0; i < BoostPads.Length; i++)
+        {
+            var (t, lane) = BoostPads[i];
+
+            Vector3 forward = TangentOnPath(t);
+            Vector3 side = Vector3.Cross(Vector3.up, forward);
+            float width = WidthOnPath(t);
+            Vector3 centre = transform.position + PointOnPath(t) + side * (lane * width * 0.5f);
+
+            var pad = new GameObject($"BoostPad_{i + 1}");
+            pad.transform.SetParent(root, false);
+            pad.transform.SetPositionAndRotation(centre, Quaternion.LookRotation(forward, Vector3.up));
+
+            // 밟는 판정 — 낮게 스치듯 지나가도 잡히게 위로 넉넉히
+            var box = pad.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.size = new Vector3(PadWidth, 2.2f, PadLength);
+            box.center = new Vector3(0f, 1.1f, 0f);
+
+            pad.AddComponent<BoostPad>();
+
+            // 바닥판
+            Block(pad.transform, "Surface", centre + Vector3.up * 0.03f,
+                  pad.transform.rotation, new Vector3(PadWidth, 0.06f, PadLength),
+                  ColBoostPad, noCollider: true);
+
+            // 화살표 — 빠르게 지나가도 "앞으로 민다" 는 게 읽히게 세 겹
+            for (int c = 0; c < 3; c++)
+            {
+                float z = (c - 1) * (PadLength * 0.27f);
+                Chevron(pad.transform, $"Chevron_{c}", centre + Vector3.up * 0.05f + forward * z,
+                        pad.transform.rotation);
+            }
+        }
+    }
+
+    const float PadWidth = 3.4f;
+    const float PadLength = 6f;
+
+    /// <summary>앞을 가리키는 꺾인 화살표 하나. 막대 두 개를 V 자로 세워서 만든다.</summary>
+    void Chevron(Transform parent, string name, Vector3 centre, Quaternion rotation)
+    {
+        for (int s = -1; s <= 1; s += 2)
+        {
+            var go = Block(parent, $"{name}_{(s < 0 ? "L" : "R")}", centre,
+                           rotation, new Vector3(PadWidth * 0.52f, 0.05f, 0.5f),
+                           ColBoostArrow, noCollider: true);
+
+            // 비틀어 V 자로. Block 은 월드 기준으로 놓으니 여기서도 월드 회전을 준다.
+            go.transform.rotation = rotation * Quaternion.Euler(0f, s * 34f, 0f);
+            go.transform.position = centre + rotation * new Vector3(s * PadWidth * 0.21f, 0f, 0f);
+        }
     }
 
     // ------------------------------------------------------------------
     //  노면과 벽
     // ------------------------------------------------------------------
+    /// <summary>
+    /// 노면과 벽을 <b>끊기지 않는 하나의 면</b>으로 만든다.
+    ///
+    /// 예전에는 네모 상자를 이어 붙였는데, 코너에서 상자끼리 각도가 벌어지면
+    /// <b>바깥쪽에 쐐기 모양 틈</b>이 생긴다. 가운데를 겹쳐도 바깥은 안 덮인다 —
+    /// 폭 10m 코스가 한 조각에 15도씩 꺾이면 바깥 가장자리에 1m 넘는 구멍이 난다.
+    /// 카트가 트랙 중간에서 떨어지던 게 이거였어.
+    ///
+    /// 이제 가장자리 점을 먼저 다 구해서 삼각형으로 잇는다. 틈이 생길 자리가 아예 없고,
+    /// 덤으로 오브젝트가 500개에서 20개 아래로 줄어든다.
+    /// </summary>
     void BuildSurface()
     {
         var road = new GameObject("Road").transform;   road.SetParent(built, false);
         var walls = new GameObject("Walls").transform; walls.SetParent(built, false);
+        var kerbs = new GameObject("Kerbs").transform; kerbs.SetParent(built, false);
 
         int total = Path.Length * segmentsPerControl;
 
-        for (int i = 0; i < total; i++)
+        // 한 바퀴를 돌며 양쪽 가장자리 점을 먼저 모은다 (마지막에 처음으로 되돌아와 닫는다)
+        var outer = new Vector3[total + 1];
+        var inner = new Vector3[total + 1];
+        var zones = new int[total + 1];
+
+        for (int i = 0; i <= total; i++)
         {
-            float t0 = (float)i / total;
-            float t1 = (float)(i + 1) / total;
+            float t = (float)(i % total) / total;
+            Vector3 p = PointOnPath(t);
+            Vector3 side = Vector3.Cross(Vector3.up, TangentOnPath(t));
+            float half = WidthOnPath(t) * 0.5f;
 
-            Vector3 p0 = PointOnPath(t0);
-            Vector3 p1 = PointOnPath(t1);
-            Vector3 mid = (p0 + p1) * 0.5f;
-            Vector3 dir = p1 - p0;
-            float len = dir.magnitude;
-            if (len < 0.001f) continue;
+            outer[i] = p + side * half;
+            inner[i] = p - side * half;
+            zones[i] = ZoneOnPath(t);
+        }
 
-            Quaternion rot = Quaternion.LookRotation(dir / len, Vector3.up);
-            Vector3 side = Vector3.Cross(Vector3.up, dir / len);
-            float width = WidthOnPath(t0);
-            int zone = ZoneOnPath(t0);
-            float span = len * 1.08f;   // 살짝 겹치게 해서 이음새 틈을 없앤다
+        // 구간(Zone)마다 색이 달라서 조각을 나눈다. 경계에서는 한 칸씩 겹쳐서 이어지게 한다.
+        int start = 0;
+        for (int i = 1; i <= total; i++)
+        {
+            if (i < total && zones[i] == zones[start]) continue;
 
-            // 노면 — 윗면이 정확히 y = 0
-            Block(road, $"Road_{i:000}", mid + Vector3.down * 0.1f, rot,
-                  new Vector3(width, 0.2f, span), ZoneFloor[zone]);
+            int end = Mathf.Min(i + 1, total);   // 한 칸 더 — 구간 사이가 벌어지지 않게
+            int zone = zones[start];
 
-            // 양쪽 벽
-            Block(walls, $"WallL_{i:000}", mid + side * (width * 0.5f) + Vector3.up * (wallHeight * 0.5f),
-                  rot, new Vector3(wallThickness, wallHeight, span), ZoneWall[zone]);
-            Block(walls, $"WallR_{i:000}", mid - side * (width * 0.5f) + Vector3.up * (wallHeight * 0.5f),
-                  rot, new Vector3(wallThickness, wallHeight, span), ZoneWall[zone]);
+            Ribbon(road, $"Road_{zone}_{start:000}", outer, inner, start, end,
+                   Vector3.zero, Vector3.zero, ZoneFloor[zone]);
 
-            // 코너가 눈에 들어오게 연석을 띄엄띄엄
-            if (i % 10 < 5)
+            // 벽은 가장자리에서 위로 세운 띠. 안쪽을 향하게 뒤집어 준다.
+            Ribbon(walls, $"WallOuter_{zone}_{start:000}", outer, outer, start, end,
+                   Vector3.zero, Vector3.up * wallHeight, ZoneWall[zone], flip: true);
+            Ribbon(walls, $"WallInner_{zone}_{start:000}", inner, inner, start, end,
+                   Vector3.up * wallHeight, Vector3.zero, ZoneWall[zone], flip: true);
+
+            start = i;
+            if (start >= total) break;
+        }
+
+        BuildKerbs(kerbs, outer, inner, total);
+    }
+
+    /// <summary>
+    /// 두 줄의 점을 삼각형으로 잇는다. 같은 줄을 두 번 넘기고 높이만 다르게 주면 벽이 된다.
+    /// </summary>
+    void Ribbon(Transform parent, string name, Vector3[] a, Vector3[] b, int from, int to,
+                Vector3 offsetA, Vector3 offsetB, Color color, bool flip = false,
+                bool collider = true, float lift = 0f)
+    {
+        int count = to - from + 1;
+        if (count < 2) return;
+
+        var verts = new Vector3[count * 2];
+        var tris = new int[(count - 1) * 6];
+        Vector3 up = Vector3.up * lift;
+
+        for (int i = 0; i < count; i++)
+        {
+            verts[i * 2]     = a[from + i] + offsetA + up;
+            verts[i * 2 + 1] = b[from + i] + offsetB + up;
+        }
+
+        for (int i = 0; i < count - 1; i++)
+        {
+            int v = i * 2, t = i * 6;
+            if (flip)
             {
-                Block(road, $"KerbL_{i:000}", mid + side * (width * 0.5f - 0.55f) + Vector3.up * 0.005f,
-                      rot, new Vector3(0.7f, 0.06f, span), ColKerb, noCollider: true);
-                Block(road, $"KerbR_{i:000}", mid - side * (width * 0.5f - 0.55f) + Vector3.up * 0.005f,
-                      rot, new Vector3(0.7f, 0.06f, span), ColKerb, noCollider: true);
+                tris[t] = v;     tris[t + 1] = v + 2; tris[t + 2] = v + 1;
+                tris[t + 3] = v + 1; tris[t + 4] = v + 2; tris[t + 5] = v + 3;
             }
+            else
+            {
+                tris[t] = v;     tris[t + 1] = v + 1; tris[t + 2] = v + 2;
+                tris[t + 3] = v + 1; tris[t + 4] = v + 3; tris[t + 5] = v + 2;
+            }
+        }
+
+        var mesh = new Mesh { name = name };
+        mesh.SetVertices(verts);
+        mesh.SetTriangles(tris, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.isStatic = true;
+        go.AddComponent<MeshFilter>().sharedMesh = mesh;
+        go.AddComponent<MeshRenderer>().sharedMaterial = FlatMaterial.Get(color);
+
+        // 노면과 벽은 정적 지형이라 MeshCollider 가 맞다.
+        // (카트와 캐릭터에는 절대 붙이지 않는다 — CLAUDE.md 의 회색상자 교체 규칙)
+        if (collider) go.AddComponent<MeshCollider>().sharedMesh = mesh;
+    }
+
+    /// <summary>코너가 눈에 들어오게 연석을 띄엄띄엄. 장식이라 충돌체는 없다.</summary>
+    void BuildKerbs(Transform parent, Vector3[] outer, Vector3[] inner, int total)
+    {
+        const int on = 5, period = 10;
+
+        for (int i = 0; i < total; i += period)
+        {
+            int to = Mathf.Min(i + on, total);
+            if (to - i < 2) continue;
+
+            // 가장자리에서 안쪽으로 살짝 들여 그린다
+            var a = new Vector3[to + 1];
+            var b = new Vector3[to + 1];
+            for (int k = i; k <= to; k++)
+            {
+                Vector3 dir = (inner[k] - outer[k]).normalized;
+                a[k] = outer[k];
+                b[k] = outer[k] + dir * 0.7f;
+            }
+            Ribbon(parent, $"KerbOuter_{i:000}", a, b, i, to, Vector3.zero, Vector3.zero,
+                   ColKerb, collider: false, lift: 0.02f);
+
+            for (int k = i; k <= to; k++)
+            {
+                Vector3 dir = (outer[k] - inner[k]).normalized;
+                a[k] = inner[k] + dir * 0.7f;
+                b[k] = inner[k];
+            }
+            Ribbon(parent, $"KerbInner_{i:000}", a, b, i, to, Vector3.zero, Vector3.zero,
+                   ColKerb, collider: false, lift: 0.02f);
         }
     }
 
@@ -275,7 +471,7 @@ public class TrackBuilder : MonoBehaviour
         if (noCollider)
         {
             var c = go.GetComponent<Collider>();
-            if (c != null) Destroy(c);
+            if (c != null) Discard(c);
         }
         return go;
     }

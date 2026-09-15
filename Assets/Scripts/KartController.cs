@@ -251,6 +251,19 @@ public class KartController : MonoBehaviour
         rb.AddForce(right * (-lateralSpeed * grip), ForceMode.Acceleration);
     }
 
+    /// <summary>
+    /// 바깥에서 부스트를 먹인다 — 트랙의 가속 발판(BoostPad) 같은 것.
+    /// 이미 부스트 중이면 더 센 쪽과 더 긴 쪽을 남긴다. 발판을 연달아 밟아도 끊기지 않게.
+    /// </summary>
+    public void ApplyBoost(float amount, float duration)
+    {
+        if (amount <= 0f || duration <= 0f) return;
+
+        boostAmount = Mathf.Max(boostAmount, amount);
+        boostTimer = Mathf.Max(boostTimer, duration);
+        BoostCharge = 0f;   // 모으던 드리프트 게이지는 여기서 정리한다
+    }
+
     void UpdateDriftAndBoost(float dt)
     {
         float forwardSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
