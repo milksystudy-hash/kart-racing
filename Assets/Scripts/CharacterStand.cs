@@ -15,6 +15,12 @@ public class CharacterStand : MonoBehaviour
     public string displayName = "";
     [Tooltip("Cast.cs 의 id — 이감 / 시우 / 세운 / 세진. 이걸로 카트와 이름표 색이 정해진다")]
     public string castId = "";
+
+    /// <summary>
+    /// 이 자리가 누구인지. 씬에 id 가 안 박혀 있으면(예전에 구운 로비) 자리 번호로 메운다 —
+    /// 안 그러면 카트가 조용히 엉뚱한 사람 것으로 나온다.
+    /// </summary>
+    public string CastId => string.IsNullOrEmpty(castId) ? Cast.RacerIdAt(index) : castId;
     [Tooltip("기획서상 잠긴 자리 — 5번 개발업자, 6번 시의원. 고를 수 없다")]
     public bool locked;
 

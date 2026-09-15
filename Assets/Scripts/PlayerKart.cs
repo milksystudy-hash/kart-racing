@@ -12,4 +12,14 @@ using UnityEngine;
 /// </summary>
 public class PlayerKart : MonoBehaviour
 {
+    void Awake()
+    {
+        // 씬이 낡으면 카트 모델이 하나로 박힌 채로 남아서, 누굴 골라도 같은 카트가 나온다.
+        // 실제로 "세운이를 골라도 세진 카트가 나온다" 가 이것 때문이었다.
+        // 그림은 멀쩡히 나오니까 눈으로는 고장인 줄 모른다 — 그래서 여기서 말해준다.
+        if (GetComponent<KartSkin>() != null) return;
+
+        Debug.LogWarning("[카트] 이 씬의 카트에는 KartSkin 이 없어서 고른 캐릭터를 따라가지 못해. " +
+                         "메뉴 Racing → 씬 세 개 전부 다시 만들기 를 누르면 고쳐진다.", this);
+    }
 }

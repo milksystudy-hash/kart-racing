@@ -59,6 +59,17 @@ public static class Cast
             note = "카메라 앞에서만 문화 보존을 말한다. 6번 잠긴 자리의 배후." },
     };
 
+    /// <summary>
+    /// 로비 캐릭터 자리 순서 (기획서 §3.5 — 5·6번은 잠긴 자리).
+    ///
+    /// 자리 번호만 알아도 누구인지 알 수 있게 여기 둔다. 예전 씬이라 자리에 id 가
+    /// 안 박혀 있어도 이걸로 메울 수 있어서, 씬을 다시 굽기 전에도 카트가 맞게 나온다.
+    /// </summary>
+    public static readonly string[] RacerIds = { "이감", "시우", "세운", "세진", "개발업자", "시의원" };
+
+    public static string RacerIdAt(int index) =>
+        index >= 0 && index < RacerIds.Length ? RacerIds[index] : "";
+
     static readonly Color NarratorColor = new Color(0.72f, 0.70f, 0.66f);
 
     /// <summary>0xRRGGBB 를 색으로. 클립스튜디오에서 고른 색을 그대로 옮겨 적을 수 있게.</summary>

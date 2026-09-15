@@ -64,7 +64,7 @@ public static class LobbySceneBuilder
         ("Council",  "시의원",   "시의원",   true),
     };
 
-    [MenuItem("Racing/로비 씬 만들기")]
+    [MenuItem("Racing/씬 하나만 다시 만들기/로비", false, 101)]
     public static void BuildLobby()
     {
         Directory.CreateDirectory(SceneFolder);

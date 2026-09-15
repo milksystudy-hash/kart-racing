@@ -35,7 +35,7 @@ public static class TestSceneBuilder
     static readonly Color ColPickupGlow = new Color32(0xFF, 0xDB, 0x40, 0xFF);
     static readonly Color ColPickupItem = new Color32(0xF2, 0xE4, 0xC0, 0xFF);
 
-    [MenuItem("Racing/트랙 씬 다시 만들기")]
+    [MenuItem("Racing/씬 하나만 다시 만들기/트랙", false, 100)]
     public static void BuildAll()
     {
         Directory.CreateDirectory(SceneFolder);
@@ -55,7 +55,7 @@ public static class TestSceneBuilder
     /// 크기 재는 빈 맵. 평소엔 만들지 않는다 — 씬이 늘어나면 헷갈리기만 해서.
     /// 블렌더나 노마드에서 뽑은 모델이 실제로 얼마나 큰지 눈으로 볼 때만 잠깐 만들어 쓰고 지운다.
     /// </summary>
-    [MenuItem("Racing/크기 재는 씬 만들기 (쓰고 나면 지워도 됨)")]
+    [MenuItem("Racing/도구/크기 재는 씬 만들기 (쓰고 나면 지워도 됨)", false, 200)]
     public static void BuildTestbedOnly()
     {
         Directory.CreateDirectory(SceneFolder);

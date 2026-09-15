@@ -25,7 +25,7 @@ public static class StoryRigBuilder
     static readonly Vector3 DefaultCamPos  = new Vector3(2.2f, 2.9f, -1.2f);
     static readonly Vector3 DefaultCamLook = new Vector3(-2.0f, 3.0f, -11.5f);
 
-    [MenuItem("Racing/로비에 대화 시스템 붙이기")]
+    [MenuItem("Racing/도구/로비에 대화 시스템 붙이기", false, 201)]
     public static void AttachToLobby()
     {
         if (!System.IO.File.Exists(LobbyPath))

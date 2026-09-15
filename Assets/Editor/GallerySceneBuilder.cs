@@ -45,7 +45,7 @@ public static class GallerySceneBuilder
     // 전시품 목록은 ExhibitCatalogue 하나로 모았다.
     // 트랙에 놓는 수집품도 같은 목록을 읽어서, 주운 물건과 진열장이 어긋날 수가 없다.
 
-    [MenuItem("Racing/전시실 씬 만들기")]
+    [MenuItem("Racing/씬 하나만 다시 만들기/전시실", false, 102)]
     public static void BuildGallery()
     {
         Directory.CreateDirectory(SceneFolder);
