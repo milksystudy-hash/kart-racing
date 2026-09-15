@@ -12,11 +12,13 @@ public class KartCamera : MonoBehaviour
     public KartController kart;
 
     [Header("위치")]
+    // 5.6m 뒤 · 2.8m 위는 카트(길이 1.5m)를 화면의 10% 도 안 되게 만든다 — 차가 장난감처럼 보인다.
+    // 3.9m 뒤 · 1.95m 위면 카트가 화면에서 두 배 가까이 커지고, 낮은 시점이라 속도감도 붙는다.
     [Tooltip("카트 기준 카메라 위치. y=높이, z=뒤로 물러난 거리")]
-    public Vector3 offset = new Vector3(0f, 2.8f, -5.6f);
-    [Tooltip("카트보다 조금 앞을 본다")]
-    public float lookAhead = 4f;
-    public float lookHeight = 1.1f;
+    public Vector3 offset = new Vector3(0f, 1.75f, -3.4f);
+    [Tooltip("카트보다 조금 앞을 본다. 카메라가 가까워진 만큼 더 멀리 봐야 코너가 미리 보인다")]
+    public float lookAhead = 5f;
+    public float lookHeight = 0.6f;
 
     [Header("따라오는 속도")]
     public float positionSmoothing = 7f;

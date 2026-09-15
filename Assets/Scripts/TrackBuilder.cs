@@ -38,18 +38,18 @@ public class TrackBuilder : MonoBehaviour
     /// <summary>순환 코스의 조절점. 순서대로 한 바퀴를 돈다.</summary>
     public static readonly ControlPoint[] Path =
     {
-        new ControlPoint(  0f, -78f, 18f, Zone.본관앞),       // 출발 · 결승 (곰 본관 정면)
-        new ControlPoint(-34f, -70f, 14f, Zone.본관앞),
-        new ControlPoint(-62f, -46f, 12f, Zone.서편전시동),
-        new ControlPoint(-50f, -14f, 11f, Zone.서편전시동),   // 안쪽으로 파고드는 S 자
-        new ControlPoint(-66f,  18f, 11f, Zone.북서담장),
-        new ControlPoint(-46f,  50f, 12f, Zone.북서담장),
-        new ControlPoint(  0f,  72f, 16f, Zone.정문앞),       // 한옥 정문
-        new ControlPoint( 44f,  54f, 12f, Zone.동편연못),
-        new ControlPoint( 58f,  22f, 10f, Zone.동편연못),     // 연못과 돌다리, 좁다
-        new ControlPoint( 48f, -10f, 10f, Zone.매표소굽이),
-        new ControlPoint( 62f, -40f, 11f, Zone.매표소굽이),   // 다시 바깥으로 밀리는 S 자
-        new ControlPoint( 32f, -72f, 14f, Zone.본관앞),
+        new ControlPoint(  0f, -78f, 11.0f, Zone.본관앞),      // 출발 · 결승 (곰 본관 정면)
+        new ControlPoint(-34f, -70f,  9.0f, Zone.본관앞),
+        new ControlPoint(-62f, -46f,  8.0f, Zone.서편전시동),
+        new ControlPoint(-50f, -14f,  7.5f, Zone.서편전시동),  // 안쪽으로 파고드는 S 자
+        new ControlPoint(-66f,  18f,  7.5f, Zone.북서담장),
+        new ControlPoint(-46f,  50f,  8.0f, Zone.북서담장),
+        new ControlPoint(  0f,  72f, 10.0f, Zone.정문앞),      // 한옥 정문
+        new ControlPoint( 44f,  54f,  8.0f, Zone.동편연못),
+        new ControlPoint( 58f,  22f,  7.0f, Zone.동편연못),    // 연못과 돌다리, 좁다
+        new ControlPoint( 48f, -10f,  7.0f, Zone.매표소굽이),
+        new ControlPoint( 62f, -40f,  7.5f, Zone.매표소굽이),  // 다시 바깥으로 밀리는 S 자
+        new ControlPoint( 32f, -72f,  9.0f, Zone.본관앞),
     };
 
     [Header("만들기")]
@@ -59,7 +59,9 @@ public class TrackBuilder : MonoBehaviour
     [Range(4, 24)] public int segmentsPerControl = 10;
 
     [Header("벽")]
-    public float wallHeight = 2.6f;
+    // 2.6m 짜리 벽은 카트(높이 0.73m)보다 세 배 넘게 높아서 터널처럼 보인다.
+    // 1.2m 로 낮추면 넘어가진 않으면서 바깥 풍경이 보인다 — 실제 서킷 가드레일도 이 정도야.
+    public float wallHeight = 1.2f;
     public float wallThickness = 0.8f;
 
     [Header("체크포인트")]

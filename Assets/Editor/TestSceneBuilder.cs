@@ -332,12 +332,17 @@ public static class TestSceneBuilder
         box.size = new Vector3(1.0f, 0.45f, 1.4f);
         box.center = new Vector3(0f, -0.06f, 0f);
 
+        // 카트 본체를 먼저 붙인다 — 모델을 얼마나 내려야 하는지(rideHeight)를 알아야 해서.
+        var kart = go.AddComponent<KartController>();
+        kart.groundMask = ~(1 << LayerIgnoreRaycast);
+
         var visual = new GameObject("KartVisual").transform;
         visual.SetParent(go.transform, false);
+        kart.visual = visual;
 
         // 진짜 모델이 있으면 그걸 쓰고, 없으면 회색 상자로 돌아간다.
         // 모델이 KartVisual **안에** 들어간다 — 껍데기(콜라이더·물리)는 그대로 두고 그림만 바뀐다.
-        if (!AttachKartModel(visual)) MakeGreyBoxKart(visual);
+        if (!AttachKartModel(visual, kart.rideHeight)) MakeGreyBoxKart(visual);
 
         // 캐릭터가 앉을 자리. 지금은 비어 있어도 되고, 3등신 FBX 가 오면 여기 자식으로 넣으면 된다.
         // 발끝이 원점인 모델이 그대로 앉은 키(0.95m)에 맞는다.
@@ -352,11 +357,7 @@ public static class TestSceneBuilder
         var progress = go.AddComponent<RaceProgress>();
         progress.racerName = isPlayer ? "나" : go.name;
 
-        var kart = go.AddComponent<KartController>();
-        kart.visual = visual;
-        kart.groundMask = ~(1 << LayerIgnoreRaycast);
-
-        // 바퀴 돌리기는 카트보다 나중에 붙는다. 여기서 연결을 맞춰준다.
+        // 바퀴 돌리기는 모델을 넣을 때 붙는다. 여기서 연결을 맞춰준다.
         var wheels = go.GetComponent<KartWheels>();
         if (wheels != null) wheels.kart = kart;
 
@@ -379,7 +380,7 @@ public static class TestSceneBuilder
     ///   · 바퀴마다 **카트와 축이 맞는 껍데기**를 씌운다 (모델 방향과 무관하게 굴리고 꺾으려고)
     ///   · KartWheels 에 그 껍데기와 바퀴를 꽂아준다
     /// </summary>
-    static bool AttachKartModel(Transform visual)
+    static bool AttachKartModel(Transform visual, float rideHeight)
     {
         var model = AssetDatabase.LoadAssetAtPath<GameObject>(KartModelPath);
         if (model == null)
@@ -392,9 +393,14 @@ public static class TestSceneBuilder
 
         var instance = (GameObject)PrefabUtility.InstantiatePrefab(model);
 
-        // 임포터가 정한 위치·회전·스케일을 그대로 둔다. 여기서 1 로 덮으면
+        // 임포터가 정한 회전·스케일은 그대로 둔다. 여기서 1 로 덮으면
         // 단위 변환(100배)이 걸린 모델은 백분의 일로 쪼그라든다.
         instance.transform.SetParent(visual, false);
+
+        // ★ 모델은 **바퀴 밑바닥이 원점**이고(규격대로), 카트 루트는 서스펜션 때문에
+        // 지면에서 rideHeight 만큼 떠 있다. 그대로 넣으면 차가 그 높이만큼 공중에 뜬다.
+        // 그만큼 내려서 바퀴가 땅에 닿게 한다.
+        instance.transform.localPosition = new Vector3(0f, -rideHeight, 0f);
 
         // 그림에는 콜라이더를 두지 않는다. 모델을 갈아끼워도 물리가 안 바뀌게 (CLAUDE.md 규칙 2)
         foreach (var c in instance.GetComponentsInChildren<Collider>(true))
