@@ -48,13 +48,29 @@ public class KartWheels : MonoBehaviour
     void Awake()
     {
         if (kart == null) kart = GetComponent<KartController>();
+        CaptureBase();
+    }
 
+    /// <summary>
+    /// 다른 카트로 갈아탔을 때 부른다 (KartSkin). 바퀴 목록을 바꾸고 기준 자세를 다시 잡는다.
+    /// Awake 에서 한 번만 기억해두면, 나중에 모델이 바뀌어도 예전 바퀴를 계속 돌리려 든다.
+    /// </summary>
+    public void Bind(Transform[] newSteerPivots, Transform[] newSpinWheels, Transform newSteeringWheel)
+    {
+        steerPivots = newSteerPivots;
+        spinWheels = newSpinWheels;
+        steeringWheel = newSteeringWheel;
+        CaptureBase();
+    }
+
+    void CaptureBase()
+    {
         // 바퀴가 원래 어떻게 놓여 있었는지 기억해둔다. 굴릴 때 이걸 기준으로 돌린다.
         spinBase = new Quaternion[spinWheels != null ? spinWheels.Length : 0];
         for (int i = 0; i < spinBase.Length; i++)
             if (spinWheels[i] != null) spinBase[i] = spinWheels[i].localRotation;
 
-        if (steeringWheel != null) steeringBase = steeringWheel.localRotation;
+        steeringBase = steeringWheel != null ? steeringWheel.localRotation : Quaternion.identity;
     }
 
     void LateUpdate()

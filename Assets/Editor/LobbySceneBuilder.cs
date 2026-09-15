@@ -20,8 +20,6 @@ public static class LobbySceneBuilder
     const string LobbyPath   = SceneFolder + "/Lobby.unity";
     const string TrackPath   = SceneFolder + "/Track.unity";
     const string GalleryPath = SceneFolder + "/Gallery.unity";
-    const string TestbedPath = SceneFolder + "/Testbed.unity";
-    const string MyTrackPath = SceneFolder + "/MyTrack.unity";
 
     // ---- 홀 크기 ----
     const float HallWidth = 36f;   // X
@@ -117,14 +115,15 @@ public static class LobbySceneBuilder
 
     /// <summary>
     /// 있는 씬만 골라 순서대로 빌드 설정에 넣는다.
-    /// F1 로비 · F2 트랙 · F3 전시실 · F4 테스트베드 · F6 내 맵.
-    /// 새 씬은 <b>뒤에 붙인다</b> — 중간에 끼우면 이미 외운 F 키들이 전부 밀린다.
+    /// <b>F1 로비 · F2 트랙 · F3 전시실.</b> 씬은 이 셋뿐이다 (2026-09-15 정리).
+    ///
     /// 이야기 장면은 씬이 아니라 로비 안에서 돈다(StoryStage) — 중앙홀을 두 벌로 만들지 않으려고.
+    /// 새 씬을 만들 일이 생기면 <b>뒤에 붙인다</b>. 중간에 끼우면 외운 F 키가 전부 밀린다.
     /// </summary>
     public static void RegisterScenes()
     {
         var list = new System.Collections.Generic.List<EditorBuildSettingsScene>();
-        foreach (var path in new[] { LobbyPath, TrackPath, GalleryPath, TestbedPath, MyTrackPath })
+        foreach (var path in new[] { LobbyPath, TrackPath, GalleryPath })
             if (File.Exists(path)) list.Add(new EditorBuildSettingsScene(path, true));
 
         EditorBuildSettings.scenes = list.ToArray();
@@ -465,6 +464,7 @@ public static class LobbySceneBuilder
             var stand = go.AddComponent<CharacterStand>();
             stand.index = i;
             stand.displayName = racer.name;
+            stand.castId = racer.castId;
             stand.locked = racer.locked;
             stand.modelAnchor = anchor;
             stand.placeholder = placeholder;

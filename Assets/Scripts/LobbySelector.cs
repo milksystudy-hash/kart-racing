@@ -81,7 +81,7 @@ public class LobbySelector : MonoBehaviour
             if (s != null) s.SetSelected(s == stand);
 
         Chosen = stand;
-        GameSelection.Select(stand.index, stand.Label);
+        GameSelection.Select(stand.index, stand.Label, stand.castId);
 
         if (!silent) Debug.Log($"[Lobby] 캐릭터 선택: {stand.Label}");
     }

@@ -35,13 +35,12 @@ public static class TestSceneBuilder
     static readonly Color ColPickupGlow = new Color32(0xFF, 0xDB, 0x40, 0xFF);
     static readonly Color ColPickupItem = new Color32(0xF2, 0xE4, 0xC0, 0xFF);
 
-    [MenuItem("Racing/테스트 씬 두 개 다시 만들기")]
+    [MenuItem("Racing/트랙 씬 다시 만들기")]
     public static void BuildAll()
     {
         Directory.CreateDirectory(SceneFolder);
         Directory.CreateDirectory(MaterialFolder);
 
-        BuildTestbedScene();
         BuildTrackScene();
 
         // 로비가 이미 있으면 지워지지 않게, 등록은 한 곳에서 처리한다
@@ -49,7 +48,26 @@ public static class TestSceneBuilder
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        Debug.Log("[Racing] Testbed.unity / Track.unity 생성 완료. 씬 순서는 F1 로비 / F2 트랙 / F3 테스트베드.");
+        Debug.Log("[Racing] Track.unity 생성 완료. 씬은 F1 로비 / F2 트랙 / F3 전시실 셋뿐이다.");
+    }
+
+    /// <summary>
+    /// 크기 재는 빈 맵. 평소엔 만들지 않는다 — 씬이 늘어나면 헷갈리기만 해서.
+    /// 블렌더나 노마드에서 뽑은 모델이 실제로 얼마나 큰지 눈으로 볼 때만 잠깐 만들어 쓰고 지운다.
+    /// </summary>
+    [MenuItem("Racing/크기 재는 씬 만들기 (쓰고 나면 지워도 됨)")]
+    public static void BuildTestbedOnly()
+    {
+        Directory.CreateDirectory(SceneFolder);
+        Directory.CreateDirectory(MaterialFolder);
+
+        BuildTestbedScene();
+        LobbySceneBuilder.RegisterScenes();
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Debug.Log("[Racing] Testbed.unity 생성. 크기 확인이 끝나면 씬 파일을 지우면 된다 " +
+                  "(빌드 설정에는 안 들어간다).");
     }
 
     // ==================================================================
@@ -369,7 +387,17 @@ public static class TestSceneBuilder
     // ------------------------------------------------------------------
     //  카트 모델
     // ------------------------------------------------------------------
-    const string KartModelPath = "Assets/Cart_model/JIN_FIN_CART.fbx";
+    /// <summary>
+    /// 캐릭터마다 어떤 카트를 타는지. <b>새 카트 FBX 를 만들면 여기 한 줄만 더하면 된다.</b>
+    /// castId 는 Cast.cs 의 id 와 같아야 하고, 파일이 없는 줄은 조용히 건너뛴다.
+    /// </summary>
+    static readonly (string castId, string path)[] KartModels =
+    {
+        ("세진", "Assets/Cart_model/JIN_FIN_CART.fbx"),
+        ("세운", "Assets/Cart_model/WOON_CART_FIN.fbx"),
+        // ("시우", "Assets/Cart_model/SIWOO_....fbx"),
+        // ("이감", "Assets/Cart_model/IGAM_....fbx"),
+    };
 
     /// <summary>
     /// 유저가 만든 카트 FBX 를 껍데기 안에 넣는다. 파일이 없으면 false 를 돌려주고
@@ -382,14 +410,50 @@ public static class TestSceneBuilder
     /// </summary>
     static bool AttachKartModel(Transform visual, float rideHeight)
     {
-        var model = AssetDatabase.LoadAssetAtPath<GameObject>(KartModelPath);
-        if (model == null)
+        var wheels = visual.parent.gameObject.AddComponent<KartWheels>();
+        var skinner = visual.parent.gameObject.AddComponent<KartSkin>();
+        skinner.wheels = wheels;
+
+        var skins = new System.Collections.Generic.List<KartSkin.Skin>();
+
+        foreach (var (castId, path) in KartModels)
         {
-            Debug.LogWarning($"[Racing] {KartModelPath} 를 못 찾아서 회색 상자 카트로 만들었어.");
+            var skin = BuildSkin(visual, rideHeight, castId, path);
+            if (skin != null) skins.Add(skin);
+        }
+
+        if (skins.Count == 0)
+        {
+            Object.DestroyImmediate(skinner);
+            Object.DestroyImmediate(wheels);
+            Debug.LogWarning("[Racing] 카트 FBX 를 하나도 못 찾아서 회색 상자로 만들었어.");
             return false;
         }
 
-        EnsureModelImportSettings(KartModelPath);
+        skinner.skins = skins.ToArray();
+
+        // 씬 안에서는 첫 번째만 보이게 해둔다. 실제로 어느 것이 켜질지는
+        // 재생할 때 KartSkin 이 로비에서 고른 캐릭터를 보고 정한다.
+        for (int i = 0; i < skins.Count; i++) skins[i].model.SetActive(i == 0);
+        wheels.Bind(skins[0].steerPivots, skins[0].spinWheels, skins[0].steeringWheel);
+
+        var names = "";
+        foreach (var s in skins) names += s.castId + " ";
+        Debug.Log($"[Racing] 카트 {skins.Count}대 준비: {names.Trim()} — 로비에서 고른 캐릭터의 것이 켜진다.");
+        return true;
+    }
+
+    /// <summary>카트 FBX 하나를 껍데기 안에 넣고, 바퀴 껍데기까지 씌워서 돌려준다.</summary>
+    static KartSkin.Skin BuildSkin(Transform visual, float rideHeight, string castId, string path)
+    {
+        var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if (model == null)
+        {
+            Debug.Log($"[Racing] {castId} 카트({System.IO.Path.GetFileName(path)})는 아직 없어서 건너뛴다.");
+            return null;
+        }
+
+        EnsureModelImportSettings(path);
 
         var instance = (GameObject)PrefabUtility.InstantiatePrefab(model);
 
@@ -399,15 +463,18 @@ public static class TestSceneBuilder
 
         // ★ 모델은 **바퀴 밑바닥이 원점**이고(규격대로), 카트 루트는 서스펜션 때문에
         // 지면에서 rideHeight 만큼 떠 있다. 그대로 넣으면 차가 그 높이만큼 공중에 뜬다.
-        // 그만큼 내려서 바퀴가 땅에 닿게 한다.
         instance.transform.localPosition = new Vector3(0f, -rideHeight, 0f);
 
         // 그림에는 콜라이더를 두지 않는다. 모델을 갈아끼워도 물리가 안 바뀌게 (CLAUDE.md 규칙 2)
         foreach (var c in instance.GetComponentsInChildren<Collider>(true))
             Object.DestroyImmediate(c);
 
-        var wheels = visual.parent.gameObject.AddComponent<KartWheels>();
-        wheels.steeringWheel = FindDeep(instance.transform, "Steering");
+        var skin = new KartSkin.Skin
+        {
+            castId = castId,
+            model = instance,
+            steeringWheel = FindDeep(instance.transform, "Steering"),
+        };
 
         var front = new System.Collections.Generic.List<Transform>();
         var spin = new System.Collections.Generic.List<Transform>();
@@ -419,8 +486,9 @@ public static class TestSceneBuilder
 
             // 카트와 축이 맞는 껍데기를 만들어 그 안에 바퀴를 넣는다.
             // 이렇게 해두면 모델이 어떤 방향으로 만들어졌든 X = 축, Y = 조향이 된다.
+            // 껍데기를 모델 **안에** 둔다 — 카트를 끄면 바퀴 껍데기도 같이 꺼지게.
             var pivot = new GameObject(name + "_Pivot").transform;
-            pivot.SetParent(visual, false);
+            pivot.SetParent(instance.transform, false);
             pivot.SetPositionAndRotation(wheel.position, visual.rotation);
             wheel.SetParent(pivot, worldPositionStays: true);
 
@@ -428,8 +496,8 @@ public static class TestSceneBuilder
             if (name.StartsWith("Wheel_F")) front.Add(pivot);
         }
 
-        wheels.steerPivots = front.ToArray();
-        wheels.spinWheels = spin.ToArray();
+        skin.steerPivots = front.ToArray();
+        skin.spinWheels = spin.ToArray();
 
         // 규격과 얼마나 맞는지 찍어둔다. 다음에 모델을 다시 뽑았을 때 크기가 틀어지면 여기서 보인다.
         var bounds = new Bounds(visual.position, Vector3.zero);
@@ -440,12 +508,11 @@ public static class TestSceneBuilder
             else bounds.Encapsulate(r.bounds);
         }
 
-        Debug.Log($"[Racing] 카트 모델 적용: {model.name}  " +
+        Debug.Log($"[Racing] {castId} 카트 {model.name}  " +
                   $"전폭 {bounds.size.x:0.00} / 높이 {bounds.size.y:0.00} / 전장 {bounds.size.z:0.00} m " +
-                  $"(규격 1.10 × 1.50)\n" +
-                  $"바퀴 {spin.Count}개 · 앞바퀴 {front.Count}개 · " +
-                  $"운전대 {(wheels.steeringWheel != null ? "있음" : "없음")}");
-        return true;
+                  $"(규격 1.10 × 1.50) · 바퀴 {spin.Count} · 앞바퀴 {front.Count} · " +
+                  $"운전대 {(skin.steeringWheel != null ? "있음" : "없음")}");
+        return skin;
     }
 
     /// <summary>

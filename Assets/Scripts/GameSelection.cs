@@ -11,17 +11,26 @@ public static class GameSelection
 
     public static int SelectedIndex { get; private set; } = -1;
     public static string SelectedName { get; private set; } = "";
+
+    /// <summary>
+    /// Cast.cs 의 id ("세운" 처럼). 카트 색과 이름표 색이 이걸로 정해진다.
+    /// 자리 번호(SelectedIndex)만 들고 다니면 자리 순서를 바꿀 때마다 카트가 뒤바뀐다.
+    /// </summary>
+    public static string SelectedCastId { get; private set; } = "";
+
     public static bool HasSelection => SelectedIndex >= 0;
 
-    public static void Select(int index, string name)
+    public static void Select(int index, string name, string castId)
     {
         SelectedIndex = index;
         SelectedName = string.IsNullOrEmpty(name) ? $"#{index + 1}" : name;
+        SelectedCastId = castId ?? "";
     }
 
     public static void Clear()
     {
         SelectedIndex = -1;
         SelectedName = "";
+        SelectedCastId = "";
     }
 }

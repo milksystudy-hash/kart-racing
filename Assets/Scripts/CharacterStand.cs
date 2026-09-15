@@ -13,6 +13,8 @@ public class CharacterStand : MonoBehaviour
     public int index;
     [Tooltip("화면에 뜰 이름. 비워두면 '#1' 처럼 번호로 나온다")]
     public string displayName = "";
+    [Tooltip("Cast.cs 의 id — 이감 / 시우 / 세운 / 세진. 이걸로 카트와 이름표 색이 정해진다")]
+    public string castId = "";
     [Tooltip("기획서상 잠긴 자리 — 5번 개발업자, 6번 시의원. 고를 수 없다")]
     public bool locked;
 
