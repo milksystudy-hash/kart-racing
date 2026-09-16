@@ -675,12 +675,7 @@ public static class TestSceneBuilder
         return go;
     }
 
-    /// <summary>
-    /// 표면 마감. 같은 색이라도 <b>빛을 어떻게 되받느냐</b>가 다르면 다른 물건으로 보인다.
-    /// 전부 무광 한 값으로 두면 나무도 돌도 유리도 똑같은 플라스틱으로 읽히는데,
-    /// 그게 "유니티로 만든 티" 의 큰 축이야.
-    /// </summary>
-    public enum Finish { 무광, 나무, 석재, 광택, 금속, 유리, 발광 }
+    // 마감(Finish) 은 Scripts/Surfaces.cs 로 옮겼다 — 런타임(캠퍼스/트랙)도 같은 표를 써야 해서.
 
     /// <summary>단색 머티리얼을 진짜 .mat 에셋으로 만든다 (씬에 저장돼야 하니까).</summary>
     public static Material MaterialAsset(Color color) => MaterialAsset(color, Finish.무광);
@@ -716,16 +711,9 @@ public static class TestSceneBuilder
 
     static void ApplyFinish(Material mat, Color color, Finish finish)
     {
-        float smoothness = finish switch
-        {
-            Finish.나무 => 0.30f,   // 기름 먹인 목재 — 약하게 번들거린다
-            Finish.석재 => 0.18f,   // 다듬은 돌
-            Finish.광택 => 0.40f,   // 닦은 바닥. 더 올리면 비스듬히 볼 때 어두운 천장을 그대로 비춰 새까매진다
-            Finish.금속 => 0.55f,
-            Finish.유리 => 0.95f,
-            _ => 0.08f,
-        };
-        float metallic = finish == Finish.금속 ? 0.85f : 0f;
+        // 광택 값은 Surfaces.cs 의 표 하나에서만 온다.
+        float smoothness = finish.Smoothness();
+        float metallic = finish.Metallic();
 
         var baseColor = finish == Finish.유리 ? new Color(color.r, color.g, color.b, 0.16f) : color;
 

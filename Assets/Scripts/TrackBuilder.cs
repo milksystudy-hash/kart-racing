@@ -562,33 +562,3 @@ public class TrackBuilder : MonoBehaviour
         }
     }
 }
-
-/// <summary>
-/// 런타임에 만드는 단색 머티리얼. 지금 렌더 파이프라인(URP/빌트인)에 맞는 셰이더를 골라준다.
-/// 같은 색은 한 번만 만들어서 돌려 쓴다.
-/// </summary>
-public static class FlatMaterial
-{
-    static readonly System.Collections.Generic.Dictionary<Color, Material> cache = new();
-
-    public static Material Get(Color color)
-    {
-        if (cache.TryGetValue(color, out var cached) && cached != null) return cached;
-
-        Shader shader = null;
-        if (GraphicsSettings.defaultRenderPipeline != null)
-            shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Diffuse");
-
-        var mat = new Material(shader) { name = $"Flat_{ColorUtility.ToHtmlStringRGB(color)}" };
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.08f);
-        if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.08f);
-        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
-
-        cache[color] = mat;
-        return mat;
-    }
-}

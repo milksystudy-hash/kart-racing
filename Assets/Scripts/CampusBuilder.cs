@@ -32,6 +32,9 @@ public class CampusBuilder : MonoBehaviour
 
     // ---- 레퍼런스 그림에서 뽑은 색 ----
     static readonly Color ColGrass    = new Color32(0xC4, 0xBC, 0x92, 0xFF);
+    // 잔디를 한 가지 색으로 쫙 깔면 아무리 넓어도 "바닥판 한 장" 으로 보인다.
+    static readonly Color ColGrassDry = new Color32(0xB6, 0xAE, 0x84, 0xFF);
+    static readonly Color ColGrassWet = new Color32(0xA6, 0xB0, 0x7E, 0xFF);
     static readonly Color ColBush     = new Color32(0x7E, 0x94, 0x62, 0xFF);
     static readonly Color ColStoneWall= new Color32(0xA8, 0xA4, 0x9A, 0xFF);
     static readonly Color ColWallTile = new Color32(0x6E, 0x7A, 0x72, 0xFF);
@@ -67,6 +70,7 @@ public class CampusBuilder : MonoBehaviour
         built.SetParent(transform, false);
 
         BuildGround();
+        ScatterGroundPatches();
         BuildPerimeterWall();
         BuildPlaza();
         BuildPond(new Vector3(30f, 0f, 24f));
@@ -321,6 +325,32 @@ public class CampusBuilder : MonoBehaviour
             Ball(rocks, $"Rock_{i:00}", spot + Vector3.up * (scale * 0.35f),
                  new Vector3(scale * 1.7f, scale * 0.9f, scale * 1.4f), ColRock,
                  rotation: Quaternion.Euler(0f, (float)random.NextDouble() * 360f, 0f));
+        }
+    }
+
+    /// <summary>
+    /// 잔디 위에 큰 얼룩을 몇 장 깐다. 색 차이는 아주 약하게 준다 — 세게 주면 얼룩이
+    /// 따로 놀고, 약하게 주면 "넓은 풀밭" 으로 읽힌다. 진짜 잔디밭이 그래서 안 밋밋한 거야.
+    ///
+    /// 콜라이더 없는 납작한 원판이라 카트는 그 위를 그냥 지나간다.
+    /// </summary>
+    void ScatterGroundPatches()
+    {
+        var root = new GameObject("GroundPatches").transform;
+        root.SetParent(built, false);
+
+        var random = new System.Random(scatterSeed + 7);
+        for (int i = 0; i < 26; i++)
+        {
+            float x = ((float)random.NextDouble() * 2f - 1f) * wallHalfX * 1.15f;
+            float z = ((float)random.NextDouble() * 2f - 1f) * wallHalfZ * 1.15f;
+            float r = 22f + (float)random.NextDouble() * 36f;
+
+            // 노면(y=0)보다 낮게. 잔디 윗면이 y=-0.05 라 그 사이에 얇게 끼워 넣는다.
+            Disc(root, $"Patch_{i:00}", new Vector3(x, -0.03f, z),
+                 new Vector3(r, 0.01f, r * (0.6f + (float)random.NextDouble() * 0.7f)),
+                 i % 2 == 0 ? ColGrassDry : ColGrassWet,
+                 Quaternion.Euler(0f, (float)random.NextDouble() * 360f, 0f));
         }
     }
 

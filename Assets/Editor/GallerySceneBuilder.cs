@@ -120,12 +120,12 @@ public static class GallerySceneBuilder
         // 레일 조명 기구 — 빛만 허공에 떠 있으면 어색하다
         TestSceneBuilder.Cube(parent, "Fixture", new Vector3(0f, 4.35f, 0f),
                               new Vector3(0.22f, 0.3f, 0.22f), ColFixture, keepCollider: false,
-                              finish: TestSceneBuilder.Finish.금속);
+                              finish: Finish.금속);
 
         // 전구 면. 발광 재질이라 블룸이 실제로 번진다 — 조명이 "켜져 있는" 것처럼 보이는 건 이것 때문이야
         TestSceneBuilder.Cube(parent, "Fixture_Lens", new Vector3(0f, 4.19f, 0f),
                               new Vector3(0.16f, 0.03f, 0.16f), ColLantern, keepCollider: false,
-                              finish: TestSceneBuilder.Finish.발광);
+                              finish: Finish.발광);
 
         var go = new GameObject("CaseLight");
         go.transform.SetParent(parent, false);
@@ -249,7 +249,7 @@ public static class GallerySceneBuilder
         // 확산광을 눌러버리는데, 이 방은 천장이 어두워서 그 반사가 곧 검정이야. 실제로 그렇게 나왔다.
         var floor = TestSceneBuilder.Cube(root, "Floor", new Vector3(0f, -0.25f, 0f),
                                           new Vector3(HallWidth, 0.5f, HallDepth), ColFloor,
-                                          finish: TestSceneBuilder.Finish.석재);
+                                          finish: Finish.석재);
         floor.isStatic = true;
 
         MakeFloorTiles(root);
@@ -257,7 +257,7 @@ public static class GallerySceneBuilder
         // 가운데 통로를 나무로 깔아서 시선이 중앙으로 모이게
         TestSceneBuilder.Cube(root, "Runner", new Vector3(0f, 0.012f, 0f),
                               new Vector3(4.5f, 0.02f, HallDepth - 3f), ColFloorTrim, keepCollider: false,
-                              finish: TestSceneBuilder.Finish.나무);
+                              finish: Finish.나무);
 
         float halfW = HallWidth * 0.5f, halfD = HallDepth * 0.5f;
         Wall(root, "WallN", new Vector3(0f, 0f, -halfD - 0.25f), new Vector3(HallWidth + 1f, 0.5f));
@@ -301,12 +301,12 @@ public static class GallerySceneBuilder
         for (float x = -HallWidth * 0.5f + step; x < HallWidth * 0.5f; x += step)
             TestSceneBuilder.Cube(tiles, $"SeamX_{x:0}", new Vector3(x, 0.005f, 0f),
                                   new Vector3(width, 0.01f, HallDepth), seam, keepCollider: false,
-                                  finish: TestSceneBuilder.Finish.석재).isStatic = true;
+                                  finish: Finish.석재).isStatic = true;
 
         for (float z = -HallDepth * 0.5f + step; z < HallDepth * 0.5f; z += step)
             TestSceneBuilder.Cube(tiles, $"SeamZ_{z:0}", new Vector3(0f, 0.005f, z),
                                   new Vector3(HallWidth, 0.01f, width), seam, keepCollider: false,
-                                  finish: TestSceneBuilder.Finish.석재).isStatic = true;
+                                  finish: Finish.석재).isStatic = true;
     }
 
     /// <summary>
@@ -349,12 +349,12 @@ public static class GallerySceneBuilder
         TestSceneBuilder.Cube(parent, name + "_Skirting",
                               basePosition + Vector3.up * 0.22f,
                               new Vector3(trim.x, 0.44f, trim.z), ColWoodDark,
-                              keepCollider: false, finish: TestSceneBuilder.Finish.나무).isStatic = true;
+                              keepCollider: false, finish: Finish.나무).isStatic = true;
 
         TestSceneBuilder.Cube(parent, name + "_Rail",
                               basePosition + Vector3.up * 2.78f,
                               new Vector3(trim.x, 0.13f, trim.z), ColWoodDark,
-                              keepCollider: false, finish: TestSceneBuilder.Finish.나무).isStatic = true;
+                              keepCollider: false, finish: Finish.나무).isStatic = true;
 
         // 벽 위 청록 기와 띠
         Vector3 cap = alongX ? new Vector3(footprint.x + 1.2f, 0.25f, footprint.y + 1.2f)
@@ -367,15 +367,15 @@ public static class GallerySceneBuilder
     {
         TestSceneBuilder.Cube(parent, name, position + Vector3.up * (WallHeight * 0.5f),
                               new Vector3(0.5f, WallHeight, 0.5f), ColWoodDark, keepCollider: false,
-                              finish: TestSceneBuilder.Finish.나무).isStatic = true;
+                              finish: Finish.나무).isStatic = true;
         TestSceneBuilder.Cube(parent, name + "_Base", position + Vector3.up * 0.16f,
                               new Vector3(0.8f, 0.32f, 0.8f), ColStone, keepCollider: false,
-                              finish: TestSceneBuilder.Finish.석재).isStatic = true;
+                              finish: Finish.석재).isStatic = true;
 
         // 기둥머리 한 겹 — 각진 막대가 천장에 그냥 꽂히면 가짜로 보인다
         TestSceneBuilder.Cube(parent, name + "_Capital", position + Vector3.up * (WallHeight - 0.62f),
                               new Vector3(0.72f, 0.2f, 0.72f), ColWoodDark, keepCollider: false,
-                              finish: TestSceneBuilder.Finish.나무).isStatic = true;
+                              finish: Finish.나무).isStatic = true;
     }
 
     static void MakeLanterns()
@@ -395,14 +395,14 @@ public static class GallerySceneBuilder
 
             TestSceneBuilder.Cube(go, "Shaft", new Vector3(0f, 0.9f, 0f),
                                   new Vector3(0.32f, 1.8f, 0.32f), ColStone, keepCollider: false,
-                                  finish: TestSceneBuilder.Finish.석재);
+                                  finish: Finish.석재);
             // 등갓 — 발광 재질이라 불이 실제로 들어온 것처럼 번진다
             TestSceneBuilder.Cube(go, "Housing", new Vector3(0f, 2.1f, 0f),
                                   new Vector3(0.7f, 0.6f, 0.7f), ColLantern, keepCollider: false,
-                                  finish: TestSceneBuilder.Finish.발광);
+                                  finish: Finish.발광);
             TestSceneBuilder.Cube(go, "Cap", new Vector3(0f, 2.5f, 0f),
                                   new Vector3(1.05f, 0.2f, 1.05f), ColRoofTeal, keepCollider: false,
-                                  finish: TestSceneBuilder.Finish.석재);
+                                  finish: Finish.석재);
 
             var lightGo = new GameObject("Light");
             lightGo.transform.SetParent(go, false);
@@ -445,10 +445,10 @@ public static class GallerySceneBuilder
 
             TestSceneBuilder.Cube(go.transform, "Base", new Vector3(0f, 0.5f, 0f),
                                   new Vector3(1.1f, 1f, 1.1f), ColWoodDark, keepCollider: false,
-                                  finish: TestSceneBuilder.Finish.나무);
+                                  finish: Finish.나무);
             TestSceneBuilder.Cube(go.transform, "Base_Cap", new Vector3(0f, 1.02f, 0f),
                                   new Vector3(1.2f, 0.06f, 1.2f), ColStone, keepCollider: false,
-                                  finish: TestSceneBuilder.Finish.석재);
+                                  finish: Finish.석재);
 
             // 진짜 유리. 예전엔 투명 설정이 까다로워서 모서리 기둥 넷으로 대신했는데,
             // 진열장은 안이 비쳐야 진열장이다 — MaterialAsset 이 URP 투명 설정을 챙긴다.
@@ -458,7 +458,7 @@ public static class GallerySceneBuilder
                 var pane = TestSceneBuilder.Cube(go.transform, $"Glass_{side}",
                                                  new Vector3(Mathf.Sin(a) * 0.5f, 1.62f, Mathf.Cos(a) * 0.5f),
                                                  new Vector3(1.0f, 1.24f, 0.02f), ColCaseGlass,
-                                                 keepCollider: false, finish: TestSceneBuilder.Finish.유리);
+                                                 keepCollider: false, finish: Finish.유리);
                 pane.transform.localRotation = Quaternion.Euler(0f, side * 90f, 0f);
             }
 
@@ -468,16 +468,16 @@ public static class GallerySceneBuilder
                     TestSceneBuilder.Cube(go.transform, $"Post_{sx}_{sz}",
                                           new Vector3(sx * 0.5f, 1.62f, sz * 0.5f),
                                           new Vector3(0.05f, 1.26f, 0.05f), ColFixture,
-                                          keepCollider: false, finish: TestSceneBuilder.Finish.금속);
+                                          keepCollider: false, finish: Finish.금속);
 
             TestSceneBuilder.Cube(go.transform, "CaseTop", new Vector3(0f, 2.28f, 0f),
                                   new Vector3(1.1f, 0.08f, 1.1f), ColFixture, keepCollider: false,
-                                  finish: TestSceneBuilder.Finish.금속);
+                                  finish: Finish.금속);
 
             // 명판 — 마우스를 올리면 색이 바뀌는 부분
             var plaque = TestSceneBuilder.Cube(go.transform, "Plaque", new Vector3(0f, 0.28f, 0.58f),
                                                new Vector3(0.8f, 0.22f, 0.06f), ColWallPanel,
-                                               keepCollider: false, finish: TestSceneBuilder.Finish.금속);
+                                               keepCollider: false, finish: Finish.금속);
 
             var anchor = new GameObject("ItemAnchor").transform;
             anchor.SetParent(go.transform, false);

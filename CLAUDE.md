@@ -319,3 +319,58 @@ the kart — if a seat ever looks empty, a head-and-shoulders silhouette can go 
   나무 구슬 랩 카운터. This also explains the empty seat without a line of dialogue.
 - The karts' bear-eared seat backs already read as "toy built by the bears" — lean on that
   rather than adding new props.
+
+## HUD — 2026-09-16 재정비
+
+The user's complaints were all one root cause each, and all were **measured**, not guessed.
+
+- **`Scripts/Hud.cs` is the shared HUD layer.** Palette, fonts, 나무 판 + 종이 라벨, and the
+  screen-scale transform live there; `TestHUD` and `LobbyHUD` only lay things out. Adding a
+  third HUD means using `Hud`, not copying a palette.
+- **All HUD coordinates are in a virtual 1280×720.** `Hud.Begin(font)` sets `GUI.matrix` to
+  `Screen.height / 720` (clamped 0.8–1.8) and returns the virtual screen rect; `Hud.End()`
+  restores it. Before this, OnGUI drew in raw pixels, so a panel tuned at one resolution ate
+  the screen at another — that was "패널이 너무 크다".
+- **Text contrast is a hard rule.** `Ink #4A3A2C` (7.7:1 on paper) and `InkSoft #7B6752`
+  (5.0:1). The old `#A2907C` was **2.9:1** — under the 4.5:1 accessibility floor, which is
+  why "글씨가 너무 연하다". Don't introduce a third brown for text.
+- **Never draw outside `Hud.Inner(panel)`.** Text that crosses the wood border looks cut off;
+  that is exactly what happened to the 태엽 label.
+- **Verify overlap by measuring, not by looking.** `GUIStyle.CalcSize` on the real strings in
+  the real styles, checked against each slot and against `Hud.Inner`. That check found the
+  최고-시간 row sitting 3 px below the paper and the speed number 1 px above it — neither was
+  visible in a screenshot. Build styles with `new GUIStyle()`, **not** `new GUIStyle(GUI.skin.label)`:
+  `GUI.skin` throws outside OnGUI and the check can't run.
+- Two columns beat two stacked rows. 드라이버/이름 and 현재/최고 overlapped because a 12 px
+  font in a 14 px-tall rect bleeds into the row below.
+- **No permanent control bar.** `H` opens a controls card in both scenes; a 쪽지 in the corner
+  says so. Dev info (scene name, chapter, F7/F8) moved to the bottom-left corner — at
+  top-centre it collided with the lap panel.
+- `LobbyOrbitCamera.hoverLook` (7°) tilts the camera toward the cursor without any click, so the
+  player discovers "이건 돌아가는구나" without being told. It is an **offset added at Apply time**,
+  never added into `yaw` — accumulating it makes the lobby spin on its own.
+
+## Materials outside the gallery — 2026-09-16
+
+The track and campus looked "made in Unity" because **every surface was the same matte**
+(`FlatMaterial.Get` hard-coded smoothness 0.08) while the gallery used seven finishes. Same
+models, different lighting response, completely different read.
+
+- **`Scripts/Surfaces.cs` holds the one `Finish` table.** Both the editor
+  (`TestSceneBuilder.MaterialAsset`) and the runtime (`FlatMaterial.Get`) read it. It used to
+  live nested inside `TestSceneBuilder`, which runtime code can't reach.
+- `FlatMaterial.ByColor` maps palette colour → finish, so `CampusBuilder`'s hundreds of
+  `Block()` calls didn't have to change. **A new material is one line in that table.**
+  Current result: 석재 205 · 나무 113 · 발광 59 · 광택 1 · 무광 242.
+- Runtime emission is **×1.25**, not the gallery's ×2.2 — outdoors in daylight the higher value
+  blows windows to white. Lower that one number if the lanterns glare.
+- The flat one-colour grass plane was the other big tell. `ScatterGroundPatches()` lays 26 wide,
+  collider-free discs in two barely-different greens. **Keep the difference small** — a strong
+  contrast reads as stains, a weak one reads as a field.
+
+## Lap time
+
+One lap is **464 m** and runs ~29 s using the boost pads. The race is **3 laps
+(`RaceProgress.totalLaps`)**, so a full race is ≈ **1:27** — which is already the user's
+1:29 target and inside 기획서 §1.3's 60–120 s. To change the *lap* length rather than the race
+length, edit `TrackBuilder.Path`; the boost pads, kerbs and checkpoints all follow it.

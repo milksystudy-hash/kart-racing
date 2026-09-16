@@ -12,7 +12,11 @@ using UnityEngine.InputSystem;
 /// 조작법은 <b>H</b> 를 누를 때만 뜬다. 화면 아래 띠로 늘 깔아두면 답답하고,
 /// 한 번 외우면 다시 볼 일도 없다.
 ///
-/// 개발용 정보(씬 이름, 진행 중인 장)는 debugKeys 가 켜져 있을 때만 나온다.
+/// <b>좌표는 전부 1280×720 기준</b>이다. <see cref="Hud.Begin"/> 이 실제 해상도에 맞춰
+/// 늘려주니까 여기서는 화면 크기를 신경 쓰지 마. 색·글꼴·판 그리기도 전부 Hud 에 있다.
+/// 글씨를 넣을 때는 <see cref="Hud.Inner"/> 안쪽에만 — 판 테두리에 걸치면 잘려 보인다.
+///
+/// 개발용 정보(씬 이름, 진행 중인 장)는 debugKeys 가 켜져 있을 때만, 그것도 왼쪽 아래 구석에.
 /// OnGUI 로 그려서 캔버스 세팅이 필요 없다 — 진짜 UI 로 갈 때 통째로 버릴 스크립트야.
 /// </summary>
 public class TestHUD : MonoBehaviour
@@ -28,43 +32,12 @@ public class TestHUD : MonoBehaviour
     public Font uiFont;
 
     [Header("개발용")]
-    [Tooltip("켜두면 씬 이름과 진행 중인 장이 보이고 F7/F8 로 장을 넘긴다. 제출 전에 꺼")]
+    [Tooltip("켜두면 왼쪽 아래에 씬 이름과 진행 중인 장이 보이고 F7/F8 로 장을 넘긴다. 제출 전에 꺼")]
     public bool debugKeys = true;
 
-    // ---- 색 ----
-    // 밝고 따뜻하게. 어두운 판에 흰 글자는 눈이 피로하고 "유니티 기본" 으로 읽힌다.
-    static readonly Color Wood     = new Color32(0xC9, 0xAC, 0x8A, 0xFF);   // 판 테두리 — 밝은 참나무
-    static readonly Color WoodDark = new Color32(0xAE, 0x8E, 0x6B, 0xFF);   // 아래 그림자 결
-    static readonly Color Paper    = new Color32(0xFD, 0xF8, 0xEC, 0xFF);   // 종이 라벨
-    static readonly Color Ink      = new Color32(0x5C, 0x49, 0x38, 0xFF);
-    static readonly Color InkSoft  = new Color32(0xA2, 0x90, 0x7C, 0xFF);
-    static readonly Color Brass    = new Color32(0xE0, 0x9B, 0x2E, 0xFF);   // 태엽이 터질 때
-    static readonly Color Ribbon   = new Color32(0xC4, 0x45, 0x3E, 0xFF);
-
-    Texture2D woodTex, woodDarkTex, paperTex, brassTex, ribbonTex;
-    GUIStyle label, value, big, title, hint;
-    bool ready;
     bool showControls;
 
     bool InKart => modeSwitcher != null && modeSwitcher.InKart;
-
-    void Awake()
-    {
-        woodTex     = Solid(Wood);
-        woodDarkTex = Solid(WoodDark);
-        paperTex    = Solid(Paper);
-        brassTex    = Solid(Brass);
-        ribbonTex   = Solid(Ribbon);
-    }
-
-    static Texture2D Solid(Color c)
-    {
-        var t = new Texture2D(1, 1);
-        t.SetPixel(0, 0, c);
-        t.Apply();
-        t.hideFlags = HideFlags.HideAndDontSave;
-        return t;
-    }
 
     void Update()
     {
@@ -86,50 +59,10 @@ public class TestHUD : MonoBehaviour
         if (k.f8Key.wasPressedThisFrame) { StoryProgress.CurrentChapter = 1; SceneNavigator.Reload(); }
     }
 
-    // ------------------------------------------------------------------
-    //  나무 판 + 종이 라벨
-    // ------------------------------------------------------------------
-    /// <summary>
-    /// 나무 테두리를 바깥에 남기는 게 핵심이다 — 종이가 판 위에 붙어 있는 것처럼 보인다.
-    /// 아래쪽에만 어두운 결을 한 줄 깔면 판이 살짝 두꺼워 보인다.
-    /// </summary>
-    void Panel(Rect r)
-    {
-        GUI.DrawTexture(r, woodTex);
-        GUI.DrawTexture(new Rect(r.x, r.yMax - 4f, r.width, 4f), woodDarkTex);
-        GUI.DrawTexture(new Rect(r.x + 7f, r.y + 7f, r.width - 14f, r.height - 16f), paperTex);
-    }
-
-    void BuildStyles()
-    {
-        var f = HudFont.Resolve(uiFont);
-
-        label = HudFont.With(new GUIStyle(GUI.skin.label) { fontSize = 14 }, f);
-        label.normal.textColor = InkSoft;
-
-        value = HudFont.With(new GUIStyle(GUI.skin.label)
-        { fontSize = 26, fontStyle = FontStyle.Bold }, f);
-        value.normal.textColor = Ink;
-
-        big = HudFont.With(new GUIStyle(GUI.skin.label)
-        { fontSize = 52, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight }, f);
-        big.normal.textColor = Ink;
-
-        title = HudFont.With(new GUIStyle(GUI.skin.label)
-        { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }, f);
-        title.normal.textColor = Ink;
-
-        hint = HudFont.With(new GUIStyle(GUI.skin.label) { fontSize = 15 }, f);
-        hint.normal.textColor = InkSoft;
-
-        ready = true;
-    }
-
     void OnGUI()
     {
-        if (!ready) BuildStyles();
-
-        float w = Screen.width, h = Screen.height;
+        Rect screen = Hud.Begin(uiFont);
+        float w = screen.width, h = screen.height;
 
         if (InKart)
         {
@@ -137,12 +70,13 @@ public class TestHUD : MonoBehaviour
             DrawRankPanel(w);
             DrawSpeedPanel(w, h);
         }
-        if (debugKeys) DrawDevPanel(w);
 
         DrawToast(w, h);
-        DrawHelpHint(w, h);
+        DrawCorner(h);
         if (showControls) DrawControls(w, h);
         if (tracker != null && tracker.Finished && InKart) DrawFinish(w, h);
+
+        Hud.End();
     }
 
     // ---- 랩과 시간 ----
@@ -150,19 +84,25 @@ public class TestHUD : MonoBehaviour
     {
         if (tracker == null) return;
 
-        Panel(new Rect(18, 18, 250, 150));
+        var p = new Rect(16f, 16f, 188f, 128f);
+        Hud.Panel(p);
 
-        GUI.Label(new Rect(34, 28, 220, 20), "랩", label);
-        GUI.Label(new Rect(34, 46, 220, 34),
-                  $"{Mathf.Min(tracker.CurrentLap, tracker.totalLaps)} / {tracker.totalLaps}", value);
+        float x = p.x + 14f;
+        GUI.Label(new Rect(x, p.y + 12f, 100f, 18f), "랩", Hud.Label);
+        GUI.Label(new Rect(x, p.y + 28f, 150f, 32f),
+                  $"{Mathf.Min(tracker.CurrentLap, tracker.totalLaps)} / {tracker.totalLaps}", Hud.Value);
 
-        GUI.Label(new Rect(34, 86, 220, 20), "현재", label);
-        GUI.Label(new Rect(34, 104, 220, 30), LapTracker.FormatTime(tracker.LapTime),
-                  new GUIStyle(value) { fontSize = 22 });
+        Hud.Rule(x, p.y + 68f, p.width - 28f);
 
-        GUI.Label(new Rect(150, 86, 100, 20), "최고", label);
-        GUI.Label(new Rect(150, 104, 100, 30), LapTracker.FormatTime(tracker.BestLapTime),
-                  new GUIStyle(value) { fontSize = 22 });
+        // 라벨은 왼쪽 칸, 시간은 오른쪽 칸. 칸을 갈라 두면 시간이 길어져도 글자가 안 겹친다.
+        var time = Hud.Resize(Hud.Value, 17, TextAnchor.MiddleRight);
+        GUI.Label(new Rect(x, p.y + 74f, 44f, 20f), "현재", Hud.Label);
+        GUI.Label(new Rect(p.x + 62f, p.y + 74f, p.width - 76f, 20f),
+                  LapTracker.FormatTime(tracker.LapTime), time);
+
+        GUI.Label(new Rect(x, p.y + 94f, 44f, 20f), "최고", Hud.Label);
+        GUI.Label(new Rect(p.x + 62f, p.y + 94f, p.width - 76f, 20f),
+                  LapTracker.FormatTime(tracker.BestLapTime), time);
     }
 
     // ---- 순위 ----
@@ -170,12 +110,14 @@ public class TestHUD : MonoBehaviour
     {
         if (standings == null || standings.RacerCount <= 0) return;
 
-        Panel(new Rect(w - 168, 18, 150, 96));
-        GUI.Label(new Rect(w - 152, 28, 120, 20), "순위", label);
-        GUI.Label(new Rect(w - 152, 46, 120, 44),
-                  RaceStandings.PlaceLabel(standings.PlayerPlace),
-                  new GUIStyle(value) { fontSize = 34 });
-        GUI.Label(new Rect(w - 72, 62, 50, 24), $"/ {standings.RacerCount}", label);
+        var p = new Rect(w - 120f, 16f, 104f, 88f);
+        Hud.Panel(p);
+
+        float x = p.x + 14f;
+        GUI.Label(new Rect(x, p.y + 12f, 80f, 18f), "순위", Hud.Label);
+        GUI.Label(new Rect(x, p.y + 30f, 76f, 34f),
+                  RaceStandings.PlaceLabel(standings.PlayerPlace), Hud.Resize(Hud.Value, 28));
+        GUI.Label(new Rect(x, p.y + 64f, 76f, 18f), $"{standings.RacerCount}대 중", Hud.Tiny);
     }
 
     // ---- 속도와 태엽 ----
@@ -183,12 +125,12 @@ public class TestHUD : MonoBehaviour
     {
         if (kart == null) return;
 
-        var panel = new Rect(w - 250, h - 140, 232, 122);
-        Panel(panel);
+        var p = new Rect(w - 206f, h - 124f, 190f, 108f);
+        Hud.Panel(p);
 
         int kph = Mathf.Abs(Mathf.RoundToInt(kart.SpeedKph));
-        GUI.Label(new Rect(panel.x + 16, panel.y + 12, 150, 58), kph.ToString(), big);
-        GUI.Label(new Rect(panel.x + 172, panel.y + 42, 50, 24), "km/h", label);
+        GUI.Label(new Rect(p.x + 10f, p.y + 8f, 112f, 46f), kph.ToString(), Hud.Big);
+        GUI.Label(new Rect(p.x + 128f, p.y + 28f, 50f, 20f), "km/h", Hud.Label);
 
         // 태엽 — 드리프트로 감고, 놓으면 풀리며 튀어나간다
         float charge01 = kart.boostChargeMax > 0f ? kart.BoostCharge / kart.boostChargeMax : 0f;
@@ -196,16 +138,19 @@ public class TestHUD : MonoBehaviour
         bool hot = kart.IsBoosting || charge01 > 0.85f;
 
         // 돌아가는 태엽 열쇠. "태엽" 이라는 낱말을 몰라도 감기고 풀리는 게 눈에 보인다.
-        WindKey(new Rect(panel.x + 18, panel.y + 74, 30, 30), fill * 1.5f, hot ? brassTex : woodDarkTex);
+        WindKey(new Rect(p.x + 14f, p.y + 58f, 28f, 28f), fill * 1.5f,
+                hot ? Hud.BrassTex : Hud.WoodDarkTex);
 
-        var bar = new Rect(panel.x + 56, panel.y + 82, 158, 13);
-        GUI.DrawTexture(bar, woodDarkTex);
+        var bar = new Rect(p.x + 50f, p.y + 60f, 126f, 11f);
+        GUI.DrawTexture(bar, Hud.WoodDarkTex);
         if (fill > 0.01f)
             GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * fill, bar.height),
-                            hot ? brassTex : paperTex);
+                            hot ? Hud.BrassTex : Hud.PaperTex);
 
-        GUI.Label(new Rect(panel.x + 56, panel.y + 96, 170, 20),
-                  kart.IsBoosting ? "풀린다!" : (kart.IsDrifting ? "감는 중" : "태엽"), label);
+        var state = Hud.Resize(Hud.Label, 13);
+        if (hot) state.normal.textColor = Hud.Brass;
+        GUI.Label(new Rect(bar.x, p.y + 75f, 126f, 18f),
+                  kart.IsBoosting ? "풀린다!" : (kart.IsDrifting ? "감는 중" : "SPACE 로 감기"), state);
     }
 
     /// <summary>
@@ -214,9 +159,9 @@ public class TestHUD : MonoBehaviour
     /// </summary>
     void WindKey(Rect r, float turns, Texture2D tex)
     {
-        // 텍스처는 미리 만들어 둔 걸 받는다. OnGUI 는 매 프레임 도니까 여기서 만들면 계속 쌓인다.
+        // 텍스처는 Hud 가 미리 만들어 둔 걸 받는다. OnGUI 는 매 프레임 도니까 여기서 만들면 계속 쌓인다.
         var pivot = r.center;
-        var saved = GUI.matrix;
+        var saved = GUI.matrix;   // Hud.Begin 이 넣어둔 화면 배율. 끝나고 이걸 그대로 되돌린다
 
         GUIUtility.RotateAroundPivot(turns * 360f, pivot);
 
@@ -227,16 +172,6 @@ public class TestHUD : MonoBehaviour
         GUI.matrix = saved;
     }
 
-    // ---- 개발용 ----
-    void DrawDevPanel(float w)
-    {
-        Panel(new Rect(w * 0.5f - 150, 12, 300, 52));
-        GUI.Label(new Rect(w * 0.5f - 134, 22, 268, 20),
-                  $"{SceneNavigator.CurrentSceneName}   ·   {StoryProgress.CurrentName}", hint);
-        GUI.Label(new Rect(w * 0.5f - 134, 40, 268, 18), "F7 다음 장 · F8 첫 장 (개발용)",
-                  new GUIStyle(hint) { fontSize = 12 });
-    }
-
     // ---- 주운 물건 안내 ----
     void DrawToast(float w, float h)
     {
@@ -244,69 +179,83 @@ public class TestHUD : MonoBehaviour
         if (Time.time - ExhibitPickup.LastMessageTime > seconds ||
             string.IsNullOrEmpty(ExhibitPickup.LastMessage)) return;
 
-        var box = new Rect(w * 0.5f - 230, h * 0.17f, 460, 62);
-        Panel(box);
-        GUI.DrawTexture(new Rect(box.x + 7f, box.y + 7f, 6f, box.height - 16f), ribbonTex);
-        GUI.Label(box, ExhibitPickup.LastMessage, title);
+        var box = new Rect(w * 0.5f - 200f, h * 0.16f, 400f, 56f);
+        Hud.Panel(box);
+        GUI.DrawTexture(new Rect(box.x + 7f, box.y + 7f, 6f, box.height - 16f), Hud.RibbonTex);
+        GUI.Label(box, ExhibitPickup.LastMessage, Hud.Title);
     }
 
-    // ---- 조작법 ----
-    void DrawHelpHint(float w, float h)
+    // ---- 왼쪽 아래 구석: 조작법 힌트 + 개발용 ----
+    void DrawCorner(float h)
     {
+        if (debugKeys)
+        {
+            // 가운데 위에 두면 랩 패널과 부딪힌다. 구석이 제자리야.
+            var dev = new Rect(16f, h - 54f, 236f, 22f);
+            Hud.Chip(dev);
+            GUI.Label(new Rect(dev.x + 8f, dev.y + 4f, dev.width - 16f, 16f),
+                      $"{SceneNavigator.CurrentSceneName} · {StoryProgress.CurrentName} · F7/F8", Hud.Tiny);
+        }
+
         if (showControls) return;
-        GUI.Label(new Rect(18, h - 34, 200, 22), "H  조작법", hint);
+        var chip = new Rect(16f, h - 28f, 88f, 22f);
+        Hud.Chip(chip);
+        GUI.Label(new Rect(chip.x + 9f, chip.y + 3f, 78f, 18f), "H  조작법", Hud.Resize(Hud.Text, 13));
     }
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 210, h * 0.5f - 110, 420, 220);
-        Panel(box);
+        var box = new Rect(w * 0.5f - 190f, h * 0.5f - 104f, 380f, 208f);
+        Hud.Panel(box);
 
-        GUI.Label(new Rect(box.x, box.y + 18, box.width, 26), "조작법", title);
+        GUI.Label(new Rect(box.x, box.y + 16f, box.width, 26f), "조작법", Hud.Title);
+        Hud.Rule(box.x + 20f, box.y + 46f, box.width - 40f);
 
         string[,] rows =
         {
             { "화살표 · WASD", "운전" },
-            { "SPACE", "톡 누르면 호핑 / 꾹 누르면 드리프트" },
+            { "SPACE", "톡 = 호핑 / 꾹 = 태엽 감기" },
             { "R", "제자리로 되돌리기" },
             { "ENTER", "완주 후 다시 시작" },
             { "H", "이 창 닫기" },
         };
 
+        var key = Hud.Resize(Hud.Text, 14);
+        key.fontStyle = FontStyle.Bold;
+        var desc = Hud.Resize(Hud.Label, 14);
+
         for (int i = 0; i < rows.GetLength(0); i++)
         {
-            float y = box.y + 58 + i * 30;
-            GUI.Label(new Rect(box.x + 28, y, 150, 24), rows[i, 0],
-                      new GUIStyle(hint) { fontStyle = FontStyle.Bold });
-            GUI.Label(new Rect(box.x + 178, y, 224, 24), rows[i, 1], hint);
+            float y = box.y + 58f + i * 28f;
+            GUI.Label(new Rect(box.x + 24f, y, 130f, 22f), rows[i, 0], key);
+            GUI.Label(new Rect(box.x + 158f, y, box.width - 180f, 22f), rows[i, 1], desc);
         }
     }
 
     // ---- 완주 ----
     void DrawFinish(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 190, h * 0.5f - 110, 380, 220);
-        Panel(box);
+        var box = new Rect(w * 0.5f - 170f, h * 0.5f - 104f, 340f, 208f);
+        Hud.Panel(box);
 
-        GUI.Label(new Rect(box.x, box.y + 22, box.width, 40), "완주!",
-                  new GUIStyle(title) { fontSize = 34 });
+        GUI.Label(new Rect(box.x, box.y + 20f, box.width, 40f), "완주!", Hud.Resize(Hud.Title, 32));
 
-        var centre = new GUIStyle(value) { fontSize = 20, alignment = TextAnchor.MiddleCenter };
-        GUI.Label(new Rect(box.x, box.y + 76, box.width, 28),
+        var centre = Hud.Resize(Hud.Value, 19, TextAnchor.MiddleCenter);
+        GUI.Label(new Rect(box.x, box.y + 70f, box.width, 26f),
                   $"총 시간   {LapTracker.FormatTime(tracker.TotalTime)}", centre);
-        GUI.Label(new Rect(box.x, box.y + 106, box.width, 28),
+        GUI.Label(new Rect(box.x, box.y + 98f, box.width, 26f),
                   $"최고 랩   {LapTracker.FormatTime(tracker.BestLapTime)}", centre);
 
         if (standings != null && standings.RacerCount > 1)
         {
             bool first = standings.PlayerFinishedFirst;
-            var line = new GUIStyle(hint) { alignment = TextAnchor.MiddleCenter };
-            line.normal.textColor = first ? Brass : InkSoft;
-            GUI.Label(new Rect(box.x, box.y + 142, box.width, 24),
+            var line = Hud.Resize(Hud.Label, 14, TextAnchor.MiddleCenter);
+            line.normal.textColor = first ? Hud.Brass : Hud.InkSoft;
+            GUI.Label(new Rect(box.x, box.y + 134f, box.width, 22f),
                       first ? "◆ 선택 임무 달성 — 1위로 완주" : "선택 임무 — 1위로 완주 (미달성)", line);
         }
 
-        GUI.Label(new Rect(box.x, box.y + 176, box.width, 24), "ENTER 를 누르면 다시 시작",
-                  new GUIStyle(hint) { alignment = TextAnchor.MiddleCenter });
+        GUI.Label(new Rect(box.x, box.y + 166f, box.width, 22f), "ENTER 를 누르면 다시 시작",
+                  Hud.Resize(Hud.Label, 14, TextAnchor.MiddleCenter));
     }
 }

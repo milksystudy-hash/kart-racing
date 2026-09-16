@@ -29,6 +29,11 @@ public class LobbyOrbitCamera : MonoBehaviour
     public float maxPitch = 55f;
     public float dragSensitivity = 0.22f;
 
+    [Header("마우스를 움직이기만 해도")]
+    [Tooltip("커서가 화면 가장자리로 갈수록 카메라가 이만큼 따라 돈다(도). 0 이면 안 따라간다.\n" +
+             "\"여기 끌면 돌아가는구나\" 를 화면 아래 안내 띠 없이 알려주는 장치야")]
+    public float hoverLook = 7f;
+
     [Header("부드러움")]
     public float smoothing = 12f;
 
@@ -49,6 +54,7 @@ public class LobbyOrbitCamera : MonoBehaviour
     float dragDistance;
     float idleTimer;
     float smoothedYaw, smoothedPitch, smoothedDistance;
+    float hoverYaw, hoverPitch, smoothedHoverYaw, smoothedHoverPitch;
 
     void Awake()
     {
@@ -77,6 +83,21 @@ public class LobbyOrbitCamera : MonoBehaviour
     {
         var mouse = Mouse.current;
         if (mouse == null) return;
+
+        // 커서가 화면 가운데서 얼마나 벗어났는지에 맞춰 카메라를 살짝 기울인다.
+        // yaw 에 더하지 않고 따로 들고 있다가 마지막에 얹는다 — 더하면 값이 계속 쌓여서
+        // 마우스를 왔다갔다 하는 것만으로 카메라가 빙빙 돌아버린다.
+        if (hoverLook > 0f && Screen.width > 0 && Screen.height > 0)
+        {
+            Vector2 p = mouse.position.ReadValue();
+            float ox = Mathf.Clamp(p.x / Screen.width * 2f - 1f, -1f, 1f);
+            float oy = Mathf.Clamp(p.y / Screen.height * 2f - 1f, -1f, 1f);
+            hoverYaw = ox * hoverLook;
+            hoverPitch = -oy * hoverLook * 0.5f;
+        }
+
+        // 마우스를 움직이는 동안은 저절로 도는 걸 멈춘다. 보고 있는데 화면이 흐르면 어지럽다.
+        if (mouse.delta.ReadValue().sqrMagnitude > 1f) idleTimer = 0f;
 
         if (mouse.leftButton.wasPressedThisFrame)
         {
@@ -133,7 +154,14 @@ public class LobbyOrbitCamera : MonoBehaviour
         smoothedDistance = Mathf.Lerp(smoothedDistance, distance, t);
 
         Vector3 target = pivot != null ? pivot.position : fallbackPivot;
-        Quaternion rotation = Quaternion.Euler(smoothedPitch, smoothedYaw, 0f);
+        // 끌기보다 느리게 따라온다. 같은 속도로 붙으면 커서를 흔들 때 화면이 같이 떨린다.
+        float ht = t * 0.35f;
+        smoothedHoverYaw = Mathf.Lerp(smoothedHoverYaw, hoverYaw, ht);
+        smoothedHoverPitch = Mathf.Lerp(smoothedHoverPitch, hoverPitch, ht);
+
+        Quaternion rotation = Quaternion.Euler(
+            Mathf.Clamp(smoothedPitch + smoothedHoverPitch, minPitch, maxPitch),
+            smoothedYaw + smoothedHoverYaw, 0f);
 
         transform.position = target + rotation * new Vector3(0f, 0f, -smoothedDistance);
         transform.rotation = Quaternion.LookRotation(target - transform.position, Vector3.up);
