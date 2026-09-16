@@ -35,21 +35,33 @@ public class TrackBuilder : MonoBehaviour
         }
     }
 
-    /// <summary>순환 코스의 조절점. 순서대로 한 바퀴를 돈다.</summary>
+    /// <summary>
+    /// 순환 코스의 조절점. 순서대로 한 바퀴를 돈다.
+    ///
+    /// <b>남쪽 변 네 점은 일부러 z 를 똑같이 맞췄다</b>(2026-09-16). 캣멀-롬 곡선은
+    /// 한 점의 접선이 <b>양옆 점</b>으로 정해지기 때문에, 점 두 개만 나란히 놔서는 직선이 안 나온다.
+    /// 네 점(13·0·1·2)을 한 줄에 놓아야 가운데 구간이 진짜로 곧게 뻗는다.
+    ///
+    /// 직선이 왜 필요했냐면 — 전에는 제일 긴 직선이 <b>10 m</b> 였고 25 m 넘는 직선이 하나도 없었다.
+    /// 그러면 최고 속도를 쓸 일이 없고, 추월할 자리도 없고, 매 바퀴가 "계속 꺾기" 한 가지 리듬이 된다.
+    /// 결승선을 이 직선 한가운데 둬서 <b>직선 → 브레이크 → 코너 → 가속</b> 리듬이 생기게 했다.
+    /// </summary>
     public static readonly ControlPoint[] Path =
     {
-        new ControlPoint(  0f, -78f, 11.0f, Zone.본관앞),      // 출발 · 결승 (곰 본관 정면)
-        new ControlPoint(-34f, -70f,  9.0f, Zone.본관앞),
-        new ControlPoint(-62f, -46f,  8.0f, Zone.서편전시동),
-        new ControlPoint(-50f, -14f,  7.5f, Zone.서편전시동),  // 안쪽으로 파고드는 S 자
-        new ControlPoint(-66f,  18f,  7.5f, Zone.북서담장),
-        new ControlPoint(-46f,  50f,  8.0f, Zone.북서담장),
-        new ControlPoint(  0f,  72f, 10.0f, Zone.정문앞),      // 한옥 정문
-        new ControlPoint( 44f,  54f,  8.0f, Zone.동편연못),
-        new ControlPoint( 58f,  22f,  7.0f, Zone.동편연못),    // 연못과 돌다리, 좁다
-        new ControlPoint( 48f, -10f,  7.0f, Zone.매표소굽이),
-        new ControlPoint( 62f, -40f,  7.5f, Zone.매표소굽이),  // 다시 바깥으로 밀리는 S 자
-        new ControlPoint( 32f, -72f,  9.0f, Zone.본관앞),
+        new ControlPoint(  0f, -78f, 12.0f, Zone.본관앞),      // 출발 · 결승 — 직선 한가운데
+        new ControlPoint(-32f, -78f, 10.5f, Zone.본관앞),      // 직선
+        new ControlPoint(-62f, -78f,  9.5f, Zone.서편전시동),  // 직선 끝, 브레이킹 존
+        new ControlPoint(-78f, -52f,  8.0f, Zone.서편전시동),  // 첫 코너
+        new ControlPoint(-68f, -16f,  7.5f, Zone.서편전시동),
+        new ControlPoint(-54f,  16f,  7.5f, Zone.북서담장),    // 안쪽으로 파고드는 S 자
+        new ControlPoint(-62f,  50f,  8.0f, Zone.북서담장),
+        new ControlPoint(-24f,  74f,  9.5f, Zone.정문앞),      // 한옥 정문 앞
+        new ControlPoint( 20f,  74f,  9.5f, Zone.정문앞),
+        new ControlPoint( 56f,  54f,  8.0f, Zone.동편연못),
+        new ControlPoint( 70f,  18f,  7.0f, Zone.동편연못),    // 연못과 돌다리, 좁다
+        new ControlPoint( 62f, -22f,  7.5f, Zone.매표소굽이),
+        new ControlPoint( 46f, -60f,  8.5f, Zone.매표소굽이),  // 직선으로 떨어지는 마지막 코너
+        new ControlPoint( 30f, -78f, 10.0f, Zone.본관앞),      // 직선 진입
     };
 
     [Header("만들기")]
@@ -92,6 +104,13 @@ public class TrackBuilder : MonoBehaviour
     static readonly Color ColKerb    = new Color32(0xC4, 0x45, 0x3E, 0xFF);   // 연석 빨강
     static readonly Color ColKerbAlt = new Color32(0xEF, 0xE7, 0xD6, 0xFF);   // 연석 크림 — 번갈아
     static readonly Color ColPostCap = new Color32(0x4E, 0x7A, 0x70, 0xFF);   // 기둥 머리 청록 기와
+    // 악당 광고 — 기획서 §4.4 대로 박물관 팔레트와 일부러 부딪히는 금색/자홍색.
+    // Cast 의 개발업자·시의원 색과 같은 값이다.
+    static readonly Color ColAdGold    = new Color32(0xC9, 0xA2, 0x27, 0xFF);
+    static readonly Color ColAdMagenta = new Color32(0xB0, 0x40, 0x7F, 0xFF);
+    static readonly Color ColAdFrame   = new Color32(0x3A, 0x36, 0x32, 0xFF);
+    static readonly Color ColArchWood  = new Color32(0x6B, 0x4A, 0x33, 0xFF);
+
     static readonly Color ColLine     = new Color32(0xF2, 0xF3, 0xEE, 0xFF);
     static readonly Color ColLineDark = new Color32(0x2E, 0x2C, 0x2A, 0xFF);
 
@@ -138,6 +157,8 @@ public class TrackBuilder : MonoBehaviour
         BuildSurface();
         BuildStartLine();
         BuildBoostPads();
+        BuildAdBoards(built);
+        BuildFinishArch(built);
         BuildCheckpoints();
     }
 
@@ -155,11 +176,13 @@ public class TrackBuilder : MonoBehaviour
     /// </summary>
     static readonly (float t, float lane)[] BoostPads =
     {
-        (0.13f,  0.55f),   // 본관앞 직선 — 출발 직후 첫 가속
-        (0.28f, -0.50f),   // 서편전시동 코너 탈출
-        (0.47f,  0.00f),   // 정문앞 넓은 구간 — 여긴 한가운데라 누구나 먹는다
-        (0.62f, -0.55f),   // 동편연못 안쪽 라인
-        (0.86f,  0.50f),   // 매표소굽이 뒤 마지막 직선
+        // 직선이 생기면서 자리를 다시 골랐다(2026-09-16). 직선 위의 발판은 그냥 지나가다 먹으니
+        // 재미가 없다 — <b>직선 끝, 브레이킹 존 직전</b>에 두면 "밟고 들어갈래 말래" 가 생긴다.
+        (0.11f,  0.55f),   // 직선 끝 — 밟으면 빠른데 브레이킹이 늦어진다
+        (0.26f, -0.50f),   // 서편 첫 코너 탈출
+        (0.45f,  0.00f),   // 정문앞 넓은 구간 — 여긴 한가운데라 누구나 먹는다
+        (0.63f, -0.55f),   // 연못 돌다리 안쪽 라인, 제일 좁은 곳
+        (0.88f,  0.50f),   // 마지막 코너 탈출 — 직선 진입 속도가 걸린다
     };
 
     void BuildBoostPads()
@@ -440,6 +463,117 @@ public class TrackBuilder : MonoBehaviour
               new Vector3(width, 0.04f, rows * cell), ColLine, noCollider: true);
     }
 
+
+    // ------------------------------------------------------------------
+    //  코스 장식 — 기획서 §4.4
+    // ------------------------------------------------------------------
+    /// <summary>
+    /// 골든베어 리조트 광고판. <b>기획서 §4.4 가 시킨 유일한 '튀는 색'</b>인데 트랙에 하나도 없었다.
+    ///
+    /// 박물관 팔레트(크림·남색·나무)와 <b>일부러 부딪히는</b> 금색 + 자홍색이다. 색이 튀는 게
+    /// 실수가 아니라 연출이야 — 이 캠퍼스에 어울리지 않는 것이 들어와 있다는 걸 색으로 말한다.
+    /// 그래서 색은 <see cref="Cast"/> 의 개발업자·시의원 색을 그대로 가져온다. 악당이 입은 색을
+    /// 광고판이 똑같이 입고 있으면, 나중에 이야기에서 둘을 연결할 때 설명이 필요 없다.
+    ///
+    /// 길 <b>바깥</b>에 세운다. 콜라이더가 없어서 카트가 스쳐도 걸리지 않는다.
+    /// </summary>
+    void BuildAdBoards(Transform parent)
+    {
+        var root = new GameObject("AdBoards").transform;
+        root.SetParent(parent, false);
+
+        // (t, 어느 쪽 길가인지) — 코너 바깥이라 달리면서 정면으로 보게 되는 자리들
+        (float t, float side)[] spots =
+        {
+            (0.04f,  1f),   // 결승 직선 — 제일 오래 보인다
+            (0.18f, -1f),
+            (0.35f,  1f),
+            (0.52f, -1f),   // 정문앞 — 한옥 정문 옆이라 제일 안 어울린다
+            (0.71f,  1f),
+            (0.93f, -1f),
+        };
+
+        for (int i = 0; i < spots.Length; i++)
+        {
+            var (t, side) = spots[i];
+            Vector3 forward = TangentOnPath(t);
+            Vector3 across = Vector3.Cross(Vector3.up, forward) * side;
+            Vector3 at = transform.position + PointOnPath(t) + across * (WidthOnPath(t) * 0.5f + 3.2f);
+            var facing = Quaternion.LookRotation(-across, Vector3.up);
+
+            var board = new GameObject($"Ad_{i}").transform;
+            board.SetParent(root, false);
+            board.SetPositionAndRotation(at, facing);
+
+            // 기둥 둘
+            for (int s = -1; s <= 1; s += 2)
+                Block(board, $"Post_{s}", at + facing * new Vector3(s * 2.4f, 1.6f, 0f), facing,
+                      new Vector3(0.32f, 3.2f, 0.32f), ColAdFrame, noCollider: true);
+
+            // 판 — 금색 바탕에 자홍색 띠. 둘 다 악당 색이다
+            Block(board, "Panel", at + Vector3.up * 4.1f, facing,
+                  new Vector3(6.4f, 3.0f, 0.22f), ColAdGold, noCollider: true);
+            Block(board, "Stripe", at + Vector3.up * 3.0f + facing * Vector3.forward * -0.14f, facing,
+                  new Vector3(6.4f, 0.8f, 0.1f), ColAdMagenta, noCollider: true);
+            Block(board, "Frame", at + Vector3.up * 5.7f, facing,
+                  new Vector3(6.9f, 0.34f, 0.34f), ColAdFrame, noCollider: true);
+
+            // 글씨 대신 곰 실루엣 한 덩어리 — 멀리서도 "저 회사" 로 읽히게
+            Block(board, "Mark", at + Vector3.up * 4.4f + facing * Vector3.forward * -0.2f, facing,
+                  new Vector3(1.5f, 1.5f, 0.1f), ColAdMagenta, noCollider: true);
+        }
+    }
+
+    /// <summary>
+    /// 결승선 위를 가로지르는 아치와 직선 양옆 현수막.
+    /// 결승선이 바닥 무늬뿐이면 지나갔는지도 모른다 — <b>머리 위로 뭔가 지나가야</b> 한 바퀴가 끝난 게 느껴진다.
+    /// </summary>
+    void BuildFinishArch(Transform parent)
+    {
+        var root = new GameObject("FinishArch").transform;
+        root.SetParent(parent, false);
+
+        Vector3 forward = TangentOnPath(0f);
+        Vector3 across = Vector3.Cross(Vector3.up, forward);
+        Vector3 centre = transform.position + PointOnPath(0f);
+        var facing = Quaternion.LookRotation(forward, Vector3.up);
+        float half = WidthOnPath(0f) * 0.5f + 1.4f;
+
+        for (int s = -1; s <= 1; s += 2)
+        {
+            Block(root, $"ArchPost_{s}", centre + across * (s * half) + Vector3.up * 3.4f, facing,
+                  new Vector3(0.55f, 6.8f, 0.55f), ColArchWood, noCollider: true);
+            Block(root, $"ArchFoot_{s}", centre + across * (s * half) + Vector3.up * 0.25f, facing,
+                  new Vector3(1.1f, 0.5f, 1.1f), ColPostCap, noCollider: true);
+        }
+
+        // 들보와 청기와 — 로비·전시실 지붕과 같은 재료라 같은 건물로 읽힌다
+        Block(root, "ArchBeam", centre + Vector3.up * 6.9f, facing,
+              new Vector3(half * 2f + 1.2f, 0.6f, 0.8f), ColArchWood, noCollider: true);
+        Block(root, "ArchTile", centre + Vector3.up * 7.4f, facing,
+              new Vector3(half * 2f + 2.4f, 0.4f, 1.6f), ColPostCap, noCollider: true);
+        Block(root, "ArchSign", centre + Vector3.up * 6.0f, facing,
+              new Vector3(half * 1.1f, 0.9f, 0.2f), ColLine, noCollider: true);
+
+        // 직선 양옆 현수막 — 달리는 동안 옆으로 흘러가서 속도가 느껴진다
+        for (int i = 0; i < 8; i++)
+        {
+            float t = Mathf.Repeat(0.955f + i * 0.012f, 1f);
+            Vector3 f = TangentOnPath(t);
+            Vector3 a = Vector3.Cross(Vector3.up, f);
+            Vector3 p = transform.position + PointOnPath(t);
+            var look = Quaternion.LookRotation(f, Vector3.up);
+            float edge = WidthOnPath(t) * 0.5f + 1.1f;
+
+            for (int s = -1; s <= 1; s += 2)
+            {
+                Block(root, $"Flagpole_{i}_{s}", p + a * (s * edge) + Vector3.up * 1.6f, look,
+                      new Vector3(0.14f, 3.2f, 0.14f), ColArchWood, noCollider: true);
+                Block(root, $"Flag_{i}_{s}", p + a * (s * edge) + Vector3.up * 2.7f, look,
+                      new Vector3(0.12f, 1.1f, 1.0f), i % 2 == 0 ? ColKerb : ColPostCap, noCollider: true);
+            }
+        }
+    }
     void BuildCheckpoints()
     {
         var holder = new GameObject("Checkpoints").transform;
