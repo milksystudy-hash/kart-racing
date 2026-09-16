@@ -55,8 +55,8 @@ public static class RaceVoice
     //  화면 아래 안내
     // ------------------------------------------------------------------
     /// <summary>키 이름만. 설명을 붙이면 카드가 빽빽해지고, 어차피 한 번 보면 안다.</summary>
-    public static string RetryHint() => "ENTER";
-    public static string QuitHint() => "ESC  그만두기";
+    public static string RetryHint() => "ENTER 닫음";
+    public static string QuitHint() => "ESC 그만두기";
 
     public static string Failed() => "임무 실패";
     public static string Cleared() => "성공";

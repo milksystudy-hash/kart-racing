@@ -30,6 +30,9 @@ public static class TestSceneBuilder
     /// 얽매일 이유도 없다. 1.25 배면 전장 1.88m 로, 폭 7~11m 코스에서 카트 6대 폭이 된다
     /// (마리오 카트류가 5~6대). 콜라이더와 서스펜션도 같이 커져서 물리가 안 어긋난다.
     /// </summary>
+    /// <summary>AI 카트를 몇 대 낼지. <b>0 이면 혼자 달린다.</b></summary>
+    const int AiRacers = 3;
+
     const float KartScale = 1.25f;
 
     /// <summary>배율을 곱하기 전 서스펜션 높이. KartController 의 기본값과 같아야 한다.</summary>
@@ -161,6 +164,8 @@ public static class TestSceneBuilder
         var kart = MakeKart(startPos, startRot);
         var kartCam = MakeKartCamera(kart);
 
+        MakeAiKarts(track, GameSelection.SelectedCastId);
+
         // 레이스 씬에는 걸어다니는 플레이어를 두지 않는다.
         // 맵을 걸어서 확인하고 싶으면 Testbed 씬(F3)을 쓰면 돼.
 
@@ -216,6 +221,70 @@ public static class TestSceneBuilder
     /// 장마다 두 점씩이고, 그 둘은 코스 반대편에 놓는다. 좌우로도 번갈아 놓아서
     /// 안쪽 지름길로 가면 바깥 것을 놓치게 했다 — 선을 골라야 하는 이유가 된다.
     /// </summary>
+
+    /// <summary>
+    /// AI 카트 세 대. <b>지금은 만들어만 둔 것</b>이다(2026-09-16 유저 요청) —
+    /// 달리기는 하지만 임무에는 안 걸려 있어서, 이기든 지든 진행에는 영향이 없다.
+    /// 나중에 "AI 보다 먼저 들어오기" 를 아홉 번째 임무로 붙일 때 그때 연결한다.
+    ///
+    /// 끄고 싶으면 <see cref="AiRacers"/> 를 0 으로. 그러면 예전처럼 혼자 달린다.
+    ///
+    /// 플레이어가 고른 캐릭터는 빼고 나머지 셋이 나온다 — 같은 카트가 두 대 있으면
+    /// 누가 나인지 헷갈린다.
+    /// </summary>
+    static void MakeAiKarts(TrackBuilder track, string playerCastId)
+    {
+        if (AiRacers <= 0) return;
+
+        var root = new GameObject("AiKarts").transform;
+
+        // 출발선에 나란히. 차선은 플레이어와 안 겹치게 벌려둔다.
+        float[] lanes = { -0.62f, 0.62f, -0.30f };
+        int made = 0;
+
+        foreach (var id in Cast.RacerIds)
+        {
+            if (made >= AiRacers) break;
+            if (id == playerCastId) continue;
+            if (System.Array.FindIndex(KartModels, m => m.castId == id) < 0) continue;
+
+            float lane = lanes[made % lanes.Length];
+            Vector3 side = Vector3.Cross(Vector3.up, track.TangentOnPath(0f));
+            // 뒤로 한 줄씩 물려 세운다. 나란히 세우면 출발하자마자 서로 밀친다.
+            Vector3 back = track.TangentOnPath(0f) * -(3.2f + made * 3.4f);
+            Vector3 at = track.StartPosition + side * (lane * track.WidthOnPath(0f) * 0.32f) + back;
+
+            var made_kart = MakeKart(at, track.StartRotation);
+            var go = made_kart.gameObject;
+            go.name = $"AiKart_{id}";
+            go.transform.SetParent(root, false);
+
+            // 플레이어 표시는 떼어낸다 — 이야기 수집품을 AI 가 주워가면 진행이 막힌다(PlayerKart 참고)
+            var mark = go.GetComponent<PlayerKart>();
+            if (mark != null) Object.DestroyImmediate(mark);
+
+            // 카트를 이 캐릭터 것으로. KartSkin 은 보통 고른 캐릭터를 따라가니 여기서 직접 지정한다.
+            var skin = go.GetComponent<KartSkin>();
+            if (skin != null) skin.fallbackCastId = id;
+
+            // KartAi.Awake 에서도 끄지만 씬에도 꺼진 채로 저장해 둔다 —
+            // 에디터에서는 Awake 가 안 도니까, 안 그러면 씬만 봐서는 AI 인지 알 수가 없다.
+            made_kart.acceptPlayerInput = false;
+
+            var ai = go.AddComponent<KartAi>();
+            ai.track = track;
+            ai.lane = lane;
+            // 실력을 조금씩 다르게. 셋이 똑같으면 한 덩어리로 붙어다녀서 레이스로 안 보인다.
+            ai.skill = 0.80f + made * 0.045f;
+
+            var progress = go.GetComponent<RaceProgress>();
+            if (progress != null) progress.racerName = Cast.NameOf(id);
+
+            made++;
+        }
+
+        Debug.Log($"[Racing] AI 카트 {made}대. 지금은 임무와 무관하게 달리기만 한다.");
+    }
     static void MakeExhibitPickups(TrackBuilder track)
     {
         var root = new GameObject("ExhibitPickups").transform;

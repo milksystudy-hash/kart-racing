@@ -182,16 +182,35 @@ public class KartController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 끄면 키보드를 안 읽는다. <b>AI 카트가 이걸 끄고 <see cref="Drive"/> 로 몰아</b>(2026-09-16).
+    /// 조종하는 주체만 다르고 물리/서스펜션/드리프트는 플레이어 것과 <b>똑같은 코드</b>를 쓴다 —
+    /// 그래야 AI 가 사람이 못 하는 움직임을 하지 않는다.
+    /// </summary>
+    public bool acceptPlayerInput = true;
+
+    /// <summary>바깥에서 카트를 몬다. 값은 다음 Update 까지 유지된다.</summary>
+    public void Drive(float throttle, float steer, bool drift, bool hop = false)
+    {
+        throttleInput = Mathf.Clamp(throttle, -1f, 1f);
+        steerInput = Mathf.Clamp(steer, -1f, 1f);
+        driftHeld = drift;
+        if (hop) hopQueued = true;
+    }
+
     void Update()
     {
-        // Update 에서 입력을 읽고, FixedUpdate 에서 물리에 적용한다.
-        KartInput.Tick(Time.deltaTime);
-        throttleInput = KartInput.Throttle;
-        steerInput = KartInput.Steer;
-        driftHeld = KartInput.Drift;
-        if (KartInput.HopPressed) hopQueued = true;   // 물리는 FixedUpdate 에서 처리한다
+        if (acceptPlayerInput)
+        {
+            // Update 에서 입력을 읽고, FixedUpdate 에서 물리에 적용한다.
+            KartInput.Tick(Time.deltaTime);
+            throttleInput = KartInput.Throttle;
+            steerInput = KartInput.Steer;
+            driftHeld = KartInput.Drift;
+            if (KartInput.HopPressed) hopQueued = true;   // 물리는 FixedUpdate 에서 처리한다
 
-        if (KartInput.RespawnPressed) Respawn();
+            if (KartInput.RespawnPressed) Respawn();
+        }
 
         UpdateVisualLean();
     }

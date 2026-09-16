@@ -62,6 +62,7 @@ public class TestHUD : MonoBehaviour
 
         // 완주했을 때뿐 아니라 <b>임무가 글러버린 순간부터</b> 다시 시작할 수 있다.
         // 실패한 줄 알면서 두 바퀴를 마저 도는 건 아무 의미가 없다.
+        // 화면에는 "ENTER 닫음" 이라고 적혀 있고, 실제로 카드가 닫히면서 판이 처음으로 돌아간다.
         bool canRestart = tracker != null && (tracker.Finished || (mission != null && mission.Failed));
         if (canRestart && KartInput.RestartPressed)
         {
