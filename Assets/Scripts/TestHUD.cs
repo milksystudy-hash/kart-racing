@@ -37,6 +37,7 @@ public class TestHUD : MonoBehaviour
     public bool debugKeys = true;
 
     bool showControls;
+    bool confirmQuit;
 
     bool InKart => modeSwitcher != null && modeSwitcher.InKart;
 
@@ -46,6 +47,18 @@ public class TestHUD : MonoBehaviour
         if (k == null) return;
 
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
+
+        // ESC — 망한 판을 빠져나갈 길. <b>게임을 끄는 게 아니라 로비로</b> 간다.
+        // 한 번에 나가면 잘 달리던 판을 실수로 날린다. 두 번 눌러야 나가고, 다른 키를 누르면 취소된다.
+        if (k.escapeKey.wasPressedThisFrame)
+        {
+            if (confirmQuit) { SceneNavigator.LoadByIndex(0); return; }
+            confirmQuit = true;
+        }
+        else if (confirmQuit && k.anyKey.wasPressedThisFrame)
+        {
+            confirmQuit = false;
+        }
 
         // 완주했을 때뿐 아니라 <b>임무가 글러버린 순간부터</b> 다시 시작할 수 있다.
         // 실패한 줄 알면서 두 바퀴를 마저 도는 건 아무 의미가 없다.
@@ -79,6 +92,7 @@ public class TestHUD : MonoBehaviour
         DrawToast(w, h);
         DrawCorner(h);
         if (showControls) DrawControls(w, h);
+        if (confirmQuit) DrawQuitAsk(w, h);
         if (InKart && tracker != null && tracker.Finished) DrawFinish(w, h);
         else if (InKart && mission != null && mission.Failed) DrawFailed(w, h);
 
@@ -123,7 +137,7 @@ public class TestHUD : MonoBehaviour
     {
         // 라벨과 값을 한 줄에 좌우로 놓으면 이름이 길 때 부딪힌다 — "무충돌로 시간 안에" 가
         // 라벨을 파고들어 "무충룰" 로 보였다(2026-09-16). 값은 아래 줄에 통째로 놓는다.
-        var p = new Rect(16f, 152f, 208f, mission == null ? 78f : (mission.AllDone ? 100f : 170f));
+        var p = new Rect(16f, 152f, 208f, mission == null ? 78f : (mission.AllDone ? 100f : 188f));
         Hud.Panel(p);
 
         float x = p.x + 14f;
@@ -166,13 +180,16 @@ public class TestHUD : MonoBehaviour
         GUI.Label(new Rect(x, p.y + 78f, full, 18f), mission.RewardName, Hud.Resize(Hud.Text, 14));
 
         GUI.Label(new Rect(x, p.y + 100f, full, 16f), "임무", tiny);
-        GUI.Label(new Rect(x, p.y + 114f, full, 18f), mission.Title, Hud.Resize(Hud.Text, 14));
+        // 이름이 길면 두 줄로 접는다. 접기가 없으면 라벨을 파고들어 "무충룰" 처럼 보인다.
+        var wrap = Hud.Resize(Hud.Text, 14);
+        wrap.wordWrap = true;
+        GUI.Label(new Rect(x, p.y + 114f, full, 36f), mission.Title, wrap);
 
         // 진행도 한 줄 통째로. 임무 이름 옆에 붙이면 "무사고 + 시간" 처럼 둘 다 긴 경우 부딪힌다.
         var state = Hud.Resize(Hud.Value, 16);
         if (mission.Failed) state.normal.textColor = Hud.Ribbon;
         else if (mission.Cleared) state.normal.textColor = Hud.Brass;
-        GUI.Label(new Rect(x, p.y + 134f, full, 20f),
+        GUI.Label(new Rect(x, p.y + 152f, full, 20f),
                   mission.Failed ? RaceVoice.Failed() : mission.Progress, state);
     }
 
@@ -276,7 +293,7 @@ public class TestHUD : MonoBehaviour
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 118f, 400f, 236f);
+        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 131f, 400f, 262f);
         Hud.Panel(box);
 
         GUI.Label(new Rect(box.x, box.y + 16f, box.width, 26f), "조작법", Hud.Title);
@@ -289,6 +306,7 @@ public class TestHUD : MonoBehaviour
             { "SPACE", "톡 누르면 폴짝 (호핑)" },
             { "R", "제자리로 되돌리기" },
             { "ENTER", "이 판 다시 하기" },
+            { "ESC", "두 번 누르면 로비로" },
             { "H", "이 창 닫기" },
         };
 
@@ -304,6 +322,29 @@ public class TestHUD : MonoBehaviour
         }
     }
 
+
+    // ---- ESC 로 그만두기 ----
+    /// <summary>
+    /// <b>게임을 끄지 않는다. 로비로 간다.</b> 빌드한 게임에서 ESC 가 곧장 종료되면
+    /// 잘못 눌렀을 때 되돌릴 방법이 없다 — 로비로 보내면 언제든 다시 들어올 수 있어.
+    ///
+    /// 모은 수집품은 PlayerPrefs 에 이미 저장돼 있어서 나가도 안 날아간다.
+    /// 다만 <b>진행 중이던 판은 처음부터</b>다 — 상품은 결승선을 넘어야 주니까.
+    /// </summary>
+    void DrawQuitAsk(float w, float h)
+    {
+        var box = new Rect(w * 0.5f - 150f, h * 0.5f - 58f, 300f, 116f);
+        Hud.Panel(box);
+
+        GUI.Label(new Rect(box.x, box.y + 18f, box.width, 28f), "그만둘까",
+                  Hud.Resize(Hud.Title, 22));
+        GUI.Label(new Rect(box.x, box.y + 50f, box.width, 20f), "모은 건 그대로 남는다",
+                  Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter));
+
+        Hud.Rule(box.x + 24f, box.y + 78f, box.width - 48f);
+        GUI.Label(new Rect(box.x, box.y + 84f, box.width, 22f), "ESC 로비로   ·   아무 키나 계속",
+                  Hud.Resize(Hud.Text, 13, TextAnchor.MiddleCenter));
+    }
     // ---- 임무 실패 (레이스 도중) ----
     /// <summary>
     /// 글러버린 순간 화면 가운데에 띄운다. 구석 패널에 "실패" 두 글자만 뜨면 못 본다 —
@@ -326,7 +367,8 @@ public class TestHUD : MonoBehaviour
                   Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter));
 
         Hud.Rule(box.x + 24f, box.y + 104f, box.width - 48f);
-        GUI.Label(new Rect(box.x, box.y + 112f, box.width, 22f), RaceVoice.RetryHint(),
+        GUI.Label(new Rect(box.x, box.y + 112f, box.width, 22f),
+                  RaceVoice.RetryHint() + "   ·   " + RaceVoice.QuitHint(),
                   Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
     }
 

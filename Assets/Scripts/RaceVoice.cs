@@ -6,11 +6,11 @@ using UnityEngine;
 /// 전에는 판정 코드가 문장을 직접 만들었고, 그래서 "벽에 3번 부딪혔다 / 무충돌로 시간 안에"
 /// 같은 로봇 말투가 나왔다. 상태를 그대로 읽어주는 건 정보지 말이 아니야.
 ///
-/// 말투는 이 게임 것 — <b>다크코미디, 약간 시비 거는 투</b>. 곰들이 옆에서 리모컨 들고
-/// 지켜보는 상황이니까, 화면의 목소리는 심판이라기보다 <b>지켜보던 놈</b>에 가깝다.
+/// 한 번 시비 거는 말투로 써봤다가 유저가 <b>담백한 쪽으로 되돌렸다</b>(2026-09-16).
+/// HUD 는 레이스 중에 힐끗 보는 거라 농담이 끼면 읽는 데 시간이 걸린다 — 맞는 판단이야.
+/// 이야기의 말투(다크코미디)는 StoryScript 쪽에서 살린다. 여기는 계기판이지 대사가 아니다.
 ///
-/// <b>여기 있는 건 견본이야.</b> 대사는 원래 유저가 쓴다(<see cref="StoryScript"/> 와 같은 원칙).
-/// 마음에 안 드는 줄은 이 파일에서 바로 고치면 되고, 판정 코드는 손댈 필요 없다.
+/// 그래도 <b>문장은 여기에만 둔다</b>. 판정 코드가 문장을 만들기 시작하면 다시 로봇 말투가 된다.
 /// </summary>
 public static class RaceVoice
 {
@@ -18,9 +18,9 @@ public static class RaceVoice
     //  임무 이름 — 짧아야 한다
     // ------------------------------------------------------------------
     /// <summary>
-    /// HUD 칸이 좁아서 <b>여덟 글자를 넘기면 옆 글자와 부딪힌다.</b>
-    /// 실제로 "무충돌로 시간 안에" 가 라벨과 겹쳐서 "무충룰" 로 보였다(2026-09-16).
-    /// 새 임무를 넣을 때도 이 길이를 지켜.
+    /// 임무 이름. HUD 의 임무 칸은 <b>두 줄까지 자동으로 접힌다</b>(TestHUD 의 wordWrap) —
+    /// "부딪힘 없이 시간제한에 맞춰 도착하기" 처럼 길어도 안 겹친다. 세 줄 넘어가면 잘리니 거기까지만.
+    /// 전에는 접기가 없어서 "무충돌로 시간 안에" 가 라벨을 파고들어 "무충룰" 로 보였다.
     /// </summary>
     public static string Title(MissionManager.Goal goal, MissionManager m) => goal switch
     {
@@ -30,73 +30,37 @@ public static class RaceVoice
         MissionManager.Goal.태엽    => $"태엽 {m.driftBoostsNeeded}번",
         MissionManager.Goal.무발판   => "발판 없이",
         MissionManager.Goal.빠른랩   => $"한 바퀴 {Mathf.RoundToInt(m.lapLimit)}초",
-        MissionManager.Goal.완벽    => "무사고 + 시간",
+        MissionManager.Goal.완벽    => "부딪힘 없이 시간제한에 맞춰 도착하기",
         _                           => "세 바퀴 완주",
     };
 
     // ------------------------------------------------------------------
-    //  실패했을 때 — 왜 실패했는지가 아니라, 무슨 일이 있었는지
+    //  실패 사유 — 뭘 고쳐야 하는지가 한눈에 보여야 한다
     // ------------------------------------------------------------------
-    public static string WallHit(int hits) => Pick(new[]
-    {
-        $"벽이 {hits}번 이겼다.",
-        "저 벽, 아까부터 거기 있었어.",
-        $"{hits}번. 카트는 아무 잘못 없다.",
-        "벽을 세는 게임이 아니야.",
-    });
+    public static string WallHit(int hits) => $"벽 {hits}번 부딪힘";
 
-    public static string OutOfTime() => Pick(new[]
-    {
-        "시계가 먼저 들어왔다.",
-        "느긋했네. 아주.",
-        "구경하면서 달렸구나.",
-    });
+    public static string OutOfTime() => "시간 초과";
 
-    public static string SteppedOnPad() => Pick(new[]
-    {
-        "밟지 말랬잖아.",
-        "발이 먼저 나갔네.",
-        "그 파란 거, 피하라고 있는 거였어.",
-    });
+    public static string SteppedOnPad() => "가속 발판을 밟음";
 
-    public static string MissedPads(int got, int total) => Pick(new[]
-    {
-        $"{total}개 중 {got}개. 하나가 그렇게 멀디?",
-        "한 바퀴라도 제대로 돌면 되는데.",
-        $"{got}/{total}. 아쉬운 쪽은 너다.",
-    });
+    public static string MissedPads(int got, int total) => $"발판 {got}/{total} 밟음";
 
-    public static string NotEnoughDrift(int got, int need) => Pick(new[]
-    {
-        $"태엽 {got}번. {need}번이랬는데.",
-        "드리프트가 무서우면 저렇게 된다.",
-        "SHIFT 는 장식이 아니야.",
-    });
+    public static string NotEnoughDrift(int got, int need) => $"태엽 {got}/{need}번";
 
-    public static string NoFastLap() => Pick(new[]
-    {
-        "세 바퀴 다 비슷하게 느렸다.",
-        "한 바퀴만 잘하면 되는 거였는데.",
-        "어느 바퀴도 특별하지 않았어.",
-    });
+    public static string NoFastLap() => "목표 랩타임 못 냄";
 
-    public static string Generic() => Pick(new[]
-    {
-        "안 됐다.",
-        "조건은 조건이야.",
-    });
+    public static string Generic() => "조건 미달";
 
     // ------------------------------------------------------------------
     //  화면 아래 안내
     // ------------------------------------------------------------------
-    /// <summary>다시 하라는 말. <b>모은 걸 안 뺏는다는 게 제일 중요한 정보다</b> — 그게 있어야 다시 눌러본다.</summary>
-    public static string RetryHint() => "ENTER — 다시. 모은 건 그대로 둔다";
+    /// <summary>키 이름만. 설명을 붙이면 카드가 빽빽해지고, 어차피 한 번 보면 안다.</summary>
+    public static string RetryHint() => "ENTER";
+    public static string QuitHint() => "ESC  그만두기";
 
-    public static string Failed() => "망했다";
-    public static string Cleared() => "됐다";
+    public static string Failed() => "임무 실패";
+    public static string Cleared() => "성공";
 
     public static string Reward(string itemName, int got, int total)
-        => $"{itemName} 챙겼다   ({got} / {total})";
-
-    static string Pick(string[] lines) => lines[Random.Range(0, lines.Length)];
+        => $"{itemName} 획득   ({got} / {total})";
 }
