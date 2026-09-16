@@ -35,6 +35,7 @@ public class LobbyHUD : MonoBehaviour
         float w = screen.width, h = screen.height;
 
         DrawDriverPanel();
+        DrawSpecSheet();
         DrawPrompt(w, h);
         DrawGate(w, h);
         DrawCorner(h);
@@ -58,6 +59,44 @@ public class LobbyHUD : MonoBehaviour
         GUI.Label(new Rect(p.x + 76f, p.y + 46f, p.width - 90f, 24f),
                   GameSelection.HasSelection ? GameSelection.SelectedName : "선택 안 됨",
                   Hud.Resize(Hud.Value, 19));
+    }
+
+    // ---- 제원표 ----
+    /// <summary>
+    /// 커서를 올린 카트(없으면 고른 카트)의 제원. <b>어느 쪽이 좋다고 안 적는다</b> —
+    /// 네 대 다 무언가를 내주고 얻으니까, 숫자만 보여주고 판단은 플레이어한테 맡긴다.
+    /// </summary>
+    void DrawSpecSheet()
+    {
+        string castId = selector != null && selector.Hovered != null
+            ? selector.Hovered.CastId : GameSelection.SelectedCastId;
+        if (!KartSpec.TryGet(castId, out var spec)) return;
+
+        var p = new Rect(16f, 104f, 196f, 124f);
+        Hud.Panel(p);
+
+        float x = p.x + 14f;
+        GUI.Label(new Rect(x, p.y + 10f, 160f, 18f), "제원", Hud.Label);
+        Hud.Rule(x, p.y + 30f, p.width - 28f);
+
+        Row(p, 0, "중량", $"{spec.mass:0.0} kg", KartSpec.MassBar(spec));
+        Row(p, 1, "최고", $"{spec.topSpeed:0.0}",  KartSpec.SpeedBar(spec));
+        Row(p, 2, "가속", $"{spec.acceleration:0.0}", KartSpec.AccelBar(spec));
+        Row(p, 3, "접지", $"{spec.grip:0.0}",     KartSpec.GripBar(spec));
+    }
+
+    void Row(Rect p, int index, string label, string value, float fill)
+    {
+        float y = p.y + 38f + index * 19f;
+        GUI.Label(new Rect(p.x + 14f, y, 34f, 17f), label, Hud.Resize(Hud.Label, 13));
+
+        // 막대 — 숫자만 있으면 네 대를 머릿속에서 비교해야 한다. 막대가 있으면 눈으로 비교돼.
+        var bar = new Rect(p.x + 50f, y + 5f, 72f, 7f);
+        GUI.DrawTexture(bar, Hud.WoodDarkTex);
+        GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * Mathf.Clamp01(fill), bar.height), Hud.BrassTex);
+
+        GUI.Label(new Rect(p.x + 128f, y, 58f, 17f), value,
+                  Hud.Resize(Hud.Text, 13, TextAnchor.MiddleRight));
     }
 
     // ---- 화면 가운데 아래: 눈앞의 안내문 ----

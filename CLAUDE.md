@@ -477,3 +477,45 @@ that takes screen coordinates needs the same multiply.**
 
 `재질 다듬기` lost its `[MenuItem]`; all three builders call `MuseumLook.RefineMaterials()`
 themselves before saving, so a freshly built scene is already roofed and already finished.
+
+## 카트 제원 — 2026-09-16
+
+`Scripts/KartSpec.cs`. Four karts, four different sets of numbers, **and no text saying which is
+better** — the user's instruction: write it like a real racing game so the player infers it.
+
+- Every kart trades something. Verified in batchmode that **no kart leads 3 of the 4 columns**;
+  세진 leads 최고+가속, 시우 leads 중량+접지. If a future edit makes one kart lead three, it
+  becomes the answer and the choice stops mattering — re-run that check.
+- Differences are held inside **±10%** of the base (중량 13.0 · 최고 17.0 · 가속 22.0 · 접지 16.0).
+  Wider means rebalancing four karts, and that time comes out of writing dialogue.
+- `KartSpec.ApplyTo` is called from `KartSkin.Apply` — "this kart becomes X's kart" includes its
+  numbers, not just its model.
+- **Mass only changes who gets shoved in a collision.** The drive force is
+  `ForceMode.Acceleration`, which ignores mass. Don't claim it does more.
+- `Spec.tagline` is empty on purpose. 차 이름·소개글 wait until the character models are done
+  (user, 2026-09-16) — the field is the placeholder for them.
+- Shown in the lobby by `LobbyHUD.DrawSpecSheet`, for the **hovered** stand or the chosen one.
+  Numbers plus a bar: numbers alone force the player to compare four karts from memory.
+
+## 수집품 체크리스트 — 2026-09-16
+
+The user judged that the chapter title ("제1장 사라진 관람객") doesn't tell you what to do, and
+that **획득 n/8 does**. `TestHUD.DrawCollectionPanel` replaced the mission-only panel:
+`수집품 n / 8`, eight tick boxes in **the same order as the gallery's eight cases**, then a thin
+mission line under a rule. A ticked box is filled *and* marked, not just recoloured.
+
+If the panel doesn't appear at all, the Track scene predates `MissionManager` — rebuild it.
+
+## 전시실에 불이 들어온다 — 2026-09-16
+
+`Scripts/GalleryLights.cs`. Collect all 8 and the gallery goes from dark museum to lit museum.
+**This is the only place the collection visibly pays off**, which is worth more than the counter.
+
+- Six `CeilingLights` sit at intensity 0 until then; the skylight brightens 0.85 → 1.25 and the
+  Trilight ambient lifts. Fades over 3 s — a one-frame switch reads as a settings change, a slow
+  rise reads as lights coming on.
+- It starts dark **even when you enter already complete**, so the reveal always plays.
+- `Update` tracks the count both ways, so the lobby's F9/F10 debug keys change it live.
+- **It never touches materials.** The 발광 surfaces are `.mat` assets — writing to them at runtime
+  edits the file on disk and leaks into every other scene.
+- Ceiling lights cast no shadows; §7.6's one shadow-caster is still the skylight.

@@ -55,6 +55,10 @@ public class KartSkin : MonoBehaviour
 
         CurrentCastId = chosen.castId;
 
+        // 고른 캐릭터의 제원도 같이 얹는다. "이 카트가 누구 것이 된다" 의 일부야 —
+        // 모델만 바꾸고 숫자를 안 바꾸면 네 대가 생김새만 다른 같은 차가 된다.
+        KartSpec.ApplyTo(GetComponent<KartController>(), CurrentCastId);
+
         if (wheels != null)
             wheels.Bind(chosen.steerPivots, chosen.spinWheels, chosen.steeringWheel);
 

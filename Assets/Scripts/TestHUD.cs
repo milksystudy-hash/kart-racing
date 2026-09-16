@@ -68,7 +68,7 @@ public class TestHUD : MonoBehaviour
         if (InKart)
         {
             DrawLapPanel();
-            DrawMissionPanel();
+            DrawCollectionPanel();
             DrawRankPanel(w);
             DrawSpeedPanel(w, h);
         }
@@ -107,22 +107,52 @@ public class TestHUD : MonoBehaviour
                   LapTracker.FormatTime(tracker.BestLapTime), time);
     }
 
-    // ---- 이번 판 임무 ----
-    void DrawMissionPanel()
+    // ---- 수집품 체크리스트 + 이번 판 임무 ----
+    /// <summary>
+    /// 장 이름("제1장 사라진 관람객")보다 <b>몇 개 모았는지</b>가 화면에 있어야 한다는
+    /// 유저 판단(2026-09-16). 맞는 말이야 — 장 이름은 지금 뭘 해야 하는지를 안 알려준다.
+    ///
+    /// 여덟 칸이 전시실 진열장 여덟 개와 <b>같은 순서</b>다. 하나 주우면 그 자리가 채워지니까,
+    /// 빈 칸을 보면 아직 뭐가 남았는지가 바로 읽힌다.
+    /// </summary>
+    void DrawCollectionPanel()
     {
-        if (mission == null) return;
-
-        var p = new Rect(16f, 152f, 188f, 76f);
+        var p = new Rect(16f, 152f, 188f, mission != null ? 112f : 78f);
         Hud.Panel(p);
 
         float x = p.x + 14f;
-        GUI.Label(new Rect(x, p.y + 10f, 160f, 18f), "임무", Hud.Label);
-        GUI.Label(new Rect(x, p.y + 26f, 160f, 22f), mission.Title, Hud.Resize(Hud.Text, 15));
+        int got = CollectionState.Count, total = ExhibitCatalogue.Count;
 
-        var state = Hud.Resize(Hud.Value, 16);
+        GUI.Label(new Rect(x, p.y + 10f, 110f, 18f), "수집품", Hud.Label);
+        GUI.Label(new Rect(p.x + 62f, p.y + 8f, p.width - 76f, 22f), $"{got} / {total}",
+                  Hud.Resize(Hud.Value, 18, TextAnchor.MiddleRight));
+
+        // 체크 칸 여덟 개
+        const float box = 17f, gap = 4f;
+        for (int i = 0; i < total; i++)
+        {
+            var cell = new Rect(x + i * (box + gap), p.y + 34f, box, box);
+            bool has = CollectionState.Has(ExhibitCatalogue.All[i].id);
+
+            GUI.DrawTexture(cell, Hud.WoodDarkTex);
+            if (!has) continue;
+
+            // 채운 칸 안에 체크 표시 — 색만 다르면 색약인 사람이 못 가린다
+            GUI.DrawTexture(new Rect(cell.x + 1f, cell.y + 1f, box - 2f, box - 2f), Hud.BrassTex);
+            GUI.Label(cell, "v", Hud.Resize(Hud.Title, 13));
+        }
+
+        if (mission == null) return;
+
+        Hud.Rule(x, p.y + 60f, p.width - 28f);
+        GUI.Label(new Rect(x, p.y + 66f, 40f, 18f), "임무", Hud.Resize(Hud.Label, 13));
+        GUI.Label(new Rect(p.x + 56f, p.y + 66f, p.width - 70f, 18f), mission.Title,
+                  Hud.Resize(Hud.Text, 13, TextAnchor.MiddleRight));
+
+        var state = Hud.Resize(Hud.Value, 15, TextAnchor.MiddleRight);
         if (mission.Failed) state.normal.textColor = Hud.Ribbon;
         else if (mission.Cleared) state.normal.textColor = Hud.Brass;
-        GUI.Label(new Rect(x, p.y + 48f, 160f, 20f),
+        GUI.Label(new Rect(p.x + 56f, p.y + 82f, p.width - 70f, 18f),
                   mission.Failed ? "실패" : mission.Progress, state);
     }
 

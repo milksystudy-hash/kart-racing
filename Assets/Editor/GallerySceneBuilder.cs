@@ -94,6 +94,9 @@ public static class GallerySceneBuilder
     /// </summary>
     static void MakeGalleryLighting()
     {
+        var rig = new GameObject("Lighting");
+        var lights = rig.AddComponent<GalleryLights>();
+
         // 천장 너머로 스며드는 차가운 빛. 형태만 겨우 보이는 정도.
         var go = new GameObject("Skylight");
         var light = go.AddComponent<Light>();
@@ -113,6 +116,28 @@ public static class GallerySceneBuilder
         RenderSettings.ambientEquatorColor = new Color(0.30f, 0.31f, 0.36f);
         RenderSettings.ambientGroundColor  = new Color(0.18f, 0.17f, 0.18f);
         RenderSettings.fog = false;
+
+        // 전시품을 다 모으면 켜지는 천장 등. 평소엔 세기 0 이라 있는 줄도 모른다.
+        var ceiling = new GameObject("CeilingLights").transform;
+        var lamps = new System.Collections.Generic.List<Light>();
+        for (int ix = -1; ix <= 1; ix++)
+            for (int iz = -1; iz <= 1; iz += 2)
+            {
+                var lampGo = new GameObject("Ceiling_" + (ix + 1) + (iz > 0 ? "S" : "N"));
+                lampGo.transform.SetParent(ceiling, false);
+                lampGo.transform.position = new Vector3(ix * 9f, WallHeight - 1.2f, iz * 7f);
+
+                var lamp = lampGo.AddComponent<Light>();
+                lamp.type = LightType.Point;
+                lamp.color = new Color(1f, 0.93f, 0.80f);   // 백열등 — 천창의 찬 빛과 대비된다
+                lamp.range = 16f;
+                lamp.intensity = 0f;
+                lamp.shadows = LightShadows.None;   // 그림자는 천창 하나만 (기획서 §7.6)
+                lamps.Add(lamp);
+            }
+
+        lights.skylight = light;
+        lights.ceilingLights = lamps.ToArray();
     }
 
     /// <summary>진열장 바로 위에서 떨어지는 따뜻한 조명 한 점.</summary>
