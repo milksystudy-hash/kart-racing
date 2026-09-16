@@ -76,13 +76,16 @@ public class LobbyHUD : MonoBehaviour
         Hud.Panel(p);
 
         float x = p.x + 14f;
-        GUI.Label(new Rect(x, p.y + 10f, 160f, 18f), "제원", Hud.Label);
+        // "제원" 이라고만 써두면 캐릭터가 달리는 줄 안다. 무인 모형 카트라는 걸 제목이 말해준다.
+        GUI.Label(new Rect(x, p.y + 10f, 160f, 18f), "전용 장난감 카트", Hud.Resize(Hud.Text, 13));
         Hud.Rule(x, p.y + 30f, p.width - 28f);
 
-        Row(p, 0, "중량", $"{spec.mass:0.0} kg", KartSpec.MassBar(spec));
-        Row(p, 1, "최고", $"{spec.topSpeed:0.0}",  KartSpec.SpeedBar(spec));
-        Row(p, 2, "가속", $"{spec.acceleration:0.0}", KartSpec.AccelBar(spec));
-        Row(p, 3, "접지", $"{spec.grip:0.0}",     KartSpec.GripBar(spec));
+        // 항목 이름은 전문 용어를 안 쓴다. 중량/최고속도/가속도/접지력 은 뜻이 안 와닿는다는
+        // 유저 지적(2026-09-16). 무슨 일이 일어나는지를 그대로 적었다.
+        Row(p, 0, "무게",   $"{spec.mass:0.0} kg", KartSpec.MassBar(spec));
+        Row(p, 1, "빠르기", $"{spec.topSpeed:0.0}",  KartSpec.SpeedBar(spec));
+        Row(p, 2, "출발",   $"{spec.acceleration:0.0}", KartSpec.AccelBar(spec));
+        Row(p, 3, "코너",   $"{spec.grip:0.0}",     KartSpec.GripBar(spec));
     }
 
     void Row(Rect p, int index, string label, string value, float fill)
@@ -152,13 +155,13 @@ public class LobbyHUD : MonoBehaviour
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 190f, h * 0.5f - 92f, 380f, 184f);
+        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 146f, 400f, 292f);
         Hud.Panel(box);
 
-        GUI.Label(new Rect(box.x, box.y + 16f, box.width, 26f), "조작법", Hud.Title);
-        Hud.Rule(box.x + 20f, box.y + 46f, box.width - 40f);
+        GUI.Label(new Rect(box.x, box.y + 14f, box.width, 24f), "조작법", Hud.Title);
+        Hud.Rule(box.x + 20f, box.y + 40f, box.width - 40f);
 
-        string[,] rows =
+        string[,] controls =
         {
             { "마우스 움직이기", "둘러보기" },
             { "마우스 끌기", "빙 돌려 보기" },
@@ -166,16 +169,33 @@ public class LobbyHUD : MonoBehaviour
             { "클릭", "카트 고르기 / 출발문 열기" },
             { "H", "이 창 닫기" },
         };
+        Rows(box, controls, box.y + 50f);
 
-        var key = Hud.Resize(Hud.Text, 14);
+        Hud.Rule(box.x + 20f, box.y + 168f, box.width - 40f);
+        GUI.Label(new Rect(box.x, box.y + 174f, box.width, 22f), "카트 항목", Hud.Resize(Hud.Title, 15));
+
+        // 무슨 일이 일어나는지를 적는다. 어느 카트가 좋다는 말은 여기에도 안 쓴다.
+        string[,] spec =
+        {
+            { "무게",   "부딪힐 때 덜 밀린다" },
+            { "빠르기", "직선에서 더 나간다" },
+            { "출발",   "멈췄다 붙을 때 빠르다" },
+            { "코너",   "높으면 안 미끄러지고 낮으면 잘 돈다" },
+        };
+        Rows(box, spec, box.y + 200f);
+    }
+
+    void Rows(Rect box, string[,] rows, float top)
+    {
+        var key = Hud.Resize(Hud.Text, 13);
         key.fontStyle = FontStyle.Bold;
-        var desc = Hud.Resize(Hud.Label, 14);
+        var desc = Hud.Resize(Hud.Label, 13);
 
         for (int i = 0; i < rows.GetLength(0); i++)
         {
-            float y = box.y + 58f + i * 24f;
-            GUI.Label(new Rect(box.x + 24f, y, 130f, 22f), rows[i, 0], key);
-            GUI.Label(new Rect(box.x + 158f, y, box.width - 180f, 22f), rows[i, 1], desc);
+            float y = top + i * 22f;
+            GUI.Label(new Rect(box.x + 24f, y, 120f, 20f), rows[i, 0], key);
+            GUI.Label(new Rect(box.x + 150f, y, box.width - 172f, 20f), rows[i, 1], desc);
         }
     }
 }

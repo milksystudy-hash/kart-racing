@@ -82,8 +82,12 @@ public class BoostPad : MonoBehaviour
         // 계속 걸려서 조작이 죽는다. 실제로 그렇게 됐다(2026-09-16).
         if (kart.IsBoosting) return;
 
-        // 서 있는 카트한테는 안 먹인다 — 발판 위에 멈춰 서서 비비는 걸 막는다.
-        if (Mathf.Abs(kart.SpeedKph) < 5f) return;
+        // 서 있거나 뒤로 가는 카트한테는 안 먹인다.
+        // 발판은 앞으로 밀어주는 물건이라, 후진 중에 먹으면 뒤로 튀어나간다. 그건 발판이 아니라 함정이야.
+        if (kart.SpeedKph < 5f) return;
+
+        // 발판이 가리키는 쪽으로 달릴 때만. 역주행으로 밟으면 그냥 지나간다.
+        if (Vector3.Dot(kart.transform.forward, transform.forward) < 0.3f) return;
 
         if (lastTaken.TryGetValue(kart, out float when) && Time.time - when < retriggerDelay) return;
         lastTaken[kart] = Time.time;

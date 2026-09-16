@@ -166,7 +166,13 @@ public class KartController : MonoBehaviour
             // 0 으로 보내면 벽에 박힌 채 악셀을 밟아도 매 프레임 속도가 지워져서 영영 못 빠져나온다.
             // (부스터 위에서 벽에 박히면 안 움직이던 게 이거였다.)
             float speed = velocity.magnitude;
-            if (speed <= WallScrubFloor) return;
+            if (speed <= WallScrubFloor)
+            {
+                // 벽에 눌려서 더는 못 느려지는데 부스트가 계속 돌면, 앞으로 미는 힘 때문에
+                // 후진도 조향도 안 먹는다. "발판 위에서 벽에 박히면 게이지만 줄고 못 빠져나간다" 가 이거였다.
+                CancelBoost();
+                return;
+            }
 
             float drop = Mathf.Min(wallScrubPerSecond * Time.fixedDeltaTime, speed - WallScrubFloor);
             rb.linearVelocity = velocity * ((speed - drop) / speed);
@@ -317,6 +323,13 @@ public class KartController : MonoBehaviour
 
     /// <summary>레이스를 다시 시작할 때 임무 판정이 불러준다.</summary>
     public void ResetWallHits() => WallHits = 0;
+
+    /// <summary>돌던 부스트를 즉시 끊는다. 벽에 눌려 못 움직일 때 빠져나갈 길을 터준다.</summary>
+    public void CancelBoost()
+    {
+        boostTimer = 0f;
+        boostAmount = 0f;
+    }
 
     /// <summary>
     /// 바깥에서 부스트를 먹인다 — 트랙의 가속 발판(BoostPad) 같은 것.

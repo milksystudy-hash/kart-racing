@@ -117,7 +117,7 @@ public class TestHUD : MonoBehaviour
     /// </summary>
     void DrawCollectionPanel()
     {
-        var p = new Rect(16f, 152f, 188f, mission != null ? 112f : 78f);
+        var p = new Rect(16f, 152f, 188f, mission == null ? 78f : (mission.AllDone ? 100f : 132f));
         Hud.Panel(p);
 
         float x = p.x + 14f;
@@ -145,14 +145,26 @@ public class TestHUD : MonoBehaviour
         if (mission == null) return;
 
         Hud.Rule(x, p.y + 60f, p.width - 28f);
-        GUI.Label(new Rect(x, p.y + 66f, 40f, 18f), "임무", Hud.Resize(Hud.Label, 13));
-        GUI.Label(new Rect(p.x + 56f, p.y + 66f, p.width - 70f, 18f), mission.Title,
+
+        if (mission.AllDone)
+        {
+            GUI.Label(new Rect(x, p.y + 68f, p.width - 28f, 20f), "전부 모았다", Hud.Resize(Hud.Value, 15));
+            return;
+        }
+
+        // 이번 판에 뭐가 걸렸는지. "다음 건 어떻게 모으냐" 에 대한 답이 화면에 있어야 한다.
+        GUI.Label(new Rect(x, p.y + 66f, 40f, 18f), "상품", Hud.Resize(Hud.Label, 13));
+        GUI.Label(new Rect(p.x + 56f, p.y + 66f, p.width - 70f, 18f), mission.RewardName,
+                  Hud.Resize(Hud.Text, 13, TextAnchor.MiddleRight));
+
+        GUI.Label(new Rect(x, p.y + 84f, 40f, 18f), "임무", Hud.Resize(Hud.Label, 13));
+        GUI.Label(new Rect(p.x + 56f, p.y + 84f, p.width - 70f, 18f), mission.Title,
                   Hud.Resize(Hud.Text, 13, TextAnchor.MiddleRight));
 
         var state = Hud.Resize(Hud.Value, 15, TextAnchor.MiddleRight);
         if (mission.Failed) state.normal.textColor = Hud.Ribbon;
         else if (mission.Cleared) state.normal.textColor = Hud.Brass;
-        GUI.Label(new Rect(p.x + 56f, p.y + 82f, p.width - 70f, 18f),
+        GUI.Label(new Rect(p.x + 56f, p.y + 102f, p.width - 70f, 18f),
                   mission.Failed ? "실패" : mission.Progress, state);
     }
 
@@ -228,14 +240,12 @@ public class TestHUD : MonoBehaviour
     // ---- 주운 물건 안내 ----
     void DrawToast(float w, float h)
     {
-        const float seconds = 3f;
-        if (Time.time - ExhibitPickup.LastMessageTime > seconds ||
-            string.IsNullOrEmpty(ExhibitPickup.LastMessage)) return;
+        if (!Toast.Visible) return;
 
         var box = new Rect(w * 0.5f - 200f, h * 0.16f, 400f, 56f);
         Hud.Panel(box);
         GUI.DrawTexture(new Rect(box.x + 7f, box.y + 7f, 6f, box.height - 16f), Hud.RibbonTex);
-        GUI.Label(box, ExhibitPickup.LastMessage, Hud.Title);
+        GUI.Label(box, Toast.Message, Hud.Resize(Hud.Title, 17));
     }
 
     // ---- 왼쪽 아래 구석: 조작법 힌트 + 개발용 ----

@@ -68,6 +68,7 @@ public class ExhibitPickup : MonoBehaviour
             ? $"{ExhibitCatalogue.NameOf(itemId)}  ·  전시실 {caseNumber}번에 등록"
             : ExhibitCatalogue.NameOf(itemId);
         LastMessageTime = Time.time;
+        Toast.Show(LastMessage);
 
         Destroy(gameObject);
     }

@@ -164,7 +164,9 @@ public static class TestSceneBuilder
         // 레이스 씬에는 걸어다니는 플레이어를 두지 않는다.
         // 맵을 걸어서 확인하고 싶으면 Testbed 씬(F3)을 쓰면 돼.
 
-        MakeExhibitPickups(track);
+        // 트랙에 수집품을 뿌리지 않는다(2026-09-16). 이제 임무를 깨면 바로 들어온다 —
+        // 물건을 주우러 되돌아가는 게 레이싱의 본질을 흐린다는 유저 판단. MissionManager 참고.
+        // MakeExhibitPickups(track);
 
         // 후처리·안티에일리어싱. 트랙만 이게 빠져 있어서 유독 "유니티 기본" 으로 보였다.
         MuseumLook.RefineMaterials();   // 손으로 다듬을 필요 없이 구워 나올 때부터 마감이 붙어 있게

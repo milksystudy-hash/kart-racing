@@ -121,16 +121,16 @@ public static class GallerySceneBuilder
         var ceiling = new GameObject("CeilingLights").transform;
         var lamps = new System.Collections.Generic.List<Light>();
         for (int ix = -1; ix <= 1; ix++)
-            for (int iz = -1; iz <= 1; iz += 2)
+            for (int iz = -1; iz <= 1; iz++)
             {
-                var lampGo = new GameObject("Ceiling_" + (ix + 1) + (iz > 0 ? "S" : "N"));
+                var lampGo = new GameObject("Ceiling_" + (ix + 1) + "_" + (iz + 1));
                 lampGo.transform.SetParent(ceiling, false);
-                lampGo.transform.position = new Vector3(ix * 9f, WallHeight - 1.2f, iz * 7f);
+                lampGo.transform.position = new Vector3(ix * 9.5f, WallHeight - 1.1f, iz * 8f);
 
                 var lamp = lampGo.AddComponent<Light>();
                 lamp.type = LightType.Point;
                 lamp.color = new Color(1f, 0.93f, 0.80f);   // 백열등 — 천창의 찬 빛과 대비된다
-                lamp.range = 16f;
+                lamp.range = 22f;   // 아홉 개가 겹쳐서 방 전체를 고르게 채운다
                 lamp.intensity = 0f;
                 lamp.shadows = LightShadows.None;   // 그림자는 천창 하나만 (기획서 §7.6)
                 lamps.Add(lamp);

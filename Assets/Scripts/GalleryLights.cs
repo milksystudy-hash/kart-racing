@@ -23,17 +23,19 @@ public class GalleryLights : MonoBehaviour
 
     [Header("세기")]
     public float skylightDark = 0.85f;
-    public float skylightBright = 1.25f;
-    public float ceilingBright = 1.6f;
+    public float skylightBright = 1.5f;
+    // 방 전체가 실내 조명 켜진 것처럼 밝아져야 한다(2026-09-16 유저).
+    // 등 하나가 밝아지는 게 아니라 "형광등 스위치를 올린" 수준.
+    public float ceilingBright = 2.6f;
 
     [Header("환경광")]
     public Color ambientSkyDark     = new Color(0.40f, 0.43f, 0.52f);
     public Color ambientEquatorDark = new Color(0.30f, 0.31f, 0.36f);
     public Color ambientGroundDark  = new Color(0.18f, 0.17f, 0.18f);
 
-    public Color ambientSkyBright     = new Color(0.72f, 0.70f, 0.64f);
-    public Color ambientEquatorBright = new Color(0.58f, 0.55f, 0.50f);
-    public Color ambientGroundBright  = new Color(0.34f, 0.31f, 0.28f);
+    public Color ambientSkyBright     = new Color(1.00f, 0.97f, 0.90f);
+    public Color ambientEquatorBright = new Color(0.86f, 0.83f, 0.77f);
+    public Color ambientGroundBright  = new Color(0.55f, 0.51f, 0.46f);
 
     [Tooltip("다 모은 걸 확인했을 때 밝아지는 데 걸리는 시간(초)")]
     public float fadeSeconds = 3f;

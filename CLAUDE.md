@@ -519,3 +519,48 @@ If the panel doesn't appear at all, the Track scene predates `MissionManager` �
 - **It never touches materials.** The 발광 surfaces are `.mat` assets — writing to them at runtime
   edits the file on disk and leaks into every other scene.
 - Ceiling lights cast no shadows; §7.6's one shadow-caster is still the skylight.
+
+## 수집품은 주워서가 아니라 임무를 깨서 — 2026-09-16
+
+The user's call, and it is right: driving backwards to fetch a coin fights the racing. It also
+made the demo short — two items were reachable on the first run, so 8 items was four races.
+
+**한 판 = 임무 하나 = 수집품 하나. 여덟 개니까 여덟 판.** At ~1:30 a race that is ~12 minutes of
+racing, which lands inside 기획서 §1.2's 15–25 minutes *without* padding.
+
+- `MissionManager.NextReward()` is the first uncollected entry in `ExhibitCatalogue.All` order,
+  so **the catalogue order is the progression order** and nothing extra has to be saved.
+- `GoalForReward` is `(Goal)(index % 4)` over 완주 / 발판전부 / 무충돌 / 제한시간, so the eight
+  races are eight different races on one track — §4.1's whole idea. Item 0 lands on 완주 by
+  construction; don't reorder the catalogue without checking that.
+- Clearing calls `CollectionState.Collect` **at the finish line**, then advances the chapter when
+  that chapter's items are all in. That is what retires the F7 manual chapter key.
+- 무충돌 and 제한시간 fail **the moment they are blown**, not at the finish — driving two more laps
+  knowing you failed is the worst version of this.
+- `TestSceneBuilder.MakeExhibitPickups` is **commented out, not deleted** — the coin-style pickup
+  still works if a scoring mode ever wants it.
+- `Scripts/Toast.cs` holds the on-screen notice now. It used to live on `ExhibitPickup`, but two
+  different things raise notices since the change, and the HUD should not know which.
+
+### 발판 — 방향과 벽
+
+- A pad now only fires when the kart is **going forwards** (`SpeedKph >= 5`) **and roughly aligned
+  with the pad** (`Dot(kart.forward, pad.forward) >= 0.3`). Boost pushes along the kart's own
+  forward, so taking one in reverse flung the kart backwards — a trap, not a boost.
+- `KartController.CancelBoost()` fires when wall scrub hits its floor speed. Pinned against a wall
+  with a boost still running, the forward force beat both reverse and steering, so the gauge
+  drained and nothing moved. Cancelling the boost is what actually frees the kart; the
+  `rollingFactor` floor alone was not enough.
+
+## 제원표 문구 — 2026-09-16
+
+"제원 / 중량 / 최고 / 가속 / 접지" read as if the character runs, and the terms meant nothing to
+the user. Now the panel is titled **전용 장난감 카트** (which also settles the 무인 카트 premise on
+sight) and the rows are **무게 · 빠르기 · 출발 · 코너**. What each does is spelled out in the `H`
+card under 카트 항목 — still without saying which kart is better.
+
+## 전시실 점등 — 방 전체로
+
+The first pass lit a few lamps. The user wanted the room to read as **lights switched on**:
+9 ceiling lamps (3×3, range 22) at intensity 2.6 and the Trilight ambient going to
+(1.00, 0.97, 0.90) / (0.86, 0.83, 0.77) / (0.55, 0.51, 0.46). Dark state is unchanged.
