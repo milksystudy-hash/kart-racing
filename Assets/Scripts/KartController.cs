@@ -284,6 +284,12 @@ public class KartController : MonoBehaviour
 
         // 거의 멈춰 있으면 안 돌아가야 자연스럽다 (제자리 회전 방지)
         float rollingFactor = Mathf.Clamp01(Mathf.Abs(forwardSpeed) / 3f);
+
+        // 다만 벽에 정면으로 박히면 속도가 0 이 되고, 그러면 조향도 0 이라 영영 못 빠져나온다.
+        // (부스터 위에서 벽에 붙으면 게이지만 줄고 아무것도 안 되던 게 이거였다.)
+        // 악셀이나 후진을 밟고 있는 동안에는 최소한의 조향을 남겨둔다 — 손으로 비집고 나올 수 있게.
+        if (Mathf.Abs(throttleInput) > 0.1f)
+            rollingFactor = Mathf.Max(rollingFactor, 0.35f);
         // 빠를수록 조향각을 줄인다
         float speedCut = Mathf.Lerp(1f, 1f - highSpeedSteerCut,
                                     Mathf.Clamp01(Mathf.Abs(forwardSpeed) / Mathf.Max(0.1f, maxSpeed)));

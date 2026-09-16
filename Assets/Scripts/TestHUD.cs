@@ -33,11 +33,11 @@ public class TestHUD : MonoBehaviour
 
     // ---- 색 ----
     // 밝고 따뜻하게. 어두운 판에 흰 글자는 눈이 피로하고 "유니티 기본" 으로 읽힌다.
-    static readonly Color Wood     = new Color32(0xA5, 0x76, 0x4B, 0xFF);   // 판 테두리
-    static readonly Color WoodDark = new Color32(0x7A, 0x55, 0x35, 0xFF);   // 아래 그림자 결
-    static readonly Color Paper    = new Color32(0xFF, 0xF6, 0xE5, 0xFF);   // 종이 라벨
-    static readonly Color Ink      = new Color32(0x4A, 0x37, 0x28, 0xFF);
-    static readonly Color InkSoft  = new Color32(0x9A, 0x82, 0x6C, 0xFF);
+    static readonly Color Wood     = new Color32(0xC9, 0xAC, 0x8A, 0xFF);   // 판 테두리 — 밝은 참나무
+    static readonly Color WoodDark = new Color32(0xAE, 0x8E, 0x6B, 0xFF);   // 아래 그림자 결
+    static readonly Color Paper    = new Color32(0xFD, 0xF8, 0xEC, 0xFF);   // 종이 라벨
+    static readonly Color Ink      = new Color32(0x5C, 0x49, 0x38, 0xFF);
+    static readonly Color InkSoft  = new Color32(0xA2, 0x90, 0x7C, 0xFF);
     static readonly Color Brass    = new Color32(0xE0, 0x9B, 0x2E, 0xFF);   // 태엽이 터질 때
     static readonly Color Ribbon   = new Color32(0xC4, 0x45, 0x3E, 0xFF);
 
@@ -191,18 +191,40 @@ public class TestHUD : MonoBehaviour
         GUI.Label(new Rect(panel.x + 172, panel.y + 42, 50, 24), "km/h", label);
 
         // 태엽 — 드리프트로 감고, 놓으면 풀리며 튀어나간다
-        var bar = new Rect(panel.x + 18, panel.y + 80, 196, 12);
-        GUI.DrawTexture(bar, woodDarkTex);
-
         float charge01 = kart.boostChargeMax > 0f ? kart.BoostCharge / kart.boostChargeMax : 0f;
-        if (kart.IsBoosting)
-            GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * kart.BoostRemaining01, bar.height), brassTex);
-        else if (charge01 > 0.01f)
-            GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * charge01, bar.height),
-                            charge01 > 0.85f ? brassTex : woodTex);
+        float fill = kart.IsBoosting ? kart.BoostRemaining01 : charge01;
+        bool hot = kart.IsBoosting || charge01 > 0.85f;
 
-        GUI.Label(new Rect(panel.x + 18, panel.y + 94, 200, 20),
-                  kart.IsBoosting ? "태엽이 풀린다!" : (kart.IsDrifting ? "태엽 감는 중" : "태엽"), label);
+        // 돌아가는 태엽 열쇠. "태엽" 이라는 낱말을 몰라도 감기고 풀리는 게 눈에 보인다.
+        WindKey(new Rect(panel.x + 18, panel.y + 74, 30, 30), fill * 1.5f, hot ? brassTex : woodDarkTex);
+
+        var bar = new Rect(panel.x + 56, panel.y + 82, 158, 13);
+        GUI.DrawTexture(bar, woodDarkTex);
+        if (fill > 0.01f)
+            GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * fill, bar.height),
+                            hot ? brassTex : paperTex);
+
+        GUI.Label(new Rect(panel.x + 56, panel.y + 96, 170, 20),
+                  kart.IsBoosting ? "풀린다!" : (kart.IsDrifting ? "감는 중" : "태엽"), label);
+    }
+
+    /// <summary>
+    /// 감기는 태엽 열쇠. 십자 막대를 돌려서 그린다 — 글자를 못 읽어도 상태가 보인다.
+    /// turns 는 몇 바퀴 감겼는지. 0 이면 제자리, 1.5 면 한 바퀴 반.
+    /// </summary>
+    void WindKey(Rect r, float turns, Texture2D tex)
+    {
+        // 텍스처는 미리 만들어 둔 걸 받는다. OnGUI 는 매 프레임 도니까 여기서 만들면 계속 쌓인다.
+        var pivot = r.center;
+        var saved = GUI.matrix;
+
+        GUIUtility.RotateAroundPivot(turns * 360f, pivot);
+
+        float arm = r.width * 0.5f;
+        GUI.DrawTexture(new Rect(pivot.x - arm, pivot.y - 3f, r.width, 6f), tex);          // 가로 막대
+        GUI.DrawTexture(new Rect(pivot.x - 3f, pivot.y - arm * 0.6f, 6f, arm * 1.2f), tex); // 세로 축
+
+        GUI.matrix = saved;
     }
 
     // ---- 개발용 ----
