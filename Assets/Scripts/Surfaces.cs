@@ -68,6 +68,12 @@ public static class FlatMaterial
         { 0x6B4A33u, Finish.나무 },   // 기둥
         { 0x6B4F3Au, Finish.나무 },   // 소나무 줄기
 
+        // ---- 로비/전시실에서만 쓰는 색 ----
+        { 0x8A6A48u, Finish.나무 },   // 바닥 굽도리
+        { 0xA8784Cu, Finish.나무 },   // 밝은 목재
+        { 0xB0ACA0u, Finish.석재 },   // 받침대 · 석재
+        { 0x1B222Eu, Finish.광택 },   // 광고 화면
+
         // ---- 물 ----
         { 0x6FA0A8u, Finish.광택 },   // 연못
 
@@ -119,6 +125,7 @@ public static class FlatMaterial
         return ((uint)b.r << 16) | ((uint)b.g << 8) | b.b;
     }
 
-    static Finish FinishFor(Color color)
+    /// <summary>이 색이 무슨 재질인지. 표에 없으면 무광.</summary>
+    public static Finish FinishFor(Color color)
         => ByColor.TryGetValue(Key(color), out var f) ? f : Finish.무광;
 }

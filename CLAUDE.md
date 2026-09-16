@@ -374,3 +374,16 @@ One lap is **464 m** and runs ~29 s using the boost pads. The race is **3 laps
 (`RaceProgress.totalLaps`)**, so a full race is ≈ **1:27** — which is already the user's
 1:29 target and inside 기획서 §1.3's 60–120 s. To change the *lap* length rather than the race
 length, edit `TrackBuilder.Path`; the boost pads, kerbs and checkpoints all follow it.
+
+### 이미 만들어진 씬에 마감 입히기
+
+`Racing → 재질 다듬기 (지금 열린 씬)` (`MuseumLook.RefineMaterials`) swaps each `Flat_*`
+material for the finished version of the same colour. **It rebuilds nothing** — hand-placed
+objects survive and Ctrl+Z undoes it, which is why the Lobby got its finishes this way instead
+of through `LobbySceneBuilder` (rebuilding the lobby would wipe the user's own FBX props).
+It only touches materials whose name starts with `Flat_`, so an imported model's own materials
+are never reassigned even when a colour happens to match. Measured on a fresh lobby:
+131 무광 → 석재 53 · 나무 42 · 발광 4 · 광택 1 · 무광 31.
+
+**Menu is now four items**, not three: 트랙/로비/전시실 씬 만들기 + 재질 다듬기. The 2026-09-15
+complaint was about six confusing entries with submenus, not about the count itself.

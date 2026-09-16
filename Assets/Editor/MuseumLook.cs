@@ -198,4 +198,57 @@ public static class MuseumLook
         if (p.propertyType == SerializedPropertyType.Boolean) p.boolValue = value != 0;
         else p.intValue = value;
     }
+
+    // ==================================================================
+    //  재질 마감 — 이미 만들어 둔 씬에 되돌릴 수 있게 입힌다
+    // ==================================================================
+    /// <summary>
+    /// 지금 열린 씬의 <c>Flat_*</c> 머티리얼을 색에 맞는 마감판으로 바꿔 끼운다.
+    /// 나무는 나무처럼, 돌은 돌처럼, 석등은 빛나게.
+    ///
+    /// <b>씬을 다시 만들지 않는다.</b> 네가 손으로 놓아 둔 물건은 그대로 있고,
+    /// 머티리얼 참조만 갈아 끼우니까 Ctrl+Z 로 되돌릴 수도 있다. 로비처럼 이미 꾸며 둔
+    /// 씬을 다듬을 때 쓰라고 만든 거야 — 캠퍼스/트랙은 실행할 때 알아서 이렇게 붙는다.
+    ///
+    /// 이름이 <c>Flat_</c> 로 시작하는 것만 건드린다. 네가 넣은 FBX 의 재질은
+    /// 색이 우연히 겹쳐도 절대 안 바뀐다.
+    /// </summary>
+    [MenuItem("Racing/재질 다듬기 (지금 열린 씬)", false, 4)]
+    public static void RefineMaterials()
+    {
+        int changed = 0, already = 0, matte = 0;
+
+        foreach (var r in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include,
+                                                            FindObjectsSortMode.None))
+        {
+            var mats = r.sharedMaterials;
+            bool touched = false;
+
+            for (int i = 0; i < mats.Length; i++)
+            {
+                var m = mats[i];
+                if (m == null || !m.name.StartsWith("Flat_")) continue;
+                if (!m.HasProperty("_BaseColor")) continue;
+
+                Color c = m.GetColor("_BaseColor");
+                Finish finish = FlatMaterial.FinishFor(c);
+                if (finish == Finish.무광) { matte++; continue; }
+
+                var refined = TestSceneBuilder.MaterialAsset(c, finish);
+                if (refined == null || refined == m) { already++; continue; }
+
+                mats[i] = refined;
+                touched = true;
+                changed++;
+            }
+
+            if (!touched) continue;
+            Undo.RecordObject(r, "재질 다듬기");
+            r.sharedMaterials = mats;
+        }
+
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log($"[재질] {changed}개 바꿈 · 이미 맞음 {already} · 무광 그대로 {matte}. " +
+                  "Ctrl+S 로 저장, 마음에 안 들면 Ctrl+Z");
+    }
 }
