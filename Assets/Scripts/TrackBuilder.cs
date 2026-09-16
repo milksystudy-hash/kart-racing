@@ -334,19 +334,37 @@ public class TrackBuilder : MonoBehaviour
         const float bandHeight = 0.2f;
         const int stripeLength = 4;          // 몇 칸마다 색이 바뀌는지
 
-        var lift = Vector3.up * (wallHeight - bandHeight);
-        var top = Vector3.up * wallHeight;
+        // <b>벽 면과 같은 평면에 놓으면 안 된다.</b> 처음에 그렇게 만들었더니 빨강과 벽색이
+        // 픽셀마다 번갈아 찍혀서 "빨간 줄이 회색으로 번쩍거린다" 는 보고가 왔다(2026-09-16).
+        // 깊이값이 똑같으면 GPU 는 어느 쪽이 앞인지 정할 방법이 없고, 카메라가 조금만 움직여도
+        // 반올림 결과가 뒤집힌다. 고칠 방법은 하나뿐 — <b>떼어 놓는 것</b>.
+        const float standOff = 0.03f;        // 코스 쪽으로 3cm. 눈에는 안 보이고 깊이는 확실히 갈린다
+        const float capRise  = 0.01f;        // 벽 꼭대기보다 1cm 높게 — 띠가 벽을 덮는 것처럼 보인다
+
+        // 띠를 얹을 자리: 벽 선에서 코스 안쪽으로 밀어낸 선. 미는 방향이 점마다 다르니
+        // (코너에서는 벽이 기울어 있다) Ribbon 의 고정 오프셋으로는 안 되고 점을 새로 구해야 한다.
+        var bandOuter = new Vector3[total + 1];
+        var bandInner = new Vector3[total + 1];
+        for (int k = 0; k <= total; k++)
+        {
+            Vector3 toRoad = (inner[k] - outer[k]).normalized;
+            bandOuter[k] = outer[k] + toRoad * standOff;
+            bandInner[k] = inner[k] - toRoad * standOff;
+        }
+
+        var low = Vector3.up * (wallHeight - bandHeight);
+        var top = Vector3.up * (wallHeight + capRise);
 
         for (int i = 0; i < total; i += stripeLength)
         {
             int to = Mathf.Min(i + stripeLength, total);
             var color = (i / stripeLength) % 2 == 0 ? ColKerb : ColKerbAlt;
 
-            // <b>콜라이더를 달면 안 된다.</b> 띠는 벽 면에 딱 붙어 있어서, 콜라이더가 있으면
+            // <b>콜라이더를 달면 안 된다.</b> 띠는 벽 면 바로 앞에 있어서, 콜라이더가 있으면
             // 벽을 한 번 긁을 때 벽 조각과 띠 조각이 <b>각각</b> 세진다.
             // 실제로 그래서 "벽 2번" 이어야 할 게 "벽 4번" 으로 떴다(2026-09-16).
-            Ribbon(parent, $"StripeOuter_{i:000}", outer, outer, i, to, lift, top, color, flip: true, collider: false);
-            Ribbon(parent, $"StripeInner_{i:000}", inner, inner, i, to, top, lift, color, flip: true, collider: false);
+            Ribbon(parent, $"StripeOuter_{i:000}", bandOuter, bandOuter, i, to, low, top, color, flip: true, collider: false);
+            Ribbon(parent, $"StripeInner_{i:000}", bandInner, bandInner, i, to, top, low, color, flip: true, collider: false);
         }
     }
     void BuildRailPosts(Transform parent, Vector3[] outer, Vector3[] inner, int[] zones, int total)
@@ -489,11 +507,15 @@ public class TrackBuilder : MonoBehaviour
                           + side * ((c + 0.5f) * cell - width * 0.5f)
                           + TangentOnPath(0f) * ((r + 0.5f) * cell - rows * cell * 0.5f);
 
+                // 칸을 <b>딱 맞추지 않고 3% 줄인다.</b> 딱 맞추면 바깥쪽 칸의 옆면이 바탕의
+                // 옆면과 같은 평면이 되어 그 선이 번쩍거린다. 줄여두면 칸 사이에 크림색 줄눈도
+                // 생겨서 체커가 한 덩어리로 안 뭉친다.
                 Block(root, $"Check_{c}_{r}", p, StartRotation,
-                      new Vector3(cell, 0.04f, cell), ColLineDark, noCollider: true);
+                      new Vector3(cell * 0.94f, 0.04f, cell * 0.94f), ColLineDark, noCollider: true);
             }
 
-        // 바탕 — 어두운 칸이 이 위에 얹힌다
+        // 바탕 — 어두운 칸이 이 위에 얹힌다. <b>트랙 폭을 넘기면 안 된다</b>:
+        // 한 번 넓혀봤더니 바탕 끝면이 벽 면과 같은 평면이 되어 거기가 번쩍거렸다.
         Block(root, "Base", centre + Vector3.down * 0.005f, StartRotation,
               new Vector3(width, 0.04f, rows * cell), ColLine, noCollider: true);
     }
@@ -548,8 +570,10 @@ public class TrackBuilder : MonoBehaviour
             // 판 — 금색 바탕에 자홍색 띠. 둘 다 악당 색이다
             Block(board, "Panel", at + Vector3.up * 4.1f, facing,
                   new Vector3(6.4f, 3.0f, 0.22f), ColAdGold, noCollider: true);
-            Block(board, "Stripe", at + Vector3.up * 3.0f + facing * Vector3.forward * -0.14f, facing,
-                  new Vector3(6.4f, 0.8f, 0.1f), ColAdMagenta, noCollider: true);
+            // 폭을 판(6.4)보다 <b>조금 좁게</b> 잡는다. 딱 맞추면 좌우 옆면이 판의 옆면과 같은
+            // 평면이 되어 그 모서리가 금색·자홍색으로 번쩍거린다 — 벽 경고 띠와 같은 병이야.
+            Block(board, "Stripe", at + Vector3.up * 3.05f + facing * Vector3.forward * -0.14f, facing,
+                  new Vector3(6.28f, 0.8f, 0.1f), ColAdMagenta, noCollider: true);
             Block(board, "Frame", at + Vector3.up * 5.7f, facing,
                   new Vector3(6.9f, 0.34f, 0.34f), ColAdFrame, noCollider: true);
 
