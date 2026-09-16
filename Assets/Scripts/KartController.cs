@@ -66,6 +66,9 @@ public class KartController : MonoBehaviour
     public float SteerInput => steerInput;
     public bool IsGrounded { get; private set; }
     public bool IsDrifting { get; private set; }
+    /// <summary>이번 판에 벽에 세게 부딪힌 횟수. 무충돌 임무가 이걸 본다.</summary>
+    public int WallHits { get; private set; }
+
     public float BoostCharge { get; private set; }
     public bool IsBoosting => boostTimer > 0f;
     public float BoostRemaining01 => boostDuration > 0f ? Mathf.Clamp01(boostTimer / boostDuration) : 0f;
@@ -155,6 +158,7 @@ public class KartController : MonoBehaviour
             if (into < 1.5f) return;   // 스치기만 한 건 봐준다
             float severity = Mathf.Clamp01(into / Mathf.Max(1f, maxSpeed));
             rb.linearVelocity = velocity * (1f - wallImpactLoss * severity);
+            WallHits++;   // 속도가 깎일 만큼 박은 것만 센다 — 스친 건 위에서 이미 걸렀다
         }
         else if (wallScrubPerSecond > 0f)
         {
@@ -310,6 +314,9 @@ public class KartController : MonoBehaviour
         float grip = IsDrifting ? gripWhileDrifting : gripNormal;
         rb.AddForce(right * (-lateralSpeed * grip), ForceMode.Acceleration);
     }
+
+    /// <summary>레이스를 다시 시작할 때 임무 판정이 불러준다.</summary>
+    public void ResetWallHits() => WallHits = 0;
 
     /// <summary>
     /// 바깥에서 부스트를 먹인다 — 트랙의 가속 발판(BoostPad) 같은 것.

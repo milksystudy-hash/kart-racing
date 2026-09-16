@@ -213,7 +213,8 @@ public static class MuseumLook
     /// 이름이 <c>Flat_</c> 로 시작하는 것만 건드린다. 네가 넣은 FBX 의 재질은
     /// 색이 우연히 겹쳐도 절대 안 바뀐다.
     /// </summary>
-    [MenuItem("Racing/재질 다듬기 (지금 열린 씬)", false, 4)]
+    // 메뉴에는 안 건다 — 유저가 메뉴는 씬 만들기 셋만 두라고 했다(2026-09-16).
+    // 세 빌더가 마지막에 스스로 부르니까 구워 나오는 씬은 항상 다듬어진 상태야.
     public static void RefineMaterials()
     {
         int changed = 0, already = 0, matte = 0;

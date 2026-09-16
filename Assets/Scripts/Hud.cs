@@ -43,6 +43,11 @@ public static class Hud
     public static GUIStyle Text { get; private set; }     // 본문
     public static GUIStyle Tiny { get; private set; }     // 개발용
 
+    /// <summary>지금 화면 배율. GUIUtility.RotateAroundPivot 처럼 <b>화면 좌표</b>를 받는
+    /// 함수에 가상 좌표를 넘길 때 이걸 곱해야 한다. 안 그러면 회전 중심이 어긋나서
+    /// 1080p 에서 태엽이 화면 밖으로 날아갔다(2026-09-16).</summary>
+    public static float ScaleFactor { get; private set; } = 1f;
+
     static Font builtWith;
     static bool built;
 
@@ -52,6 +57,7 @@ public static class Hud
         Ensure(preferred);
 
         float s = Mathf.Clamp(Screen.height / DesignHeight, 0.8f, 1.8f);
+        ScaleFactor = s;
         GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(s, s, 1f));
         return new Rect(0f, 0f, Screen.width / s, Screen.height / s);
     }

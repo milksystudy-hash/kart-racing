@@ -31,6 +31,34 @@ public class BoostPad : MonoBehaviour
     // 카트별로 따로 센다. 나중에 AI 카트가 늘어나도 서로 방해하지 않게.
     readonly System.Collections.Generic.Dictionary<KartController, float> lastTaken = new();
 
+    /// <summary>이번 바퀴에 <b>플레이어가</b> 밟았는지. "발판 전부" 임무가 이걸 센다.</summary>
+    public bool TakenByPlayer { get; private set; }
+
+    static BoostPad[] all;
+
+    /// <summary>씬에 깔린 발판 수. 트랙을 바꿔도 임무 조건이 알아서 따라온다.</summary>
+    public static int CountInScene() => All().Length;
+
+    public static int TakenCount()
+    {
+        int n = 0;
+        foreach (var pad in All()) if (pad != null && pad.TakenByPlayer) n++;
+        return n;
+    }
+
+    public static void ClearTaken()
+    {
+        foreach (var pad in All()) if (pad != null) pad.TakenByPlayer = false;
+    }
+
+    // 매 프레임 찾으면 비싸다. 한 번 찾아 두고, 씬이 바뀌어 사라졌으면 다시 찾는다.
+    static BoostPad[] All()
+    {
+        if (all == null || all.Length == 0 || all[0] == null)
+            all = FindObjectsByType<BoostPad>(FindObjectsSortMode.None);
+        return all;
+    }
+
     void Reset()
     {
         var box = GetComponent<BoxCollider>();
@@ -48,9 +76,21 @@ public class BoostPad : MonoBehaviour
         var kart = other.GetComponentInParent<KartController>();
         if (kart == null) return;
 
+        // 이미 부스트 중이면 다시 안 먹인다.
+        // 이게 없으면 발판 위에서 벽에 박힌 카트한테 Stay 가 1초마다 부스트를 계속 먹여서,
+        // "풀린다!" 가 영영 안 끝나고 게이지가 톱니처럼 오르내리고, 앞으로 미는 힘이
+        // 계속 걸려서 조작이 죽는다. 실제로 그렇게 됐다(2026-09-16).
+        if (kart.IsBoosting) return;
+
+        // 서 있는 카트한테는 안 먹인다 — 발판 위에 멈춰 서서 비비는 걸 막는다.
+        if (Mathf.Abs(kart.SpeedKph) < 5f) return;
+
         if (lastTaken.TryGetValue(kart, out float when) && Time.time - when < retriggerDelay) return;
         lastTaken[kart] = Time.time;
 
         kart.ApplyBoost(boostAmount, duration);
+
+        // 임무 판정은 플레이어 것만 센다. AI 가 밟은 걸 같이 세면 가만히 있어도 임무가 깨진다.
+        if (kart.GetComponent<PlayerKart>() != null) TakenByPlayer = true;
     }
 }

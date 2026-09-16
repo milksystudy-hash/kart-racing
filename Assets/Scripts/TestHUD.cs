@@ -27,6 +27,7 @@ public class TestHUD : MonoBehaviour
     public KartController kart;
     public LapTracker tracker;
     public RaceStandings standings;
+    public MissionManager mission;
 
     [Header("폰트 (비워 두면 OS 한글 폰트를 쓴다)")]
     public Font uiFont;
@@ -67,6 +68,7 @@ public class TestHUD : MonoBehaviour
         if (InKart)
         {
             DrawLapPanel();
+            DrawMissionPanel();
             DrawRankPanel(w);
             DrawSpeedPanel(w, h);
         }
@@ -103,6 +105,25 @@ public class TestHUD : MonoBehaviour
         GUI.Label(new Rect(x, p.y + 94f, 44f, 20f), "최고", Hud.Label);
         GUI.Label(new Rect(p.x + 62f, p.y + 94f, p.width - 76f, 20f),
                   LapTracker.FormatTime(tracker.BestLapTime), time);
+    }
+
+    // ---- 이번 판 임무 ----
+    void DrawMissionPanel()
+    {
+        if (mission == null) return;
+
+        var p = new Rect(16f, 152f, 188f, 76f);
+        Hud.Panel(p);
+
+        float x = p.x + 14f;
+        GUI.Label(new Rect(x, p.y + 10f, 160f, 18f), "임무", Hud.Label);
+        GUI.Label(new Rect(x, p.y + 26f, 160f, 22f), mission.Title, Hud.Resize(Hud.Text, 15));
+
+        var state = Hud.Resize(Hud.Value, 16);
+        if (mission.Failed) state.normal.textColor = Hud.Ribbon;
+        else if (mission.Cleared) state.normal.textColor = Hud.Brass;
+        GUI.Label(new Rect(x, p.y + 48f, 160f, 20f),
+                  mission.Failed ? "실패" : mission.Progress, state);
     }
 
     // ---- 순위 ----
@@ -163,7 +184,9 @@ public class TestHUD : MonoBehaviour
         var pivot = r.center;
         var saved = GUI.matrix;   // Hud.Begin 이 넣어둔 화면 배율. 끝나고 이걸 그대로 되돌린다
 
-        GUIUtility.RotateAroundPivot(turns * 360f, pivot);
+        // 중심점은 <b>화면 좌표</b>로 넘겨야 한다. 여긴 1280x720 가상 좌표라 배율을 곱한다 —
+        // 안 곱하면 회전 중심이 배율만큼 어긋나서 태엽이 화면 밖으로 날아간다.
+        GUIUtility.RotateAroundPivot(turns * 360f, pivot * Hud.ScaleFactor);
 
         float arm = r.width * 0.5f;
         GUI.DrawTexture(new Rect(pivot.x - arm, pivot.y - 3f, r.width, 6f), tex);          // 가로 막대
@@ -238,7 +261,10 @@ public class TestHUD : MonoBehaviour
         var box = new Rect(w * 0.5f - 170f, h * 0.5f - 104f, 340f, 208f);
         Hud.Panel(box);
 
-        GUI.Label(new Rect(box.x, box.y + 20f, box.width, 40f), "완주!", Hud.Resize(Hud.Title, 32));
+        bool ok = mission == null || mission.Cleared;
+        var head = Hud.Resize(Hud.Title, 32);
+        head.normal.textColor = ok ? Hud.Ink : Hud.Ribbon;
+        GUI.Label(new Rect(box.x, box.y + 20f, box.width, 40f), ok ? "완주!" : "임무 실패", head);
 
         var centre = Hud.Resize(Hud.Value, 19, TextAnchor.MiddleCenter);
         GUI.Label(new Rect(box.x, box.y + 70f, box.width, 26f),
@@ -246,13 +272,13 @@ public class TestHUD : MonoBehaviour
         GUI.Label(new Rect(box.x, box.y + 98f, box.width, 26f),
                   $"최고 랩   {LapTracker.FormatTime(tracker.BestLapTime)}", centre);
 
-        if (standings != null && standings.RacerCount > 1)
+        if (mission != null)
         {
-            bool first = standings.PlayerFinishedFirst;
-            var line = Hud.Resize(Hud.Label, 14, TextAnchor.MiddleCenter);
-            line.normal.textColor = first ? Hud.Brass : Hud.InkSoft;
-            GUI.Label(new Rect(box.x, box.y + 134f, box.width, 22f),
-                      first ? "◆ 선택 임무 달성 — 1위로 완주" : "선택 임무 — 1위로 완주 (미달성)", line);
+            var line = Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter);
+            line.normal.textColor = mission.Cleared ? Hud.Brass : Hud.Ribbon;
+            GUI.Label(new Rect(box.x, box.y + 132f, box.width, 24f),
+                      mission.Cleared ? $"◆ 임무 달성 — {mission.Title}"
+                                      : $"임무 실패 — {mission.Title}", line);
         }
 
         GUI.Label(new Rect(box.x, box.y + 166f, box.width, 22f), "ENTER 를 누르면 다시 시작",

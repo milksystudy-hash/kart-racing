@@ -436,3 +436,44 @@ assuming it still holds.
 `CharacterStand.Label` returns **"???"** when `locked` is true, so 개발업자(5번)와 시의원(6번)
 are not named in the lobby. `displayName` and `castId` stay in the scene, so the nameplate colour
 still identifies them and flipping `locked` reveals the name with no other change.
+
+## 임무 — 2026-09-16
+
+`Scripts/MissionManager.cs`. 기획서 §9.2's next script. **The point is that a race can now be
+lost.** Attached by `TestSceneBuilder` to the track's `GameRig`, wired to `LapTracker` + kart.
+
+- Three goals: **완주 / 발판전부 / 무충돌**, picked from `StoryProgress.CurrentChapter`
+  (`GoalForChapter`: 1장 완주 · 2장 발판전부 · 3장~ 무충돌). One track, three ways to drive it —
+  that is §4.1's "reuse the track per chapter" without new geometry.
+- **Judged over the whole 3-lap race, not per lap.** Per-lap judging would force the player to
+  drive two pointless laps after failing the first. 발판전부 is the exception: the pad flags reset
+  at each lap crossing, so all 5 pads must be taken on **every** lap — that is what makes lap 2
+  and 3 different from lap 1 instead of repetition.
+- `allowedHits = 2` on 무충돌. Zero tolerance across 1:27 is brutal for a casual game; the field
+  is there to tune, not a hard rule.
+- `KartController.WallHits` counts **only impacts that actually cost speed** — the grazing filter
+  (`into < 1.5f`) already existed, so brushing a wall is not a failure.
+- `BoostPad` static helpers `CountInScene / TakenCount / ClearTaken` — the mission never hard-codes
+  how many pads exist, so moving the `BoostPads` table keeps working. Only a kart with
+  `PlayerKart` marks a pad taken; counting AI would let the player pass by standing still.
+- Pads and the roof are **built at Awake**, so a freshly saved `Track.unity` shows 0 of them in the
+  editor. That is correct. `MissionManager.Start` runs after every `Awake`, and `Update` re-counts
+  if it ever sees 0.
+
+### 발판 무한 부스트 — 고침
+
+`BoostPad.OnTriggerStay` re-fired every `retriggerDelay` while a kart sat on a pad against a wall:
+"풀린다!" never ended, the gauge sawtoothed, and the constant forward force killed steering.
+Now it skips when `kart.IsBoosting` or when the kart is under 5 km/h.
+
+### 태엽이 화면 밖으로 날아가던 것 — 고침
+
+`GUIUtility.RotateAroundPivot` takes a pivot in **screen** coordinates, but the HUD draws in
+virtual 1280×720. At 1080p (scale 1.5) the rotation centre was off by half the panel's distance
+from the origin and the key swung off-screen. Multiply by `Hud.ScaleFactor`. **Any other GUI call
+that takes screen coordinates needs the same multiply.**
+
+### 메뉴는 다시 셋
+
+`재질 다듬기` lost its `[MenuItem]`; all three builders call `MuseumLook.RefineMaterials()`
+themselves before saving, so a freshly built scene is already roofed and already finished.

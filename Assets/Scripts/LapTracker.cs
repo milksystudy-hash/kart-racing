@@ -110,6 +110,10 @@ public class LapTracker : MonoBehaviour
 
         var standings = FindFirstObjectByType<RaceStandings>();
         if (standings != null) standings.ResetRace();
+
+        // 임무도 같이 처음으로. 안 그러면 다시 달려도 아까 실패한 게 그대로 남는다.
+        var mission = FindFirstObjectByType<MissionManager>();
+        if (mission != null) mission.Restart();
     }
 
     public static string FormatTime(float seconds)

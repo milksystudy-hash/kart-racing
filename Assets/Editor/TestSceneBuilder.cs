@@ -167,6 +167,7 @@ public static class TestSceneBuilder
         MakeExhibitPickups(track);
 
         // 후처리·안티에일리어싱. 트랙만 이게 빠져 있어서 유독 "유니티 기본" 으로 보였다.
+        MuseumLook.RefineMaterials();   // 손으로 다듬을 필요 없이 구워 나올 때부터 마감이 붙어 있게
         MuseumLook.ApplyToOpenScene();
 
         // 평균 14 m/s 는 최고속 22 에서 코너 감속을 감안한 어림값
@@ -188,11 +189,17 @@ public static class TestSceneBuilder
         switcher.kart = kart;
         switcher.kartCamera = kartCam;
 
+        // 임무 — 이게 있어야 레이스에 "실패" 가 생긴다. 장에 따라 조건이 저절로 바뀐다.
+        var mission = rig.AddComponent<MissionManager>();
+        mission.tracker = tracker;
+        mission.kart = kart;
+
         var hud = rig.AddComponent<TestHUD>();
         hud.modeSwitcher = switcher;
         hud.kart = kart;
         hud.tracker = tracker;
         hud.standings = standings;
+        hud.mission = mission;
 
         EditorSceneManager.SaveScene(scene, TrackPath);
     }

@@ -70,6 +70,7 @@ public static class GallerySceneBuilder
         hud.selector = selector;
 
         MakeReflectionProbe();
+        MuseumLook.RefineMaterials();   // 손으로 다듬을 필요 없이 구워 나올 때부터 마감이 붙어 있게
         MuseumLook.ApplyToOpenScene();   // 후처리 · 안티에일리어싱 — 이게 없으면 다 회색 상자로 보인다
 
         EditorSceneManager.SaveScene(scene, GalleryPath);
