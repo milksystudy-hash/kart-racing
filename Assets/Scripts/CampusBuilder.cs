@@ -87,6 +87,7 @@ public class CampusBuilder : MonoBehaviour
 
         ScatterNature();
         ScatterLanterns();
+        BuildRoof();
     }
 
     // ==================================================================
@@ -352,6 +353,91 @@ public class CampusBuilder : MonoBehaviour
                  i % 2 == 0 ? ColGrassDry : ColGrassWet,
                  Quaternion.Euler(0f, (float)random.NextDouble() * 360f, 0f));
         }
+    }
+
+    /// <summary>
+    /// 캠퍼스 전체를 한옥 지붕으로 덮는다. 야외가 아니라 <b>박물관 대청</b> 안이 되는 거야 —
+    /// 무인 모형 카트가 실내 대회를 도는 설정이라 오히려 이쪽이 이야기에 맞는다.
+    ///
+    /// 기둥은 담장 선에만 세운다. 트랙은 반경 66m 안쪽을 도니까 카트가 기둥에 부딪힐 일이 없다.
+    /// </summary>
+    void BuildRoof()
+    {
+        float width = wallHalfX * 2.3f, depth = wallHalfZ * 2.3f;
+        const float ceiling = 26f;
+
+        HanokRoof.Build(built, Vector3.zero, width, depth, ceiling, FlatMaterial.Get);
+        BuildUpperWalls(width, depth, ceiling);
+
+        // 지붕을 받치는 기둥 — 담장 바깥쪽 모서리에만. 없으면 지붕이 공중에 떠 보인다.
+        var posts = new GameObject("RoofPosts").transform;
+        posts.SetParent(built, false);
+
+        float halfW = width * 0.5f, halfD = depth * 0.5f;
+        for (int i = 0; i < 5; i++)
+        {
+            float t = i / 4f;
+            float x = Mathf.Lerp(-halfW, halfW, t);
+            float z = Mathf.Lerp(-halfD, halfD, t);
+            RoofPost(posts, $"PostN_{i}", new Vector3(x, 0f, -halfD), ceiling);
+            RoofPost(posts, $"PostS_{i}", new Vector3(x, 0f,  halfD), ceiling);
+            if (i == 0 || i == 4) continue;   // 모서리는 위에서 이미 세웠다
+            RoofPost(posts, $"PostW_{i}", new Vector3(-halfW, 0f, z), ceiling);
+            RoofPost(posts, $"PostE_{i}", new Vector3( halfW, 0f, z), ceiling);
+        }
+    }
+
+
+    /// <summary>
+    /// 담장 꼭대기(4.2m)와 지붕(26m) 사이를 막는 윗벽. 이게 없으면 지평선 쪽에 트인 띠가
+    /// 남아서, 지붕을 덮어도 그 틈으로 배경색이 하늘처럼 보인다.
+    ///
+    /// 통짜 회벽이면 절벽 같아서, 위쪽에 발광 창을 한 줄 넣어 높이를 읽히게 했다.
+    /// </summary>
+    void BuildUpperWalls(float width, float depth, float ceiling)
+    {
+        var root = new GameObject("UpperWalls").transform;
+        root.SetParent(built, false);
+
+        float halfW = width * 0.5f, halfD = depth * 0.5f;
+        float bottom = wallHeight;                 // 담장 꼭대기
+        float h = ceiling - bottom;
+        float midY = bottom + h * 0.5f;
+
+        (Vector3 pos, Vector3 size, bool alongX)[] sides =
+        {
+            (new Vector3(0f, midY, -halfD), new Vector3(width, h, 1.6f), true),
+            (new Vector3(0f, midY,  halfD), new Vector3(width, h, 1.6f), true),
+            (new Vector3(-halfW, midY, 0f), new Vector3(1.6f, h, depth), false),
+            (new Vector3( halfW, midY, 0f), new Vector3(1.6f, h, depth), false),
+        };
+
+        for (int i = 0; i < sides.Length; i++)
+        {
+            var (pos, size, alongX) = sides[i];
+            Block(root, $"Upper_{i}", pos, Quaternion.identity, size, ColCream, noCollider: true);
+
+            // 창 한 줄 — 지붕 바로 아래에
+            float winY = ceiling - h * 0.22f;
+            int count = 9;
+            for (int j = 0; j < count; j++)
+            {
+                float t = (j + 0.5f) / count;
+                Vector3 c = alongX
+                    ? new Vector3(Mathf.Lerp(-halfW, halfW, t), winY, pos.z)
+                    : new Vector3(pos.x, winY, Mathf.Lerp(-halfD, halfD, t));
+                Vector3 s = alongX ? new Vector3(width / count * 0.45f, h * 0.16f, 1.9f)
+                                   : new Vector3(1.9f, h * 0.16f, depth / count * 0.45f);
+                Block(root, $"UpperWin_{i}_{j}", c, Quaternion.identity, s, ColWindow, noCollider: true);
+            }
+        }
+    }
+    void RoofPost(Transform parent, string name, Vector3 position, float ceiling)
+    {
+        Block(parent, name, position + Vector3.up * (ceiling * 0.5f), Quaternion.identity,
+              new Vector3(2.4f, ceiling, 2.4f), ColWood, noCollider: true);
+        Block(parent, name + "_Base", position + Vector3.up * 0.7f, Quaternion.identity,
+              new Vector3(3.6f, 1.4f, 3.6f), ColStoneWall, noCollider: true);
     }
 
     /// <summary>석등을 도로 바깥쪽 가장자리를 따라 세운다.</summary>

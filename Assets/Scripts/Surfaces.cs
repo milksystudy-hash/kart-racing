@@ -77,10 +77,14 @@ public static class FlatMaterial
         // ---- 물 ----
         { 0x6FA0A8u, Finish.광택 },   // 연못
 
+        // ---- 지붕 ----
+        { 0xC9B99Au, Finish.나무 },   // 반자널
+
         // ---- 빛나는 것 ----
         { 0xF0C070u, Finish.발광 },   // 창문
         { 0xF5C069u, Finish.발광 },   // 석등
         { 0xFFD13Cu, Finish.발광 },   // 가속 발판 화살표
+        { 0xFFF6DCu, Finish.발광 },   // 천창
     };
 
     static readonly Dictionary<(Color, Finish), Material> cache = new();

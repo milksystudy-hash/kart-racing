@@ -315,14 +315,17 @@ public static class TestSceneBuilder
 
         // 위는 하늘빛(차갑게), 아래는 땅에서 되튄 빛(따뜻하게). 실제 야외가 그렇다.
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor     = new Color(0.50f, 0.56f, 0.66f);
+        // 지붕을 덮은 뒤로 위에서 오는 빛은 파란 하늘이 아니라 나무 천장의 반사다(2026-09-16).
+        RenderSettings.ambientSkyColor     = new Color(0.54f, 0.50f, 0.44f);
         RenderSettings.ambientEquatorColor = new Color(0.44f, 0.44f, 0.41f);
         RenderSettings.ambientGroundColor  = new Color(0.28f, 0.26f, 0.22f);
 
         // 먼 곳을 옅게. 담장 바깥(약 110m)까지 서서히 하늘색에 잠기게 잡았다.
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Linear;
-        RenderSettings.fogColor = new Color(0.78f, 0.82f, 0.86f);
+        // 실내 먼지빛. 카메라 배경색과 같은 값이라 먼 벽이 배경으로 자연스럽게 녹는다 —
+        // 두 색이 다르면 거기가 하늘처럼 띠로 보인다.
+        RenderSettings.fogColor = new Color(0.55f, 0.51f, 0.45f);
         RenderSettings.fogStartDistance = 55f;
         RenderSettings.fogEndDistance = 230f;
     }
@@ -364,7 +367,10 @@ public static class TestSceneBuilder
     public static Camera SetUpCamera(GameObject go)
     {
         var cam = go.AddComponent<Camera>();
-        cam.backgroundColor = new Color(0.62f, 0.70f, 0.74f);
+        // 기본값은 Skybox 라 유니티 기본 하늘이 그대로 나온다. 지붕 틈으로 그게 비치면
+        // 지붕을 덮은 의미가 없어서 단색으로 바꾼다.
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(0.55f, 0.51f, 0.45f);   // 트랙 안개색과 같은 값
         cam.farClipPlane = 400f;
         cam.nearClipPlane = 0.05f;
         go.AddComponent<AudioListener>();
@@ -649,23 +655,26 @@ public static class TestSceneBuilder
     //  프리미티브 + 머티리얼 에셋
     // ------------------------------------------------------------------
     public static GameObject Cube(Transform parent, string name, Vector3 localPos, Vector3 scale,
-                           Color color, bool keepCollider = true, Finish finish = Finish.무광)
+                           Color color, bool keepCollider = true, Finish? finish = null)
         => Primitive(parent, PrimitiveType.Cube, name, localPos, scale, color, keepCollider, finish);
 
     public static GameObject Capsule(Transform parent, string name, Vector3 localPos, Vector3 scale,
-                              Color color, bool keepCollider = true, Finish finish = Finish.무광)
+                              Color color, bool keepCollider = true, Finish? finish = null)
         => Primitive(parent, PrimitiveType.Capsule, name, localPos, scale, color, keepCollider, finish);
 
     public static GameObject Primitive(Transform parent, PrimitiveType type, string name, Vector3 localPos,
                                 Vector3 scale, Color color, bool keepCollider = true,
-                                Finish finish = Finish.무광)
+                                Finish? finish = null)
     {
         var go = GameObject.CreatePrimitive(type);
         go.name = name;
         if (parent != null) go.transform.SetParent(parent, false);
         go.transform.localPosition = localPos;
         go.transform.localScale = scale;
-        go.GetComponent<Renderer>().sharedMaterial = MaterialAsset(color, finish);
+        // 마감을 안 적으면 색으로 고른다 — 팔레트 색이 곧 재질이라(Surfaces.cs) 부르는 쪽마다
+        // 일일이 적을 필요가 없다. 예전엔 여기서 전부 무광으로 만들어서 살창도 석등도 안 빛났다.
+        go.GetComponent<Renderer>().sharedMaterial =
+            MaterialAsset(color, finish ?? FlatMaterial.FinishFor(color));
 
         if (!keepCollider)
         {

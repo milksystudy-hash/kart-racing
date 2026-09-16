@@ -265,22 +265,19 @@ public static class GallerySceneBuilder
         Wall(root, "WallW", new Vector3(-halfW - 0.25f, 0f, 0f), new Vector3(0.5f, HallDepth + 1f));
         Wall(root, "WallE", new Vector3( halfW + 0.25f, 0f, 0f), new Vector3(0.5f, HallDepth + 1f));
 
-        // 기둥과 보 — 천장은 덮지 않아서 위에서 내려다볼 수 있다
+        // 기둥과 지붕. 천장은 2026-09-16 에 덮었다 — 천창 한 칸만 남겨서
+        // 이 방의 빛이 어디서 오는지 눈에 보이게 했다.
         var frame = new GameObject("Frame").transform;
         frame.SetParent(root, false);
+
+        HanokRoof.Build(frame, Vector3.zero, HallWidth, HallDepth, WallHeight,
+                        c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c)),
+                        skylightSize: 6f);
         for (int i = -2; i <= 2; i++)
         {
             float x = i * (halfW - 1f) / 2.2f;
             Column(frame, $"Col_N{i + 2}", new Vector3(x, 0f, -halfD + 0.8f));
             Column(frame, $"Col_S{i + 2}", new Vector3(x, 0f,  halfD - 0.8f));
-        }
-        for (int i = -3; i <= 3; i++)
-        {
-            float z = i * (halfD - 1f) / 3.4f;
-            var beam = TestSceneBuilder.Cube(frame, $"Beam_{i + 3}", new Vector3(0f, WallHeight - 0.35f, z),
-                                             new Vector3(HallWidth, 0.4f, 0.55f), ColWoodDark,
-                                             keepCollider: false);
-            beam.isStatic = true;
         }
     }
 
@@ -545,9 +542,10 @@ public static class GallerySceneBuilder
         orbit.distance = 11f;
         orbit.minDistance = 5f;
         orbit.maxDistance = 12f;
-        orbit.pitch = 20f;
+        orbit.pitch = 16f;
         orbit.minPitch = 2f;
-        orbit.maxPitch = 55f;
+        // 받침점 1.4m + 12m x sin(20) = 5.5m < 천장 6.5m. 천장을 덮은 뒤로 이게 상한이야.
+        orbit.maxPitch = 20f;
         orbit.idleDelay = 6f;
         return orbit;
     }

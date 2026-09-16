@@ -387,3 +387,52 @@ are never reassigned even when a colour happens to match. Measured on a fresh lo
 
 **Menu is now four items**, not three: 트랙/로비/전시실 씬 만들기 + 재질 다듬기. The 2026-09-15
 complaint was about six confusing entries with submenus, not about the count itself.
+
+## 지붕 — 2026-09-16, 세 씬 모두
+
+The user asked for no sky in any scene, roofed like the track's buildings.
+
+- **`Scripts/HanokRoof.cs` builds one roof, used by all three scenes.** It only models the
+  *underside* — the player never sees the tiled outside. Layers bottom-up: 처마 띠(청기와) →
+  공포 → 대들보 + 단청 → **서까래** → 반자널. The rafters are what makes it read as a hanok;
+  a single ceiling slab is the most "made in Unity" thing you can build.
+- Materials come in as a `Func<Color, Material>`: the Lobby/Gallery pass
+  `c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c))` because a **saved scene
+  needs real .mat assets**, while the track passes `FlatMaterial.Get` (runtime).
+- **No roof piece casts a shadow.** The point is hiding the sky, not switching the lights off.
+  Measured A/B at the start line: road brightness **0.295 → 0.362 with the roof** (it went *up*;
+  the warm ambient helps) while the top of the frame went 0.487 → 0.260, which is the sky
+  becoming a ceiling. Gallery §7.6's one shadow-casting skylight still works.
+- **`Camera.clearFlags` was never set, so it defaulted to Skybox** — the Unity default sky was
+  visible in all three scenes. `SetUpCamera` now uses SolidColor. Track background and
+  `fogColor` are the **same value** (0.55, 0.51, 0.45); if they differ, the far wall reads as a
+  band of sky.
+- `CampusBuilder.BuildUpperWalls` closes the gap between the 4.2 m perimeter wall and the 26 m
+  roof. Without it a strip of background shows at the horizon and the roof is pointless.
+  Measured: sky-coloured pixels in the upper third of the frame = **0.0%** in all three views.
+- **Roofing forced the orbit cameras down.** `maxPitch` 55° → 20° in Lobby and Gallery: at
+  55° the camera climbed above the walls and would now look at the roof's back.
+  The rule is `pivotY + maxDistance * sin(maxPitch) < ceiling - 0.4`. Change the ceiling and
+  you must change this too.
+
+## 로비 손보기 — 2026-09-16
+
+The user said the lobby looked lazy, and confirmed **they have no FBX in the lobby** — the only
+models they have made are the karts. So `LobbySceneBuilder` can be re-run freely; the earlier
+caution about overwriting hand-placed props does not apply to Lobby.unity today. Re-check before
+assuming it still holds.
+
+`MakeCraft()` adds three things, all thin boxes, all chosen because they give the eye a ruler:
+바닥 줄눈 (3 m grid), 살창 12장 (frame + 5 verticals + 3 horizontals + an **emissive 한지** behind),
+주련 10개 on the columns. Blank cream walls were the biggest remaining tell.
+
+- **`TestSceneBuilder.Cube/Capsule/Primitive` now default their finish to `FlatMaterial.FinishFor(color)`**
+  instead of 무광. That was why the new 살창 came out dead (발광 0) — the generic helper flattened
+  everything. An explicit `finish:` argument still wins, so the gallery's 유리/금속 are untouched.
+  Result: 로비 석재 64 · 나무 220 · 발광 16, 전시실 유리 32 · 금속 56 still intact.
+
+## 잠긴 자리는 ??? — 2026-09-16
+
+`CharacterStand.Label` returns **"???"** when `locked` is true, so 개발업자(5번)와 시의원(6번)
+are not named in the lobby. `displayName` and `castId` stay in the scene, so the nameplate colour
+still identifies them and flipping `locked` reveals the name with no other change.

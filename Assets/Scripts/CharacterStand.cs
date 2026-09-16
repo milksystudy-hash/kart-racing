@@ -49,7 +49,14 @@ public class CharacterStand : MonoBehaviour
     /// 잠금 여부와는 별개다 — 잠금은 <see cref="locked"/> 로 판단한다.</summary>
     public bool IsEmpty => modelAnchor == null || modelAnchor.childCount == 0;
 
-    public string Label => string.IsNullOrEmpty(displayName) ? $"#{index + 1}" : displayName;
+    /// <summary>
+    /// 화면에 뜨는 이름. <b>잠긴 자리는 정체를 숨긴다</b> — 개발업자와 시의원이 누구인지
+    /// 로비에서 미리 읽히면 이야기의 재미가 사라진다(2026-09-16 유저 요청).
+    /// 이름표 색은 그대로 두니까 색으로는 두 사람이 구분된다.
+    /// </summary>
+    public string Label => locked ? "???"
+                         : string.IsNullOrEmpty(displayName) ? $"#{index + 1}"
+                         : displayName;
 
     bool selected;
     bool highlighted;

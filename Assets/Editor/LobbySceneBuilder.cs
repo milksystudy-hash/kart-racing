@@ -75,6 +75,7 @@ public static class LobbySceneBuilder
         MakePawMedallion(new Vector3(0f, 0.02f, 0f), 1f);
         MakeWalls();
         MakeBeams();
+        MakeCraft();
         MakeStoneLanterns();
 
         MakeBearStatue(new Vector3(0f, 0f, -11.5f));
@@ -235,6 +236,132 @@ public static class LobbySceneBuilder
     }
 
     /// <summary>한옥 목재 기둥. 벽을 따라 일정 간격으로 세운다.</summary>
+    // ==================================================================
+    //  손맛 — 큰 상자 몇 개로는 절대 안 나오는 것들
+    // ==================================================================
+    /// <summary>
+    /// 홀이 "성의 없어 보인다" 는 말을 들은 뒤(2026-09-16) 넣은 세 가지.
+    /// 전부 얇은 상자인데, 셋 다 <b>눈이 크기를 재게 만드는</b> 물건이라 효과가 크다:
+    ///
+    ///   1. <b>바닥 줄눈</b> — 판 한 장은 크기를 가늠할 수 없어서 방이 작고 평평해 보인다
+    ///   2. <b>창호</b> — 크림색 빈 벽이 제일 유니티 같다. 살창을 걸면 벽에 눈금이 생긴다
+    ///   3. <b>주련</b> — 기둥에 세로 현판. 면적은 작은데 한국 건물이라는 신호가 세다
+    ///
+    /// 살창 뒤에는 발광 한지를 대서 바깥에서 빛이 드는 것처럼 보이게 했다.
+    /// </summary>
+    static void MakeCraft()
+    {
+        var root = new GameObject("Craft").transform;
+
+        MakeFloorSeams(root);
+        MakeLatticeWindows(root);
+        MakeColumnPlaques(root);
+    }
+
+    /// <summary>바닥 줄눈. 3m 칸으로 나눈다 — 카트(전장 1.9m)가 두 칸을 안 넘는 크기야.</summary>
+    static void MakeFloorSeams(Transform parent)
+    {
+        var root = new GameObject("FloorSeams").transform;
+        root.SetParent(parent, false);
+
+        const float step = 3f, width = 0.07f;
+        float halfW = HallWidth * 0.5f - 1.2f, halfD = HallDepth * 0.5f - 1.2f;
+
+        for (float x = -halfW; x <= halfW + 0.01f; x += step)
+            Seam(root, $"SeamX_{x:0}", new Vector3(x, 0.006f, 0f), new Vector3(width, 0.01f, halfD * 2f));
+
+        for (float z = -halfD; z <= halfD + 0.01f; z += step)
+            Seam(root, $"SeamZ_{z:0}", new Vector3(0f, 0.006f, z), new Vector3(halfW * 2f, 0.01f, width));
+    }
+
+    static void Seam(Transform parent, string name, Vector3 position, Vector3 scale)
+    {
+        var go = TestSceneBuilder.Cube(parent, name, position, scale, ColStone, keepCollider: false);
+        go.isStatic = true;
+    }
+
+    /// <summary>
+    /// 살창 넉 장씩. 민트 허리 패널(1.6m, 높이 2.2) 위, 처마 아래 빈 띠에 건다.
+    /// </summary>
+    static void MakeLatticeWindows(Transform parent)
+    {
+        var root = new GameObject("LatticeWindows").transform;
+        root.SetParent(parent, false);
+
+        float halfW = HallWidth * 0.5f, halfD = HallDepth * 0.5f;
+        const float y = 4.5f, w = 4.2f, h = 2.4f;
+
+        for (int i = -1; i <= 1; i++)
+        {
+            float x = i * (halfW * 0.55f);
+            Lattice(root, $"Win_N{i + 1}", new Vector3(x, y, -halfD + 0.18f), w, h, true);
+            Lattice(root, $"Win_S{i + 1}", new Vector3(x, y,  halfD - 0.18f), w, h, true);
+        }
+        for (int i = -1; i <= 1; i++)
+        {
+            float z = i * (halfD * 0.55f);
+            Lattice(root, $"Win_W{i + 1}", new Vector3(-halfW + 0.18f, y, z), w, h, false);
+            Lattice(root, $"Win_E{i + 1}", new Vector3( halfW - 0.18f, y, z), w, h, false);
+        }
+    }
+
+    /// <summary>살창 한 장 — 한지 + 테두리 + 세로살 다섯 + 가로살 셋.</summary>
+    static void Lattice(Transform parent, string name, Vector3 centre, float w, float h, bool alongX)
+    {
+        var root = new GameObject(name).transform;
+        root.SetParent(parent, false);
+        root.localPosition = centre;
+        if (!alongX) root.localRotation = Quaternion.Euler(0f, 90f, 0f);
+
+        // 한지 — 발광이라 바깥에서 빛이 드는 것처럼 보인다
+        Piece(root, "Paper", new Vector3(0f, 0f, 0.06f), new Vector3(w, h, 0.05f), HanokRoof.Skylight);
+
+        // 테두리
+        Piece(root, "FrameT", new Vector3(0f,  h * 0.5f, 0f), new Vector3(w + 0.3f, 0.22f, 0.16f), ColWoodDark);
+        Piece(root, "FrameB", new Vector3(0f, -h * 0.5f, 0f), new Vector3(w + 0.3f, 0.22f, 0.16f), ColWoodDark);
+        Piece(root, "FrameL", new Vector3(-w * 0.5f, 0f, 0f), new Vector3(0.22f, h + 0.22f, 0.16f), ColWoodDark);
+        Piece(root, "FrameR", new Vector3( w * 0.5f, 0f, 0f), new Vector3(0.22f, h + 0.22f, 0.16f), ColWoodDark);
+
+        // 살 — 이 눈금이 살창을 살창으로 보이게 한다
+        for (int i = 1; i <= 5; i++)
+            Piece(root, $"BarV_{i}", new Vector3(Mathf.Lerp(-w * 0.5f, w * 0.5f, i / 6f), 0f, 0.01f),
+                  new Vector3(0.09f, h, 0.13f), ColWoodLight);
+
+        for (int i = 1; i <= 3; i++)
+            Piece(root, $"BarH_{i}", new Vector3(0f, Mathf.Lerp(-h * 0.5f, h * 0.5f, i / 4f), 0.01f),
+                  new Vector3(w, 0.09f, 0.13f), ColWoodLight);
+    }
+
+    static void Piece(Transform parent, string name, Vector3 position, Vector3 scale, Color color)
+    {
+        var go = TestSceneBuilder.Cube(parent, name, position, scale, color, keepCollider: false);
+        go.isStatic = true;
+    }
+
+    /// <summary>기둥에 거는 세로 현판. 글씨는 없지만 실루엣만으로 충분히 읽힌다.</summary>
+    static void MakeColumnPlaques(Transform parent)
+    {
+        var root = new GameObject("Plaques").transform;
+        root.SetParent(parent, false);
+
+        float halfW = HallWidth * 0.5f - 0.6f;
+        float halfD = HallDepth * 0.5f - 0.6f;
+
+        for (int i = -2; i <= 2; i++)
+        {
+            float x = i * (halfW / 2.4f);
+            Plaque(root, $"Plaque_N{i + 2}", new Vector3(x, 3.4f, -halfD + 0.42f));
+            Plaque(root, $"Plaque_S{i + 2}", new Vector3(x, 3.4f,  halfD - 0.42f));
+        }
+    }
+
+    static void Plaque(Transform parent, string name, Vector3 position)
+    {
+        Piece(parent, name, position, new Vector3(0.44f, 2.6f, 0.07f), ColWoodLight);
+        Piece(parent, name + "_Cap", position + Vector3.up * 1.38f,
+              new Vector3(0.58f, 0.16f, 0.13f), ColRibbon);
+    }
+
     static void MakeColumns(Transform parent)
     {
         var root = new GameObject("Columns").transform;
@@ -271,24 +398,19 @@ public static class LobbySceneBuilder
         footing.isStatic = true;
     }
 
-    /// <summary>천장은 덮지 않고 보만 건다. 위에서 홀 안을 들여다볼 수 있게.</summary>
+    /// <summary>
+    /// 천장을 덮는다. 예전엔 일부러 뚫어놨었는데(위에서 내려다보라고) 2026-09-16 에
+    /// "하늘 안 보이게" 요청으로 덮었다. 대신 카메라가 벽 위로 못 올라가게 같이 묶었어 —
+    /// 안 묶으면 지붕을 바깥에서 내려다보게 된다.
+    /// </summary>
     static void MakeBeams()
     {
         var root = new GameObject("Beams").transform;
-        float halfD = HallDepth * 0.5f;
 
-        for (int i = -3; i <= 3; i++)
-        {
-            float z = i * (halfD / 3.6f);
-            var beam = TestSceneBuilder.Cube(root, $"Beam_{i + 3}",
-                                             new Vector3(0f, WallHeight - 0.35f, z),
-                                             new Vector3(HallWidth, 0.45f, 0.6f), ColWoodDark,
-                                             keepCollider: false);
-            beam.isStatic = true;
-        }
+        HanokRoof.Build(root, Vector3.zero, HallWidth, HallDepth, WallHeight,
+                        c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c)));
 
-        // 벽 위를 두르는 청록 기와 띠. 가운데는 뚫려 있어야 위에서 홀 안이 보인다 —
-        // 판 하나로 덮으면 카메라를 올렸을 때 화면이 통째로 막힌다.
+        // 벽 위를 두르는 청록 기와 띠 — 지붕 처마와 벽 사이를 메운다
         float halfW = HallWidth * 0.5f + 0.6f;
         float capW = HallWidth + 1.2f, capD = HallDepth + 1.2f;
         float y = WallHeight + 0.12f;
@@ -541,9 +663,11 @@ public static class LobbySceneBuilder
         orbit.minDistance = 7f;
         orbit.maxDistance = 13f;   // 더 멀어지면 카메라가 벽을 뚫고 나간다
         orbit.yaw = 0f;
-        orbit.pitch = 24f;
-        orbit.minPitch = 4f;
-        orbit.maxPitch = 55f;
+        orbit.pitch = 16f;
+        orbit.minPitch = 2f;
+        // 천장을 덮었으니 카메라가 그 위로 올라가면 지붕 등짝만 보인다.
+        // 받침점 1.6m + 13m x sin(20) = 6.0m < 천장 7m — 이 셋은 같이 움직여야 한다.
+        orbit.maxPitch = 20f;
         return orbit;
     }
 
