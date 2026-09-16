@@ -342,8 +342,11 @@ public class TrackBuilder : MonoBehaviour
             int to = Mathf.Min(i + stripeLength, total);
             var color = (i / stripeLength) % 2 == 0 ? ColKerb : ColKerbAlt;
 
-            Ribbon(parent, $"StripeOuter_{i:000}", outer, outer, i, to, lift, top, color, flip: true);
-            Ribbon(parent, $"StripeInner_{i:000}", inner, inner, i, to, top, lift, color, flip: true);
+            // <b>콜라이더를 달면 안 된다.</b> 띠는 벽 면에 딱 붙어 있어서, 콜라이더가 있으면
+            // 벽을 한 번 긁을 때 벽 조각과 띠 조각이 <b>각각</b> 세진다.
+            // 실제로 그래서 "벽 2번" 이어야 할 게 "벽 4번" 으로 떴다(2026-09-16).
+            Ribbon(parent, $"StripeOuter_{i:000}", outer, outer, i, to, lift, top, color, flip: true, collider: false);
+            Ribbon(parent, $"StripeInner_{i:000}", inner, inner, i, to, top, lift, color, flip: true, collider: false);
         }
     }
     void BuildRailPosts(Transform parent, Vector3[] outer, Vector3[] inner, int[] zones, int total)

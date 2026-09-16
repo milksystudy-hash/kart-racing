@@ -66,8 +66,19 @@ public class KartController : MonoBehaviour
     public float SteerInput => steerInput;
     public bool IsGrounded { get; private set; }
     public bool IsDrifting { get; private set; }
-    /// <summary>이번 판에 벽에 세게 부딪힌 횟수. 무충돌 임무가 이걸 본다.</summary>
+    /// <summary>
+    /// 이번 판에 벽에 세게 부딪힌 횟수. 무충돌 임무가 이걸 본다.
+    ///
+    /// <b>벽은 한 덩어리가 아니라 여러 조각이다</b>(구간별 리본). 벽을 따라 쭉 긁으면
+    /// 조각을 넘을 때마다 OnCollisionEnter 가 또 오기 때문에, 한 번 긁은 게 서너 번으로 세진다.
+    /// 그래서 <see cref="WallHitCooldown"/> 안에 들어온 건 같은 접촉으로 친다.
+    /// </summary>
     public int WallHits { get; private set; }
+
+    /// <summary>이 시간 안에 또 부딪힌 건 같은 접촉으로 본다(초).</summary>
+    const float WallHitCooldown = 0.7f;
+
+    float lastWallHitAt = -99f;
 
     /// <summary>이번 판에 드리프트로 모은 태엽을 몇 번 터뜨렸는지.</summary>
     public int DriftBoosts { get; private set; }
@@ -161,7 +172,11 @@ public class KartController : MonoBehaviour
             if (into < 1.5f) return;   // 스치기만 한 건 봐준다
             float severity = Mathf.Clamp01(into / Mathf.Max(1f, maxSpeed));
             rb.linearVelocity = velocity * (1f - wallImpactLoss * severity);
-            WallHits++;   // 속도가 깎일 만큼 박은 것만 센다 — 스친 건 위에서 이미 걸렀다
+
+            // 속도가 깎일 만큼 박은 것만, 그리고 <b>한 접촉당 한 번만</b> 센다.
+            if (Time.time - lastWallHitAt < WallHitCooldown) return;
+            lastWallHitAt = Time.time;
+            WallHits++;
         }
         else if (wallScrubPerSecond > 0f)
         {
@@ -348,6 +363,7 @@ public class KartController : MonoBehaviour
     {
         WallHits = 0;
         DriftBoosts = 0;
+        lastWallHitAt = -99f;
     }
 
     /// <summary>돌던 부스트를 즉시 끊는다. 벽에 눌려 못 움직일 때 빠져나갈 길을 터준다.</summary>

@@ -129,7 +129,7 @@ public class BearNpc : MonoBehaviour
         }
 
         Patrol(now);
-        Speak(now, near);
+        OfferTalk(target, target != null ? Vector3.Distance(target.position, transform.position) : 999f);
 
         Breathe(now);
         Look(target, near);
@@ -151,23 +151,23 @@ public class BearNpc : MonoBehaviour
     [Tooltip("한 곳에 도착해서 쉬는 시간(초)")]
     public Vector2 restEvery = new Vector2(1.5f, 4f);
 
-    [Header("혼잣말 ★임시")]
-    [Tooltip("가까이 있을 때 이 간격(초)으로 한마디 한다")]
-    public Vector2 speakEvery = new Vector2(6f, 12f);
+    [Header("말 걸기 ★임시")]
+    [Tooltip("이 거리 안이면 '말 걸기' 표시가 뜬다(m)")]
+    public float talkRange = 3.5f;
 
-    Vector3 home, walkTarget;
-    float restUntil, speakAt;
+    [Tooltip("돌아다닐 때 다른 물건과 이만큼은 떨어져 있어야 한다(m)")]
+    public float clearance = 1.1f;
+
+    Vector3 home, walkTarget, lastPlace;
+    float restUntil, blockedFor;
     bool walking;
-
-    /// <summary>지금 화면에 대사를 띄우고 있는 곰. 셋이 동시에 떠들면 못 읽는다.</summary>
-    static BearNpc speaker;
 
     void StartPatrol()
     {
         home = transform.position;
         walkTarget = home;
+        lastPlace = home;
         restUntil = Time.time + Random.Range(restEvery.x, restEvery.y);
-        speakAt = Time.time + Random.Range(speakEvery.x, speakEvery.y);
     }
 
     void Patrol(float now)
@@ -177,9 +177,7 @@ public class BearNpc : MonoBehaviour
         if (!walking)
         {
             if (now < restUntil) return;
-            // 처음 선 자리 둘레에서 아무 데나 — 반경을 벗어나지 않으니 벽에 안 박는다
-            Vector2 r = Random.insideUnitCircle * patrolRadius;
-            walkTarget = home + new Vector3(r.x, 0f, r.y);
+            walkTarget = PickSpot();
             walking = true;
             return;
         }
@@ -198,23 +196,100 @@ public class BearNpc : MonoBehaviour
         transform.rotation = Quaternion.Slerp(transform.rotation,
                                               Quaternion.LookRotation(flat, Vector3.up),
                                               1f - Mathf.Exp(-turnToWalkSpeed * Time.deltaTime));
+
+        // 실제로 나아가고 있나. 뭔가에 막히면 위치가 안 변한다 —
+        // 로비에서 곰 한 마리가 곰 조각상 안에 갇혀 있었다(2026-09-16).
+        if ((transform.position - lastPlace).sqrMagnitude < 0.0001f) blockedFor += Time.deltaTime;
+        else { blockedFor = 0f; lastPlace = transform.position; }
+
+        if (blockedFor > 0.8f)
+        {
+            blockedFor = 0f;
+            walkTarget = home;          // 막히면 일단 처음 자리로 돌아간다
+            if ((home - transform.position).sqrMagnitude < 0.25f) walking = false;
+        }
+    }
+
+    /// <summary>
+    /// 처음 선 자리 둘레에서 <b>비어 있는</b> 곳을 고른다. 반경만 보고 아무 데나 고르면
+    /// 그 안에 조각상이나 받침대가 있을 때 그리로 걸어가 박힌다.
+    /// 몇 번 찾아보고 다 막혀 있으면 그냥 제자리에 선다 — 억지로 가느니 서 있는 게 낫다.
+    /// </summary>
+    Vector3 PickSpot()
+    {
+        for (int tries = 0; tries < 8; tries++)
+        {
+            Vector2 r = Random.insideUnitCircle * patrolRadius;
+            Vector3 spot = home + new Vector3(r.x, 0f, r.y);
+            if (IsClear(spot)) return spot;
+        }
+        return transform.position;
+    }
+
+    /// <summary>그 자리에 나 말고 다른 게 있나. 내 콜라이더는 빼고 본다.</summary>
+    bool IsClear(Vector3 spot)
+    {
+        var hits = Physics.OverlapSphere(spot + Vector3.up * 0.5f, clearance);
+        foreach (var h in hits)
+        {
+            if (h.transform == transform || h.transform.IsChildOf(transform)) continue;
+            if (h.isTrigger) continue;
+            // 바닥은 당연히 걸린다. 위에서 눌러 만든 바닥판은 넓고 낮으니 높이로 가린다.
+            if (h.bounds.max.y < 0.2f) continue;
+            return false;
+        }
+        return true;
     }
 
     /// <summary>걸을 때 팔을 번갈아 흔든다. 팔이 가만히 있으면 미끄러지는 것처럼 보인다.</summary>
     float WalkSwing(float now) => walking ? Mathf.Sin(now * walkSpeed * 9f) * 18f : 0f;
 
-    void Speak(float now, bool near)
+    // ------------------------------------------------------------------
+    //  말 걸기 — 동물의 숲처럼 <b>버튼을 눌러야</b> 말한다
+    // ------------------------------------------------------------------
+    /// <summary>
+    /// 가까이 갔다고 저절로 떠들면 지나갈 때마다 말이 튀어나와서 금방 시끄러워진다.
+    /// 유저 요청(2026-09-16)대로 <b>말 걸 수 있다는 표시만 띄우고</b>, 누르면 그때 말한다.
+    ///
+    /// 표시는 <b>제일 가까운 한 마리<\/b>에게만 뜬다. 셋이 몰려 있을 때 누구한테 거는 건지
+    /// 헷갈리면 안 되니까.
+    /// </summary>
+    public static BearNpc Nearest { get; private set; }
+
+    /// <summary>이번에 말한 줄. 말풍선 대신 화면 알림으로 띄운다.</summary>
+    public string LastLine { get; private set; } = "";
+
+    static float nearestDistance;
+    static int nearestFrame = -1;
+
+    /// <summary>매 프레임 "내가 제일 가까운가" 를 겨룬다. 제일 가까운 놈만 표시를 얻는다.</summary>
+    void OfferTalk(Transform target, float distance)
     {
-        if (now < speakAt) return;
-        speakAt = now + Random.Range(speakEvery.x, speakEvery.y);
+        if (nearestFrame != Time.frameCount)
+        {
+            nearestFrame = Time.frameCount;
+            nearestDistance = float.MaxValue;
+            Nearest = null;
+        }
 
-        // 가까이 있을 때만, 그리고 한 번에 한 마리만
-        if (!near) return;
-        if (speaker != null && speaker != this && Toast.Visible) return;
+        if (target == null || distance > talkRange || distance >= nearestDistance) return;
 
-        speaker = this;
-        Toast.Show(BearLines.Random());
+        nearestDistance = distance;
+        Nearest = this;
     }
+
+    /// <summary>말을 건다. 대사 한 줄을 뱉고, 말한 쪽을 쳐다보며 손을 든다.</summary>
+    public void Talk()
+    {
+        LastLine = BearLines.Random();
+        Toast.Show(LastLine);
+        waveUntil = Time.time + waveHold;
+
+        // 말 거는 동안은 안 돌아다닌다. 말하다 말고 걸어가면 이상해.
+        walking = false;
+        restUntil = Time.time + 2.5f;
+    }
+
     void Breathe(float now)
     {
         if (body == null) return;

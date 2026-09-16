@@ -79,12 +79,14 @@ public static class LobbySceneBuilder
         MakeStoneLanterns();
 
         MakeBearStatue(new Vector3(0f, 0f, -11.5f));
-        MakeBears();
         MakeReceptionDesk(new Vector3(11.5f, 0f, 4f));
         MakeBroadcastScreen(new Vector3(-17.4f, 3.6f, -2f));
 
         var stands = MakeStands();
         var gate = MakeGate(new Vector3(0f, 0f, 10.5f));
+        // 곰은 제일 마지막에. 앞에서 세우면 받침대·출발문이 아직 없어서 그 자리를 비었다고 본다.
+        MakeBears();
+
         var orbit = MakeOrbitCamera();
         var cam = orbit.GetComponent<Camera>();
 
@@ -562,6 +564,17 @@ public static class LobbySceneBuilder
     /// <summary>곰인형 키울 배수. 모델이 1.0m 라 그대로 두면 홀에서 너무 작다.</summary>
     const float BearScale = 1.7f;
 
+    /// <summary>
+    /// <b>자리를 좌표로 찍지 않고 빈 곳을 찾아서 세운다.</b>
+    ///
+    /// 처음엔 손으로 좌표를 적었는데 두 번 다 틀렸다 — 한 번은 곰 조각상 안에,
+    /// 다음엔 석등 위에 올라갔다(2026-09-16). 홀에 뭐가 있는지 외워서 피하는 건 안 되는 방법이야.
+    /// 바닥에 격자를 깔고 <b>이미 놓인 콜라이더와 제일 멀리 떨어진 칸</b>을 고른다.
+    /// 나중에 홀에 뭘 더 놓아도 곰이 알아서 비켜선다.
+    ///
+    /// 그래서 이 함수는 <b>빌드 순서의 맨 뒤</b>에 불러야 한다. 앞에서 부르면 받침대·출발문이
+    /// 아직 없어서 그 자리를 비어 있다고 판단한다.
+    /// </summary>
     static void MakeBears()
     {
         var model = FindRiggedBear();
@@ -572,45 +585,109 @@ public static class LobbySceneBuilder
             return;
         }
 
+        var spots = FindOpenSpots(3, patrolRadius: 3f);
+        if (spots.Count == 0)
+        {
+            Debug.LogWarning("[로비] 곰을 세울 빈자리를 못 찾았어. 홀이 꽉 찼나?");
+            return;
+        }
+
         var root = new GameObject("BearNpcs").transform;
 
-        // 북쪽 벽 앞에 늘어세운다. 받침대(캐릭터 고르는 자리)를 안 가리는 자리야.
-        (Vector3 at, float facing)[] spots =
+        for (int i = 0; i < spots.Count; i++)
         {
-            (new Vector3(-9.5f, 0f, -10f),  25f),
-            (new Vector3( 0.5f, 0f, -12f),   0f),
-            (new Vector3( 9.5f, 0f, -10f), -25f),
-        };
-
-        for (int i = 0; i < spots.Length; i++)
-        {
-            var (at, facing) = spots[i];
             var go = (GameObject)PrefabUtility.InstantiatePrefab(model);
             go.name = $"BearNpc_{i + 1}";
             go.transform.SetParent(root, false);
-            go.transform.SetPositionAndRotation(at, Quaternion.Euler(0f, facing, 0f));
 
-            // 모델 키가 1.0m 라 7m 짜리 홀에서는 인형처럼 작아 보인다.
-            // 1.7 배로 키우면 카트(전장 1.5m) 옆에 섰을 때 "사람 역할" 로 읽힌다.
+            // 홀 가운데를 보게 세운다 — 벽을 보고 서 있으면 등만 보인다
+            Vector3 toCentre = new Vector3(-spots[i].x, 0f, -spots[i].z);
+            go.transform.SetPositionAndRotation(
+                spots[i],
+                toCentre.sqrMagnitude > 0.01f ? Quaternion.LookRotation(toCentre, Vector3.up)
+                                              : Quaternion.identity);
+
             go.transform.localScale = Vector3.one * BearScale;
 
             var npc = go.AddComponent<BearNpc>();
-            // 로비 카메라는 12m 밖에서 도니까, 기본값 5m 로는 쳐다보는 걸 볼 일이 없다.
-            // 카메라가 앞을 스칠 때 고개가 따라오게 넉넉히 잡는다.
-            npc.noticeRange = 13f;
-
-            // 받침대까지 3.93m 라 기본 4.5m 로 돌아다니면 캐릭터 고르는 자리를 침범한다.
-            // 3m 면 0.9m 가 남는다 — 곰 어깨폭이 0.75m 쯤이니 아슬아슬하지 않다.
+            npc.noticeRange = 13f;   // 로비 카메라가 5~25m 에서 도니까 기본 5m 로는 안 걸린다
             npc.patrolRadius = 3f;
 
-            // 클릭해서 말 거는 건 나중이지만, 부딪히는 몸은 지금 만들어 둔다.
-            // 콜라이더는 <b>루트에 박스 하나만</b> — 메시 콜라이더는 절대 안 붙인다(CLAUDE.md 2번).
             var box = go.AddComponent<BoxCollider>();
             box.center = new Vector3(0f, 0.5f, 0f);
             box.size = new Vector3(0.8f, 1.0f, 0.5f);   // 로컬 크기라 스케일을 따라간다
         }
 
-        Debug.Log($"[로비] 곰인형 {spots.Length}마리 세웠어 — {AssetDatabase.GetAssetPath(model)}");
+        Debug.Log($"[로비] 곰인형 {spots.Count}마리 세웠어 — {AssetDatabase.GetAssetPath(model)}");
+    }
+
+    /// <summary>
+    /// 바닥 격자를 훑어서 제일 널널한 칸을 고른다. 고른 칸끼리도 서로 떨어뜨린다 —
+    /// 세 마리가 한구석에 몰려 있으면 순찰 반경이 겹쳐서 서로 밀친다.
+    /// </summary>
+    static System.Collections.Generic.List<Vector3> FindOpenSpots(int count, float patrolRadius)
+    {
+        var things = Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+        var picks = new System.Collections.Generic.List<Vector3>();
+
+        // 벽에서 3m 안쪽까지만. 순찰 반경까지 생각하면 그보다 더 들어와야 한다.
+        float limitX = HallWidth * 0.5f - 3f - patrolRadius;
+        float limitZ = HallDepth * 0.5f - 3f - patrolRadius;
+
+        var scored = new System.Collections.Generic.List<(Vector3 at, float room)>();
+        for (float x = -limitX; x <= limitX; x += 1.5f)
+            for (float z = -limitZ; z <= limitZ; z += 1.5f)
+            {
+                var at = new Vector3(x, 0f, z);
+                float room = Room(at, things);
+                if (room > patrolRadius + 0.8f) scored.Add((at, room));
+            }
+
+        scored.Sort((a, b) => b.room.CompareTo(a.room));
+
+        foreach (var (at, _) in scored)
+        {
+            if (picks.Count >= count) break;
+
+            bool tooClose = false;
+            foreach (var p in picks)
+                // 순찰 반경 두 배 + 조금. 이보다 좁게 잡으면 세 마리가 다 안 들어가고,
+                // 넓게 잡으면 순찰 원이 겹쳐서 서로 밀친다.
+                if ((p - at).sqrMagnitude < (patrolRadius * 2.1f) * (patrolRadius * 2.1f)) tooClose = true;
+
+            if (!tooClose) picks.Add(at);
+        }
+        return picks;
+    }
+
+    /// <summary>
+    /// 이 자리에서 제일 가까운 물건까지의 거리.
+    ///
+    /// <b>콜라이더가 아니라 보이는 것으로 잰다.</b> 석등처럼 장식은 콜라이더가 없어서
+    /// 콜라이더만 보면 "비어 있다" 고 나오고, 곰이 그 위에 서거나 뚫고 지나간다.
+    /// 막히는 것만 피하면 되는 게 아니라 <b>겹쳐 보이지도 않아야</b> 한다.
+    /// </summary>
+    static float Room(Vector3 at, Renderer[] things)
+    {
+        float nearest = float.MaxValue;
+        Vector3 chest = at + Vector3.up * 0.6f;
+
+        foreach (var r in things)
+        {
+            if (r == null) continue;
+            var b = r.bounds;
+            if (b.max.y < 0.25f) continue;                    // 바닥판·문양은 밟고 다니면 된다
+            if (b.size.x > 30f || b.size.z > 30f) continue;   // 벽·천장처럼 홀 전체를 덮는 것
+
+            // 바운즈까지의 수평 거리. 높이는 안 본다 — 머리 위 보나 서까래는 안 피해도 된다.
+            float dx = Mathf.Max(0f, Mathf.Max(b.min.x - chest.x, chest.x - b.max.x));
+            float dz = Mathf.Max(0f, Mathf.Max(b.min.z - chest.z, chest.z - b.max.z));
+            if (b.min.y > 2.2f) continue;                     // 높이 매달린 것
+
+            float d = Mathf.Sqrt(dx * dx + dz * dz);
+            if (d < nearest) nearest = d;
+        }
+        return nearest;
     }
 
     /// <summary>NPC_bear 폴더에서 SkinnedMeshRenderer 가 들어 있는 FBX 중 제일 최근 것.</summary>

@@ -26,7 +26,13 @@ public class LobbyHUD : MonoBehaviour
     void Update()
     {
         var k = Keyboard.current;
-        if (k != null && k.hKey.wasPressedThisFrame) showControls = !showControls;
+        if (k == null) return;
+
+        if (k.hKey.wasPressedThisFrame) showControls = !showControls;
+
+        // 동물의 숲처럼 <b>버튼을 눌러야</b> 말한다. 가까이 갔다고 저절로 떠들면
+        // 지나갈 때마다 말이 튀어나와서 금방 시끄러워진다(2026-09-16 유저).
+        if (k.eKey.wasPressedThisFrame && BearNpc.Nearest != null) BearNpc.Nearest.Talk();
     }
 
     void OnGUI()
@@ -37,6 +43,7 @@ public class LobbyHUD : MonoBehaviour
         DrawDriverPanel();
         DrawSpecSheet();
         DrawToast(w, h);
+        DrawTalkPrompt(w, h);
         DrawPrompt(w, h);
         DrawGate(w, h);
         DrawCorner(h);
@@ -118,6 +125,17 @@ public class LobbyHUD : MonoBehaviour
         GUI.Label(box, Toast.Message, Hud.Resize(Hud.Title, 16));
     }
 
+    // ---- 말 걸기 버튼 ★임시 ----
+    /// <summary>제일 가까운 곰 한 마리에게만 뜬다. 셋이 몰려 있을 때 누구한테 거는지 헷갈리면 안 된다.</summary>
+    void DrawTalkPrompt(float w, float h)
+    {
+        if (BearNpc.Nearest == null) return;
+
+        var chip = new Rect(w * 0.5f - 62f, h * 0.72f, 124f, 28f);
+        Hud.Chip(chip);
+        GUI.Label(chip, "E   말 걸기", Hud.Resize(Hud.Text, 15, TextAnchor.MiddleCenter));
+    }
+
     // ---- 화면 가운데 아래: 눈앞의 안내문 ----
     void DrawPrompt(float w, float h)
     {
@@ -183,6 +201,7 @@ public class LobbyHUD : MonoBehaviour
             { "마우스 끌기", "빙 돌려 보기" },
             { "휠", "가까이 · 멀리" },
             { "클릭", "카트 고르기 / 출발문 열기" },
+            { "E", "가까운 곰에게 말 걸기" },
             { "H", "이 창 닫기" },
         };
         Rows(box, controls, box.y + 50f);
