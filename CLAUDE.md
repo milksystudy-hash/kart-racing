@@ -604,3 +604,52 @@ the instant-fail "doesn't show", and that was the reason.
 **Retry replays only the current race. Everything already collected stays.** Resetting the whole
 collection on a failed mission would make failure cost twenty minutes, and the user would stop
 taking risks — which is the exact opposite of what missions are for.
+
+## 곰인형 NPC — 2026-09-16
+
+The user generated a teddy bear with an AI 3D tool and wants it walking the museum complaining
+that the toilet is blocked. Right now it is **placed but stationary** — movement only.
+
+### 모델 손보기 (Blender headless)
+
+The raw FBX was one mesh with **1764 duplicate vertices (30%)** and **3254 open edges**. Merging
+at 0.0005 fixed the cracks (3254 → 28) and collapsed what looked like 186 shells into 4 — those
+"shells" were the duplicate seams, not body parts. So splitting into parts was never possible;
+bones were the only route.
+
+- **Bone positions come from a measured width profile, not by eye.** Half-width drops
+  0.377 → 0.297 at z 0.60–0.65 — that is the neck (59% of height). It widens again at
+  z 0.50–0.55, which is where the arms stick out. Five bones: Root · Body · Head · Arm_L · Arm_R.
+- Blender's automatic (bone-heat) weights worked. 63 leftover unweighted vertices were assigned
+  to the nearest bone by region — unweighted vertices stay put while the bone moves and spike.
+- **Arm weights needed sharpening and the centre-line needed clearing.** Bone heat smeared arm
+  influence into the belly, so waving dragged the torso.
+- **"각져 보인다" was polygon count, not shading.** Rendering at 35° and at 180° auto-smooth looked
+  identical; the eyes and nose are simply low-poly. One Catmull-Clark level
+  (**4,507 → 17,345 quads**) rounds them out. Two levels is ~70k and too much for an NPC.
+  **Cost: ~34.7k tris each, so keep to about four on screen** against §7.6's 150–250k budget.
+- Still wrong in the source and *not* fixable by cleanup: the muzzle sits left of the eye
+  midline, and a faint facet remains in the eye highlights.
+- **Verify a rig by posing it and measuring**, not by looking: rotate each bone and check that the
+  intended region moves while the rest does not. Head 20° → head 0.145 m / feet 0.000 m.
+  Two harness bugs bit here — `to_mesh()` must be cleared between evaluations or the second call
+  returns `inf`, and `v.co` is a **live reference**, so the rest pose must be captured with
+  `.copy()` or the comparison baseline moves with the mesh.
+
+### 유니티 쪽
+
+- `Scripts/BearNpc.cs` — 숨쉬기 · 고개 갸웃 · 팔 흔들기 · 가까이 오면 쳐다보기.
+  **No AnimationClip**; it rotates bone transforms, same as the kart's lean (CLAUDE.md rule 4).
+- **Axes were measured in Unity**, not guessed: head local **X = 끄덕 · Y = 좌우 · Z = 갸웃**;
+  arm local **X = 위아래**, and local Y does nothing because it runs along the bone.
+  Blender's `Arm_L` lands on Unity's **−X** side after the axis conversion — names only.
+- Inspector fields win; if they are empty `AutoBind()` fills them by name once and says so. That
+  is a deliberate exception to the no-`Find`-by-name rule, because the point is that a freshly
+  dragged FBX moves immediately.
+- `LobbySceneBuilder.MakeBears()` places three along the north wall (3.9 m clear of the character
+  stands) and **finds the FBX by looking for a skinned model in `Assets/NPC_bear`** rather than by
+  filename — the user renames it between passes. Newest file wins. `EnsureBearImport` flips
+  `materialLocation` to InPrefab (External renders it pure white, same trap as the karts) and
+  turns animation import off.
+- `noticeRange` is **13 m** in the lobby, not the 5 m default: the orbit camera passes at 5–25 m,
+  so 5 m would never trigger and the look-at would appear broken.

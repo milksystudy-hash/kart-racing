@@ -79,6 +79,7 @@ public static class LobbySceneBuilder
         MakeStoneLanterns();
 
         MakeBearStatue(new Vector3(0f, 0f, -11.5f));
+        MakeBears();
         MakeReceptionDesk(new Vector3(11.5f, 0f, 4f));
         MakeBroadcastScreen(new Vector3(-17.4f, 3.6f, -2f));
 
@@ -544,6 +545,110 @@ public static class LobbySceneBuilder
     // ==================================================================
     //  캐릭터 자리 여섯
     // ==================================================================
+
+    // ==================================================================
+    //  곰인형 NPC — 임시 배치
+    // ==================================================================
+    /// <summary>
+    /// <c>Assets/NPC_bear</c> 에 있는 리깅된 FBX 를 찾아서 홀에 세운다.
+    ///
+    /// <b>파일 이름을 코드에 안 박는다.</b> 유저가 이름을 바꿔가며 여러 번 갈아끼우고 있어서,
+    /// 폴더 안에서 <b>뼈가 들어 있는 FBX</b> 를 찾는 쪽이 안 깨진다.
+    /// 여러 개면 제일 최근 것을 쓴다 — 보통 그게 마지막으로 다듬은 거니까.
+    ///
+    /// 정비 곰이 돌아다니며 말을 거는 건 아직이다(2026-09-16). 지금은 <b>움직이는지 보는 용도</b>라
+    /// 제자리에 세워두고 숨쉬기·갸웃·팔 흔들기·쳐다보기만 돈다.
+    /// </summary>
+    static void MakeBears()
+    {
+        var model = FindRiggedBear();
+        if (model == null)
+        {
+            Debug.Log("[로비] Assets/NPC_bear 에 뼈가 든 FBX 가 없어서 곰인형은 건너뛴다. " +
+                      "FBX 를 넣고 로비를 다시 만들면 자동으로 세워져.");
+            return;
+        }
+
+        var root = new GameObject("BearNpcs").transform;
+
+        // 북쪽 벽 앞에 늘어세운다. 받침대(캐릭터 고르는 자리)를 안 가리는 자리야.
+        (Vector3 at, float facing)[] spots =
+        {
+            (new Vector3(-9.5f, 0f, -10f),  25f),
+            (new Vector3( 0.5f, 0f, -12f),   0f),
+            (new Vector3( 9.5f, 0f, -10f), -25f),
+        };
+
+        for (int i = 0; i < spots.Length; i++)
+        {
+            var (at, facing) = spots[i];
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(model);
+            go.name = $"BearNpc_{i + 1}";
+            go.transform.SetParent(root, false);
+            go.transform.SetPositionAndRotation(at, Quaternion.Euler(0f, facing, 0f));
+
+            var npc = go.AddComponent<BearNpc>();
+            // 로비 카메라는 12m 밖에서 도니까, 기본값 5m 로는 쳐다보는 걸 볼 일이 없다.
+            // 카메라가 앞을 스칠 때 고개가 따라오게 넉넉히 잡는다.
+            npc.noticeRange = 13f;
+
+            // 클릭해서 말 거는 건 나중이지만, 부딪히는 몸은 지금 만들어 둔다.
+            // 콜라이더는 <b>루트에 박스 하나만</b> — 메시 콜라이더는 절대 안 붙인다(CLAUDE.md 2번).
+            var box = go.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.5f, 0f);
+            box.size = new Vector3(0.8f, 1.0f, 0.5f);
+        }
+
+        Debug.Log($"[로비] 곰인형 {spots.Length}마리 세웠어 — {AssetDatabase.GetAssetPath(model)}");
+    }
+
+    /// <summary>NPC_bear 폴더에서 SkinnedMeshRenderer 가 들어 있는 FBX 중 제일 최근 것.</summary>
+    static GameObject FindRiggedBear()
+    {
+        const string folder = "Assets/NPC_bear";
+        if (!AssetDatabase.IsValidFolder(folder)) return null;
+
+        GameObject best = null;
+        System.DateTime newest = System.DateTime.MinValue;
+
+        foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { folder }))
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (go == null || go.GetComponentInChildren<SkinnedMeshRenderer>(true) == null) continue;
+
+            EnsureBearImport(path);
+
+            var stamp = File.GetLastWriteTimeUtc(path);
+            if (stamp <= newest) continue;
+            newest = stamp;
+            best = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// 임포트 설정. 카트에서 겪은 것과 같은 함정이 여기도 있다 —
+    /// <b>materialLocation 이 External 이면 텍스처가 안 붙어서 새하얗게 나온다.</b>
+    /// 애니메이션은 안 가져온다. 뼈는 코드로 돌리니까 클립이 필요 없어.
+    /// </summary>
+    static void EnsureBearImport(string path)
+    {
+        var imp = AssetImporter.GetAtPath(path) as ModelImporter;
+        if (imp == null) return;
+
+        bool changed = false;
+        if (imp.materialLocation != ModelImporterMaterialLocation.InPrefab)
+        { imp.materialLocation = ModelImporterMaterialLocation.InPrefab; changed = true; }
+        if (imp.importCameras) { imp.importCameras = false; changed = true; }
+        if (imp.importLights) { imp.importLights = false; changed = true; }
+        if (imp.importAnimation) { imp.importAnimation = false; changed = true; }
+        if (imp.animationType != ModelImporterAnimationType.Generic)
+        { imp.animationType = ModelImporterAnimationType.Generic; changed = true; }
+        if (!Mathf.Approximately(imp.globalScale, 1f)) { imp.globalScale = 1f; changed = true; }
+
+        if (changed) imp.SaveAndReimport();
+    }
     static CharacterStand[] MakeStands()
     {
         var root = new GameObject("CharacterStands").transform;
