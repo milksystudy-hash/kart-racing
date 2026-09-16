@@ -394,7 +394,7 @@ public static class TestSceneBuilder
     {
         ("세진", "Assets/Cart_model/JIN_FIN_CART.fbx"),
         ("세운", "Assets/Cart_model/WOON_CART_FIN.fbx"),
-        // ("시우", "Assets/Cart_model/SIWOO_....fbx"),
+        ("시우", "Assets/Cart_model/Siwoo_cart.fbx"),
         // ("이감", "Assets/Cart_model/IGAM_....fbx"),
     };
 
@@ -499,6 +499,11 @@ public static class TestSceneBuilder
         skin.spinWheels = spin.ToArray();
 
         // 규격과 얼마나 맞는지 찍어둔다. 다음에 모델을 다시 뽑았을 때 크기가 틀어지면 여기서 보인다.
+        // 재는 동안 카트를 정면으로 돌려둔다 — 출발선 방향으로 돌아가 있으면 전폭과 전장이 섞여 나온다.
+        var root = visual.parent;
+        var saved = root.rotation;
+        root.rotation = Quaternion.identity;
+
         var bounds = new Bounds(visual.position, Vector3.zero);
         bool first = true;
         foreach (var r in instance.GetComponentsInChildren<Renderer>(true))
@@ -506,6 +511,8 @@ public static class TestSceneBuilder
             if (first) { bounds = r.bounds; first = false; }
             else bounds.Encapsulate(r.bounds);
         }
+
+        root.rotation = saved;
 
         Debug.Log($"[Racing] {castId} 카트 {model.name}  " +
                   $"전폭 {bounds.size.x:0.00} / 높이 {bounds.size.y:0.00} / 전장 {bounds.size.z:0.00} m " +
