@@ -653,3 +653,34 @@ bones were the only route.
   turns animation import off.
 - `noticeRange` is **13 m** in the lobby, not the 5 m default: the orbit camera passes at 5–25 m,
   so 5 m would never trigger and the look-at would appear broken.
+
+### 곰이 하얗게 나오던 것 — 고침 (2026-09-16)
+
+`materialLocation = InPrefab` 만으로는 부족했다. **FBX 안에 박힌(embedded) 텍스처는 저절로
+에셋이 되지 않는다** — `_BaseMap` 이 비고 `_BaseColor` 가 순백색이라 곰이 하얗게 나왔다.
+`LobbySceneBuilder.ExtractBearTextures` 가 `ModelImporter.ExtractTextures` 로
+`Assets/NPC_bear/Textures` 에 꺼내고, 꺼낸 뒤 **normal 이 이름에 든 텍스처는 타입을 NormalMap 으로**
+바꾼다(안 그러면 파랗게 칠해진다). 이미 붙어 있으면 아무 것도 안 한다.
+
+크기는 모델이 1.0 m 라 7 m 홀에서 인형처럼 작았다 → `BearScale = 1.7`.
+
+**순찰 반경은 받침대 간격에서 나온다.** 곰~받침대 최소 거리가 3.93 m 라 기본 4.5 m 로 두면
+캐릭터 고르는 자리를 침범한다. 3 m 로 잡아 0.93 m 를 남겼다. 곰 위치나 받침대를 옮기면
+이 숫자를 다시 재라.
+
+## ★ 임시 — 정비 곰 시나리오 (2026-09-16)
+
+유저가 **"임시로"** 넣어 달라고 한 것이고, **지워 달라고 하면 같이 걷어내기로 약속했다.
+유저가 "까먹을 수 있으니 나중에 물어봐 달라"고 했으니 먼저 물을 것.**
+
+걷어낼 때 같이 지울 것:
+
+| 파일 / 위치 | 무엇 |
+|---|---|
+| `Scripts/BearLines.cs` | 대사 표 (화장실 농담 10 + 5줄) |
+| `Scripts/BearNpc.cs` 의 "순찰 + 혼잣말" 블록 | 순찰·말하기. 숨쉬기/갸웃/팔/쳐다보기는 남긴다 |
+| `Scripts/LobbyHUD.DrawToast` | 로비 알림 줄 |
+| `LobbySceneBuilder.MakeBears` 호출 | 로비 배치 |
+
+등급 주의: 화장실 농담이라 전체 이용가 기준에서 애매할 수 있다고 유저도 말했다.
+대사를 `BearLines.cs` 한 군데에 모아둔 이유가 그것 — 심의 때 이 파일만 갈아끼우면 된다.

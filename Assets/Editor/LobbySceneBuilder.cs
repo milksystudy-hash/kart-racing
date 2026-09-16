@@ -559,6 +559,9 @@ public static class LobbySceneBuilder
     /// 정비 곰이 돌아다니며 말을 거는 건 아직이다(2026-09-16). 지금은 <b>움직이는지 보는 용도</b>라
     /// 제자리에 세워두고 숨쉬기·갸웃·팔 흔들기·쳐다보기만 돈다.
     /// </summary>
+    /// <summary>곰인형 키울 배수. 모델이 1.0m 라 그대로 두면 홀에서 너무 작다.</summary>
+    const float BearScale = 1.7f;
+
     static void MakeBears()
     {
         var model = FindRiggedBear();
@@ -587,16 +590,24 @@ public static class LobbySceneBuilder
             go.transform.SetParent(root, false);
             go.transform.SetPositionAndRotation(at, Quaternion.Euler(0f, facing, 0f));
 
+            // 모델 키가 1.0m 라 7m 짜리 홀에서는 인형처럼 작아 보인다.
+            // 1.7 배로 키우면 카트(전장 1.5m) 옆에 섰을 때 "사람 역할" 로 읽힌다.
+            go.transform.localScale = Vector3.one * BearScale;
+
             var npc = go.AddComponent<BearNpc>();
             // 로비 카메라는 12m 밖에서 도니까, 기본값 5m 로는 쳐다보는 걸 볼 일이 없다.
             // 카메라가 앞을 스칠 때 고개가 따라오게 넉넉히 잡는다.
             npc.noticeRange = 13f;
 
+            // 받침대까지 3.93m 라 기본 4.5m 로 돌아다니면 캐릭터 고르는 자리를 침범한다.
+            // 3m 면 0.9m 가 남는다 — 곰 어깨폭이 0.75m 쯤이니 아슬아슬하지 않다.
+            npc.patrolRadius = 3f;
+
             // 클릭해서 말 거는 건 나중이지만, 부딪히는 몸은 지금 만들어 둔다.
             // 콜라이더는 <b>루트에 박스 하나만</b> — 메시 콜라이더는 절대 안 붙인다(CLAUDE.md 2번).
             var box = go.AddComponent<BoxCollider>();
             box.center = new Vector3(0f, 0.5f, 0f);
-            box.size = new Vector3(0.8f, 1.0f, 0.5f);
+            box.size = new Vector3(0.8f, 1.0f, 0.5f);   // 로컬 크기라 스케일을 따라간다
         }
 
         Debug.Log($"[로비] 곰인형 {spots.Length}마리 세웠어 — {AssetDatabase.GetAssetPath(model)}");
@@ -631,6 +642,10 @@ public static class LobbySceneBuilder
     /// 임포트 설정. 카트에서 겪은 것과 같은 함정이 여기도 있다 —
     /// <b>materialLocation 이 External 이면 텍스처가 안 붙어서 새하얗게 나온다.</b>
     /// 애니메이션은 안 가져온다. 뼈는 코드로 돌리니까 클립이 필요 없어.
+    ///
+    /// 그런데 InPrefab 으로 바꿔도 <b>FBX 안에 박혀 있는 텍스처는 저절로 안 나온다.</b>
+    /// 실제로 _BaseMap 이 비고 _BaseColor 가 순백색이라 곰이 하얗게 나왔다(2026-09-16).
+    /// 그래서 여기서 텍스처를 폴더로 뽑아내고 다시 임포트한다.
     /// </summary>
     static void EnsureBearImport(string path)
     {
@@ -648,6 +663,54 @@ public static class LobbySceneBuilder
         if (!Mathf.Approximately(imp.globalScale, 1f)) { imp.globalScale = 1f; changed = true; }
 
         if (changed) imp.SaveAndReimport();
+
+        ExtractBearTextures(imp, path);
+    }
+
+    /// <summary>
+    /// FBX 안에 박힌 텍스처를 옆 폴더로 꺼낸다. 이미 꺼내져 있으면 아무 것도 안 한다.
+    /// 노멀맵은 꺼낸 뒤에 <b>타입을 노멀맵으로 바꿔줘야</b> 한다 — 안 그러면 파랗게 칠해진다.
+    /// </summary>
+    static void ExtractBearTextures(ModelImporter imp, string path)
+    {
+        var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        var renderer = model != null ? model.GetComponentInChildren<SkinnedMeshRenderer>(true) : null;
+        var material = renderer != null ? renderer.sharedMaterial : null;
+
+        // 이미 색 텍스처가 붙어 있으면 손대지 않는다
+        if (material != null && material.HasProperty("_BaseMap") && material.GetTexture("_BaseMap") != null)
+            return;
+
+        string home = Path.GetDirectoryName(path).Replace('\\', '/');
+        string folder = home + "/Textures";
+        if (!AssetDatabase.IsValidFolder(folder))
+            AssetDatabase.CreateFolder(home, "Textures");
+
+        if (!imp.ExtractTextures(folder))
+        {
+            Debug.LogWarning($"[로비] {Path.GetFileName(path)} 안에서 텍스처를 못 꺼냈어. " +
+                             "곰이 하얗게 나올 거야.");
+            return;
+        }
+
+        AssetDatabase.Refresh();
+
+        foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { folder }))
+        {
+            string texPath = AssetDatabase.GUIDToAssetPath(guid);
+            var texImp = AssetImporter.GetAtPath(texPath) as TextureImporter;
+            if (texImp == null) continue;
+
+            bool isNormal = texPath.ToLowerInvariant().Contains("normal");
+            var wanted = isNormal ? TextureImporterType.NormalMap : TextureImporterType.Default;
+            if (texImp.textureType == wanted) continue;
+
+            texImp.textureType = wanted;
+            texImp.SaveAndReimport();
+        }
+
+        imp.SaveAndReimport();
+        Debug.Log($"[로비] {Path.GetFileName(path)} 의 텍스처를 {folder} 로 꺼냈어.");
     }
     static CharacterStand[] MakeStands()
     {

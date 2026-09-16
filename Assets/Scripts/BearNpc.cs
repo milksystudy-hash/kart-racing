@@ -75,6 +75,8 @@ public class BearNpc : MonoBehaviour
         tiltAt = Time.time + offset;
         waveAt = Time.time + offset + 2f;
 
+        StartPatrol();
+
         ready = head != null || body != null;
         if (!ready)
             Debug.LogWarning("[곰인형] 뼈를 못 찾았어. FBX 안의 Head/Body/Arm_L/Arm_R 을 " +
@@ -126,12 +128,93 @@ public class BearNpc : MonoBehaviour
             noticed = false;
         }
 
+        Patrol(now);
+        Speak(now, near);
+
         Breathe(now);
         Look(target, near);
         Tilt(now);
         Wave(now);
     }
 
+
+    // ==================================================================
+    //  순찰 + 혼잣말  ★ 임시 (2026-09-16). 지울 때 BearLines.cs 와 같이 걷어낸다
+    // ==================================================================
+    [Header("순찰 ★임시")]
+    [Tooltip("끄면 제자리에 서 있는다")]
+    public bool patrol = true;
+    [Tooltip("처음 선 자리에서 이만큼 안에서만 돌아다닌다(m)")]
+    public float patrolRadius = 4.5f;
+    public float walkSpeed = 0.7f;
+    public float turnToWalkSpeed = 3f;
+    [Tooltip("한 곳에 도착해서 쉬는 시간(초)")]
+    public Vector2 restEvery = new Vector2(1.5f, 4f);
+
+    [Header("혼잣말 ★임시")]
+    [Tooltip("가까이 있을 때 이 간격(초)으로 한마디 한다")]
+    public Vector2 speakEvery = new Vector2(6f, 12f);
+
+    Vector3 home, walkTarget;
+    float restUntil, speakAt;
+    bool walking;
+
+    /// <summary>지금 화면에 대사를 띄우고 있는 곰. 셋이 동시에 떠들면 못 읽는다.</summary>
+    static BearNpc speaker;
+
+    void StartPatrol()
+    {
+        home = transform.position;
+        walkTarget = home;
+        restUntil = Time.time + Random.Range(restEvery.x, restEvery.y);
+        speakAt = Time.time + Random.Range(speakEvery.x, speakEvery.y);
+    }
+
+    void Patrol(float now)
+    {
+        if (!patrol) return;
+
+        if (!walking)
+        {
+            if (now < restUntil) return;
+            // 처음 선 자리 둘레에서 아무 데나 — 반경을 벗어나지 않으니 벽에 안 박는다
+            Vector2 r = Random.insideUnitCircle * patrolRadius;
+            walkTarget = home + new Vector3(r.x, 0f, r.y);
+            walking = true;
+            return;
+        }
+
+        Vector3 flat = walkTarget - transform.position;
+        flat.y = 0f;
+
+        if (flat.sqrMagnitude < 0.09f)
+        {
+            walking = false;
+            restUntil = now + Random.Range(restEvery.x, restEvery.y);
+            return;
+        }
+
+        transform.position += flat.normalized * walkSpeed * Time.deltaTime;
+        transform.rotation = Quaternion.Slerp(transform.rotation,
+                                              Quaternion.LookRotation(flat, Vector3.up),
+                                              1f - Mathf.Exp(-turnToWalkSpeed * Time.deltaTime));
+    }
+
+    /// <summary>걸을 때 팔을 번갈아 흔든다. 팔이 가만히 있으면 미끄러지는 것처럼 보인다.</summary>
+    float WalkSwing(float now) => walking ? Mathf.Sin(now * walkSpeed * 9f) * 18f : 0f;
+
+    void Speak(float now, bool near)
+    {
+        if (now < speakAt) return;
+        speakAt = now + Random.Range(speakEvery.x, speakEvery.y);
+
+        // 가까이 있을 때만, 그리고 한 번에 한 마리만
+        if (!near) return;
+        if (speaker != null && speaker != this && Toast.Visible) return;
+
+        speaker = this;
+        Toast.Show(BearLines.Random());
+    }
     void Breathe(float now)
     {
         if (body == null) return;
@@ -186,7 +269,9 @@ public class BearNpc : MonoBehaviour
         float swing = Mathf.Sin(now * waveSpeed) * waveDegrees * envelope;
 
         // 한쪽만 흔든다. 양팔을 같이 흔들면 인사가 아니라 만세가 된다.
-        if (armRight != null) armRight.localRotation = armRightRest * Quaternion.Euler(swing, 0f, 0f);
-        if (armLeft != null)  armLeft.localRotation  = armLeftRest * Quaternion.Euler(swing * 0.15f, 0f, 0f);
+        // 걸을 때는 양팔이 번갈아 — 인사 스윙 위에 얹는다
+        float step = WalkSwing(now);
+        if (armRight != null) armRight.localRotation = armRightRest * Quaternion.Euler(swing + step, 0f, 0f);
+        if (armLeft != null)  armLeft.localRotation  = armLeftRest * Quaternion.Euler(swing * 0.15f - step, 0f, 0f);
     }
 }

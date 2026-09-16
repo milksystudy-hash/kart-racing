@@ -36,6 +36,7 @@ public class LobbyHUD : MonoBehaviour
 
         DrawDriverPanel();
         DrawSpecSheet();
+        DrawToast(w, h);
         DrawPrompt(w, h);
         DrawGate(w, h);
         DrawCorner(h);
@@ -100,6 +101,21 @@ public class LobbyHUD : MonoBehaviour
 
         GUI.Label(new Rect(p.x + 128f, y, 58f, 17f), value,
                   Hud.Resize(Hud.Text, 13, TextAnchor.MiddleRight));
+    }
+
+    // ---- 곰인형이 하는 혼잣말 ★임시 ----
+    /// <summary>
+    /// 트랙 HUD 와 같은 알림 줄을 로비에도 띄운다. 안 그리면 곰이 말을 해도 화면에 안 나온다.
+    /// 정비 곰을 걷어낼 때 이 함수도 같이 지우면 돼(2026-09-16).
+    /// </summary>
+    void DrawToast(float w, float h)
+    {
+        if (!Toast.Visible) return;
+
+        var box = new Rect(w * 0.5f - 210f, h * 0.14f, 420f, 52f);
+        Hud.Panel(box);
+        GUI.DrawTexture(new Rect(box.x + 7f, box.y + 7f, 6f, box.height - 16f), Hud.RibbonTex);
+        GUI.Label(box, Toast.Message, Hud.Resize(Hud.Title, 16));
     }
 
     // ---- 화면 가운데 아래: 눈앞의 안내문 ----
