@@ -19,12 +19,21 @@ using UnityEngine;
 /// </summary>
 public class MissionManager : MonoBehaviour
 {
+    /// <summary>
+    /// 수집품 여덟 개니까 임무도 <b>여덟 개 전부 다르다</b>(2026-09-16 유저).
+    /// 같은 트랙을 여덟 번 도는데 매번 신경 쓰는 게 달라진다 — 기획서 §4.1 이 노린 게 이거야.
+    /// AI 카트와 겨루는 "1위" 임무는 AI 주행이 들어온 뒤에 아홉 번째로 붙인다.
+    /// </summary>
     public enum Goal
     {
         완주,        // 3바퀴를 끝내기만 하면 된다
-        발판전부,    // 가속 발판을 매 바퀴 하나도 빠뜨리지 않고 완주
-        무충돌,      // 벽에 세게 부딪히지 않고 완주
+        발판전부,    // 가속 발판을 매 바퀴 하나도 빠뜨리지 않고
+        무충돌,      // 벽에 세게 부딪히지 않고
         제한시간,    // 정해진 시간 안에 완주
+        태엽,        // 드리프트로 모은 태엽을 정해진 횟수만큼 터뜨리기
+        무발판,      // 발판을 하나도 안 밟고 완주 — 발판전부의 정반대
+        빠른랩,      // 한 바퀴를 정해진 시간 안에
+        완벽,        // 무충돌 + 제한시간 동시. 마지막 판
     }
 
     [Header("연결")]
@@ -38,8 +47,20 @@ public class MissionManager : MonoBehaviour
     [Tooltip("제한시간 임무의 제한(초). 3바퀴 기준 넉넉한 완주가 87초쯤이다")]
     public float timeLimit = 105f;
 
+    [Tooltip("빠른랩 임무에서 한 바퀴를 몇 초 안에. 발판을 잘 밟으면 29초쯤 나온다")]
+    public float lapLimit = 33f;
+
+    [Tooltip("태엽 임무에서 태엽을 몇 번 터뜨려야 하는지")]
+    public int driftBoostsNeeded = 6;
+
+    [Tooltip("완벽 임무의 제한(초). 무충돌까지 같이 지켜야 한다")]
+    public float perfectTimeLimit = 115f;
+
     public bool Failed { get; private set; }
     public bool Cleared { get; private set; }
+
+    /// <summary>왜 실패했는지 한 줄. 화면에 그대로 띄운다 — "실패" 만 뜨면 뭘 고쳐야 할지 모른다.</summary>
+    public string FailReason { get; private set; } = "";
 
     /// <summary>이번 판에 걸린 수집품. 다 모았으면 빈 문자열.</summary>
     public string RewardId { get; private set; } = "";
@@ -76,8 +97,9 @@ public class MissionManager : MonoBehaviour
     /// </summary>
     public static Goal GoalForReward(string id)
     {
+        // 목록 순서 그대로 임무 순서다. 첫 판은 완주 — 처음부터 조건을 걸면 뭘 하는 게임인지 모른다.
         for (int i = 0; i < ExhibitCatalogue.All.Length; i++)
-            if (ExhibitCatalogue.All[i].id == id) return (Goal)(i % 4);
+            if (ExhibitCatalogue.All[i].id == id) return (Goal)Mathf.Min(i, 7);
         return Goal.완주;
     }
 
@@ -97,23 +119,46 @@ public class MissionManager : MonoBehaviour
 
         if (Failed || Cleared) return;
 
+        // 발판을 하나라도 밟으면 그 자리에서 끝. 매 바퀴 초기화되니까 여기서 직접 센다.
+        if (goal == Goal.무발판 && BoostPad.TakenCount() > 0) Fail("발판을 밟았다");
+
         // 판이 끝나기 전에 이미 글러버린 것들은 그 자리에서 알려준다.
         // 실패한 줄 모르고 두 바퀴를 더 도는 게 제일 허탈하다.
-        if (goal == Goal.무충돌 && kart.WallHits > allowedHits) Failed = true;
-        if (goal == Goal.제한시간 && tracker.TotalTime > timeLimit) Failed = true;
+        if ((goal == Goal.무충돌 || goal == Goal.완벽) && kart.WallHits > allowedHits)
+            Fail($"벽에 {kart.WallHits}번 부딪혔다");
+        if (goal == Goal.제한시간 && tracker.TotalTime > timeLimit) Fail("시간을 넘겼다");
+        if (goal == Goal.완벽 && tracker.TotalTime > perfectTimeLimit) Fail("시간을 넘겼다");
 
-        if (!tracker.Finished) return;
+        if (Failed || !tracker.Finished) return;
 
         Cleared = goal switch
         {
             Goal.발판전부 => padsTotal > 0 && BoostPad.TakenCount() >= padsTotal,
             Goal.무충돌   => kart.WallHits <= allowedHits,
             Goal.제한시간 => tracker.TotalTime <= timeLimit,
+            Goal.태엽    => kart.DriftBoosts >= driftBoostsNeeded,
+            Goal.무발판   => BoostPad.TakenCount() == 0,
+            Goal.빠른랩   => tracker.BestLapTime > 0f && tracker.BestLapTime <= lapLimit,
+            Goal.완벽    => kart.WallHits <= allowedHits && tracker.TotalTime <= perfectTimeLimit,
             _             => true,
         };
-        Failed = !Cleared;
 
         if (Cleared) GiveReward();
+        else Fail(goal switch
+        {
+            Goal.발판전부 => "발판을 다 못 밟았다",
+            Goal.태엽    => $"태엽이 {kart.DriftBoosts}번뿐이다",
+            Goal.빠른랩   => "충분히 빠른 바퀴가 없었다",
+            _             => "조건을 못 맞췄다",
+        });
+    }
+
+    void Fail(string reason)
+    {
+        if (Failed) return;
+        Failed = true;
+        FailReason = reason;
+        Toast.Show($"임무 실패 — {reason}.  ENTER 로 다시");
     }
 
     /// <summary>임무를 깬 그 순간 수집품이 들어온다. 트랙을 되돌아갈 일이 없다.</summary>
@@ -155,6 +200,7 @@ public class MissionManager : MonoBehaviour
 
         Failed = false;
         Cleared = false;
+        FailReason = "";
         rewarded = false;
         lastLapSeen = 1;
 
@@ -168,17 +214,32 @@ public class MissionManager : MonoBehaviour
         Goal.발판전부 => "가속 발판 전부 밟기",
         Goal.무충돌   => "벽에 안 부딪히기",
         Goal.제한시간 => $"{Mathf.RoundToInt(timeLimit)}초 안에 완주",
+        Goal.태엽    => $"태엽 {driftBoostsNeeded}번 터뜨리기",
+        Goal.무발판   => "발판 밟지 않고 완주",
+        Goal.빠른랩   => $"한 바퀴 {Mathf.RoundToInt(lapLimit)}초 끊기",
+        Goal.완벽    => "무충돌로 시간 안에",
         _             => "3바퀴 완주",
     };
 
     public string Progress => goal switch
     {
         Goal.발판전부 => $"{BoostPad.TakenCount()} / {padsTotal}",
-        Goal.무충돌   => allowedHits > 0 ? $"남은 기회 {Mathf.Max(0, allowedHits - WallHits)}"
-                                         : (WallHits > 0 ? "실패" : "깨끗"),
-        Goal.제한시간 => tracker != null ? LapTracker.FormatTime(Mathf.Max(0f, timeLimit - tracker.TotalTime)) : "",
+        Goal.무충돌   => Chances,
+        Goal.제한시간 => Remaining(timeLimit),
+        Goal.태엽    => $"{(kart != null ? kart.DriftBoosts : 0)} / {driftBoostsNeeded}",
+        Goal.무발판   => BoostPad.TakenCount() == 0 ? "아직 깨끗" : "밟았다",
+        Goal.빠른랩   => tracker != null && tracker.BestLapTime > 0f
+                         ? LapTracker.FormatTime(tracker.BestLapTime) : "아직 없음",
+        // 두 조건을 다 보여줘야 하는데 칸이 좁다. "남은 기회 2" 대신 "2회" 로 줄인다.
+        Goal.완벽    => $"{Mathf.Max(0, allowedHits - WallHits)}회 · {Remaining(perfectTimeLimit)}",
         _             => tracker != null ? $"{Mathf.Min(tracker.CurrentLap, tracker.totalLaps)} / {tracker.totalLaps}" : "",
     };
+
+    string Chances => allowedHits > 0 ? $"남은 기회 {Mathf.Max(0, allowedHits - WallHits)}"
+                                      : (WallHits > 0 ? "실패" : "깨끗");
+
+    string Remaining(float limit) =>
+        tracker != null ? LapTracker.FormatTime(Mathf.Max(0f, limit - tracker.TotalTime)) : "";
 
     int WallHits => kart != null ? kart.WallHits : 0;
 }

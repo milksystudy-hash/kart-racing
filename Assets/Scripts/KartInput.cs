@@ -16,9 +16,12 @@ public static class KartInput
     public static float Steer { get; private set; }
     public static bool Drift { get; private set; }
 
-    /// <summary>드리프트 키를 "톡" 누른 순간. 마리오 카트처럼 호핑에 쓴다.
-    /// 같은 키를 눌러서 뛰고, 꾹 누른 채 꺾으면 드리프트가 된다.</summary>
-    public static bool DriftPressed { get; private set; }
+    /// <summary>
+    /// 호핑 키를 톡 누른 순간. <b>드리프트와 다른 키다</b>(2026-09-16).
+    /// 예전엔 스페이스 하나로 둘 다 했는데, 꾹 누르면 먼저 호핑이 나가 공중에 뜨고
+    /// 드리프트는 접지 중에만 걸려서 <b>태엽이 영영 안 감겼다</b>. 키를 갈라서 끝냈다.
+    /// </summary>
+    public static bool HopPressed { get; private set; }
 
     public static bool RespawnPressed =>
         (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) ||
@@ -34,6 +37,7 @@ public static class KartInput
     const float AnalogRate = 20f;
 
     static int lastTickedFrame = -1;
+    static bool hopHeld;
 
     /// <summary>프레임당 한 번만 실제로 계산한다. 여러 스크립트가 불러도 안전하다.</summary>
     public static void Tick(float deltaTime)
@@ -44,6 +48,7 @@ public static class KartInput
         float steerTarget = 0f;
         float throttleTarget = 0f;
         bool drift = false;
+        bool hop = false;
         bool analog = false;
 
         var pad = Gamepad.current;
@@ -56,7 +61,8 @@ public static class KartInput
             if (Mathf.Abs(stick) > 0.12f) { steerTarget = stick; analog = true; }
             if (accelerate > 0.05f || reverse > 0.05f) { throttleTarget = accelerate - reverse; analog = true; }
 
-            drift = pad.buttonSouth.isPressed || pad.rightShoulder.isPressed;
+            drift = pad.rightShoulder.isPressed || pad.leftShoulder.isPressed;
+            hop   = pad.buttonSouth.isPressed;
         }
 
         // 키보드를 누르고 있으면 게임패드보다 우선한다
@@ -72,11 +78,9 @@ public static class KartInput
             if (!Mathf.Approximately(horizontal, 0f)) { steerTarget = horizontal; analog = false; }
             if (!Mathf.Approximately(vertical, 0f))   { throttleTarget = vertical; analog = false; }
 
-            // 드리프트는 스페이스와 시프트 둘 다 받는다.
-            // 화살표로 운전하면 왼손이 놀기 때문에, 어느 쪽이 편하든 그냥 되게 해두는 게 낫다.
-            drift |= keyboard.spaceKey.isPressed
-                  || keyboard.leftShiftKey.isPressed
-                  || keyboard.rightShiftKey.isPressed;
+            // SHIFT 는 태엽 감기(드리프트), SPACE 는 호핑. 한 키에 둘을 묶으면 서로 잡아먹는다.
+            drift |= keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
+            hop   |= keyboard.spaceKey.isPressed;
         }
 
         float steerRate = analog ? AnalogRate : KeyboardSteerRate;
@@ -85,7 +89,8 @@ public static class KartInput
         Steer = Mathf.MoveTowards(Steer, steerTarget, steerRate * deltaTime);
         Throttle = Mathf.MoveTowards(Throttle, throttleTarget, throttleRate * deltaTime);
 
-        DriftPressed = drift && !Drift;   // 이번 프레임에 막 눌린 순간만 true
+        HopPressed = hop && !hopHeld;   // 이번 프레임에 막 눌린 순간만 true
+        hopHeld = hop;
         Drift = drift;
     }
 
@@ -95,5 +100,7 @@ public static class KartInput
         Steer = 0f;
         Throttle = 0f;
         Drift = false;
+        HopPressed = false;
+        hopHeld = false;
     }
 }

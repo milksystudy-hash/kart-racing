@@ -47,7 +47,10 @@ public class TestHUD : MonoBehaviour
 
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
 
-        if (tracker != null && tracker.Finished && KartInput.RestartPressed)
+        // 완주했을 때뿐 아니라 <b>임무가 글러버린 순간부터</b> 다시 시작할 수 있다.
+        // 실패한 줄 알면서 두 바퀴를 마저 도는 건 아무 의미가 없다.
+        bool canRestart = tracker != null && (tracker.Finished || (mission != null && mission.Failed));
+        if (canRestart && KartInput.RestartPressed)
         {
             tracker.ResetRace();
             KartInput.Clear();
@@ -76,7 +79,8 @@ public class TestHUD : MonoBehaviour
         DrawToast(w, h);
         DrawCorner(h);
         if (showControls) DrawControls(w, h);
-        if (tracker != null && tracker.Finished && InKart) DrawFinish(w, h);
+        if (InKart && tracker != null && tracker.Finished) DrawFinish(w, h);
+        else if (InKart && mission != null && mission.Failed) DrawFailed(w, h);
 
         Hud.End();
     }
@@ -213,7 +217,7 @@ public class TestHUD : MonoBehaviour
         var state = Hud.Resize(Hud.Label, 13);
         if (hot) state.normal.textColor = Hud.Brass;
         GUI.Label(new Rect(bar.x, p.y + 75f, 126f, 18f),
-                  kart.IsBoosting ? "풀린다!" : (kart.IsDrifting ? "감는 중" : "SPACE 로 감기"), state);
+                  kart.IsBoosting ? "풀린다!" : (kart.IsDrifting ? "감는 중" : "SHIFT 로 감기"), state);
     }
 
     /// <summary>
@@ -268,7 +272,7 @@ public class TestHUD : MonoBehaviour
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 190f, h * 0.5f - 104f, 380f, 208f);
+        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 118f, 400f, 236f);
         Hud.Panel(box);
 
         GUI.Label(new Rect(box.x, box.y + 16f, box.width, 26f), "조작법", Hud.Title);
@@ -277,9 +281,10 @@ public class TestHUD : MonoBehaviour
         string[,] rows =
         {
             { "화살표 · WASD", "운전" },
-            { "SPACE", "톡 = 호핑 / 꾹 = 태엽 감기" },
+            { "SHIFT", "꾹 누르고 꺾으면 태엽이 감긴다" },
+            { "SPACE", "톡 누르면 폴짝 (호핑)" },
             { "R", "제자리로 되돌리기" },
-            { "ENTER", "완주 후 다시 시작" },
+            { "ENTER", "이 판 다시 하기" },
             { "H", "이 창 닫기" },
         };
 
@@ -289,10 +294,37 @@ public class TestHUD : MonoBehaviour
 
         for (int i = 0; i < rows.GetLength(0); i++)
         {
-            float y = box.y + 58f + i * 28f;
-            GUI.Label(new Rect(box.x + 24f, y, 130f, 22f), rows[i, 0], key);
-            GUI.Label(new Rect(box.x + 158f, y, box.width - 180f, 22f), rows[i, 1], desc);
+            float y = box.y + 56f + i * 26f;
+            GUI.Label(new Rect(box.x + 24f, y, 120f, 22f), rows[i, 0], key);
+            GUI.Label(new Rect(box.x + 150f, y, box.width - 172f, 22f), rows[i, 1], desc);
         }
+    }
+
+    // ---- 임무 실패 (레이스 도중) ----
+    /// <summary>
+    /// 글러버린 순간 화면 가운데에 띄운다. 구석 패널에 "실패" 두 글자만 뜨면 못 본다 —
+    /// 유저가 "안 뜨는 것 같다" 고 한 게 그거였어.
+    /// <b>다시 해도 이미 모은 수집품은 그대로다.</b> 이 판만 다시 하는 거야.
+    /// </summary>
+    void DrawFailed(float w, float h)
+    {
+        var box = new Rect(w * 0.5f - 170f, h * 0.5f - 74f, 340f, 148f);
+        Hud.Panel(box);
+        GUI.DrawTexture(new Rect(box.x + 7f, box.y + 7f, 6f, box.height - 16f), Hud.RibbonTex);
+
+        var head = Hud.Resize(Hud.Title, 26);
+        head.normal.textColor = Hud.Ribbon;
+        GUI.Label(new Rect(box.x, box.y + 18f, box.width, 32f), "임무 실패", head);
+
+        GUI.Label(new Rect(box.x, box.y + 54f, box.width, 22f), mission.FailReason,
+                  Hud.Resize(Hud.Text, 15, TextAnchor.MiddleCenter));
+        GUI.Label(new Rect(box.x, box.y + 78f, box.width, 20f), mission.Title,
+                  Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter));
+
+        Hud.Rule(box.x + 24f, box.y + 104f, box.width - 48f);
+        GUI.Label(new Rect(box.x, box.y + 112f, box.width, 22f),
+                  "ENTER  이 판 다시 하기  (모은 건 그대로)",
+                  Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
     }
 
     // ---- 완주 ----

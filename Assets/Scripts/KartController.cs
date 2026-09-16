@@ -69,6 +69,9 @@ public class KartController : MonoBehaviour
     /// <summary>이번 판에 벽에 세게 부딪힌 횟수. 무충돌 임무가 이걸 본다.</summary>
     public int WallHits { get; private set; }
 
+    /// <summary>이번 판에 드리프트로 모은 태엽을 몇 번 터뜨렸는지.</summary>
+    public int DriftBoosts { get; private set; }
+
     public float BoostCharge { get; private set; }
     public bool IsBoosting => boostTimer > 0f;
     public float BoostRemaining01 => boostDuration > 0f ? Mathf.Clamp01(boostTimer / boostDuration) : 0f;
@@ -186,7 +189,7 @@ public class KartController : MonoBehaviour
         throttleInput = KartInput.Throttle;
         steerInput = KartInput.Steer;
         driftHeld = KartInput.Drift;
-        if (KartInput.DriftPressed) hopQueued = true;   // 물리는 FixedUpdate 에서 처리한다
+        if (KartInput.HopPressed) hopQueued = true;   // 물리는 FixedUpdate 에서 처리한다
 
         if (KartInput.RespawnPressed) Respawn();
 
@@ -322,7 +325,11 @@ public class KartController : MonoBehaviour
     }
 
     /// <summary>레이스를 다시 시작할 때 임무 판정이 불러준다.</summary>
-    public void ResetWallHits() => WallHits = 0;
+    public void ResetWallHits()
+    {
+        WallHits = 0;
+        DriftBoosts = 0;
+    }
 
     /// <summary>돌던 부스트를 즉시 끊는다. 벽에 눌려 못 움직일 때 빠져나갈 길을 터준다.</summary>
     public void CancelBoost()
@@ -349,7 +356,8 @@ public class KartController : MonoBehaviour
         float forwardSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
 
         bool wasDrifting = IsDrifting;
-        IsDrifting = driftHeld && IsGrounded && forwardSpeed > 5f && Mathf.Abs(steerInput) > 0.2f;
+        // 5m/s 는 너무 높았다 — 코너에 들어가려고 속도를 줄이면 그 순간 태엽이 안 감겼다.
+        IsDrifting = driftHeld && IsGrounded && forwardSpeed > 3.5f && Mathf.Abs(steerInput) > 0.18f;
 
         if (IsDrifting)
         {
@@ -361,6 +369,7 @@ public class KartController : MonoBehaviour
             boostAmount = BoostCharge;
             boostTimer = boostDuration;
             BoostCharge = 0f;
+            DriftBoosts++;   // "태엽 N번 터뜨리기" 임무가 이걸 본다
         }
         else if (!IsDrifting)
         {

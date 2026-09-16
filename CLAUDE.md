@@ -564,3 +564,43 @@ card under 카트 항목 — still without saying which kart is better.
 The first pass lit a few lamps. The user wanted the room to read as **lights switched on**:
 9 ceiling lamps (3×3, range 22) at intensity 2.6 and the Trilight ambient going to
 (1.00, 0.97, 0.90) / (0.86, 0.83, 0.77) / (0.55, 0.51, 0.46). Dark state is unchanged.
+
+## 조작 키 — SHIFT 가 태엽, SPACE 가 호핑 (2026-09-16)
+
+They were the **same key**, and that was a real bug, not a preference: tapping it hopped, hopping
+left the ground, and `IsDrifting` requires `IsGrounded` — so holding it **never wound the spring**.
+`KartInput.DriftPressed` is gone; `HopPressed` (SPACE / gamepad A) and `Drift`
+(SHIFT / shoulder buttons) are separate now. The drift gate also dropped from 5 m/s to 3.5 m/s —
+slowing for a corner used to cancel the wind-up at exactly the moment you wanted it.
+
+## 임무 여덟 개, 전부 다르게 — 2026-09-16
+
+`GoalForReward` is now `(Goal)Mathf.Min(index, 7)` — **catalogue order is mission order**, one
+distinct goal per exhibit:
+
+| 판 | 임무 | 무엇을 바꾸는가 |
+|---|---|---|
+| 1 | 3바퀴 완주 | 아무 조건 없음 — 뭘 하는 게임인지 배우는 판 |
+| 2 | 발판 전부 밟기 | 매 바퀴 초기화. 레이싱 라인을 포기하게 만든다 |
+| 3 | 벽에 안 부딪히기 | 벽이 처음으로 무서워진다 |
+| 4 | 105초 안에 완주 | 안전하게 도는 걸 못 하게 한다 |
+| 5 | 태엽 6번 터뜨리기 | 드리프트를 처음으로 강제한다 |
+| 6 | 발판 밟지 않고 완주 | 2판의 정반대 — 같은 코스가 다시 새로워진다 |
+| 7 | 한 바퀴 33초 끊기 | 세 바퀴 중 한 바퀴만 잘하면 된다 |
+| 8 | 무충돌 + 시간 | 마지막 판. 앞의 조건 둘을 동시에 |
+
+- Reordering `ExhibitCatalogue.All` reorders the missions. Item 0 must stay the one that should be
+  taught first.
+- The **"AI 카트보다 먼저 들어오기"** mission is deliberately absent — there is no AI driver script
+  in the project yet (`grep` for one before assuming). It becomes the ninth goal when AI lands.
+- `KartController.DriftBoosts` counts spring releases, reset with `ResetWallHits`.
+
+### 실패했으면 그 자리에서 다시
+
+`MissionManager.FailReason` carries *why*, and `TestHUD.DrawFailed` puts it in the middle of the
+screen with `ENTER 이 판 다시 하기`. A corner panel reading "실패" was invisible — the user reported
+the instant-fail "doesn't show", and that was the reason.
+
+**Retry replays only the current race. Everything already collected stays.** Resetting the whole
+collection on a failed mission would make failure cost twenty minutes, and the user would stop
+taking risks — which is the exact opposite of what missions are for.
