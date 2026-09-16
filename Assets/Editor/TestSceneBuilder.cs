@@ -23,6 +23,18 @@ public static class TestSceneBuilder
 
     const int LayerIgnoreRaycast = 2;   // 유니티 기본 레이어. 카트 서스펜션이 자기를 안 때리게
 
+    /// <summary>
+    /// 카트를 규격(전장 1.5m)보다 얼마나 크게 보이게 할지.
+    ///
+    /// 규격 그대로면 화면에서 너무 작게 읽힌다 — 모형 카트 대회라는 설정이라 실제 치수에
+    /// 얽매일 이유도 없다. 1.25 배면 전장 1.88m 로, 폭 7~11m 코스에서 카트 6대 폭이 된다
+    /// (마리오 카트류가 5~6대). 콜라이더와 서스펜션도 같이 커져서 물리가 안 어긋난다.
+    /// </summary>
+    const float KartScale = 1.25f;
+
+    /// <summary>배율을 곱하기 전 서스펜션 높이. KartController 의 기본값과 같아야 한다.</summary>
+    const float BaseRideHeight = 0.38f;
+
     // 규격서 팔레트
     static readonly Color ColGround   = new Color32(0x6A, 0x6E, 0x66, 0xFF);
     static readonly Color ColRefWhite = new Color32(0xE8, 0xEA, 0xE2, 0xFF);
@@ -373,20 +385,25 @@ public static class TestSceneBuilder
         rb.angularDamping = 4f;
 
         var box = go.AddComponent<BoxCollider>();
-        box.size = new Vector3(1.0f, 0.45f, 1.4f);
-        box.center = new Vector3(0f, -0.06f, 0f);
+        box.size = new Vector3(1.0f, 0.45f, 1.4f) * KartScale;
+        box.center = new Vector3(0f, -0.06f, 0f) * KartScale;
 
         // 카트 본체를 먼저 붙인다 — 모델을 얼마나 내려야 하는지(rideHeight)를 알아야 해서.
         var kart = go.AddComponent<KartController>();
         kart.groundMask = ~(1 << LayerIgnoreRaycast);
+        kart.rideHeight = BaseRideHeight * KartScale;   // 커진 만큼 서스펜션도 같이 올린다
 
         var visual = new GameObject("KartVisual").transform;
         visual.SetParent(go.transform, false);
+        visual.localScale = Vector3.one * KartScale;
         kart.visual = visual;
 
         // 진짜 모델이 있으면 그걸 쓰고, 없으면 회색 상자로 돌아간다.
         // 모델이 KartVisual **안에** 들어간다 — 껍데기(콜라이더·물리)는 그대로 두고 그림만 바뀐다.
-        if (!AttachKartModel(visual, kart.rideHeight)) MakeGreyBoxKart(visual);
+        //
+        // 내리는 값은 **배율을 곱하기 전** 값이다. KartVisual 이 이미 KartScale 배로 커져 있어서
+        // 그 안의 local 값에 배율이 한 번 더 곱해진다 — 두 번 곱하면 땅에 파묻힌다.
+        if (!AttachKartModel(visual, BaseRideHeight)) MakeGreyBoxKart(visual);
 
         // 캐릭터가 앉을 자리. 지금은 비어 있어도 되고, 3등신 FBX 가 오면 여기 자식으로 넣으면 된다.
         // 발끝이 원점인 모델이 그대로 앉은 키(0.95m)에 맞는다.
@@ -422,7 +439,7 @@ public static class TestSceneBuilder
         ("세진", "Assets/Cart_model/JIN_FIN_CART.fbx"),
         ("세운", "Assets/Cart_model/WOON_CART_FIN.fbx"),
         ("시우", "Assets/Cart_model/Siwoo_cart.fbx"),
-        // ("이감", "Assets/Cart_model/IGAM_....fbx"),
+        ("이감", "Assets/Cart_model/YI_gam_cart.fbx"),
     };
 
     /// <summary>

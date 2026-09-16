@@ -61,7 +61,7 @@ public class TrackBuilder : MonoBehaviour
     [Header("벽")]
     // 2.6m 짜리 벽은 카트(높이 0.73m)보다 세 배 넘게 높아서 터널처럼 보인다.
     // 1.2m 로 낮추면 넘어가진 않으면서 바깥 풍경이 보인다 — 실제 서킷 가드레일도 이 정도야.
-    public float wallHeight = 1.2f;
+    public float wallHeight = 0.85f;
     public float wallThickness = 0.8f;
 
     [Header("체크포인트")]
@@ -99,8 +99,12 @@ public class TrackBuilder : MonoBehaviour
     static readonly Color ColBoostPad   = new Color32(0x2E, 0x4C, 0x7A, 0xFF);
     static readonly Color ColBoostArrow = new Color32(0xFF, 0xD1, 0x3C, 0xFF);
 
-    /// <summary>결승선 위치. 카트를 여기에 놓으면 된다 (지면에서 0.38m 띄운 높이).</summary>
-    public Vector3 StartPosition => transform.position + PointOnPath(0f) + Vector3.up * 0.38f;
+    /// <summary>
+    /// 결승선 위치. 카트를 여기에 놓으면 된다.
+    /// 서스펜션 높이보다 넉넉히 띄운다 — 낮게 놓으면 노면에 파묻힌 채로 시작한다.
+    /// (카트를 1.25배로 키우면서 서스펜션이 0.38 에서 0.475 로 올라갔다.)
+    /// </summary>
+    public Vector3 StartPosition => transform.position + PointOnPath(0f) + Vector3.up * 0.6f;
     public Quaternion StartRotation => Quaternion.LookRotation(TangentOnPath(0f), Vector3.up);
 
     /// <summary>한 바퀴 길이(m). 랩타임을 가늠할 때 쓴다.</summary>
