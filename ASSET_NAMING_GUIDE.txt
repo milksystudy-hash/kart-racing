@@ -41,10 +41,15 @@
     예) ORIG_Sejin_Design_2024.png
         ORIG_Siwoo_Refsheet_2025.png
 
-  이번 프로젝트 산출물       <캐릭터>_<무엇>            (지금 카트 파일들처럼)
-    예) Siwoo_cart.fbx
-        Sejin_Racing.fbx
+  이번 프로젝트 산출물       <캐릭터>_<무엇>_racing_ver
+    예) Siwoo_racing_ver.fbx        (레이싱용으로 새로 만든 캐릭터 모델)
+        Siwoo_racing_ver.blend
         Sewoon_Portrait_기본.png
+
+  이미 만든 카트 파일들(Siwoo_cart.fbx 등)은 그대로 둔다. 카트는 애초에
+  기존 자캐에 없던 물건이라 이름만으로도 이번 프로젝트 것임이 분명하다.
+  racing_ver 을 붙일 대상은 **캐릭터 본체 모델** 이다 — 기존 자캐와 같은 인물이라
+  구분이 필요한 건 그쪽뿐이다.
 
   날짜를 이름에 넣는 건 기존 것에만 한다. 프로젝트 산출물은 깃 기록에 날짜가 남는다.
 
