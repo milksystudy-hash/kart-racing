@@ -121,7 +121,9 @@ public class TestHUD : MonoBehaviour
     /// </summary>
     void DrawCollectionPanel()
     {
-        var p = new Rect(16f, 152f, 188f, mission == null ? 78f : (mission.AllDone ? 100f : 132f));
+        // 라벨과 값을 한 줄에 좌우로 놓으면 이름이 길 때 부딪힌다 — "무충돌로 시간 안에" 가
+        // 라벨을 파고들어 "무충룰" 로 보였다(2026-09-16). 값은 아래 줄에 통째로 놓는다.
+        var p = new Rect(16f, 152f, 208f, mission == null ? 78f : (mission.AllDone ? 100f : 170f));
         Hud.Panel(p);
 
         float x = p.x + 14f;
@@ -157,19 +159,21 @@ public class TestHUD : MonoBehaviour
         }
 
         // 이번 판에 뭐가 걸렸는지. "다음 건 어떻게 모으냐" 에 대한 답이 화면에 있어야 한다.
-        GUI.Label(new Rect(x, p.y + 66f, 40f, 18f), "상품", Hud.Resize(Hud.Label, 13));
-        GUI.Label(new Rect(p.x + 56f, p.y + 66f, p.width - 70f, 18f), mission.RewardName,
-                  Hud.Resize(Hud.Text, 13, TextAnchor.MiddleRight));
+        float full = p.width - 28f;
+        var tiny = Hud.Resize(Hud.Label, 12);
 
-        GUI.Label(new Rect(x, p.y + 84f, 40f, 18f), "임무", Hud.Resize(Hud.Label, 13));
-        GUI.Label(new Rect(p.x + 56f, p.y + 84f, p.width - 70f, 18f), mission.Title,
-                  Hud.Resize(Hud.Text, 13, TextAnchor.MiddleRight));
+        GUI.Label(new Rect(x, p.y + 64f, full, 16f), "상품", tiny);
+        GUI.Label(new Rect(x, p.y + 78f, full, 18f), mission.RewardName, Hud.Resize(Hud.Text, 14));
 
-        var state = Hud.Resize(Hud.Value, 15, TextAnchor.MiddleRight);
+        GUI.Label(new Rect(x, p.y + 100f, full, 16f), "임무", tiny);
+        GUI.Label(new Rect(x, p.y + 114f, full, 18f), mission.Title, Hud.Resize(Hud.Text, 14));
+
+        // 진행도 한 줄 통째로. 임무 이름 옆에 붙이면 "무사고 + 시간" 처럼 둘 다 긴 경우 부딪힌다.
+        var state = Hud.Resize(Hud.Value, 16);
         if (mission.Failed) state.normal.textColor = Hud.Ribbon;
         else if (mission.Cleared) state.normal.textColor = Hud.Brass;
-        GUI.Label(new Rect(p.x + 56f, p.y + 102f, p.width - 70f, 18f),
-                  mission.Failed ? "실패" : mission.Progress, state);
+        GUI.Label(new Rect(x, p.y + 134f, full, 20f),
+                  mission.Failed ? RaceVoice.Failed() : mission.Progress, state);
     }
 
     // ---- 순위 ----
@@ -314,7 +318,7 @@ public class TestHUD : MonoBehaviour
 
         var head = Hud.Resize(Hud.Title, 26);
         head.normal.textColor = Hud.Ribbon;
-        GUI.Label(new Rect(box.x, box.y + 18f, box.width, 32f), "임무 실패", head);
+        GUI.Label(new Rect(box.x, box.y + 18f, box.width, 32f), RaceVoice.Failed(), head);
 
         GUI.Label(new Rect(box.x, box.y + 54f, box.width, 22f), mission.FailReason,
                   Hud.Resize(Hud.Text, 15, TextAnchor.MiddleCenter));
@@ -322,8 +326,7 @@ public class TestHUD : MonoBehaviour
                   Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter));
 
         Hud.Rule(box.x + 24f, box.y + 104f, box.width - 48f);
-        GUI.Label(new Rect(box.x, box.y + 112f, box.width, 22f),
-                  "ENTER  이 판 다시 하기  (모은 건 그대로)",
+        GUI.Label(new Rect(box.x, box.y + 112f, box.width, 22f), RaceVoice.RetryHint(),
                   Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
     }
 
@@ -336,7 +339,7 @@ public class TestHUD : MonoBehaviour
         bool ok = mission == null || mission.Cleared;
         var head = Hud.Resize(Hud.Title, 32);
         head.normal.textColor = ok ? Hud.Ink : Hud.Ribbon;
-        GUI.Label(new Rect(box.x, box.y + 20f, box.width, 40f), ok ? "완주!" : "임무 실패", head);
+        GUI.Label(new Rect(box.x, box.y + 20f, box.width, 40f), ok ? "완주!" : RaceVoice.Failed(), head);
 
         var centre = Hud.Resize(Hud.Value, 19, TextAnchor.MiddleCenter);
         GUI.Label(new Rect(box.x, box.y + 70f, box.width, 26f),

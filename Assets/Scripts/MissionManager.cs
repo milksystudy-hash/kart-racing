@@ -44,17 +44,19 @@ public class MissionManager : MonoBehaviour
     [Tooltip("무충돌 임무에서 봐주는 충돌 횟수. 0 이면 한 번도 안 된다")]
     public int allowedHits = 2;
 
-    [Tooltip("제한시간 임무의 제한(초). 3바퀴 기준 넉넉한 완주가 87초쯤이다")]
-    public float timeLimit = 105f;
+    // 한 바퀴가 464 -> 535m 로 15% 길어져서(2026-09-16 직선 추가) 전부 비례로 옮겼다.
+    // 난이도는 그대로 둔 값이야 — 실제 랩타임을 재면 그때 조인다.
+    [Tooltip("제한시간 임무의 제한(초). 코스가 535m 로 늘어난 뒤 값")]
+    public float timeLimit = 121f;
 
-    [Tooltip("빠른랩 임무에서 한 바퀴를 몇 초 안에. 발판을 잘 밟으면 29초쯤 나온다")]
-    public float lapLimit = 33f;
+    [Tooltip("빠른랩 임무에서 한 바퀴를 몇 초 안에. 535m 기준")]
+    public float lapLimit = 38f;
 
     [Tooltip("태엽 임무에서 태엽을 몇 번 터뜨려야 하는지")]
     public int driftBoostsNeeded = 6;
 
     [Tooltip("완벽 임무의 제한(초). 무충돌까지 같이 지켜야 한다")]
-    public float perfectTimeLimit = 115f;
+    public float perfectTimeLimit = 133f;
 
     public bool Failed { get; private set; }
     public bool Cleared { get; private set; }
@@ -120,14 +122,14 @@ public class MissionManager : MonoBehaviour
         if (Failed || Cleared) return;
 
         // 발판을 하나라도 밟으면 그 자리에서 끝. 매 바퀴 초기화되니까 여기서 직접 센다.
-        if (goal == Goal.무발판 && BoostPad.TakenCount() > 0) Fail("발판을 밟았다");
+        if (goal == Goal.무발판 && BoostPad.TakenCount() > 0) Fail(RaceVoice.SteppedOnPad());
 
         // 판이 끝나기 전에 이미 글러버린 것들은 그 자리에서 알려준다.
         // 실패한 줄 모르고 두 바퀴를 더 도는 게 제일 허탈하다.
         if ((goal == Goal.무충돌 || goal == Goal.완벽) && kart.WallHits > allowedHits)
-            Fail($"벽에 {kart.WallHits}번 부딪혔다");
-        if (goal == Goal.제한시간 && tracker.TotalTime > timeLimit) Fail("시간을 넘겼다");
-        if (goal == Goal.완벽 && tracker.TotalTime > perfectTimeLimit) Fail("시간을 넘겼다");
+            Fail(RaceVoice.WallHit(kart.WallHits));
+        if (goal == Goal.제한시간 && tracker.TotalTime > timeLimit) Fail(RaceVoice.OutOfTime());
+        if (goal == Goal.완벽 && tracker.TotalTime > perfectTimeLimit) Fail(RaceVoice.OutOfTime());
 
         if (Failed || !tracker.Finished) return;
 
@@ -146,10 +148,10 @@ public class MissionManager : MonoBehaviour
         if (Cleared) GiveReward();
         else Fail(goal switch
         {
-            Goal.발판전부 => "발판을 다 못 밟았다",
-            Goal.태엽    => $"태엽이 {kart.DriftBoosts}번뿐이다",
-            Goal.빠른랩   => "충분히 빠른 바퀴가 없었다",
-            _             => "조건을 못 맞췄다",
+            Goal.발판전부 => RaceVoice.MissedPads(BoostPad.TakenCount(), padsTotal),
+            Goal.태엽    => RaceVoice.NotEnoughDrift(kart.DriftBoosts, driftBoostsNeeded),
+            Goal.빠른랩   => RaceVoice.NoFastLap(),
+            _             => RaceVoice.Generic(),
         });
     }
 
@@ -158,7 +160,7 @@ public class MissionManager : MonoBehaviour
         if (Failed) return;
         Failed = true;
         FailReason = reason;
-        Toast.Show($"임무 실패 — {reason}.  ENTER 로 다시");
+        Toast.Show(reason);
     }
 
     /// <summary>임무를 깬 그 순간 수집품이 들어온다. 트랙을 되돌아갈 일이 없다.</summary>
@@ -171,7 +173,7 @@ public class MissionManager : MonoBehaviour
         int chapterBefore = ChapterOf(RewardId);
 
         CollectionState.Collect(RewardId);
-        Toast.Show($"임무 달성 — {name} 획득  ({CollectionState.Count} / {ExhibitCatalogue.Count})");
+        Toast.Show(RaceVoice.Reward(name, CollectionState.Count, ExhibitCatalogue.Count));
 
         // 이 장의 수집품을 다 모았으면 다음 장으로. 이게 있어서 F7 로 손수 넘길 필요가 없어졌다.
         if (ChapterComplete(chapterBefore) && StoryProgress.CurrentChapter <= chapterBefore)
@@ -209,17 +211,8 @@ public class MissionManager : MonoBehaviour
     }
 
     // ---- 화면에 띄울 글 ----
-    public string Title => goal switch
-    {
-        Goal.발판전부 => "가속 발판 전부 밟기",
-        Goal.무충돌   => "벽에 안 부딪히기",
-        Goal.제한시간 => $"{Mathf.RoundToInt(timeLimit)}초 안에 완주",
-        Goal.태엽    => $"태엽 {driftBoostsNeeded}번 터뜨리기",
-        Goal.무발판   => "발판 밟지 않고 완주",
-        Goal.빠른랩   => $"한 바퀴 {Mathf.RoundToInt(lapLimit)}초 끊기",
-        Goal.완벽    => "무충돌로 시간 안에",
-        _             => "3바퀴 완주",
-    };
+    /// <summary>글은 RaceVoice 에 있다. 판정 코드가 문장을 만들면 로봇 말투가 된다.</summary>
+    public string Title => RaceVoice.Title(goal, this);
 
     public string Progress => goal switch
     {
@@ -235,8 +228,9 @@ public class MissionManager : MonoBehaviour
         _             => tracker != null ? $"{Mathf.Min(tracker.CurrentLap, tracker.totalLaps)} / {tracker.totalLaps}" : "",
     };
 
-    string Chances => allowedHits > 0 ? $"남은 기회 {Mathf.Max(0, allowedHits - WallHits)}"
-                                      : (WallHits > 0 ? "실패" : "깨끗");
+    // 칸이 54px 라 "남은 기회 2"(77px)는 넘친다. 짧게.
+    string Chances => allowedHits > 0 ? $"기회 {Mathf.Max(0, allowedHits - WallHits)}"
+                                      : (WallHits > 0 ? "0" : "깨끗");
 
     string Remaining(float limit) =>
         tracker != null ? LapTracker.FormatTime(Mathf.Max(0f, limit - tracker.TotalTime)) : "";

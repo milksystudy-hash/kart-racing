@@ -38,9 +38,9 @@ public class TrackBuilder : MonoBehaviour
     /// <summary>
     /// 순환 코스의 조절점. 순서대로 한 바퀴를 돈다.
     ///
-    /// <b>남쪽 변 네 점은 일부러 z 를 똑같이 맞췄다</b>(2026-09-16). 캣멀-롬 곡선은
+    /// <b>남쪽 변 다섯 점(12·13·0·1·2)은 일부러 z 를 똑같이 맞췄다</b>(2026-09-16). 캣멀-롬 곡선은
     /// 한 점의 접선이 <b>양옆 점</b>으로 정해지기 때문에, 점 두 개만 나란히 놔서는 직선이 안 나온다.
-    /// 네 점(13·0·1·2)을 한 줄에 놓아야 가운데 구간이 진짜로 곧게 뻗는다.
+    /// 네 점이면 가운데 한 구간만 곧고, <b>다섯 점이어야 두 구간이 이어져</b> 결승선 양쪽이 다 직선이 된다.
     ///
     /// 직선이 왜 필요했냐면 — 전에는 제일 긴 직선이 <b>10 m</b> 였고 25 m 넘는 직선이 하나도 없었다.
     /// 그러면 최고 속도를 쓸 일이 없고, 추월할 자리도 없고, 매 바퀴가 "계속 꺾기" 한 가지 리듬이 된다.
@@ -50,18 +50,18 @@ public class TrackBuilder : MonoBehaviour
     {
         new ControlPoint(  0f, -78f, 12.0f, Zone.본관앞),      // 출발 · 결승 — 직선 한가운데
         new ControlPoint(-32f, -78f, 10.5f, Zone.본관앞),      // 직선
-        new ControlPoint(-62f, -78f,  9.5f, Zone.서편전시동),  // 직선 끝, 브레이킹 존
-        new ControlPoint(-78f, -52f,  8.0f, Zone.서편전시동),  // 첫 코너
-        new ControlPoint(-68f, -16f,  7.5f, Zone.서편전시동),
-        new ControlPoint(-54f,  16f,  7.5f, Zone.북서담장),    // 안쪽으로 파고드는 S 자
+        new ControlPoint(-64f, -78f,  9.5f, Zone.서편전시동),  // 직선 끝, 브레이킹 존
+        new ControlPoint(-78f, -50f,  8.0f, Zone.서편전시동),  // 첫 코너
+        new ControlPoint(-68f, -14f,  7.5f, Zone.서편전시동),
+        new ControlPoint(-54f,  18f,  7.5f, Zone.북서담장),    // 안쪽으로 파고드는 S 자
         new ControlPoint(-62f,  50f,  8.0f, Zone.북서담장),
         new ControlPoint(-24f,  74f,  9.5f, Zone.정문앞),      // 한옥 정문 앞
         new ControlPoint( 20f,  74f,  9.5f, Zone.정문앞),
         new ControlPoint( 56f,  54f,  8.0f, Zone.동편연못),
-        new ControlPoint( 70f,  18f,  7.0f, Zone.동편연못),    // 연못과 돌다리, 좁다
-        new ControlPoint( 62f, -22f,  7.5f, Zone.매표소굽이),
-        new ControlPoint( 46f, -60f,  8.5f, Zone.매표소굽이),  // 직선으로 떨어지는 마지막 코너
-        new ControlPoint( 30f, -78f, 10.0f, Zone.본관앞),      // 직선 진입
+        new ControlPoint( 70f,  18f,  7.0f, Zone.동편연못),    // 연못과 돌다리, 제일 좁다
+        new ControlPoint( 64f, -24f,  7.5f, Zone.매표소굽이),
+        new ControlPoint( 62f, -78f,  9.0f, Zone.매표소굽이),  // 마지막 코너 탈출 → 직선 진입
+        new ControlPoint( 32f, -78f, 10.0f, Zone.본관앞),      // 직선
     };
 
     [Header("만들기")]
@@ -306,6 +306,7 @@ public class TrackBuilder : MonoBehaviour
         }
 
         BuildKerbs(kerbs, outer, inner, total);
+        BuildWarningStripe(walls, outer, inner, total);
         BuildRailPosts(walls, outer, inner, zones, total);
     }
 
@@ -314,6 +315,37 @@ public class TrackBuilder : MonoBehaviour
     /// 일정 간격으로 기둥이 서 있어야 사람이 세운 울타리로 읽히고, 달릴 때 속도감도 생긴다
     /// (지나가는 기둥이 눈에 박자를 만든다).
     /// </summary>
+
+    /// <summary>
+    /// 벽 꼭대기를 두르는 <b>빨강·크림 경고 띠</b>.
+    ///
+    /// 유저가 "뭐가 벽이고 뭐가 인테리어인지 구분이 안 돼서 부딪힘 횟수가 랜덤으로 깎인다" 고
+    /// 했다(2026-09-16). 맞는 지적이야 — 벽 색을 구간마다 나무·돌담·이끼로 다르게 칠해놨더니
+    /// <b>벽이 풍경처럼 보였다.</b> 예쁘긴 한데 "부딪히면 아픈 것" 이라는 신호가 사라진 거지.
+    ///
+    /// 그래서 규칙을 하나 만든다: <b>이 띠가 있으면 부딪히는 것, 없으면 장식.</b>
+    /// 광고판·나무·석등·가드레일 기둥은 콜라이더가 없으니 띠도 없다.
+    /// 실제 서킷 방호벽이 빨강·흰색으로 칠해져 있는 것과 같은 이유야.
+    ///
+    /// 벽 색은 구간마다 그대로 둔다 — 띠는 꼭대기에만 얹히니까 박물관 분위기는 안 깨진다.
+    /// </summary>
+    void BuildWarningStripe(Transform parent, Vector3[] outer, Vector3[] inner, int total)
+    {
+        const float bandHeight = 0.2f;
+        const int stripeLength = 4;          // 몇 칸마다 색이 바뀌는지
+
+        var lift = Vector3.up * (wallHeight - bandHeight);
+        var top = Vector3.up * wallHeight;
+
+        for (int i = 0; i < total; i += stripeLength)
+        {
+            int to = Mathf.Min(i + stripeLength, total);
+            var color = (i / stripeLength) % 2 == 0 ? ColKerb : ColKerbAlt;
+
+            Ribbon(parent, $"StripeOuter_{i:000}", outer, outer, i, to, lift, top, color, flip: true);
+            Ribbon(parent, $"StripeInner_{i:000}", inner, inner, i, to, top, lift, color, flip: true);
+        }
+    }
     void BuildRailPosts(Transform parent, Vector3[] outer, Vector3[] inner, int[] zones, int total)
     {
         const int every = 5;   // 조각 다섯 개마다 하나 — 대략 4m 간격
