@@ -154,6 +154,9 @@ public static class TestSceneBuilder
 
         MakeExhibitPickups(track);
 
+        // 후처리·안티에일리어싱. 트랙만 이게 빠져 있어서 유독 "유니티 기본" 으로 보였다.
+        MuseumLook.ApplyToOpenScene();
+
         // 평균 14 m/s 는 최고속 22 에서 코너 감속을 감안한 어림값
         Debug.Log($"[Racing] 트랙 한 바퀴 {track.LapLength:0} m · 약 {track.LapLength / 14f:0} 초/랩 예상");
 
@@ -277,15 +280,39 @@ public static class TestSceneBuilder
     // ==================================================================
     //  조각들
     // ==================================================================
+    /// <summary>
+    /// 야외 햇빛과 하늘빛.
+    ///
+    /// 예전엔 해만 놓고 환경광을 유니티 기본값(하늘 상자)에 맡겼다. 실내 씬은 둘 다
+    /// 직접 잡아뒀는데 야외만 안 잡아둬서, 기본 하늘의 강한 환경광에 후처리까지 얹혀
+    /// <b>화면이 통째로 하얗게 떴다</b>. 그게 트랙만 유독 "유니티 기본" 으로 보이던 이유다.
+    ///
+    /// 안개도 켠다. 먼 곳이 옅어지는 것(공기 원근)은 야외가 진짜로 보이는 가장 큰 단서인데,
+    /// 없으면 100m 밖 담장이 코앞 담장과 똑같이 선명해서 그림처럼 납작해 보인다.
+    /// </summary>
     public static void MakeSun()
     {
         var go = new GameObject("Sun");
         var light = go.AddComponent<Light>();
         light.type = LightType.Directional;
-        light.color = new Color(1f, 0.97f, 0.9f);
-        light.intensity = 1.15f;
+        light.color = new Color(1f, 0.96f, 0.89f);
+        light.intensity = 1.0f;
         light.shadows = LightShadows.Soft;
+        light.shadowStrength = 0.72f;
         go.transform.rotation = Quaternion.Euler(48f, -30f, 0f);
+
+        // 위는 하늘빛(차갑게), 아래는 땅에서 되튄 빛(따뜻하게). 실제 야외가 그렇다.
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor     = new Color(0.50f, 0.56f, 0.66f);
+        RenderSettings.ambientEquatorColor = new Color(0.44f, 0.44f, 0.41f);
+        RenderSettings.ambientGroundColor  = new Color(0.28f, 0.26f, 0.22f);
+
+        // 먼 곳을 옅게. 담장 바깥(약 110m)까지 서서히 하늘색에 잠기게 잡았다.
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.Linear;
+        RenderSettings.fogColor = new Color(0.78f, 0.82f, 0.86f);
+        RenderSettings.fogStartDistance = 55f;
+        RenderSettings.fogEndDistance = 230f;
     }
 
     static void MakeGround(float size)

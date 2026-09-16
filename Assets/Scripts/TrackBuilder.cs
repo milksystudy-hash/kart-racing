@@ -89,8 +89,11 @@ public class TrackBuilder : MonoBehaviour
         new Color32(0x7A, 0x58, 0x3E, 0xFF),   // 매표소굽이 — 나무 울타리
     };
 
-    static readonly Color ColKerb = new Color32(0xC4, 0x45, 0x3E, 0xFF);
-    static readonly Color ColLine = new Color32(0xF2, 0xF3, 0xEE, 0xFF);
+    static readonly Color ColKerb    = new Color32(0xC4, 0x45, 0x3E, 0xFF);   // 연석 빨강
+    static readonly Color ColKerbAlt = new Color32(0xEF, 0xE7, 0xD6, 0xFF);   // 연석 크림 — 번갈아
+    static readonly Color ColPostCap = new Color32(0x4E, 0x7A, 0x70, 0xFF);   // 기둥 머리 청록 기와
+    static readonly Color ColLine     = new Color32(0xF2, 0xF3, 0xEE, 0xFF);
+    static readonly Color ColLineDark = new Color32(0x2E, 0x2C, 0x2A, 0xFF);
 
     // 가속 발판 — 회색 아스팔트 위에서 멀리서도 튀어야 해서 팔레트 중 제일 센 색을 쓴다
     static readonly Color ColBoostPad   = new Color32(0x2E, 0x4C, 0x7A, 0xFF);
@@ -276,6 +279,37 @@ public class TrackBuilder : MonoBehaviour
         }
 
         BuildKerbs(kerbs, outer, inner, total);
+        BuildRailPosts(walls, outer, inner, zones, total);
+    }
+
+    /// <summary>
+    /// 가드레일 기둥. 벽이 매끈한 띠 하나면 "코드로 뽑은 면" 으로 보인다 —
+    /// 일정 간격으로 기둥이 서 있어야 사람이 세운 울타리로 읽히고, 달릴 때 속도감도 생긴다
+    /// (지나가는 기둥이 눈에 박자를 만든다).
+    /// </summary>
+    void BuildRailPosts(Transform parent, Vector3[] outer, Vector3[] inner, int[] zones, int total)
+    {
+        const int every = 5;   // 조각 다섯 개마다 하나 — 대략 4m 간격
+
+        for (int i = 0; i < total; i += every)
+        {
+            Vector3 along = (outer[(i + 1) % total] - outer[i]).normalized;
+            if (along.sqrMagnitude < 0.5f) continue;
+
+            var rot = Quaternion.LookRotation(along, Vector3.up);
+            var color = ZoneWall[zones[i]];
+            float h = wallHeight + 0.35f;   // 벽보다 조금 높게 — 기둥 머리가 보이게
+
+            foreach (var edge in new[] { outer[i], inner[i] })
+            {
+                Block(parent, $"Post_{i:000}", edge + Vector3.up * (h * 0.5f), rot,
+                      new Vector3(0.26f, h, 0.26f), color, noCollider: true);
+
+                // 기둥 머리 — 한옥 기둥처럼 한 겹 얹는다
+                Block(parent, $"PostCap_{i:000}", edge + Vector3.up * (h + 0.05f), rot,
+                      new Vector3(0.38f, 0.1f, 0.38f), ColPostCap, noCollider: true);
+            }
+        }
     }
 
     /// <summary>
@@ -340,6 +374,9 @@ public class TrackBuilder : MonoBehaviour
             int to = Mathf.Min(i + on, total);
             if (to - i < 2) continue;
 
+            // 빨강·크림을 번갈아. 한 색으로 쭉 가면 띠 하나로 뭉쳐 보인다
+            bool alt = (i / period) % 2 == 1;
+
             // 가장자리에서 안쪽으로 살짝 들여 그린다
             var a = new Vector3[to + 1];
             var b = new Vector3[to + 1];
@@ -350,7 +387,7 @@ public class TrackBuilder : MonoBehaviour
                 b[k] = outer[k] + dir * 0.7f;
             }
             Ribbon(parent, $"KerbOuter_{i:000}", a, b, i, to, Vector3.zero, Vector3.zero,
-                   ColKerb, collider: false, lift: 0.02f);
+                   alt ? ColKerbAlt : ColKerb, collider: false, lift: 0.02f);
 
             for (int k = i; k <= to; k++)
             {
@@ -359,14 +396,44 @@ public class TrackBuilder : MonoBehaviour
                 b[k] = inner[k];
             }
             Ribbon(parent, $"KerbInner_{i:000}", a, b, i, to, Vector3.zero, Vector3.zero,
-                   ColKerb, collider: false, lift: 0.02f);
+                   alt ? ColKerbAlt : ColKerb, collider: false, lift: 0.02f);
         }
     }
 
+    /// <summary>
+    /// 결승선. 흰 띠 하나였는데 체커 무늬로 바꿨다 —
+    /// 레이싱 게임에서 "여기가 결승선" 을 말 없이 알려주는 건 이 무늬뿐이다.
+    /// </summary>
     void BuildStartLine()
     {
-        Block(built, "StartLine", transform.position + PointOnPath(0f) + Vector3.up * 0.01f,
-              StartRotation, new Vector3(WidthOnPath(0f), 0.04f, 1.4f), ColLine, noCollider: true);
+        var root = new GameObject("StartLine").transform;
+        root.SetParent(built, false);
+
+        Vector3 centre = transform.position + PointOnPath(0f) + Vector3.up * 0.01f;
+        Vector3 side = Vector3.Cross(Vector3.up, TangentOnPath(0f));
+        float width = WidthOnPath(0f);
+
+        const int columns = 14;
+        const int rows = 2;
+        float cell = width / columns;
+
+        for (int c = 0; c < columns; c++)
+            for (int r = 0; r < rows; r++)
+            {
+                // 체커는 가로·세로 합이 홀수인 칸만 어둡게 칠하면 된다
+                if ((c + r) % 2 == 0) continue;
+
+                Vector3 p = centre
+                          + side * ((c + 0.5f) * cell - width * 0.5f)
+                          + TangentOnPath(0f) * ((r + 0.5f) * cell - rows * cell * 0.5f);
+
+                Block(root, $"Check_{c}_{r}", p, StartRotation,
+                      new Vector3(cell, 0.04f, cell), ColLineDark, noCollider: true);
+            }
+
+        // 바탕 — 어두운 칸이 이 위에 얹힌다
+        Block(root, "Base", centre + Vector3.down * 0.005f, StartRotation,
+              new Vector3(width, 0.04f, rows * cell), ColLine, noCollider: true);
     }
 
     void BuildCheckpoints()

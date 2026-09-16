@@ -19,7 +19,18 @@ public class TestHUD : MonoBehaviour
     [Header("폰트 (비워 두면 OS 한글 폰트를 쓴다)")]
     public Font uiFont;
 
-    Texture2D panelTex, barBgTex, barFillTex, accentTex, pickupTex;
+    // 나무 판에 종이 라벨을 붙인 장난감 리모컨 느낌.
+    // 무인 모형 카트를 옆에서 조종한다는 설정이라(2026-09-16), 화면이 곧 그 리모컨이다.
+    // 색은 로비·전시실과 같은 목재/크림색을 쓴다 — 화면과 방이 같은 재료로 보이게.
+    static readonly Color Wood      = new Color32(0x6B, 0x4A, 0x33, 0xF2);
+    static readonly Color WoodLight = new Color32(0x8A, 0x6A, 0x48, 0xFF);
+    static readonly Color Paper     = new Color32(0xEF, 0xE7, 0xD6, 0xFF);
+    static readonly Color PaperEdge = new Color32(0xD6, 0xC9, 0xB0, 0xFF);
+    static readonly Color Ink       = new Color32(0x3A, 0x2C, 0x22, 0xFF);
+    static readonly Color InkSoft   = new Color32(0x7A, 0x66, 0x54, 0xFF);
+
+    Texture2D woodTex, woodLightTex, paperTex, paperEdgeTex;
+    Texture2D barBgTex, barFillTex, accentTex, pickupTex;
     GUIStyle bigStyle, labelStyle, valueStyle, hintStyle, centerHint;
     bool stylesReady;
 
@@ -27,11 +38,31 @@ public class TestHUD : MonoBehaviour
 
     void Awake()
     {
-        panelTex   = Solid(new Color(0.09f, 0.10f, 0.08f, 0.72f));
-        barBgTex   = Solid(new Color(1f, 1f, 1f, 0.16f));
-        barFillTex = Solid(new Color(0.61f, 0.77f, 0.54f, 0.95f));
-        accentTex  = Solid(new Color(0.85f, 0.55f, 0.42f, 0.95f));
-        pickupTex  = Solid(new Color(1f, 0.86f, 0.25f, 0.95f));
+        woodTex      = Solid(Wood);
+        woodLightTex = Solid(WoodLight);
+        paperTex     = Solid(Paper);
+        paperEdgeTex = Solid(PaperEdge);
+
+        barBgTex   = Solid(new Color32(0xD6, 0xC9, 0xB0, 0xFF));   // 종이에 눌린 홈
+        barFillTex = Solid(new Color32(0x8A, 0x6A, 0x48, 0xFF));   // 감긴 태엽
+        accentTex  = Solid(new Color32(0xC9, 0x8A, 0x3C, 0xFF));   // 놋쇠 — 터질 때
+        pickupTex  = Solid(new Color32(0xC4, 0x45, 0x3E, 0xFF));   // 박물관 리본 빨강
+    }
+
+    /// <summary>
+    /// 나무 판 한 장에 종이 라벨을 붙인다. 패널은 전부 이걸로 그린다.
+    ///
+    /// 나무 테두리를 바깥에 남기는 게 핵심 — 종이가 판 위에 "붙어 있는" 것처럼 보인다.
+    /// 반투명 검은 사각형이 "유니티 기본 UI" 로 읽히던 걸 이걸로 바꾼다.
+    /// </summary>
+    void Panel(Rect r)
+    {
+        GUI.DrawTexture(r, woodTex);                                   // 나무 판
+        GUI.DrawTexture(new Rect(r.x, r.y, r.width, 2f), woodLightTex); // 위쪽 결 — 빛 받는 면
+
+        var paper = new Rect(r.x + 6f, r.y + 6f, r.width - 12f, r.height - 12f);
+        GUI.DrawTexture(paper, paperEdgeTex);
+        GUI.DrawTexture(new Rect(paper.x, paper.y, paper.width - 1f, paper.height - 1f), paperTex);
     }
 
     [Header("테스트 도우미")]
@@ -76,17 +107,17 @@ public class TestHUD : MonoBehaviour
 
         bigStyle = HudFont.With(new GUIStyle(GUI.skin.label)
         { fontSize = 46, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight }, font);
-        bigStyle.normal.textColor = Color.white;
+        bigStyle.normal.textColor = Ink;
 
         labelStyle = HudFont.With(new GUIStyle(GUI.skin.label) { fontSize = 12 }, font);
-        labelStyle.normal.textColor = new Color(1f, 1f, 1f, 0.55f);
+        labelStyle.normal.textColor = InkSoft;
 
         valueStyle = HudFont.With(new GUIStyle(GUI.skin.label)
         { fontSize = 20, fontStyle = FontStyle.Bold }, font);
-        valueStyle.normal.textColor = Color.white;
+        valueStyle.normal.textColor = Ink;
 
         hintStyle = HudFont.With(new GUIStyle(GUI.skin.label) { fontSize = 13 }, font);
-        hintStyle.normal.textColor = new Color(1f, 1f, 1f, 0.5f);
+        hintStyle.normal.textColor = InkSoft;
 
         centerHint = new GUIStyle(hintStyle) { alignment = TextAnchor.MiddleCenter };
 
@@ -109,7 +140,7 @@ public class TestHUD : MonoBehaviour
 
     void DrawStatusPanel()
     {
-        GUI.DrawTexture(new Rect(16, 16, 250, 62), panelTex);
+        Panel(new Rect(16, 16, 250, 62));
 
         GUI.Label(new Rect(30, 22, 230, 16), "씬", labelStyle);
         GUI.Label(new Rect(30, 34, 230, 22), SceneNavigator.CurrentSceneName, valueStyle);
@@ -121,7 +152,7 @@ public class TestHUD : MonoBehaviour
                   mode, new GUIStyle(labelStyle) { fontSize = 14, fontStyle = FontStyle.Bold });
 
         // 지금 몇 장인지 — 어떤 수집품이 나올지를 이게 정한다
-        GUI.DrawTexture(new Rect(16, 84, 250, 40), panelTex);
+        Panel(new Rect(16, 84, 250, 40));
         GUI.Label(new Rect(30, 88, 230, 16), "진행 중", labelStyle);
         GUI.Label(new Rect(30, 102, 230, 18),
                   StoryProgress.CurrentName, new GUIStyle(labelStyle) { fontSize = 13 });
@@ -131,7 +162,7 @@ public class TestHUD : MonoBehaviour
     {
         if (tracker != null)
         {
-            GUI.DrawTexture(new Rect(16, 132, 240, 108), panelTex);
+            Panel(new Rect(16, 132, 240, 108));
             GUI.Label(new Rect(30, 138, 200, 16), "랩", labelStyle);
             GUI.Label(new Rect(30, 152, 200, 26),
                       $"{Mathf.Min(tracker.CurrentLap, tracker.totalLaps)} / {tracker.totalLaps}", valueStyle);
@@ -146,7 +177,7 @@ public class TestHUD : MonoBehaviour
         // 등수 — 필수 조건은 아니지만 달리는 내내 보인다
         if (standings != null && standings.RacerCount > 0)
         {
-            GUI.DrawTexture(new Rect(w - 150, 16, 134, 66), panelTex);
+            Panel(new Rect(w - 150, 16, 134, 66));
             GUI.Label(new Rect(w - 136, 22, 110, 16), "순위", labelStyle);
             GUI.Label(new Rect(w - 136, 36, 110, 34),
                       $"{RaceStandings.PlaceLabel(standings.PlayerPlace)}",
@@ -155,6 +186,9 @@ public class TestHUD : MonoBehaviour
         }
 
         if (kart == null) return;
+
+        // 속도계와 태엽은 리모컨 아래쪽에 붙은 판 하나에 같이 올린다
+        Panel(new Rect(w - 228, h - 122, 212, 106));
 
         int kph = Mathf.Abs(Mathf.RoundToInt(kart.SpeedKph));
         GUI.Label(new Rect(w - 210, h - 110, 180, 60), kph.ToString(), bigStyle);
@@ -192,7 +226,9 @@ public class TestHUD : MonoBehaviour
         keys += "     F1·F2 씬 이동";
         if (chapterDebugKeys) keys += "     F7 다음 장 / F8 첫 장";
 
-        GUI.Label(new Rect(0, h - 26, w, 20), keys, centerHint);
+        // 조작 안내는 바닥에 깔린 종이 띠 위에
+        GUI.DrawTexture(new Rect(0, h - 30, w, 26), woodTex);
+        GUI.Label(new Rect(0, h - 28, w, 22), keys, centerHint);
     }
 
     /// <summary>수집품을 주우면 잠깐 뜨는 안내. 전광등만으로는 뭘 주웠는지 모르니까.</summary>
@@ -203,7 +239,7 @@ public class TestHUD : MonoBehaviour
         if (age > showSeconds || string.IsNullOrEmpty(ExhibitPickup.LastMessage)) return;
 
         var box = new Rect(w * 0.5f - 210, h * 0.16f, 420, 46);
-        GUI.DrawTexture(box, panelTex);
+        Panel(box);
 
         // 노란 띠 — 전광등과 같은 색이라 둘이 한 사건으로 읽힌다
         GUI.DrawTexture(new Rect(box.x, box.y, 5f, box.height), pickupTex);
@@ -216,13 +252,13 @@ public class TestHUD : MonoBehaviour
     {
         if (InKart) return;
         // 1인칭일 때 화면 중앙에 작은 점 — 어디를 보고 있는지 알기 쉬우라고
-        GUI.DrawTexture(new Rect(w * 0.5f - 2f, h * 0.5f - 2f, 4f, 4f), barBgTex);
+        GUI.DrawTexture(new Rect(w * 0.5f - 2f, h * 0.5f - 2f, 4f, 4f), woodLightTex);
     }
 
     void DrawFinish(float w, float h)
     {
         var box = new Rect(w * 0.5f - 170, h * 0.5f - 86, 340, 172);
-        GUI.DrawTexture(box, panelTex);
+        Panel(box);
 
         var center = new GUIStyle(valueStyle) { alignment = TextAnchor.MiddleCenter, fontSize = 28 };
         GUI.Label(new Rect(box.x, box.y + 18, box.width, 34), "완주!", center);
@@ -238,7 +274,7 @@ public class TestHUD : MonoBehaviour
         {
             bool first = standings.PlayerFinishedFirst;
             var line = new GUIStyle(centerHint) { fontSize = 14 };
-            line.normal.textColor = first ? new Color(1f, 0.86f, 0.25f) : new Color(1f, 1f, 1f, 0.45f);
+            line.normal.textColor = first ? new Color32(0xB0, 0x6A, 0x14, 0xFF) : InkSoft;
             GUI.Label(new Rect(box.x, box.y + 102, box.width, 20),
                       first ? "◆ 선택 임무 달성 — 1위로 완주" : "선택 임무 — 1위로 완주 (미달성)", line);
         }
