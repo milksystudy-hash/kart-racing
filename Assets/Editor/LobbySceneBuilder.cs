@@ -220,11 +220,13 @@ public static class LobbySceneBuilder
 
         // 남쪽 — 밖으로. 문의 +Z 가 바깥쪽이라 홀 안을 보게 180도 돌린다.
         HanokDoor.Build(root, new Vector3(0f, 0f, HallDepth * 0.5f - 0.25f),
-                        Quaternion.Euler(0f, 180f, 0f), 4.2f, 4.6f, mat);
+                        Quaternion.Euler(0f, 180f, 0f), 4.2f, 4.6f, mat,
+                        plaque: true, buildingName: "밖으로", department: "캠퍼스 · 트랙");
 
         // 동쪽 — 전시실로. 접수대(x 11.5, z 4)를 피해 z -6 에.
         HanokDoor.Build(root, new Vector3(HallWidth * 0.5f - 0.25f, 0f, -6f),
-                        Quaternion.Euler(0f, 270f, 0f), 3.6f, 4.4f, mat);
+                        Quaternion.Euler(0f, 270f, 0f), 3.6f, 4.4f, mat,
+                        plaque: true, buildingName: "전시실", department: "수집품 진열");
     }
 
     static void MakeWalls()

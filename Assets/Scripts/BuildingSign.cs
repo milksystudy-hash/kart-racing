@@ -26,8 +26,74 @@ public class BuildingSign : MonoBehaviour
     public bool closed;
 
     Transform sticker;
+    bool wrote;
 
-    void Start() => Apply();
+    void Start()
+    {
+        WriteName();
+        Apply();
+    }
+
+    /// <summary>
+    /// 현판에 글씨.
+    ///
+    /// <b>TextMeshPro 를 안 쓴다.</b> TMP 는 TTF 를 그대로 못 쓰고 전용 폰트 에셋이 필요한데,
+    /// 그 에셋을 만들려면 TMP 기본 리소스가 임포트돼 있어야 하고 이 프로젝트에는 없다.
+    /// 현판 글씨 하나 때문에 패키지 설정을 건드릴 일이 아니야 — 옛날 TextMesh 로 충분하다.
+    /// 가까이서 보면 조금 흐릿한데, 달리면서 스쳐 보는 간판이라 그게 문제가 안 된다.
+    ///
+    /// 폰트는 이미 있는 <c>Resources/HudFont.ttf</c> 를 그대로 쓴다. 새로 넣는 게 없다.
+    ///
+    /// 글자는 현판의 <b>자식이 아니라 형제</b>로 단다. 현판은 납작하게 눌린 상자라
+    /// 자식으로 넣으면 글씨도 같이 눌린다.
+    /// </summary>
+    void WriteName()
+    {
+        if (wrote || string.IsNullOrEmpty(buildingName)) return;
+        wrote = true;
+
+        var font = Resources.Load<Font>(PlaqueFontName);
+        if (font == null) return;
+
+        var parent = transform.parent != null ? transform.parent : transform;
+        float width = transform.localScale.x;
+
+        Label(parent, "PlaqueText", buildingName, font,
+              transform.localPosition + new Vector3(0f, 0f, 0.09f),
+              new Color32(0xF0, 0xE2, 0xC6, 0xFF), width / 3.2f);
+
+        string under = string.IsNullOrEmpty(motto) ? department
+                     : (string.IsNullOrEmpty(department) ? motto : department + "   " + motto);
+        if (string.IsNullOrEmpty(under)) return;
+
+        // 학과와 한 줄은 현판 아래 작게. 이름만으로는 뭐 하는 곳인지 모르는 관이 있다.
+        Label(parent, "PlaqueSub", under, font,
+              transform.localPosition + new Vector3(0f, -0.36f, 0.09f),
+              new Color32(0xC9, 0xA2, 0x27, 0xFF), width / 9f);
+    }
+
+    static void Label(Transform parent, string name, string body, Font font,
+                      Vector3 local, Color color, float size)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = local;
+        go.transform.localRotation = Quaternion.identity;
+
+        var text = go.AddComponent<TextMesh>();
+        text.font = font;
+        text.text = body;
+        text.fontSize = 64;                  // 크게 구워서 줄여 쓴다 — 작게 구우면 계단이 보인다
+        text.characterSize = size * 0.06f;
+        text.anchor = TextAnchor.MiddleCenter;
+        text.alignment = TextAlignment.Center;
+        text.color = color;
+
+        go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+    }
+
+    /// <summary>Resources 안에 이미 있는 한글 폰트. 새로 넣는 게 없다.</summary>
+    public const string PlaqueFontName = "HudFont";
 
     /// <summary>딱지를 붙이거나 뗀다. <see cref="CampusMood"/> 가 이야기 진행에 맞춰 부른다.</summary>
     public void SetClosed(bool value)

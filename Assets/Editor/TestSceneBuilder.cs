@@ -99,6 +99,9 @@ public static class TestSceneBuilder
         var rig = new GameObject("GameRig");
         rig.AddComponent<SceneNavigator>();
 
+        // 캠퍼스가 이야기에 반응하게. 기하는 안 건드리고 현판 딱지와 빛만 바뀐다.
+        rig.AddComponent<CampusMood>();
+
         var switcher = rig.AddComponent<PlayerModeSwitcher>();
         switcher.player = player.controller;
         switcher.playerCamera = player.camera;

@@ -277,7 +277,8 @@ public static class GallerySceneBuilder
         var root = new GameObject("Doors").transform;
         HanokDoor.Build(root, new Vector3(0f, 0f, HallDepth * 0.5f - 0.25f),
                         Quaternion.Euler(0f, 180f, 0f), 3.8f, 4.4f,
-                        c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c)));
+                        c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c)),
+                        plaque: true, buildingName: "중앙홀", department: "돌아가기");
     }
 
     static void MakeHall()
