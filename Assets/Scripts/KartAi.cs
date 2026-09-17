@@ -118,13 +118,26 @@ public class KartAi : MonoBehaviour
     {
         stuckFor = 0f;
 
-        float ahead = Wrap(progress + 6f / Mathf.Max(1f, track.LapLength));
-        Vector3 at = LanePoint(ahead) + Vector3.up * 0.6f;
-        Vector3 forward = track.TangentOnPath(ahead);
+        // <b>사람이 막고 있으면 되돌리지 않는다.</b> 그러면 막은 보람이 없어진다 —
+        // 유저 제보(2026-09-17): 일부러 막았더니 버벅거리다 <b>앞으로 순간이동해서</b> 가버렸다.
+        // 막혀서 못 가는 건 벌이 아니라 결과여야 한다.
+        if (PlayerNear(8f)) return;
+
+        // <b>제자리에</b> 세운다. 앞으로 옮기면 끼었다가 오히려 이득을 본다.
+        // 끼었던 자리에 다시 끼는 건 방향을 코스 쪽으로 돌려주는 것으로 푼다.
+        Vector3 at = LanePoint(progress) + Vector3.up * 0.6f;
+        Vector3 forward = track.TangentOnPath(Wrap(progress));
 
         kart.RespawnAt(at, Quaternion.LookRotation(forward, Vector3.up));
-        progress = ahead;
-        lastProgress = ahead;
+        lastProgress = progress;
+    }
+
+    /// <summary>사람이 탄 카트가 이 거리 안에 있나.</summary>
+    bool PlayerNear(float range)
+    {
+        foreach (var mark in FindObjectsByType<PlayerKart>(FindObjectsSortMode.None))
+            if ((mark.transform.position - transform.position).sqrMagnitude < range * range) return true;
+        return false;
     }
 
     /// <summary>코스 위 t 지점에서 내 차선만큼 옆으로 비킨 자리.</summary>

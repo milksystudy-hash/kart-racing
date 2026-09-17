@@ -36,6 +36,9 @@ public class KartController : MonoBehaviour
     public float gripWhileDrifting = 3.5f;
     public float boostChargePerSecond = 4f;
     public float boostChargeMax = 8f;
+
+    [Tooltip("짧게 감아도 최소 이만큼은 나간다. 최고 속도에 더해지는 값(m/s)")]
+    public float driftBoostFloor = 3f;
     [Tooltip("드리프트를 놓았을 때 부스트가 지속되는 시간(초)")]
     public float boostDuration = 1.3f;
 
@@ -499,8 +502,12 @@ public class KartController : MonoBehaviour
         }
         else if (wasDrifting && BoostCharge > 1f)
         {
-            // 드리프트를 놓는 순간 모아둔 만큼 부스트가 터진다
-            boostAmount = BoostCharge;
+            // 드리프트를 놓는 순간 모아둔 만큼 부스트가 터진다.
+            //
+            // <b>바닥값을 준다.</b> 모은 게 1.2 쯤이면 최고 속도가 7% 오르고 끝나서
+            // "감아도 달라지는 게 없다" 로 느껴진다(2026-09-17 유저: "기능이 더 나아지는 것
+            // 같지도 않다"). 짧게 감아도 <b>확실히 느껴지는</b> 만큼은 나가야 다음에 또 쓴다.
+            boostAmount = Mathf.Max(BoostCharge, driftBoostFloor);
             boostTimer = boostDuration;
             BoostCharge = 0f;
             DriftBoosts++;   // "태엽 N번 터뜨리기" 임무가 이걸 본다

@@ -144,6 +144,14 @@ public class TestHUD : MonoBehaviour
                   LapTracker.FormatTime(tracker.BestLapTime), time);
     }
 
+    /// <summary>수집품 패널이 어디서 끝나는지. 지도가 이 아래로 간다.</summary>
+    float CollectionBottom()
+    {
+        if (!InKart) return 152f;
+        if (mission != null && mission.AllDone) return 152f;
+        return 152f + (mission == null ? 78f : 222f);
+    }
+
     // ---- 수집품 체크리스트 + 이번 판 임무 ----
     /// <summary>
     /// 장 이름("제1장 사라진 관람객")보다 <b>몇 개 모았는지</b>가 화면에 있어야 한다는
@@ -267,7 +275,7 @@ public class TestHUD : MonoBehaviour
         var state = Hud.Resize(Hud.Label, 13);
         if (hot) state.normal.textColor = Hud.Brass;
         GUI.Label(new Rect(bar.x, p.y + 75f, 126f, 18f),
-                  kart.IsBoosting ? "풀린다!" : (kart.IsDrifting ? "감는 중" : "SHIFT 로 감기"), state);
+                  kart.IsBoosting ? "태엽 작동!" : (kart.IsDrifting ? "감는 중" : "SHIFT 로 태엽 감기"), state);
     }
 
     /// <summary>
@@ -331,7 +339,7 @@ public class TestHUD : MonoBehaviour
         string[,] rows =
         {
             { "화살표 · WASD", "운전" },
-            { "SHIFT", "꾹 누르고 꺾으면 태엽이 감긴다" },
+            { "SHIFT", "꺾으면서 꾹 — 놓으면 태엽 작동" },
             { "SPACE", "톡 누르면 폴짝 (호핑)" },
             { "R", "제자리로 되돌리기" },
             { "ENTER", "이 판 다시 하기" },
@@ -472,10 +480,14 @@ public class TestHUD : MonoBehaviour
     {
         if (map == null || map.Texture == null || standings == null) return;
 
-        // 아래에 개발 정보 칩(h−54)과 조작법 칩(h−28)이 있다. 지도를 그 위로 올린다 —
-        // 유저 제보(2026-09-17): 장 이름이 지도와 겹쳤다.
-        const float side = 132f;
-        var box = new Rect(16f, h - side - 86f, side, side);
+        // 지도 자리는 <b>계산해서</b> 잡는다. 고정으로 두면 창이 납작할 때(에디터 게임 뷰가
+        // 대개 그렇다) 위의 수집품 패널과 겹친다 — 유저 제보 2026-09-17.
+        // 위로는 패널 아래, 아래로는 조작법 칩 위. 남는 만큼만 쓰고, 너무 좁으면 안 그린다.
+        float top = CollectionBottom() + 10f;
+        float side = Mathf.Min(132f, h - 62f - top);
+        if (side < 70f) return;
+
+        var box = new Rect(16f, top, side, side);
         Hud.Panel(box);
 
         var inner = Hud.Inner(box);

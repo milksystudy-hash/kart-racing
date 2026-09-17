@@ -43,6 +43,14 @@ public static class CampusSceneBuilder
         campus.Build();
         track.Build();
 
+        // <b>구운 걸 그대로 쓴다.</b> `built` 는 저장되지 않는 필드라, 실행할 때 Awake 가
+        // "아직 안 지었네" 하고 <b>한 벌 더</b> 짓는다 — 캠퍼스가 통째로 두 벌이 되고
+        // 현판 글씨도 두 겹으로 겹쳐 보인다(2026-09-17 유저 제보).
+        // 트랙 씬은 굽지 않고 저장해서 Awake 가 짓지만, 여기는 걸어 다니는 씬이라
+        // 에디터에서 보이는 게 낫다. 구웠으면 Awake 는 꺼 둔다.
+        campus.buildOnAwake = false;
+        track.buildOnAwake = false;
+
         // ---- 걸어다닐 몸 ----
         var player = TestSceneBuilder.MakePlayer(Entrance, 0f);
 

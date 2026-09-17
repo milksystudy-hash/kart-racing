@@ -192,6 +192,11 @@ public static class TestSceneBuilder
         var standings = rig.AddComponent<RaceStandings>();
         standings.playerRacer = kart.GetComponent<RaceProgress>();
 
+        // AI 는 마지막 판에만. 카트는 씬에 두고 켜고 끄기만 한다.
+        var gate = rig.AddComponent<AiRaceGate>();
+        var aiRoot = GameObject.Find("AiKarts");
+        if (aiRoot != null) gate.aiKarts = aiRoot.transform;
+
         // 캠퍼스 건물 열셋을 걸어서 점검할 수 있게. TAB 으로 내린다(2026-09-17 유저).
         var walker = MakePlayer(track.StartPosition + Vector3.up * 0.2f, 0f);
 

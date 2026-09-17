@@ -69,6 +69,17 @@ public class MissionManager : MonoBehaviour
     public string RewardName => string.IsNullOrEmpty(RewardId) ? "" : ExhibitCatalogue.NameOf(RewardId);
     public bool AllDone => string.IsNullOrEmpty(RewardId);
 
+    /// <summary>
+    /// 마지막 판인가. <b>AI 카트는 여기서만 나온다</b>(2026-09-17 유저:
+    /// *"원래 8개 다 모으고 나서 마지막이 AI 카트 3대와 함께 달리는 거잖아."*).
+    ///
+    /// 처음부터 AI 와 겨루면 <b>배우는 판이 사라진다</b> — 1판은 뭘 하는 게임인지 익히는
+    /// 자리인데 옆에서 세 대가 달리면 조작을 익힐 겨를이 없다.
+    /// 다 모은 뒤 자유 주행에서도 남겨둔다 — 그때는 같이 달릴 상대가 있는 게 낫다.
+    /// </summary>
+    public static bool FinalRace =>
+        CollectionState.Count >= ExhibitCatalogue.Count - 1;
+
     public Goal goal { get; private set; }
 
     int padsTotal;
@@ -212,6 +223,10 @@ public class MissionManager : MonoBehaviour
         BoostPad.ClearTaken();
         AdBoard.ResetAll();
         if (kart != null) kart.ResetWallHits();
+
+        // 방금 여덟 번째를 받았으면 이 판부터 AI 가 나온다
+        var gate = FindFirstObjectByType<AiRaceGate>();
+        if (gate != null) gate.Apply();
     }
 
     // ---- 화면에 띄울 글 ----

@@ -26,10 +26,19 @@ public class RaceStandings : MonoBehaviour
 
     readonly List<RaceProgress> sorted = new();
 
-    void Awake()
+    void Awake() => Recount();
+
+    /// <summary>
+    /// 지금 <b>켜져 있는</b> 카트만 센다. AI 가 꺼진 판에서 꺼진 카트까지 세면
+    /// "4대 중 1위" 라고 뜨는데 화면에는 나 혼자다(2026-09-17).
+    /// </summary>
+    public void Recount()
     {
-        if (racers == null || racers.Length == 0)
-            racers = FindObjectsByType<RaceProgress>(FindObjectsSortMode.None);
+        var found = FindObjectsByType<RaceProgress>(FindObjectsSortMode.None);
+        var live = new List<RaceProgress>();
+        foreach (var racer in found)
+            if (racer != null && racer.gameObject.activeInHierarchy) live.Add(racer);
+        racers = live.ToArray();
     }
 
     void Update()
