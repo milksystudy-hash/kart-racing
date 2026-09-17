@@ -38,6 +38,13 @@ public class SpeedRush : MonoBehaviour
     Volume volume;
     float rush;
 
+    /// <summary>꺼질 때 남아 있던 효과를 지운다. 안 그러면 끈 순간의 화면이 얼어붙는다.</summary>
+    public void Silence()
+    {
+        rush = 0f;
+        if (volume != null) volume.weight = 0f;
+    }
+
     void Awake()
     {
         var profile = ScriptableObject.CreateInstance<VolumeProfile>();
@@ -57,6 +64,8 @@ public class SpeedRush : MonoBehaviour
         volume.profile = profile;
         volume.weight = 0f;
     }
+
+    void OnEnable() => ScreenEffects.Apply();
 
     void LateUpdate()
     {

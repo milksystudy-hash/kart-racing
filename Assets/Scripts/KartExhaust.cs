@@ -26,6 +26,16 @@ public class KartExhaust : MonoBehaviour
     [Tooltip("부스트 중에는 몇 배로")]
     public float boostMultiply = 2.6f;
 
+    /// <summary>화면 효과 스위치가 부른다. 끄면 알갱이가 안 나오고 있던 것도 지운다.</summary>
+    public void SetOn(bool on)
+    {
+        if (puff == null) return;
+        if (on) { puff.Play(); }
+        else { puff.Clear(); puff.Stop(); }
+        muted = !on;
+    }
+
+    bool muted;
     KartController kart;
     ParticleSystem puff;
     ParticleSystem.EmissionModule emission;
@@ -96,6 +106,7 @@ public class KartExhaust : MonoBehaviour
 
         SetColor(Color.white);
         puff.Play();
+        SetOn(ScreenEffects.On);
     }
 
     void LateUpdate()
@@ -105,6 +116,8 @@ public class KartExhaust : MonoBehaviour
         float speed = Mathf.Abs(kart.SpeedKph);
         float top = Mathf.Max(1f, kart.maxSpeed * 3.6f);
         float t = Mathf.InverseLerp(startsAt, top, speed);
+
+        if (muted) { emission.rateOverTime = 0f; return; }
 
         float rate = topRate * t;
         if (kart.IsBoosting) rate *= boostMultiply;

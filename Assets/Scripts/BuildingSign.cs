@@ -78,7 +78,11 @@ public class BuildingSign : MonoBehaviour
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
         go.transform.localPosition = local;
-        go.transform.localRotation = Quaternion.identity;
+
+        // <b>180도 돌려야 글자가 바로 보인다.</b> TextMesh 는 자기 +Z 쪽에서 읽히게 생겼는데,
+        // 문의 +Z 는 <b>보는 사람 쪽</b>을 향한다. 그대로 두면 뒤에서 본 꼴이라 좌우가 뒤집힌다.
+        // (2026-09-17 유저 제보 — 모든 건물 현판이 거울 글씨로 나왔다)
+        go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
         var text = go.AddComponent<TextMesh>();
         text.font = font;

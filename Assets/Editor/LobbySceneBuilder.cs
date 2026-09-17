@@ -213,19 +213,25 @@ public static class LobbySceneBuilder
     /// <b>남쪽 = 밖(캠퍼스·트랙), 동쪽 = 전시실.</b> 서쪽은 방송 화면이 붙어 있어서 비워 둔다.
     /// 문은 안 열린다 — 씬 이동은 따로 하고, 문은 <b>어디가 입구인지</b>만 말한다.
     /// </summary>
+    /// <summary>문이 선 자리. 살창이 여기를 피해 간다.</summary>
+    static readonly System.Collections.Generic.List<Vector3> doorSpots = new System.Collections.Generic.List<Vector3>();
+
     static void MakeDoors()
     {
+        doorSpots.Clear();
         var root = new GameObject("Doors").transform;
         System.Func<Color, Material> mat = c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c));
 
         // 남쪽 — 밖으로. 문의 +Z 가 바깥쪽이라 홀 안을 보게 180도 돌린다.
-        HanokDoor.Build(root, new Vector3(0f, 0f, HallDepth * 0.5f - 0.25f),
-                        Quaternion.Euler(0f, 180f, 0f), 4.2f, 4.6f, mat,
+        var south = new Vector3(0f, 0f, HallDepth * 0.5f - 0.25f);
+        doorSpots.Add(south);
+        HanokDoor.Build(root, south, Quaternion.Euler(0f, 180f, 0f), 4.2f, 4.6f, mat,
                         plaque: true, buildingName: "밖으로", department: "캠퍼스 · 트랙");
 
         // 동쪽 — 전시실로. 접수대(x 11.5, z 4)를 피해 z -6 에.
-        HanokDoor.Build(root, new Vector3(HallWidth * 0.5f - 0.25f, 0f, -6f),
-                        Quaternion.Euler(0f, 270f, 0f), 3.6f, 4.4f, mat,
+        var east = new Vector3(HallWidth * 0.5f - 0.25f, 0f, -6f);
+        doorSpots.Add(east);
+        HanokDoor.Build(root, east, Quaternion.Euler(0f, 270f, 0f), 3.6f, 4.4f, mat,
                         plaque: true, buildingName: "전시실", department: "수집품 진열");
     }
 
@@ -320,15 +326,31 @@ public static class LobbySceneBuilder
         for (int i = -1; i <= 1; i++)
         {
             float x = i * (halfW * 0.55f);
-            Lattice(root, $"Win_N{i + 1}", new Vector3(x, y, -halfD + 0.18f), w, h, true);
-            Lattice(root, $"Win_S{i + 1}", new Vector3(x, y,  halfD - 0.18f), w, h, true);
+            TryLattice(root, $"Win_N{i + 1}", new Vector3(x, y, -halfD + 0.18f), w, h, true);
+            TryLattice(root, $"Win_S{i + 1}", new Vector3(x, y,  halfD - 0.18f), w, h, true);
         }
         for (int i = -1; i <= 1; i++)
         {
             float z = i * (halfD * 0.55f);
-            Lattice(root, $"Win_W{i + 1}", new Vector3(-halfW + 0.18f, y, z), w, h, false);
-            Lattice(root, $"Win_E{i + 1}", new Vector3( halfW - 0.18f, y, z), w, h, false);
+            TryLattice(root, $"Win_W{i + 1}", new Vector3(-halfW + 0.18f, y, z), w, h, false);
+            TryLattice(root, $"Win_E{i + 1}", new Vector3( halfW - 0.18f, y, z), w, h, false);
         }
+    }
+
+    /// <summary>
+    /// 문이 선 자리에는 살창을 안 건다. 유저 제보(2026-09-17): 전시실 문과 창이 붙어 있었다.
+    /// 창(반폭 2.1)과 문(반폭 2.3)이 4.4m 안에 들면 반드시 겹친다 — <b>자리를 옮기는 게 아니라
+    /// 한 장을 빼는 게 맞다.</b> 옮기면 창 간격이 들쭉날쭉해져서 그게 더 눈에 띈다.
+    /// </summary>
+    static void TryLattice(Transform parent, string name, Vector3 centre, float w, float h, bool alongX)
+    {
+        foreach (var door in doorSpots)
+        {
+            float apart = alongX ? Mathf.Abs(centre.x - door.x) : Mathf.Abs(centre.z - door.z);
+            bool sameWall = alongX ? Mathf.Abs(centre.z - door.z) < 3f : Mathf.Abs(centre.x - door.x) < 3f;
+            if (sameWall && apart < 4.6f) return;
+        }
+        Lattice(parent, name, centre, w, h, alongX);
     }
 
     /// <summary>살창 한 장 — 한지 + 테두리 + 세로살 다섯 + 가로살 셋.</summary>

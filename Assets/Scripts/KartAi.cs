@@ -36,6 +36,9 @@ public class KartAi : MonoBehaviour
     [Tooltip("이 각도보다 급하게 꺾이면 드리프트를 건다(도)")]
     public float driftAngle = 32f;
 
+    [Tooltip("이만큼 못 움직이면 코스 위로 되돌린다(초). 후진으로도 못 빠져나오는 경우")]
+    public float recoverAfter = 4f;
+
     KartController kart;
     float progress;          // 코스에서 지금 어디쯤인지 (0~1)
     float stuckFor;
@@ -82,14 +85,35 @@ public class KartAi : MonoBehaviour
         if (Mathf.Abs(kart.SpeedKph) < 2f) stuckFor += Time.deltaTime;
         else stuckFor = 0f;
 
+        // <b>후진으로도 못 나오면 코스 위로 되돌린다.</b> 유저 제보(2026-09-17):
+        // 코너에 밀어 넣으면 AI 가 바닥을 뒤뚱거리며 박힌 채로 끝났다. 뒤집히거나 끼면
+        // 후진만으로는 영영 못 나온다. <b>AI 도 완주는 해야 한다</b> — 한 대가 코스 밖에
+        // 서 있으면 순위판이 거짓말이 되고, 마지막 판에 AI 와 겨루게 될 때 그게 무너진다.
+        if (stuckFor > recoverAfter) { PutBackOnTrack(); return; }
+
         if (stuckFor > 1.2f)
         {
             kart.Drive(-1f, -steer, false);
-            if (stuckFor > 2.4f) stuckFor = 0f;
             return;
         }
 
         kart.Drive(throttle, steer, drift);
+    }
+
+    /// <summary>
+    /// 코스 위 <b>조금 앞</b>으로 되돌린다. 있던 자리에 그대로 세우면 끼었던 곳에 다시 낀다.
+    /// 플레이어 카트에는 이걸 안 한다 — 사람은 R 로 직접 부르고, 저절로 옮겨지면 황당하다.
+    /// </summary>
+    void PutBackOnTrack()
+    {
+        stuckFor = 0f;
+
+        float ahead = Wrap(progress + 6f / Mathf.Max(1f, track.LapLength));
+        Vector3 at = LanePoint(ahead) + Vector3.up * 0.6f;
+        Vector3 forward = track.TangentOnPath(ahead);
+
+        kart.RespawnAt(at, Quaternion.LookRotation(forward, Vector3.up));
+        progress = ahead;
     }
 
     /// <summary>코스 위 t 지점에서 내 차선만큼 옆으로 비킨 자리.</summary>

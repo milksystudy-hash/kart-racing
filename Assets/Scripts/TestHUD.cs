@@ -27,6 +27,7 @@ public class TestHUD : MonoBehaviour
     public KartController kart;
     public LapTracker tracker;
     public RaceStandings standings;
+    public MiniMap map;
     public MissionManager mission;
 
     [Header("폰트 (비워 두면 OS 한글 폰트를 쓴다)")]
@@ -47,6 +48,14 @@ public class TestHUD : MonoBehaviour
         if (k == null) return;
 
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
+
+        // 화면 효과 끄기/켜기. 세기를 줄이는 것과 <b>끌 수 있는 것</b>은 다른 문제야 —
+        // 멀미를 타면 아무리 연해도 거슬린다. 접근성 설정이라고 보는 게 맞다.
+        if (k.vKey.wasPressedThisFrame)
+        {
+            ScreenEffects.Toggle();
+            Toast.Show(ScreenEffects.On ? "화면 효과 켬" : "화면 효과 끔");
+        }
 
         // ESC — 망한 판을 빠져나갈 길. <b>게임을 끄는 게 아니라 로비로</b> 간다.
         // 한 번에 나가면 잘 달리던 판을 실수로 날린다. 두 번 눌러야 나가고, 다른 키를 누르면 취소된다.
@@ -92,6 +101,7 @@ public class TestHUD : MonoBehaviour
 
         DrawToast(w, h);
         DrawCorner(h);
+        if (InKart) DrawMiniMap(h);
         if (showControls) DrawControls(w, h);
         if (confirmQuit) DrawQuitAsk(w, h);
         if (InKart && tracker != null && tracker.Finished) DrawFinish(w, h);
@@ -300,7 +310,7 @@ public class TestHUD : MonoBehaviour
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 131f, 400f, 262f);
+        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 144f, 400f, 288f);
         Hud.Panel(box);
 
         GUI.Label(new Rect(box.x, box.y + 16f, box.width, 26f), "조작법", Hud.Title);
@@ -313,6 +323,7 @@ public class TestHUD : MonoBehaviour
             { "SPACE", "톡 누르면 폴짝 (호핑)" },
             { "R", "제자리로 되돌리기" },
             { "ENTER", "이 판 다시 하기" },
+            { "V", "화면 효과 끄기 / 켜기" },
             { "ESC", "두 번 누르면 로비로" },
             { "H", "이 창 닫기" },
         };
@@ -380,35 +391,99 @@ public class TestHUD : MonoBehaviour
     }
 
     // ---- 완주 ----
+    /// <summary>
+    /// 결과는 <b>숫자 셋</b>뿐이다 — 총 시간 · 최고 랩 · 순위. 유저(2026-09-17):
+    /// *"자유주행 기록을 줄여봐 대신에 그냥 완주랑 총시간, 최고랩, 순위만 크게."*
+    /// 맞는 판단이야. 결승선을 넘은 직후에 읽고 싶은 건 <b>내가 얼마나 잘했나</b>이고,
+    /// 거기에 훈수가 붙으면 성적표가 아니라 잔소리가 된다.
+    /// </summary>
     void DrawFinish(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 170f, h * 0.5f - 104f, 340f, 208f);
+        var box = new Rect(w * 0.5f - 180f, h * 0.5f - 112f, 360f, 224f);
         Hud.Panel(box);
 
         // 다 모았으면 걸린 임무가 없다. 판정을 그대로 돌리면 "임무 실패 — 세 바퀴 완주" 가 뜬다.
         bool freeRun = mission != null && mission.AllDone;
         bool ok = mission == null || freeRun || mission.Cleared;
-        var head = Hud.Resize(Hud.Title, 32);
+
+        var head = Hud.Resize(Hud.Title, 34);
         head.normal.textColor = ok ? Hud.Ink : Hud.Ribbon;
-        GUI.Label(new Rect(box.x, box.y + 20f, box.width, 40f), ok ? "완주!" : RaceVoice.Failed(), head);
+        GUI.Label(new Rect(box.x, box.y + 14f, box.width, 42f), ok ? "완주!" : RaceVoice.Failed(), head);
 
-        var centre = Hud.Resize(Hud.Value, 19, TextAnchor.MiddleCenter);
-        GUI.Label(new Rect(box.x, box.y + 70f, box.width, 26f),
-                  $"총 시간   {LapTracker.FormatTime(tracker.TotalTime)}", centre);
-        GUI.Label(new Rect(box.x, box.y + 98f, box.width, 26f),
-                  $"최고 랩   {LapTracker.FormatTime(tracker.BestLapTime)}", centre);
+        Hud.Rule(box.x + 26f, box.y + 60f, box.width - 52f);
 
-        if (mission != null)
+        // 셋을 나란히. 세로로 쌓으면 어느 게 중요한지 알 수가 없다.
+        string[,] cells =
         {
-            var line = Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter);
-            line.normal.textColor = freeRun || mission.Cleared ? Hud.Brass : Hud.Ribbon;
-            GUI.Label(new Rect(box.x, box.y + 132f, box.width, 24f),
-                      freeRun        ? RaceVoice.FreeRun()
-                      : mission.Cleared ? $"◆ 임무 달성 — {mission.Title}"
-                                        : $"임무 실패 — {mission.Title}", line);
+            { "총 시간", LapTracker.FormatTime(tracker.TotalTime) },
+            { "최고 랩", LapTracker.FormatTime(tracker.BestLapTime) },
+            { "순위", standings != null && standings.PlayerPlace > 0
+                      ? $"{standings.PlayerPlace} / {standings.RacerCount}" : "—" },
+        };
+
+        var label = Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter);
+        var value = Hud.Resize(Hud.Value, 26, TextAnchor.MiddleCenter);
+        float cell = (box.width - 40f) / 3f;
+
+        for (int i = 0; i < 3; i++)
+        {
+            float x = box.x + 20f + i * cell;
+            GUI.Label(new Rect(x, box.y + 74f, cell, 18f), cells[i, 0], label);
+            GUI.Label(new Rect(x, box.y + 92f, cell, 34f), cells[i, 1], value);
         }
 
-        GUI.Label(new Rect(box.x, box.y + 166f, box.width, 22f), "ENTER 를 누르면 다시 시작",
+        // 임무 결과는 한 줄. 다 모았으면 걸린 게 없으니 아예 안 띄운다.
+        if (mission != null && !freeRun)
+        {
+            var line = Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter);
+            line.normal.textColor = mission.Cleared ? Hud.Brass : Hud.Ribbon;
+            GUI.Label(new Rect(box.x, box.y + 142f, box.width, 24f),
+                      mission.Cleared ? $"◆ 임무 달성 — {mission.Title}"
+                                      : $"임무 실패 — {mission.Title}", line);
+        }
+
+        GUI.Label(new Rect(box.x, box.y + 182f, box.width, 22f), "ENTER 를 누르면 다시 시작",
                   Hud.Resize(Hud.Label, 14, TextAnchor.MiddleCenter));
+    }
+
+    // ---- 왼쪽 아래 코스 지도 ----
+    /// <summary>
+    /// 3인칭 백뷰에는 <b>뒤를 볼 방법이 없다.</b> 추월당하는 걸 모르면 순위가 있어도 긴장이 안 생긴다.
+    /// 백미러를 그리는 것보다 지도가 싸고 잘 읽힌다 — 코스 모양까지 같이 외워지니까.
+    /// 코스 선은 <see cref="MiniMap"/> 이 텍스처로 한 번만 구워 둔다.
+    /// </summary>
+    void DrawMiniMap(float h)
+    {
+        if (map == null || map.Texture == null || standings == null) return;
+
+        const float side = 132f;
+        var box = new Rect(16f, h - side - 52f, side, side);
+        Hud.Panel(box);
+
+        var inner = Hud.Inner(box);
+        GUI.DrawTexture(inner, map.Texture, ScaleMode.ScaleToFit);
+
+        foreach (var racer in standings.racers)
+        {
+            if (racer == null) continue;
+
+            Vector2 at = map.ToMap(racer.transform.position);
+            if (at.x < 0f || at.x > 1f || at.y < 0f || at.y > 1f) continue;
+
+            bool me = racer == standings.playerRacer;
+            float dot = me ? 9f : 7f;
+
+            // 지도는 y 가 위로 가는데 화면은 아래로 간다. 뒤집어야 코스 모양과 맞는다.
+            var spot = new Rect(inner.x + at.x * inner.width - dot * 0.5f,
+                                inner.y + (1f - at.y) * inner.height - dot * 0.5f, dot, dot);
+
+            // 내 점만 테두리를 두른다. 색만으로는 네 개 중 어느 게 나인지 헷갈린다.
+            if (me) GUI.DrawTexture(new Rect(spot.x - 2f, spot.y - 2f, dot + 4f, dot + 4f), Hud.WoodDarkTex);
+
+            var skin = racer.GetComponent<KartSkin>();
+            GUI.color = skin != null ? Cast.ColorOf(skin.CurrentCastId) : Color.white;
+            GUI.DrawTexture(spot, Texture2D.whiteTexture);
+            GUI.color = Color.white;
+        }
     }
 }

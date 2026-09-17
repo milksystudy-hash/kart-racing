@@ -99,9 +99,6 @@ public static class TestSceneBuilder
         var rig = new GameObject("GameRig");
         rig.AddComponent<SceneNavigator>();
 
-        // 캠퍼스가 이야기에 반응하게. 기하는 안 건드리고 현판 딱지와 빛만 바뀐다.
-        rig.AddComponent<CampusMood>();
-
         var switcher = rig.AddComponent<PlayerModeSwitcher>();
         switcher.player = player.controller;
         switcher.playerCamera = player.camera;
@@ -204,7 +201,15 @@ public static class TestSceneBuilder
         mission.tracker = tracker;
         mission.kart = kart;
 
+        // 캠퍼스가 이야기에 반응하게. 기하는 안 건드리고 현판 딱지와 빛만 바뀐다.
+        rig.AddComponent<CampusMood>();
+
+        // 왼쪽 아래 코스 지도. 3인칭 백뷰는 뒤를 볼 방법이 없어서 이게 없으면 순위가 안 읽힌다.
+        var map = rig.AddComponent<MiniMap>();
+        map.track = track;
+
         var hud = rig.AddComponent<TestHUD>();
+        hud.map = map;
         hud.modeSwitcher = switcher;
         hud.kart = kart;
         hud.tracker = tracker;
