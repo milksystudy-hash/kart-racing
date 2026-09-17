@@ -20,11 +20,11 @@ public class KartExhaust : MonoBehaviour
     [Tooltip("이 속도(㎞/h)를 넘어야 김이 난다")]
     public float startsAt = 12f;
 
-    [Tooltip("최고 속도에서 초당 몇 알")]
-    public float topRate = 46f;
+    [Tooltip("최고 속도에서 초당 몇 알. 많으면 네 대가 같이 달릴 때 화면이 뿌예진다")]
+    public float topRate = 20f;
 
     [Tooltip("부스트 중에는 몇 배로")]
-    public float boostMultiply = 3.2f;
+    public float boostMultiply = 2.6f;
 
     KartController kart;
     ParticleSystem puff;
@@ -44,8 +44,8 @@ public class KartExhaust : MonoBehaviour
 
         // 알갱이는 <b>연하게</b> 둔다. 진하면 뒷차 시야를 가려서 게임이 불친절해진다.
         main.startColor = new ParticleSystem.MinMaxGradient(
-            new Color(color.r, color.g, color.b, 0.55f),
-            new Color(color.r * 0.7f + 0.3f, color.g * 0.7f + 0.3f, color.b * 0.7f + 0.3f, 0.18f));
+            new Color(color.r, color.g, color.b, 0.34f),
+            new Color(color.r * 0.7f + 0.3f, color.g * 0.7f + 0.3f, color.b * 0.7f + 0.3f, 0.11f));
     }
 
     void Build()

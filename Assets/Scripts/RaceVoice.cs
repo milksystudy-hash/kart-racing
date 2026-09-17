@@ -75,6 +75,9 @@ public static class RaceVoice
     public static string RetryHint() => "ENTER 닫음";
     public static string QuitHint() => "ESC 그만두기";
 
+    /// <summary>여덟 개를 다 모았을 때 수집품 칸에 뜨는 말.</summary>
+    public static string AllCollected() => "All clear!";
+
     public static string Failed() => "임무 실패";
     public static string Cleared() => "성공";
 

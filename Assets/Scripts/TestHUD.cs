@@ -169,7 +169,8 @@ public class TestHUD : MonoBehaviour
 
         if (mission.AllDone)
         {
-            GUI.Label(new Rect(x, p.y + 68f, p.width - 28f, 20f), "전부 모았다", Hud.Resize(Hud.Value, 15));
+            GUI.Label(new Rect(x, p.y + 68f, p.width - 28f, 20f), RaceVoice.AllCollected(),
+                      Hud.Resize(Hud.Value, 15));
             return;
         }
 

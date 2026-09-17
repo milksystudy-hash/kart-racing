@@ -75,7 +75,7 @@ public class CampusBuilder : MonoBehaviour
         BuildPlaza();
         BuildPond(new Vector3(30f, 0f, 24f));
 
-        BuildMainHall(new Vector3(0f, 0f, -100f), 180f);      // 곰 본관 — 캠퍼스 안쪽을 본다
+        BuildMainHall(new Vector3(0f, 0f, -102f), 180f);      // 곰 본관 — 캠퍼스 안쪽을 본다
         BuildGate(new Vector3(0f, 0f, 100f));                 // 한옥 정문
         BuildTicketBooth(new Vector3(-26f, 0f, -88f), 150f);
 
@@ -193,19 +193,19 @@ public class CampusBuilder : MonoBehaviour
         var halls = new (string name, string dept, float x, float z, float yaw,
                          float w, float d, float h, string motto)[]
         {
-            ("곰손관",   "조리·제빵·공예·봉제",      -94f, -22f,  75f, 22f, 14f, 9f, "손재주는 타고나는 게 아니랍니다"),
+            ("곰손관",   "조리·제빵·공예·봉제",      -99f, -23f,  75f, 22f, 14f, 9f, "손재주는 타고나는 게 아니랍니다"),
             ("곰머리관", "인문·교육·연구·심리",      -90f,  42f,  95f, 18f, 12f, 8f, ""),
             ("곰누리관", "관광·외국어·박물관·국제문화", 74f,  80f, 205f, 20f, 13f, 9f, ""),
             ("재주관",   "미술·음악·영상·공연",       96f, -12f, 275f, 21f, 13f, 9f, "재주는 곰이 넘고 돈은 딴 놈이 번다"),
             ("곰테크관", "게임·공학·기계·카트",       94f, -86f, 320f, 17f, 12f, 8f, ""),
 
-            ("철곰관",   "경호·체육·안전",           -97f, -62f,  55f, 19f, 13f, 8f, ""),
+            ("철곰관",   "경호·체육·안전",          -102f, -65f,  55f, 19f, 13f, 8f, ""),
             ("웅성관",   "방송·언론·홍보·마케팅",     -80f,  90f, 130f, 18f, 12f, 9f, ""),
-            ("곰생회관", "학생회",                    50f,  96f, 195f, 17f, 12f, 8f, ""),
+            ("곰생회관", "학생회",                    42f, 101f, 195f, 17f, 12f, 8f, ""),
             ("참잘했어요관", "시상·전시",             98f,  36f, 262f, 16f, 12f, 8f, ""),
             ("대충기념관", "기념",                    92f, -52f, 300f, 15f, 11f, 7f, "1998년 준공 (예정)"),
-            ("곰밥마당", "학생식당·카페·조리실습",   -62f, -98f,  10f, 20f, 13f, 8f, "곰국 없음"),
-            ("곰짝박수마당", "야외 행사",             46f, -100f,  15f, 15f, 11f, 7f, ""),
+            ("곰밥마당", "학생식당·카페·조리실습",   -65f, -102f, 10f, 20f, 13f, 8f, "곰국 없음"),
+            ("곰짝박수마당", "야외 행사",             49f, -106f,  15f, 15f, 11f, 7f, ""),
         };
 
         foreach (var hall in halls)
@@ -242,6 +242,8 @@ public class CampusBuilder : MonoBehaviour
                 Block(t, $"Post_{sx}_{sz}", new Vector3(sx * width * 0.48f, height * 0.5f, sz * depth * 0.48f),
                       Quaternion.identity, new Vector3(0.7f, height, 0.7f), ColWood, noCollider: true);
 
+        Flavour(t, name, width, depth, height);
+
         // 정면 문과 창 — +Z 쪽이 앞이다
         float front = depth * 0.5f + 0.1f;
         // 갈색 판자 한 장은 문으로 안 읽힌다(2026-09-17 유저). 문틀이 있어야 뚫려 보인다.
@@ -253,6 +255,140 @@ public class CampusBuilder : MonoBehaviour
                   new Vector3(2.6f, 2.2f, 0.25f), ColWindow, noCollider: true);
 
         return go;
+    }
+
+    /// <summary>
+    /// 관마다 <b>딱 그 학과로 보이게</b> 하는 물건 몇 개. 유저: *"건물 모델링이 덜 됐다.
+    /// 창문은 많이 만들지 말고, 한옥 + 곰인형 박물관 컨셉이 살게."*
+    ///
+    /// 그래서 <b>창을 늘리지 않고 물건을 얹는다.</b> 창은 다 똑같이 생겨서 아무리 늘려도
+    /// 건물이 구분이 안 되고, 한옥은 원래 벽면이 비어 있는 게 맞다. 구분은 <b>실루엣</b>이
+    /// 만든다 — 굴뚝, 안테나, 무대 차양, 기울어진 기둥 같은 것들.
+    ///
+    /// 전부 콜라이더 없는 상자 서넛이다. 달리면서 스치는 거라 그 이상은 낭비야.
+    /// </summary>
+    void Flavour(Transform t, string name, float w, float d, float h)
+    {
+        float front = d * 0.5f + 0.1f;
+        float side = w * 0.5f;
+
+        switch (name)
+        {
+            case "곰손관":   // 조리·제빵·공예·봉제 — 굴뚝과 널어놓은 천
+                Block(t, "Chimney", new Vector3(side * 0.55f, h + 2.4f, -d * 0.2f), Quaternion.identity,
+                      new Vector3(1.5f, 3.4f, 1.5f), ColStoneWall, noCollider: true);
+                Block(t, "ChimneyCap", new Vector3(side * 0.55f, h + 4.2f, -d * 0.2f), Quaternion.identity,
+                      new Vector3(2.1f, 0.3f, 2.1f), ColRoof, noCollider: true);
+                for (int i = -2; i <= 2; i++)   // 처마에 널린 천 — 봉제과니까
+                    Block(t, $"Cloth_{i}", new Vector3(i * w * 0.16f, h - 1.1f, front + 1.6f),
+                          Quaternion.identity, new Vector3(0.9f, 2.2f, 0.08f),
+                          i % 2 == 0 ? ColRibbon : ColMint, noCollider: true);
+                break;
+
+            case "곰머리관":  // 인문·연구 — 쌓아 올린 책 더미
+                for (int i = 0; i < 5; i++)
+                    Block(t, $"Book_{i}", new Vector3(-side + 1.6f, 0.35f + i * 0.55f, front + 2.2f),
+                          Quaternion.Euler(0f, i * 17f, 0f), new Vector3(2.6f, 0.5f, 1.9f),
+                          i % 2 == 0 ? ColCream : ColRibbon, noCollider: true);
+                break;
+
+            case "철곰관":   // 경호·체육 — 낮고 두껍게, 역기와 철봉
+                Block(t, "BarbellBar", new Vector3(0f, 1.1f, front + 3f), Quaternion.Euler(0f, 0f, 90f),
+                      new Vector3(0.22f, 5f, 0.22f), ColBearDark, noCollider: true);
+                for (int s = -1; s <= 1; s += 2)
+                    Block(t, $"Plate_{s}", new Vector3(s * 2.3f, 1.1f, front + 3f), Quaternion.identity,
+                          new Vector3(0.4f, 1.9f, 1.9f), ColBearDark, noCollider: true);
+                Block(t, "Guard", new Vector3(0f, h + 1.0f, front - 0.3f), Quaternion.identity,
+                      new Vector3(w * 0.9f, 0.5f, 0.5f), ColWoodRail, noCollider: true);
+                break;
+
+            case "재주관":   // 미술·음악·영상 — 색 깃발 줄과 북
+                for (int i = -3; i <= 3; i++)
+                    Block(t, $"Flag_{i}", new Vector3(i * w * 0.13f, h + 1.6f, front + 0.4f),
+                          Quaternion.Euler(0f, 0f, i * 5f), new Vector3(0.7f, 1.3f, 0.06f),
+                          i % 3 == 0 ? ColRibbon : (i % 3 == 1 ? ColLantern : ColMint), noCollider: true);
+                Disc(t, "Drum", new Vector3(side - 2.2f, 1.2f, front + 2.4f),
+                     new Vector3(2.4f, 1.2f, 2.4f), ColRibbon, Quaternion.Euler(90f, 0f, 0f));
+                break;
+
+            case "곰테크관":  // 게임·공학·카트 — 셔터문과 톱니
+                Block(t, "Shutter", new Vector3(-side * 0.45f, 2.2f, front), Quaternion.identity,
+                      new Vector3(w * 0.34f, 4.4f, 0.2f), ColWallTile, noCollider: true);
+                for (int i = 0; i < 6; i++)
+                    Block(t, $"Slat_{i}", new Vector3(-side * 0.45f, 0.6f + i * 0.72f, front + 0.12f),
+                          Quaternion.identity, new Vector3(w * 0.34f, 0.42f, 0.08f), ColStoneWall, noCollider: true);
+                Disc(t, "Gear", new Vector3(side - 2f, h + 1.4f, front - 0.2f),
+                     new Vector3(2.8f, 0.3f, 2.8f), ColWood, Quaternion.Euler(90f, 0f, 0f));
+                break;
+
+            case "곰누리관":  // 관광·외국어 — 만국기 줄
+                for (int i = -5; i <= 5; i++)
+                    Block(t, $"Bunting_{i}", new Vector3(i * w * 0.085f, h + 0.9f + Mathf.Abs(i) * 0.1f, front + 1.2f),
+                          Quaternion.Euler(0f, 0f, 180f), new Vector3(0.55f, 0.75f, 0.05f),
+                          i % 4 == 0 ? ColRibbon : (i % 4 == 1 ? ColMint : (i % 4 == 2 ? ColLantern : ColCream)),
+                          noCollider: true);
+                break;
+
+            case "웅성관":   // 방송·언론 — 지붕 위 안테나와 확성기
+                Block(t, "Mast", new Vector3(0f, h + 4f, -d * 0.15f), Quaternion.identity,
+                      new Vector3(0.3f, 6f, 0.3f), ColBearDark, noCollider: true);
+                for (int i = 0; i < 3; i++)
+                    Block(t, $"Cross_{i}", new Vector3(0f, h + 5.4f + i * 0.9f, -d * 0.15f), Quaternion.identity,
+                          new Vector3(3.2f - i * 0.7f, 0.16f, 0.16f), ColBearDark, noCollider: true);
+                for (int s = -1; s <= 1; s += 2)
+                    Block(t, $"Horn_{s}", new Vector3(s * side * 0.6f, h + 1.2f, front), Quaternion.identity,
+                          new Vector3(1.1f, 1.1f, 1.4f), ColLantern, noCollider: true);
+                break;
+
+            case "곰생회관":  // 학생회 — 게시판과 현수막
+                Block(t, "Board", new Vector3(0f, 1.9f, front + 2.6f), Quaternion.identity,
+                      new Vector3(w * 0.7f, 3.4f, 0.24f), ColWood, noCollider: true);
+                Block(t, "BoardFace", new Vector3(0f, 1.9f, front + 2.75f), Quaternion.identity,
+                      new Vector3(w * 0.64f, 3f, 0.06f), ColCream, noCollider: true);
+                Block(t, "Banner", new Vector3(0f, h - 1.4f, front + 0.5f), Quaternion.identity,
+                      new Vector3(w * 0.86f, 1.5f, 0.08f), ColRibbon, noCollider: true);
+                break;
+
+            case "참잘했어요관":  // 시상 — 커다란 도장
+                Block(t, "StampHandle", new Vector3(0f, h + 2.6f, front - 0.4f), Quaternion.identity,
+                      new Vector3(0.9f, 2.4f, 0.9f), ColWood, noCollider: true);
+                Disc(t, "StampHead", new Vector3(0f, h + 1.2f, front - 0.4f),
+                     new Vector3(3.4f, 0.6f, 3.4f), ColRibbon);
+                break;
+
+            case "대충기념관":  // 이름값 — 비계가 그대로 있고 기둥이 기울었다
+                for (int i = 0; i < 4; i++)
+                    Block(t, $"Scaffold_{i}", new Vector3(-side + 0.8f + i * 1.9f, h * 0.5f, front + 0.8f),
+                          Quaternion.identity, new Vector3(0.18f, h, 0.18f), ColWoodRail, noCollider: true);
+                for (int i = 0; i < 3; i++)
+                    Block(t, $"ScaffoldRung_{i}", new Vector3(-side + 3.6f, 1.6f + i * 2.2f, front + 0.8f),
+                          Quaternion.identity, new Vector3(6f, 0.16f, 0.16f), ColWoodRail, noCollider: true);
+                Block(t, "LeaningPost", new Vector3(side - 1.4f, h * 0.5f, front - 0.2f),
+                      Quaternion.Euler(0f, 0f, 7f), new Vector3(0.7f, h, 0.7f), ColWood, noCollider: true);
+                break;
+
+            case "곰밥마당":  // 학생식당 — 가마솥과 평상
+                Disc(t, "Cauldron", new Vector3(-side + 2.6f, 0.9f, front + 3.2f),
+                     new Vector3(3.2f, 0.9f, 3.2f), ColBearDark);
+                Disc(t, "CauldronLid", new Vector3(-side + 2.6f, 1.7f, front + 3.2f),
+                     new Vector3(2.9f, 0.16f, 2.9f), ColStoneWall);
+                for (int i = 0; i < 2; i++)
+                    Block(t, $"Bench_{i}", new Vector3(side - 2.5f - i * 3.4f, 0.45f, front + 3.4f),
+                          Quaternion.identity, new Vector3(2.8f, 0.3f, 2.2f), ColWoodRail, noCollider: true);
+                Block(t, "Awning", new Vector3(0f, h - 0.6f, front + 2.2f), Quaternion.Euler(-16f, 0f, 0f),
+                      new Vector3(w * 0.8f, 0.12f, 4.4f), ColMint, noCollider: true);
+                break;
+
+            case "곰짝박수마당":  // 야외 행사 — 무대와 차양
+                Block(t, "Stage", new Vector3(0f, 0.35f, front + 3.4f), Quaternion.identity,
+                      new Vector3(w * 1.1f, 0.7f, 5f), ColWoodRail, noCollider: true);
+                for (int s = -1; s <= 1; s += 2)
+                    Block(t, $"StagePost_{s}", new Vector3(s * w * 0.5f, 2.4f, front + 5.4f),
+                          Quaternion.identity, new Vector3(0.3f, 4.8f, 0.3f), ColWood, noCollider: true);
+                Block(t, "Canopy", new Vector3(0f, 4.9f, front + 4.4f), Quaternion.Euler(-9f, 0f, 0f),
+                      new Vector3(w * 1.15f, 0.16f, 4.2f), ColRibbon, noCollider: true);
+                break;
+        }
     }
 
     /// <summary>본관 — 정면 박공에 곰 얼굴과 빨간 리본이 달려 있다.</summary>

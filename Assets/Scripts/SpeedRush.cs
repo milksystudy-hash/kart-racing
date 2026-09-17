@@ -20,17 +20,20 @@ public class SpeedRush : MonoBehaviour
 {
     public KartController kart;
 
-    [Tooltip("최고 속도의 몇 %부터 켜지는지")]
-    [Range(0f, 0.95f)] public float startsAt = 0.55f;
+    // 2026-09-17 유저: "이펙트가 흩뿌려져서 정신이 사납다." 맞는 지적이야 —
+    // 속도감 장치는 <b>느껴지되 보이면 안 된다.</b> 보이는 순간 화면 효과로 인식되고,
+    // 그러면 빠른 게 아니라 눈이 피곤한 게 된다. 전부 절반 아래로 내리고 켜지는 문턱도 올렸다.
+    [Tooltip("최고 속도의 몇 %부터 켜지는지. 높을수록 진짜 빠를 때만 나온다")]
+    [Range(0f, 0.95f)] public float startsAt = 0.72f;
 
     [Tooltip("가장 셀 때의 렌즈 왜곡. 음수가 안쪽으로 빨려드는 방향")]
-    public float maxDistortion = -0.28f;
+    public float maxDistortion = -0.11f;
 
-    [Tooltip("가장 셀 때의 색수차")]
-    public float maxAberration = 0.45f;
+    [Tooltip("가장 셀 때의 색수차. 세면 글자에 색테가 생겨서 HUD 가 지저분해진다")]
+    public float maxAberration = 0.14f;
 
     [Tooltip("부스트 중에 더해지는 양(0~1)")]
-    public float boostBonus = 0.45f;
+    public float boostBonus = 0.3f;
 
     Volume volume;
     float rush;

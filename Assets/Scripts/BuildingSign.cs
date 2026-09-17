@@ -59,8 +59,8 @@ public class BuildingSign : MonoBehaviour
         float width = transform.localScale.x;
 
         Label(parent, "PlaqueText", buildingName, font,
-              transform.localPosition + new Vector3(0f, 0f, 0.09f),
-              new Color32(0xF0, 0xE2, 0xC6, 0xFF), width / 3.2f);
+              transform.localPosition + new Vector3(0f, 0.09f, 0.1f),
+              new Color32(0xF6, 0xEC, 0xD6, 0xFF), width / 2.1f);
 
         string under = string.IsNullOrEmpty(motto) ? department
                      : (string.IsNullOrEmpty(department) ? motto : department + "   " + motto);
@@ -68,8 +68,8 @@ public class BuildingSign : MonoBehaviour
 
         // 학과와 한 줄은 현판 아래 작게. 이름만으로는 뭐 하는 곳인지 모르는 관이 있다.
         Label(parent, "PlaqueSub", under, font,
-              transform.localPosition + new Vector3(0f, -0.36f, 0.09f),
-              new Color32(0xC9, 0xA2, 0x27, 0xFF), width / 9f);
+              transform.localPosition + new Vector3(0f, -0.24f, 0.1f),
+              new Color32(0xD8, 0xB2, 0x40, 0xFF), width / 5.5f);
     }
 
     static void Label(Transform parent, string name, string body, Font font,

@@ -155,17 +155,20 @@ public class KartController : MonoBehaviour
     /// 바닥은 건드리지 않는다 — 접촉면이 위를 보면(그러니까 노면이면) 그냥 넘어간다.
     /// </summary>
     [Header("카트끼리 부딪히기")]
+    // 2026-09-17 유저: "팽이들끼리 부딪히는 것처럼 크게 튕겼으면. 그렇다고 너무 튕기지는 말고."
+    // 세기를 1.15 -> 1.7, 최소 2.2 -> 3.2 로 올렸다. 더 올리면 코스 밖으로 날아가서
+    // <b>부딪힌 쪽이 레이스를 포기하게</b> 된다 — 그건 재미가 아니라 벌이야.
     [Tooltip("튕겨나가는 세기. 0 이면 안 튕긴다")]
-    public float bumpPush = 1.15f;
+    public float bumpPush = 1.7f;
 
     [Tooltip("가만히 있다 받혀도 이만큼은 튕긴다(m/s)")]
-    public float bumpMinimum = 2.2f;
+    public float bumpMinimum = 3.2f;
 
-    [Tooltip("부딪힌 뒤 조종이 덜 먹는 시간(초)")]
-    public float bumpStun = 0.35f;
+    [Tooltip("부딪힌 뒤 조종이 덜 먹는 시간(초). 길면 억울하다")]
+    public float bumpStun = 0.3f;
 
     [Tooltip("부딪힐 때 팽이처럼 도는 세기(도/초)")]
-    public float bumpSpin = 150f;
+    public float bumpSpin = 230f;
 
     const float BumpCooldown = 0.25f;
     float lastBumpAt = -99f;
