@@ -227,13 +227,37 @@ public class BearNpc : MonoBehaviour
     Vector3 PickSpot()
     {
         // 여러 번 찔러본다. 반경이 넓어질수록 막힌 자리를 뽑을 확률도 같이 오른다.
-        for (int tries = 0; tries < 20; tries++)
+        for (int tries = 0; tries < 24; tries++)
         {
             Vector2 r = Random.insideUnitCircle * patrolRadius;
             Vector3 spot = home + new Vector3(r.x, 0f, r.y);
-            if (IsClear(spot)) return spot;
+            if (IsClear(spot) && FarFromOtherBears(spot)) return spot;
         }
         return transform.position;
+    }
+
+    [Tooltip("다른 곰과 이만큼은 떨어져서 걷는다(m)")]
+    public float bearSpacing = 7f;
+
+    /// <summary>
+    /// 곰끼리 붙어 다니지 않게. 유저: *"곰돌이들이 너무 붙어 있는 것 같다."*
+    ///
+    /// 자리를 처음 잡을 때는 6.7m 씩 벌려 놨는데, <b>걸을 때는 서로를 안 보고 있었다</b> —
+    /// 셋이 같은 구석으로 걸어가면 거기서 뭉친다. 콜라이더로는 안 잡힌다(닿기 전에 이미
+    /// 붙어 보이니까). 갈 자리를 고를 때 미리 본다.
+    /// </summary>
+    bool FarFromOtherBears(Vector3 spot)
+    {
+        foreach (var other in FindObjectsByType<BearNpc>(FindObjectsSortMode.None))
+        {
+            if (other == this) continue;
+
+            // 상대가 걸어가는 <b>목적지</b>와도 비교한다. 지금 자리만 보면 둘이 같은 곳으로
+            // 걸어가는 중일 때 못 걸러낸다.
+            if ((other.transform.position - spot).sqrMagnitude < bearSpacing * bearSpacing) return false;
+            if (other.walking && (other.walkTarget - spot).sqrMagnitude < bearSpacing * bearSpacing) return false;
+        }
+        return true;
     }
 
     /// <summary>

@@ -80,6 +80,10 @@ public class MissionManager : MonoBehaviour
     /// 자리인데 옆에서 세 대가 달리면 조작을 익힐 겨를이 없다.
     /// 다 모은 뒤 자유 주행에서도 남겨둔다 — 그때는 같이 달릴 상대가 있는 게 낫다.
     /// </summary>
+    /// <summary>지금 판이 장애물 판인가. 자재들이 스스로 이걸 본다.</summary>
+    public static bool WantsDebris =>
+        !string.IsNullOrEmpty(NextReward()) && CurrentGoal == Goal.장애물;
+
     public static bool FinalRace =>
         CollectionState.Count >= ExhibitCatalogue.Count - 1;
 
@@ -113,6 +117,15 @@ public class MissionManager : MonoBehaviour
     /// 트랙은 하나뿐인데 여덟 번 다르게 달리게 되는 게 기획서 §4.1 의 노림수야.
     /// 첫 판은 무조건 완주로 시작한다. 처음부터 조건을 걸면 뭘 하는 게임인지 모른다.
     /// </summary>
+    /// <summary>
+    /// 지금 판의 임무. <b>MissionManager 없이도 알 수 있다</b> — 수집 기록만 보면 되니까.
+    ///
+    /// 게이트 컴포넌트가 씬에 없거나 Start 순서가 밀려도 물건들이 스스로 판단할 수 있게
+    /// 열어둔다. 새 컴포넌트에만 기대면 <b>옛날에 구운 씬에서 안 먹는다</b> —
+    /// 이 프로젝트에서 네 번 겪었다(카트 중복 · 벽 부딪힘 · AI · 장애물).
+    /// </summary>
+    public static Goal CurrentGoal => GoalForReward(NextReward());
+
     public static Goal GoalForReward(string id)
     {
         // 목록 순서 그대로 임무 순서다. 첫 판은 완주 — 처음부터 조건을 걸면 뭘 하는 게임인지 모른다.

@@ -49,6 +49,8 @@ public class CampusBuilder : MonoBehaviour
     static readonly Color ColBearDark = new Color32(0x4A, 0x33, 0x26, 0xFF);
     static readonly Color ColRibbon   = new Color32(0xC4, 0x45, 0x3E, 0xFF);
     static readonly Color ColPineLeaf = new Color32(0x5B, 0x7A, 0x4E, 0xFF);
+    static readonly Color ColMapleRed = new Color32(0xB5, 0x5A, 0x3C, 0xFF);
+    static readonly Color ColMapleGold= new Color32(0xC9, 0x93, 0x3E, 0xFF);
     static readonly Color ColPineTrunk= new Color32(0x6B, 0x4F, 0x3A, 0xFF);
     static readonly Color ColRock     = new Color32(0x9A, 0x9A, 0x96, 0xFF);
     static readonly Color ColWater    = new Color32(0x6F, 0xA0, 0xA8, 0xFF);
@@ -855,25 +857,24 @@ public class CampusBuilder : MonoBehaviour
         var rocks = new GameObject("Rocks").transform; rocks.SetParent(built, false);
         var random = new System.Random(scatterSeed);
 
+        // 2026-09-17 유저: "나무 모양이 다 똑같다." 한 가지를 크기만 바꿔 뿌리면
+        // <b>많을수록 더 똑같아 보인다</b> — 눈이 반복을 먼저 알아채기 때문이야.
+        // 세 가지를 섞는다: 소나무(옆으로 퍼짐) · 느티나무(위로 둥글게) · 단풍(작고 붉게).
         for (int i = 0; i < pineCount; i++)
         {
             if (!TryFindDecorSpot(random, out Vector3 spot)) continue;
+
             float scale = 0.8f + (float)random.NextDouble() * 0.9f;
+            int kind = i % 5;   // 소나무 셋 · 느티 하나 · 단풍 하나
 
-            var pine = new GameObject($"Pine_{i:00}").transform;
-            pine.SetParent(trees, false);
-            pine.position = spot;
-            pine.localRotation = Quaternion.Euler(0f, (float)random.NextDouble() * 360f, 0f);
+            var tree = new GameObject($"Tree_{i:00}").transform;
+            tree.SetParent(trees, false);
+            tree.position = spot;
+            tree.localRotation = Quaternion.Euler(0f, (float)random.NextDouble() * 360f, 0f);
 
-            Block(pine, "Trunk", new Vector3(0f, 1.6f * scale, 0f), Quaternion.identity,
-                  new Vector3(0.7f * scale, 3.2f * scale, 0.7f * scale), ColPineTrunk, noCollider: true);
-            // 소나무는 위로 뾰족한 게 아니라 옆으로 퍼지는 모양이라 넓적한 덩어리 세 개
-            Ball(pine, "Canopy_A", new Vector3(0f, 3.9f * scale, 0f),
-                 new Vector3(6.4f * scale, 2.0f * scale, 6.4f * scale), ColPineLeaf);
-            Ball(pine, "Canopy_B", new Vector3(-1.5f * scale, 4.9f * scale, 0.8f * scale),
-                 new Vector3(4.2f * scale, 1.6f * scale, 4.2f * scale), ColPineLeaf);
-            Ball(pine, "Canopy_C", new Vector3(1.6f * scale, 5.1f * scale, -0.6f * scale),
-                 new Vector3(3.6f * scale, 1.4f * scale, 3.6f * scale), ColPineLeaf);
+            if (kind < 3) Pine(tree, scale, random);
+            else if (kind == 3) Zelkova(tree, scale, random);
+            else Maple(tree, scale * 0.8f, random);
         }
 
         for (int i = 0; i < rockCount; i++)
@@ -1030,6 +1031,63 @@ public class CampusBuilder : MonoBehaviour
     }
 
     /// <summary>도로와 건물을 피해서 장식 놓을 자리를 찾는다. 못 찾으면 그냥 건너뛴다.</summary>
+    /// <summary>소나무 — 옆으로 퍼지고 줄기가 굽는다. 덩어리를 <b>기울여</b> 얹어야 안 뻣뻣하다.</summary>
+    void Pine(Transform t, float s, System.Random random)
+    {
+        float lean = (float)(random.NextDouble() * 8.0 - 4.0);
+
+        Block(t, "Trunk", new Vector3(0f, 1.6f * s, 0f), Quaternion.Euler(0f, 0f, lean),
+              new Vector3(0.6f * s, 3.2f * s, 0.6f * s), ColPineTrunk, noCollider: true);
+        Block(t, "Branch", new Vector3(0.9f * s, 3.2f * s, 0.2f * s), Quaternion.Euler(0f, 24f, 62f),
+              new Vector3(0.22f * s, 1.8f * s, 0.22f * s), ColPineTrunk, noCollider: true);
+
+        Ball(t, "Canopy_A", new Vector3(0f, 3.9f * s, 0f),
+             new Vector3(6.4f * s, 1.8f * s, 6.4f * s), ColPineLeaf);
+        Ball(t, "Canopy_B", new Vector3(-1.5f * s, 4.9f * s, 0.8f * s),
+             new Vector3(4.2f * s, 1.5f * s, 4.2f * s), ColPineLeaf);
+        Ball(t, "Canopy_C", new Vector3(1.6f * s, 5.1f * s, -0.6f * s),
+             new Vector3(3.6f * s, 1.3f * s, 3.6f * s), ColPineLeaf);
+    }
+
+    /// <summary>느티나무 — 줄기가 굵고 위로 둥글게. 캠퍼스 정자나무 노릇.</summary>
+    void Zelkova(Transform t, float s, System.Random random)
+    {
+        Block(t, "Trunk", new Vector3(0f, 2.4f * s, 0f), Quaternion.identity,
+              new Vector3(1.1f * s, 4.8f * s, 1.1f * s), ColPineTrunk, noCollider: true);
+
+        for (int i = 0; i < 3; i++)
+        {
+            float a = i * 120f + (float)random.NextDouble() * 30f;
+            var dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
+            Block(t, $"Limb_{i}", dir * (1.2f * s) + Vector3.up * (4.4f * s),
+                  Quaternion.Euler(38f, a, 0f), new Vector3(0.3f * s, 2.2f * s, 0.3f * s),
+                  ColPineTrunk, noCollider: true);
+        }
+
+        Ball(t, "Crown_A", new Vector3(0f, 7.2f * s, 0f),
+             new Vector3(8.2f * s, 5.2f * s, 8.2f * s), ColBush);
+        Ball(t, "Crown_B", new Vector3(-1.8f * s, 6.2f * s, 1.4f * s),
+             new Vector3(5.4f * s, 3.6f * s, 5.4f * s), ColBush);
+        Ball(t, "Crown_C", new Vector3(2.0f * s, 6.6f * s, -1.2f * s),
+             new Vector3(4.8f * s, 3.2f * s, 4.8f * s), ColPineLeaf);
+    }
+
+    /// <summary>단풍 — 작고 붉다. 초록 사이에 몇 그루 섞이면 숲이 <b>한 덩어리로 안 뭉친다</b>.</summary>
+    void Maple(Transform t, float s, System.Random random)
+    {
+        Block(t, "Trunk", new Vector3(0f, 1.2f * s, 0f), Quaternion.identity,
+              new Vector3(0.44f * s, 2.4f * s, 0.44f * s), ColPineTrunk, noCollider: true);
+
+        var warm = (float)random.NextDouble() < 0.5 ? ColMapleRed : ColMapleGold;
+
+        Ball(t, "Crown_A", new Vector3(0f, 3.3f * s, 0f),
+             new Vector3(4.4f * s, 3.0f * s, 4.4f * s), warm);
+        Ball(t, "Crown_B", new Vector3(1.0f * s, 2.8f * s, 0.7f * s),
+             new Vector3(2.8f * s, 2.0f * s, 2.8f * s), warm);
+        Ball(t, "Crown_C", new Vector3(-0.9f * s, 3.0f * s, -0.6f * s),
+             new Vector3(2.4f * s, 1.8f * s, 2.4f * s), ColPineLeaf);
+    }
+
     bool TryFindDecorSpot(System.Random random, out Vector3 spot)
     {
         var track = GetComponentInParent<TrackBuilder>() ?? FindFirstObjectByType<TrackBuilder>();

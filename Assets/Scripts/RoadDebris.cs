@@ -48,6 +48,13 @@ public class RoadDebris : MonoBehaviour
 
     void Awake()
     {
+        // 게이트가 없는 씬(옛날에 구운 것)에서도 스스로 꺼진다.
+        if (!MissionManager.WantsDebris && FindFirstObjectByType<DebrisGate>() == null)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+
         home = transform.position;
         homeRotation = transform.rotation;
 

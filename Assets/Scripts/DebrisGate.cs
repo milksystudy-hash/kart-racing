@@ -20,11 +20,9 @@ public class DebrisGate : MonoBehaviour
     public void Apply()
     {
         // 지금 판의 임무가 장애물일 때만. 임무를 모르면(다 모았거나 아직 없으면) 끈다.
-        bool wanted = alwaysOn;
-
-        var mission = FindFirstObjectByType<MissionManager>();
-        if (mission != null && !mission.AllDone && mission.goal == MissionManager.Goal.장애물)
-            wanted = true;
+        // <b>MissionManager 를 기다리지 않는다.</b> 그쪽 Start 가 늦게 돌면 이 판단이
+        // 틀리고, 유저가 7번째 판에서 자재를 만났다(2026-09-17). 수집 기록만 보면 된다.
+        bool wanted = alwaysOn || MissionManager.WantsDebris;
 
         if (debris != null)
         {

@@ -16,8 +16,8 @@ public class HingedDoor : MonoBehaviour
     [Tooltip("젖혀질 문짝 둘")]
     public Transform[] leaves;
 
-    [Tooltip("몇 도까지 열리는지")]
-    public float openAngle = 96f;
+    [Tooltip("문짝이 옆으로 미끄러지는 거리. 문짝 폭의 몇 배인지")]
+    public float slideRatio = 0.96f;
 
     [Tooltip("여는 데 걸리는 시간(초)")]
     public float openSeconds = 0.5f;
@@ -39,23 +39,24 @@ public class HingedDoor : MonoBehaviour
     static float nearestDistance;
 
     float openedAt = -99f;
-    Quaternion[] shut, swung;
+    Vector3[] shut, swung;
 
     void Start()
     {
         if (leaves == null) return;
 
-        shut = new Quaternion[leaves.Length];
-        swung = new Quaternion[leaves.Length];
+        shut = new Vector3[leaves.Length];
+        swung = new Vector3[leaves.Length];
 
         for (int i = 0; i < leaves.Length; i++)
         {
             if (leaves[i] == null) continue;
-            shut[i] = leaves[i].localRotation;
+            shut[i] = leaves[i].localPosition;
 
-            // 두 짝이 서로 반대로 젖혀진다. 같은 쪽으로 열리면 한 짝이 다른 짝을 뚫는다.
-            float dir = leaves[i].localPosition.x >= 0f ? 1f : -1f;
-            swung[i] = shut[i] * Quaternion.Euler(0f, dir * openAngle, 0f);
+            // 두 짝이 서로 반대쪽으로 미끄러진다. 같은 쪽으로 가면 한 짝이 다른 짝을 뚫는다.
+            float dir = shut[i].x >= 0f ? 1f : -1f;
+            float travel = Mathf.Abs(leaves[i].localScale.x) * slideRatio;
+            swung[i] = shut[i] + new Vector3(dir * travel, 0f, 0f);
         }
     }
 
@@ -90,8 +91,11 @@ public class HingedDoor : MonoBehaviour
     }
 
     /// <summary>
-    /// 문짝을 돌린다. <b>경첩이 문 가장자리</b>라 그냥 회전시키면 가운데를 축으로 돌아
-    /// 벽을 뚫는다 — 돌리면서 옆으로도 같이 밀어준다.
+    /// 문짝을 <b>옆으로 민다.</b> 한옥 장지문은 여닫이가 아니라 미닫이야
+    /// (2026-09-17 유저: "좌우가 갈라져 에스컬레이터처럼 열리게").
+    ///
+    /// 젖히는 것보다 미는 쪽이 코드도 짧고 문제도 적다 — 경첩 축을 맞출 일이 없고,
+    /// 열린 문짝이 벽을 뚫지도 않는다(문틀 뒤로 들어갈 뿐이야).
     /// </summary>
     void Swing()
     {
@@ -104,7 +108,7 @@ public class HingedDoor : MonoBehaviour
         for (int i = 0; i < leaves.Length; i++)
         {
             if (leaves[i] == null) continue;
-            leaves[i].localRotation = Quaternion.Slerp(shut[i], swung[i], t);
+            leaves[i].localPosition = Vector3.Lerp(shut[i], swung[i], t);
         }
     }
 }

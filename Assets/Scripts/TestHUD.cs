@@ -149,7 +149,7 @@ public class TestHUD : MonoBehaviour
     {
         if (!InKart) return 152f;
         if (mission != null && mission.AllDone) return 152f;
-        return 152f + (mission == null ? 78f : 222f);
+        return 152f + (mission == null ? 78f : 184f);
     }
 
     // ---- 수집품 체크리스트 + 이번 판 임무 ----
@@ -168,7 +168,7 @@ public class TestHUD : MonoBehaviour
         // 남아 있으면 "아직 뭘 더 해야 하나" 로 읽힌다 — 그때는 그냥 달리는 판이야.
         if (mission != null && mission.AllDone) return;
 
-        var p = new Rect(16f, 152f, 208f, mission == null ? 78f : 222f);
+        var p = new Rect(16f, 152f, 208f, mission == null ? 78f : 184f);
         Hud.Panel(p);
 
         float x = p.x + 14f;
@@ -224,10 +224,9 @@ public class TestHUD : MonoBehaviour
         GUI.Label(new Rect(x, p.y + 156f, full, 20f),
                   mission.Failed ? RaceVoice.Failed() : mission.Progress, state);
 
-        // 왜 이걸 하는지. 조건만 적으면 조작 설명이 되고 박물관과 아무 상관이 없어진다.
-        var why = Hud.Resize(Hud.Label, 11);
-        why.wordWrap = true;
-        GUI.Label(new Rect(x, p.y + 180f, full, 34f), RaceVoice.Why(mission.goal), why);
+        // 설명 줄은 뺐다(2026-09-17 유저: "마지막 실사다 문구는 뭐야, 없애줘").
+        // 레이스 중에 힐끗 보는 화면이라 <b>지금 뭘 해야 하는지</b>면 충분하고,
+        // 왜 하는지는 이야기가 할 일이다. RaceVoice.Why 는 남겨둔다 — 브리핑에 쓸 자리야.
     }
 
     // ---- 순위 ----
