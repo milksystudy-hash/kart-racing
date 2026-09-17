@@ -108,6 +108,8 @@ public class MissionManager : MonoBehaviour
 
     int padsTotal;
     int signsTotal;
+    /// <summary>이번 바퀴가 시작될 때까지 부순 개수. 화면에는 이걸 뺀 값이 뜬다.</summary>
+    int lapBaseBreaks;
     int lastLapSeen = 1;
     bool rewarded;
 
@@ -168,7 +170,7 @@ public class MissionManager : MonoBehaviour
             if (goal == Goal.장애물) RoadDebris.RestoreAll();
             // 간판도 바퀴마다 다시 선다. <b>부순 누적 개수는 안 지운다</b> — 그래서
             // 3바퀴에 8×3 = 24개를 부숴야 하고, 첫 바퀴에 몰아 부수는 게 의미가 없어진다.
-            if (goal == Goal.광고판) AdBoard.RestoreAll();
+            if (goal == Goal.광고판) { AdBoard.RestoreAll(); lapBaseBreaks = AdBoard.Breaks; }
         }
 
         if (Failed || Cleared) return;
@@ -261,6 +263,7 @@ public class MissionManager : MonoBehaviour
         FailReason = "";
         rewarded = false;
         lastLapSeen = 1;
+        lapBaseBreaks = 0;
 
         BoostPad.ClearTaken();
         AdBoard.ResetAll();
@@ -294,7 +297,10 @@ public class MissionManager : MonoBehaviour
         Goal.제한시간 => Remaining(timeLimit),
         Goal.장애물   => $"기회 {Mathf.Max(0, allowedDebris - RoadDebris.Hits)}",
         Goal.무발판   => BoostPad.TakenCount() == 0 ? "아직 깨끗" : "밟았다",
-        Goal.광고판   => $"{AdBoard.Breaks} / {SignQuota}",
+        // 2026-09-17 유저: *"처음부터 0/24 를 띄우면 플레이어가 부담을 느낀다.
+        // 1랩에 0/8, 2랩에도 0/8 로."* 맞다 — 지금 이 바퀴에 <b>몇 개 남았는지</b>가
+        // 운전에 필요한 숫자고, 24 는 판이 끝나야 의미가 있는 숫자야.
+        Goal.광고판   => $"{AdBoard.Breaks - lapBaseBreaks} / {signsTotal}",
         // 두 조건을 다 보여줘야 하는데 칸이 좁다. "남은 기회 2" 대신 "2회" 로 줄인다.
         Goal.완벽    => $"{Mathf.Max(0, allowedHits - WallHits)}회 · {Remaining(perfectTimeLimit)}",
         _             => tracker != null ? $"{Mathf.Min(tracker.CurrentLap, tracker.totalLaps)} / {tracker.totalLaps}" : "",

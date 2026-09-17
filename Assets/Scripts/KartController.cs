@@ -295,6 +295,10 @@ public class KartController : MonoBehaviour
     /// <summary>바깥에서 카트를 몬다. 값은 다음 Update 까지 유지된다.</summary>
     public void Drive(float throttle, float steer, bool drift, bool hop = false)
     {
+        // 출발 카운트 중에는 아무도 못 움직인다. <b>값을 넣는 자리에서</b> 막아야
+        // 실행 순서에 안 휘둘린다 — AI 의 Update 가 이 Update 뒤에 돌 수도 있으니까.
+        if (RaceCountdown.Blocked) { throttle = 0f; drift = false; hop = false; }
+
         throttleInput = Mathf.Clamp(throttle, -1f, 1f);
         steerInput = Mathf.Clamp(steer, -1f, 1f);
         driftHeld = drift;
@@ -313,6 +317,8 @@ public class KartController : MonoBehaviour
             if (KartInput.HopPressed) hopQueued = true;   // 물리는 FixedUpdate 에서 처리한다
 
             if (KartInput.RespawnPressed) Respawn();
+
+            if (RaceCountdown.Blocked) { throttleInput = 0f; driftHeld = false; hopQueued = false; }
         }
 
         UpdateVisualLean();

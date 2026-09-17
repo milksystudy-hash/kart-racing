@@ -50,18 +50,36 @@ public class KartAi : MonoBehaviour
         // <b>조건 없이 스스로 확인한다.</b> 전에는 "게이트가 없을 때만" 봤는데,
         // 게이트가 있어도 Start 순서가 밀리면 한 프레임 달린다. 유저가 같은 문제를
         // 세 번 신고했으니 <b>가장 안 틀리는 쪽</b>으로 둔다(2026-09-17).
-        if (!AiRaceGate.ShouldRace)
-        {
-            gameObject.SetActive(false);
-            return;
-        }
-
+        // ★ <b>배선을 먼저 하고, 끄는 건 맨 나중이다.</b>
+        // 전에는 여기서 곧장 return 했는데, 그러면 <c>kart</c> 와 <c>track</c> 이 <b>null 로 남는다.</b>
+        // Awake 는 두 번 안 돌아서, 나중에 <see cref="AiRaceGate"/> 가 카트를 켜는 순간
+        // Update 가 null 을 건드리고 <b>매 프레임 예외</b>가 터졌다 — 유저가 본
+        // "8개째를 얻는 순간 게임 오류가 나서 1:3 으로 안 넘어간다" 가 이거야(2026-09-17).
+        //
+        // <b>껐다 켜는 물건은 꺼질 때도 제 배선을 끝내 놔야 한다.</b>
         kart = GetComponent<KartController>();
         kart.acceptPlayerInput = false;   // 키보드를 안 읽는다. 이게 없으면 플레이어와 같이 움직인다
 
         if (track == null) track = FindFirstObjectByType<TrackBuilder>();
         if (track == null)
             Debug.LogWarning("[AI] 트랙을 못 찾았어. TrackBuilder 를 인스펙터에 꽂아줘.", this);
+
+        // 조건 없이 스스로 확인한다. 게이트가 있어도 Start 순서가 밀리면 한 프레임 달린다.
+        if (!AiRaceGate.ShouldRace) gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// 꺼져 있다가 켜질 때도 자리를 다시 잡는다. <c>Start</c> 는 한 번뿐이라,
+    /// 마지막 판에 켜진 AI 가 <b>출발선이 아니라 옛 좌표</b>를 제 위치로 알고 있었다.
+    /// </summary>
+    void OnEnable()
+    {
+        stuckFor = 0f;
+        if (track != null)
+        {
+            progress = NearestT(transform.position, 0f, 1f, 60);
+            lastProgress = progress;
+        }
     }
 
     void Start()

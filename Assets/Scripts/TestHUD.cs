@@ -72,6 +72,14 @@ public class TestHUD : MonoBehaviour
             if (confirmQuit) { SceneNavigator.LoadByIndex(0); return; }
             confirmQuit = true;
         }
+        else if (confirmQuit && k.rKey.wasPressedThisFrame)
+        {
+            // 2026-09-17 유저: *"다른 애들이 뛰쳐나가서 기분이 안 좋은 사람들을 위해
+            // 다시 1:3 레이싱을 하는 패널이 있으면 좋겠다."* 출발을 망쳤을 때
+            // <b>로비를 거쳐 돌아오는 것 말고</b> 그 자리에서 다시 할 길이 필요하다.
+            confirmQuit = false;
+            if (tracker != null) tracker.ResetRace();
+        }
         else if (confirmQuit && k.anyKey.wasPressedThisFrame)
         {
             confirmQuit = false;
@@ -107,6 +115,7 @@ public class TestHUD : MonoBehaviour
             DrawSpeedPanel(w, h);
         }
 
+        if (InKart) DrawCountdown(w, h);
         DrawToast(w, h);
         DrawCorner(h);
         if (InKart) DrawMiniMap(h);
@@ -298,6 +307,28 @@ public class TestHUD : MonoBehaviour
         GUI.matrix = saved;
     }
 
+    // ---- 3 · 2 · 1 · 출발! ----
+    /// <summary>
+    /// 화면 <b>한가운데</b>에 크게. 구석에 작게 띄우면 출발선을 보고 있는 동안 못 본다.
+    /// 숫자가 <b>커졌다 작아지는</b> 게 중요해 — 3 에서 2 로 바뀌는 걸 놓치면
+    /// 카운트가 있으나 마나다.
+    /// </summary>
+    void DrawCountdown(float w, float h)
+    {
+        string label = RaceCountdown.Label;
+        if (string.IsNullOrEmpty(label)) return;
+
+        bool go = label == "출발!";
+        var style = Hud.Resize(Hud.Title, Mathf.RoundToInt((go ? 46 : 84) * RaceCountdown.Pop),
+                               TextAnchor.MiddleCenter);
+        style.normal.textColor = go ? Hud.Brass : Hud.Ink;
+
+        // 종이 판을 깔아야 코스 위에서도 읽힌다 — 흰 글씨만 띄우면 하늘색 벽에서 묻힌다.
+        var box = new Rect(w * 0.5f - 90f, h * 0.42f - 60f, 180f, 120f);
+        Hud.Panel(box);
+        GUI.Label(box, label, style);
+    }
+
     // ---- 주운 물건 안내 ----
     void DrawToast(float w, float h)
     {
@@ -371,7 +402,7 @@ public class TestHUD : MonoBehaviour
     /// </summary>
     void DrawQuitAsk(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 150f, h * 0.5f - 58f, 300f, 116f);
+        var box = new Rect(w * 0.5f - 150f, h * 0.5f - 68f, 300f, 136f);
         Hud.Panel(box);
 
         GUI.Label(new Rect(box.x, box.y + 18f, box.width, 28f), "나가기",
@@ -380,8 +411,10 @@ public class TestHUD : MonoBehaviour
                   Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter));
 
         Hud.Rule(box.x + 24f, box.y + 78f, box.width - 48f);
-        GUI.Label(new Rect(box.x, box.y + 84f, box.width, 22f), "ESC 로비로   ·   아무 키나 계속",
-                  Hud.Resize(Hud.Text, 13, TextAnchor.MiddleCenter));
+        GUI.Label(new Rect(box.x, box.y + 84f, box.width, 20f), "R 이 판 다시 시작",
+                  Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
+        GUI.Label(new Rect(box.x, box.y + 102f, box.width, 20f), "ESC 로비로   ·   아무 키나 계속",
+                  Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter));
     }
     // ---- 임무 실패 (레이스 도중) ----
     /// <summary>

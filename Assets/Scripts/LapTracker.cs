@@ -50,11 +50,16 @@ public class LapTracker : MonoBehaviour
         progress.totalCheckpoints = checkpointCount;
         progress.totalLaps = totalLaps;
         watchedLap = progress.Lap;
+
+        RaceCountdown.Begin();   // 씬에 들어올 때도 카운트부터
     }
 
     void Update()
     {
         if (progress == null) return;
+
+        // 카운트 중에는 시계도 안 간다. 안 그러면 제한시간 판이 3초를 손해 본다.
+        if (RaceCountdown.Blocked) return;
 
         if (!progress.Finished)
         {
@@ -108,12 +113,17 @@ public class LapTracker : MonoBehaviour
         if (progress != null) progress.ResetRace();
         if (kart != null) kart.Respawn();
 
+        // ★ <b>임무를 먼저, 순위판을 나중에.</b> 임무가 게이트를 다시 맞추면서
+        // AI 카트를 켠다 — 순위판을 먼저 돌리면 <b>그때 꺼져 있던 AI 는 출발선으로
+        // 안 돌아가고</b> 아까 멈춘 자리에서 다시 달린다(2026-09-17 유저 제보).
+        var mission = FindFirstObjectByType<MissionManager>();
+        if (mission != null) mission.Restart();
+
         var standings = FindFirstObjectByType<RaceStandings>();
         if (standings != null) standings.ResetRace();
 
-        // 임무도 같이 처음으로. 안 그러면 다시 달려도 아까 실패한 게 그대로 남는다.
-        var mission = FindFirstObjectByType<MissionManager>();
-        if (mission != null) mission.Restart();
+        // 3 · 2 · 1 · 출발! 되돌려 놓은 카트가 바닥에 내려앉을 시간이기도 하다.
+        RaceCountdown.Begin();
     }
 
     public static string FormatTime(float seconds)
