@@ -56,24 +56,31 @@ public class BuildingSign : MonoBehaviour
         if (font == null) return;
 
         var parent = transform.parent != null ? transform.parent : transform;
-        float width = transform.localScale.x;
+
+        // <b>크기를 현판 폭에서 뽑으면 안 된다.</b> 현판 높이는 0.78 로 고정인데 폭은 문마다
+        // 달라서, 넓은 문에서는 글자가 판 높이를 넘어 아래 줄과 겹쳤다(2026-09-17 유저 제보 —
+        // 흰 글씨와 노란 글씨가 포개져 있었다). 높이에 맞춘 <b>절대값</b>으로 잡는다.
+        const float nameLine = 0.46f;    // 이름 한 줄의 높이(m)
+        const float subLine  = 0.21f;    // 아래 작은 줄
 
         Label(parent, "PlaqueText", buildingName, font,
-              transform.localPosition + new Vector3(0f, 0.09f, 0.1f),
-              new Color32(0xF6, 0xEC, 0xD6, 0xFF), width / 2.1f);
+              transform.localPosition + new Vector3(0f, 0.08f, 0.1f),
+              new Color32(0xF6, 0xEC, 0xD6, 0xFF), nameLine, TextAnchor.MiddleCenter);
 
-        string under = string.IsNullOrEmpty(motto) ? department
-                     : (string.IsNullOrEmpty(department) ? motto : department + "   " + motto);
+        // 학과와 한 줄은 <b>현판 밖, 그 아래</b>로 내린다. 판 안에 같이 넣으면 자리가 안 나온다.
+        // 둘을 한 줄로 이어붙이면 "조리·제빵·공예·봉제   손재주는…" 처럼 판보다 길어지니 줄을 나눈다.
+        string under = department;
+        if (!string.IsNullOrEmpty(motto))
+            under = string.IsNullOrEmpty(department) ? motto : department + "\n" + motto;
         if (string.IsNullOrEmpty(under)) return;
 
-        // 학과와 한 줄은 현판 아래 작게. 이름만으로는 뭐 하는 곳인지 모르는 관이 있다.
         Label(parent, "PlaqueSub", under, font,
-              transform.localPosition + new Vector3(0f, -0.24f, 0.1f),
-              new Color32(0xD8, 0xB2, 0x40, 0xFF), width / 5.5f);
+              transform.localPosition + new Vector3(0f, -0.48f, 0.1f),
+              new Color32(0xD8, 0xB2, 0x40, 0xFF), subLine, TextAnchor.UpperCenter);
     }
 
     static void Label(Transform parent, string name, string body, Font font,
-                      Vector3 local, Color color, float size)
+                      Vector3 local, Color color, float lineHeight, TextAnchor anchor)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
@@ -88,8 +95,9 @@ public class BuildingSign : MonoBehaviour
         text.font = font;
         text.text = body;
         text.fontSize = 64;                  // 크게 구워서 줄여 쓴다 — 작게 구우면 계단이 보인다
-        text.characterSize = size * 0.06f;
-        text.anchor = TextAnchor.MiddleCenter;
+        // TextMesh 한 줄의 월드 높이 = fontSize × characterSize / 10. 원하는 높이에서 거꾸로 구한다.
+        text.characterSize = lineHeight * 10f / 64f;
+        text.anchor = anchor;
         text.alignment = TextAlignment.Center;
         text.color = color;
 

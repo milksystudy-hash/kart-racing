@@ -54,7 +54,7 @@ public class TestHUD : MonoBehaviour
         if (k.vKey.wasPressedThisFrame)
         {
             ScreenEffects.Toggle();
-            Toast.Show(ScreenEffects.On ? "화면 효과 켬" : "화면 효과 끔");
+            Toast.Show(ScreenEffects.On ? "이펙트 켬" : "이펙트 끔");
         }
 
         // ESC — 망한 판을 빠져나갈 길. <b>게임을 끄는 게 아니라 로비로</b> 간다.
@@ -148,7 +148,11 @@ public class TestHUD : MonoBehaviour
     {
         // 라벨과 값을 한 줄에 좌우로 놓으면 이름이 길 때 부딪힌다 — "무충돌로 시간 안에" 가
         // 라벨을 파고들어 "무충룰" 로 보였다(2026-09-16). 값은 아래 줄에 통째로 놓는다.
-        var p = new Rect(16f, 152f, 208f, mission == null ? 78f : (mission.AllDone ? 100f : 222f));
+        // 여덟 개를 다 모으면 <b>패널을 아예 안 띄운다.</b> 걸린 임무가 없는데 체크 칸이
+        // 남아 있으면 "아직 뭘 더 해야 하나" 로 읽힌다 — 그때는 그냥 달리는 판이야.
+        if (mission != null && mission.AllDone) return;
+
+        var p = new Rect(16f, 152f, 208f, mission == null ? 78f : 222f);
         Hud.Panel(p);
 
         float x = p.x + 14f;
@@ -323,7 +327,7 @@ public class TestHUD : MonoBehaviour
             { "SPACE", "톡 누르면 폴짝 (호핑)" },
             { "R", "제자리로 되돌리기" },
             { "ENTER", "이 판 다시 하기" },
-            { "V", "화면 효과 끄기 / 켜기" },
+            { "V", "이펙트 끄기 / 켜기" },
             { "ESC", "두 번 누르면 로비로" },
             { "H", "이 창 닫기" },
         };
@@ -354,9 +358,9 @@ public class TestHUD : MonoBehaviour
         var box = new Rect(w * 0.5f - 150f, h * 0.5f - 58f, 300f, 116f);
         Hud.Panel(box);
 
-        GUI.Label(new Rect(box.x, box.y + 18f, box.width, 28f), "그만둘까",
+        GUI.Label(new Rect(box.x, box.y + 18f, box.width, 28f), "나가기",
                   Hud.Resize(Hud.Title, 22));
-        GUI.Label(new Rect(box.x, box.y + 50f, box.width, 20f), "모은 건 그대로 남는다",
+        GUI.Label(new Rect(box.x, box.y + 50f, box.width, 20f), "지금 판은 처음부터",
                   Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter));
 
         Hud.Rule(box.x + 24f, box.y + 78f, box.width - 48f);
@@ -456,8 +460,10 @@ public class TestHUD : MonoBehaviour
     {
         if (map == null || map.Texture == null || standings == null) return;
 
+        // 아래에 개발 정보 칩(h−54)과 조작법 칩(h−28)이 있다. 지도를 그 위로 올린다 —
+        // 유저 제보(2026-09-17): 장 이름이 지도와 겹쳤다.
         const float side = 132f;
-        var box = new Rect(16f, h - side - 52f, side, side);
+        var box = new Rect(16f, h - side - 86f, side, side);
         Hud.Panel(box);
 
         var inner = Hud.Inner(box);

@@ -209,9 +209,16 @@ public static class LobbySceneBuilder
     //  벽 · 기둥 · 보
     // ==================================================================
     /// <summary>
-    /// 중앙홀 문 둘. 유저: *"다들 문이 없는데 어떻게 들어가고 나간 거야."*
-    /// <b>남쪽 = 밖(캠퍼스·트랙), 동쪽 = 전시실.</b> 서쪽은 방송 화면이 붙어 있어서 비워 둔다.
-    /// 문은 안 열린다 — 씬 이동은 따로 하고, 문은 <b>어디가 입구인지</b>만 말한다.
+    /// 중앙홀 문 셋.
+    ///
+    /// 처음엔 둘이었는데 유저 지적으로 하나 늘렸다(2026-09-17):
+    /// *"'밖으로' 가 트랙이면, 레이싱 끝나고 진짜 밖으로 나가는 방법은 없잖아."* 맞는 말이다.
+    /// 문패가 곧 <b>지도</b>라서, 한 문이 두 가지를 뜻하면 홀이 어디로 이어지는지 알 수가 없다.
+    ///
+    /// <b>남쪽 = 경기장(트랙), 동쪽 = 전시실, 서쪽 = 캠퍼스.</b>
+    /// 서쪽은 아직 갈 데가 없지만 <b>먼저 세워 둔다</b> — 미니게임이 들어올 자리고,
+    /// 닫힌 문이 하나 보이는 게 "여긴 나중에 열린다" 는 가장 싼 예고편이야.
+    /// 방송 화면(z −2)을 피해 z +8 에 둔다.
     /// </summary>
     /// <summary>문이 선 자리. 살창이 여기를 피해 간다.</summary>
     static readonly System.Collections.Generic.List<Vector3> doorSpots = new System.Collections.Generic.List<Vector3>();
@@ -226,13 +233,19 @@ public static class LobbySceneBuilder
         var south = new Vector3(0f, 0f, HallDepth * 0.5f - 0.25f);
         doorSpots.Add(south);
         HanokDoor.Build(root, south, Quaternion.Euler(0f, 180f, 0f), 4.2f, 4.6f, mat,
-                        plaque: true, buildingName: "밖으로", department: "캠퍼스 · 트랙");
+                        plaque: true, buildingName: "경기장", department: "오늘의 실사");
 
         // 동쪽 — 전시실로. 접수대(x 11.5, z 4)를 피해 z -6 에.
         var east = new Vector3(HallWidth * 0.5f - 0.25f, 0f, -6f);
         doorSpots.Add(east);
         HanokDoor.Build(root, east, Quaternion.Euler(0f, 270f, 0f), 3.6f, 4.4f, mat,
-                        plaque: true, buildingName: "전시실", department: "수집품 진열");
+                        plaque: true, buildingName: "전시실", department: "모은 것");
+
+        // 서쪽 — 캠퍼스로. 아직 못 나가지만 문은 서 있다.
+        var west = new Vector3(-HallWidth * 0.5f + 0.25f, 0f, 8f);
+        doorSpots.Add(west);
+        HanokDoor.Build(root, west, Quaternion.Euler(0f, 90f, 0f), 3.6f, 4.4f, mat,
+                        plaque: true, buildingName: "캠퍼스", department: "곰밥마당 · 별관", motto: "준비 중");
     }
 
     static void MakeWalls()

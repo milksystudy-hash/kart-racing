@@ -487,7 +487,11 @@ public class KartController : MonoBehaviour
 
         bool wasDrifting = IsDrifting;
         // 5m/s 는 너무 높았다 — 코너에 들어가려고 속도를 줄이면 그 순간 태엽이 안 감겼다.
-        IsDrifting = driftHeld && IsGrounded && forwardSpeed > 3.5f && Mathf.Abs(steerInput) > 0.18f;
+        // 2026-09-17 유저: "SHIFT 를 잘 못 다루겠다. 평소엔 자주 부딪혀서 안 쓸 것 같다."
+        // 문턱이 높았다 — 3.5m/s 는 코너 진입에서 브레이크를 밟으면 바로 밑으로 떨어지고,
+        // 조향 0.18 은 완만한 코너에서 안 걸린다. <b>감기다 끊기는 게 제일 나쁘다</b>:
+        // 감기는 줄 알고 잡고 있었는데 아무 일도 안 일어나면 그 키를 다시 안 쓴다.
+        IsDrifting = driftHeld && IsGrounded && forwardSpeed > 2.2f && Mathf.Abs(steerInput) > 0.10f;
 
         if (IsDrifting)
         {
