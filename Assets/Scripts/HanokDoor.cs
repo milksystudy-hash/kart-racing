@@ -83,12 +83,15 @@ public static class HanokDoor
         {
             // 2026-09-17 유저: "건물 글자가 잘 안 보인다." 현판이 문폭의 62% 라 너무 작았다.
             // 달리면서 스쳐 보는 간판은 <b>건물에 비해 과하다 싶을 만큼</b> 커야 읽힌다.
-            var board = Piece(root, "Plaque", new Vector3(0f, height + 0.78f, 0.06f),
-                              new Vector3(width * 1.15f, 0.78f, 0.16f), Plaque, material);
+            // 판을 <b>학과 줄까지 덮을 만큼</b> 키운다. 작은 글씨가 나무 기둥 위에 얹히면
+            // 배경이 밝아서 안 읽힌다(2026-09-17 유저: "노란 글씨도 잘 안 보여").
+            // 어두운 판 위에 올려야 밝은 글씨가 산다.
+            var board = Piece(root, "Plaque", new Vector3(0f, height + 0.9f, 0.06f),
+                              new Vector3(width * 1.15f, 1.16f, 0.16f), Plaque, material);
 
             // 현판 테두리 — 검은 판만 있으면 벽에 뚫린 구멍처럼 보인다
-            Piece(root, "PlaqueFrame", new Vector3(0f, height + 0.78f, 0.03f),
-                  new Vector3(width * 1.26f, 0.94f, 0.1f), Wood, material);
+            Piece(root, "PlaqueFrame", new Vector3(0f, height + 0.9f, 0.03f),
+                  new Vector3(width * 1.26f, 1.32f, 0.1f), Wood, material);
 
             var sign = board.AddComponent<BuildingSign>();
             sign.buildingName = buildingName;

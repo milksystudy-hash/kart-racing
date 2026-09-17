@@ -155,6 +155,12 @@ public class BearNpc : MonoBehaviour
     [Tooltip("이 거리 안이면 '말 걸기' 표시가 뜬다(m)")]
     public float talkRange = 3.5f;
 
+    [Tooltip("조종하는 사람이 없을 때 — 카메라가 이 각도 안으로 보고 있으면 말을 걸 수 있다")]
+    public float lookAngle = 16f;
+
+    [Tooltip("조종하는 사람이 없을 때 — 이 거리 안이어야 한다")]
+    public float lookDistance = 32f;
+
     [Tooltip("돌아다닐 때 다른 물건과 이만큼은 떨어져 있어야 한다(m)")]
     public float clearance = 1.1f;
 
@@ -217,7 +223,8 @@ public class BearNpc : MonoBehaviour
     /// </summary>
     Vector3 PickSpot()
     {
-        for (int tries = 0; tries < 8; tries++)
+        // 여러 번 찔러본다. 반경이 넓어질수록 막힌 자리를 뽑을 확률도 같이 오른다.
+        for (int tries = 0; tries < 20; tries++)
         {
             Vector2 r = Random.insideUnitCircle * patrolRadius;
             Vector3 spot = home + new Vector3(r.x, 0f, r.y);
@@ -226,7 +233,13 @@ public class BearNpc : MonoBehaviour
         return transform.position;
     }
 
-    /// <summary>그 자리에 나 말고 다른 게 있나. 내 콜라이더는 빼고 본다.</summary>
+    /// <summary>
+    /// 그 자리에 나 말고 다른 게 있나.
+    ///
+    /// <b>콜라이더만 보면 안 된다.</b> 석등 같은 장식은 콜라이더가 없어서 "비었다" 로 나오고,
+    /// 곰이 그 위나 밑에 가서 낀다(2026-09-17 유저 제보 — 리본 곰 아래 석상에 자주 갇혔다).
+    /// 자리 잡을 때와 <b>같은 규칙</b>이야: 막히는 것만 피하면 되는 게 아니라 겹쳐 보이지도 않아야 한다.
+    /// </summary>
     bool IsClear(Vector3 spot)
     {
         var hits = Physics.OverlapSphere(spot + Vector3.up * 0.5f, clearance);
@@ -238,7 +251,35 @@ public class BearNpc : MonoBehaviour
             if (h.bounds.max.y < 0.2f) continue;
             return false;
         }
+
+        var box = new Bounds(spot + Vector3.up * 0.5f, new Vector3(clearance * 2f, 1f, clearance * 2f));
+        foreach (var solid in Solids())
+            if (solid.Intersects(box)) return false;
+
         return true;
+    }
+
+    // 눈에 보이는 장애물 목록. 한 번만 모아 둔다 — 매번 씬을 훑으면 곰 셋이서 비싸진다.
+    static Bounds[] solids;
+
+    static Bounds[] Solids()
+    {
+        if (solids != null) return solids;
+
+        var list = new System.Collections.Generic.List<Bounds>();
+        foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+        {
+            if (r.GetComponentInParent<BearNpc>() != null) continue;   // 곰끼리는 콜라이더로 본다
+
+            var b = r.bounds;
+            if (b.max.y < 0.35f) continue;                      // 바닥·줄눈
+            if (b.min.y > 2.6f) continue;                       // 천장·들보·현판
+            if (b.size.x < 0.3f && b.size.z < 0.3f) continue;   // 실오라기 같은 것
+            if (b.size.x > 25f || b.size.z > 25f) continue;     // 벽 한 장 통째 — 콜라이더가 이미 있다
+            list.Add(b);
+        }
+        solids = list.ToArray();
+        return solids;
     }
 
     /// <summary>걸을 때 팔을 번갈아 흔든다. 팔이 가만히 있으면 미끄러지는 것처럼 보인다.</summary>
@@ -263,6 +304,15 @@ public class BearNpc : MonoBehaviour
     static int nearestFrame = -1;
 
     /// <summary>매 프레임 "내가 제일 가까운가" 를 겨룬다. 제일 가까운 놈만 표시를 얻는다.</summary>
+    /// <summary>
+    /// 말 걸 상대 고르기.
+    ///
+    /// <b>로비에는 조종하는 사람이 없다.</b> 궤도 카메라뿐이라 카메라와 곰 사이가 늘 5~25m 고,
+    /// 3.5m 라는 거리 조건은 <b>영영 안 맞는다</b> — 그래서 말이 안 걸렸다(2026-09-17 유저 제보).
+    ///
+    /// 걸어다니는 아바타가 있으면 거리로 고르는 게 맞지만, 궤도 카메라에서는
+    /// <b>"보고 있는 것"</b> 이 곧 "가까이 간 것"이다. 화면 가운데에 둔 곰에게 말을 건다.
+    /// </summary>
     void OfferTalk(Transform target, float distance)
     {
         if (nearestFrame != Time.frameCount)
@@ -272,7 +322,25 @@ public class BearNpc : MonoBehaviour
             Nearest = null;
         }
 
-        if (target == null || distance > talkRange || distance >= nearestDistance) return;
+        if (target == null) return;
+
+        // 아바타가 있으면 거리로, 없으면(궤도 카메라) 화면 가운데에 가까운 순서로 고른다.
+        float score;
+        if (lookTarget != null)
+        {
+            if (distance > talkRange) return;
+            score = distance;
+        }
+        else
+        {
+            Vector3 toMe = transform.position + Vector3.up * 0.7f - target.position;
+            float angle = Vector3.Angle(target.forward, toMe);
+            if (angle > lookAngle || toMe.magnitude > lookDistance) return;
+            score = angle;
+        }
+
+        if (score >= nearestDistance) return;
+        distance = score;
 
         nearestDistance = distance;
         Nearest = this;

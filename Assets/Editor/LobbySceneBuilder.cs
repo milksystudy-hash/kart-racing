@@ -642,6 +642,8 @@ public static class LobbySceneBuilder
             return;
         }
 
+        // 여기 3f 는 <b>처음 세울 자리를 고를 때 필요한 여유</b>지 순찰 반경이 아니다.
+        // 순찰은 아래에서 11m 로 따로 준다 — 출발점만 널널하면 된다.
         var spots = FindOpenSpots(3, patrolRadius: 3f);
         if (spots.Count == 0)
         {
@@ -668,7 +670,11 @@ public static class LobbySceneBuilder
 
             var npc = go.AddComponent<BearNpc>();
             npc.noticeRange = 13f;   // 로비 카메라가 5~25m 에서 도니까 기본 5m 로는 안 걸린다
-            npc.patrolRadius = 3f;
+
+            // 2026-09-17 유저: "로비 전체를 다 걸으면 좋겠어." 3m 는 제자리걸음이었다.
+            // 넓혀도 되는 이유는 <b>갈 자리를 눈에 보이는 것 기준으로 확인</b>하게 고쳤기 때문 —
+            // 전에는 콜라이더만 봐서 석등 같은 장식 위로 걸어갔다. 지금은 스무 번 찔러보고 고른다.
+            npc.patrolRadius = 11f;
 
             var box = go.AddComponent<BoxCollider>();
             box.center = new Vector3(0f, 0.5f, 0f);

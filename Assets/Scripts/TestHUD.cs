@@ -403,7 +403,10 @@ public class TestHUD : MonoBehaviour
     /// </summary>
     void DrawFinish(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 180f, h * 0.5f - 112f, 360f, 224f);
+        // 셋을 가로로 놓으면 칸 하나가 (폭−40)/3 밖에 안 된다. 360 일 때 107px 인데
+        // "1:51.17" 이 26px 로 그리면 100px 이라 옆 칸과 딱 붙는다(2026-09-17 유저 제보).
+        // 패널을 넓히고 숫자를 줄였다 — 둘 다 해야 여유가 생긴다.
+        var box = new Rect(w * 0.5f - 208f, h * 0.5f - 112f, 416f, 224f);
         Hud.Panel(box);
 
         // 다 모았으면 걸린 임무가 없다. 판정을 그대로 돌리면 "임무 실패 — 세 바퀴 완주" 가 뜬다.
@@ -426,12 +429,12 @@ public class TestHUD : MonoBehaviour
         };
 
         var label = Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter);
-        var value = Hud.Resize(Hud.Value, 26, TextAnchor.MiddleCenter);
-        float cell = (box.width - 40f) / 3f;
+        var value = Hud.Resize(Hud.Value, 21, TextAnchor.MiddleCenter);
+        float cell = (box.width - 48f) / 3f;
 
         for (int i = 0; i < 3; i++)
         {
-            float x = box.x + 20f + i * cell;
+            float x = box.x + 24f + i * cell;
             GUI.Label(new Rect(x, box.y + 74f, cell, 18f), cells[i, 0], label);
             GUI.Label(new Rect(x, box.y + 92f, cell, 34f), cells[i, 1], value);
         }

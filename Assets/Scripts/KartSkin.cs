@@ -66,7 +66,12 @@ public class KartSkin : MonoBehaviour
     /// </summary>
     string AiCastId(int slot)
     {
-        string player = GameSelection.SelectedCastId;
+        // <b>로비를 안 거치면 고른 캐릭터가 빈 문자열이다.</b> 그러면 플레이어 카트는
+        // fallbackCastId("세진")로 떨어지는데 AI 는 아무도 안 빼서 세진이 또 뽑힌다 —
+        // 트랙 씬을 바로 만들면 세진 카트가 두 대였던 게 이거다(2026-09-17 유저 제보).
+        // 플레이어가 실제로 타게 될 카트를 기준으로 빼야 한다.
+        string player = string.IsNullOrEmpty(GameSelection.SelectedCastId)
+                      ? fallbackCastId : GameSelection.SelectedCastId;
 
         // 쓸 수 있는 카트를 먼저 모은다. <b>모아 놓고 고르는 게 중요하다</b> —
         // 훑으면서 순번을 세다가 모자라면 fallbackCastId("세진")로 떨어졌고, 그러면
