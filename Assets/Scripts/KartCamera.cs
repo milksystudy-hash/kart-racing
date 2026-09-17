@@ -24,17 +24,43 @@ public class KartCamera : MonoBehaviour
     public float positionSmoothing = 7f;
     public float rotationSmoothing = 9f;
 
-    [Header("속도감")]
+    [Header("속도감 — 시야각")]
     public float baseFov = 60f;
     public float topSpeedFov = 76f;
     public float boostFovKick = 6f;
 
+    [Header("속도감 — 흔들림")]
+    // 시야각만으로는 부족했다. 화면이 <b>가만히</b> 있으면 22m/s 도 8m/s 처럼 보인다.
+    // 손떨림 같은 잡음이 아니라 노면 진동처럼 보여야 해서 펄린 노이즈를 쓴다.
+    [Tooltip("최고 속도에서 카메라가 떠는 폭(m). 0 이면 안 떤다")]
+    public float shakeAtTopSpeed = 0.045f;
+    [Tooltip("부스트 중에 더해지는 떨림(m)")]
+    public float boostShake = 0.09f;
+    [Tooltip("벽에 부딪힌 순간의 충격(m). 0.35초쯤에 걸쳐 잦아든다")]
+    public float hitShake = 0.30f;
+
+    [Header("속도감 — 물러나기")]
+    // 빨라질수록 카메라가 뒤로 처진다. 카트가 <b>화면에서 작아지면서</b> 달아나는 것처럼 보인다.
+    [Tooltip("최고 속도에서 뒤로 더 물러나는 거리(m)")]
+    public float pullBack = 0.85f;
+    [Tooltip("최고 속도에서 낮아지는 높이(m). 낮을수록 지면이 빨리 흐른다")]
+    public float crouch = 0.22f;
+
     Camera cam;
     float yaw;
+    float hitImpulse;
+    int lastWallHits;
+    float noiseSeed;
 
     void Awake()
     {
         cam = GetComponent<Camera>();
+        noiseSeed = Random.Range(0f, 100f);
+
+        // 화면 효과는 따로 떼어놨다(SpeedRush). 여기서 붙여주면 <b>씬을 다시 굽지 않아도</b>
+        // 바로 들어온다 — 카메라는 이미 씬에 있으니까.
+        if (GetComponent<SpeedRush>() == null)
+            gameObject.AddComponent<SpeedRush>().kart = kart;
         if (target != null)
         {
             yaw = target.eulerAngles.y;
@@ -50,7 +76,12 @@ public class KartCamera : MonoBehaviour
         yaw = Mathf.LerpAngle(yaw, target.eulerAngles.y, 1f - Mathf.Exp(-rotationSmoothing * Time.deltaTime));
         Quaternion flatRotation = Quaternion.Euler(0f, yaw, 0f);
 
-        Vector3 desired = target.position + flatRotation * offset;
+        float speed01 = Speed01;
+
+        // 빠를수록 뒤로, 그리고 조금 낮게
+        Vector3 moved = offset + new Vector3(0f, -crouch * speed01, -pullBack * speed01);
+
+        Vector3 desired = target.position + flatRotation * moved;
         transform.position = Vector3.Lerp(transform.position, desired,
                                           1f - Mathf.Exp(-positionSmoothing * Time.deltaTime));
 
@@ -59,7 +90,38 @@ public class KartCamera : MonoBehaviour
                            + flatRotation * Vector3.forward * lookAhead;
         transform.rotation = Quaternion.LookRotation(lookTarget - transform.position, Vector3.up);
 
+        // 흔들림은 <b>맨 마지막에 더한다.</b> 목표 위치에 섞으면 부드럽게 만드는 lerp 가
+        // 떨림을 먹어버려서 아무 일도 안 일어난다.
+        transform.position += Shake(speed01);
+
         UpdateFov();
+    }
+
+    float Speed01 => kart == null ? 0f
+        : Mathf.Clamp01(Mathf.Abs(kart.SpeedKph) / Mathf.Max(1f, kart.maxSpeed * 3.6f));
+
+    /// <summary>노면 진동 + 부스트 + 충돌 충격을 합친 한 프레임치 흔들림.</summary>
+    Vector3 Shake(float speed01)
+    {
+        if (kart == null) return Vector3.zero;
+
+        // 벽에 새로 부딪혔나. WallHits 는 실제로 속도를 깎은 충돌만 센다.
+        if (kart.WallHits != lastWallHits)
+        {
+            if (kart.WallHits > lastWallHits) hitImpulse = hitShake;
+            lastWallHits = kart.WallHits;
+        }
+        hitImpulse = Mathf.Lerp(hitImpulse, 0f, 1f - Mathf.Exp(-9f * Time.deltaTime));
+
+        float amount = shakeAtTopSpeed * speed01 * speed01     // 제곱 — 느릴 때는 거의 안 떨게
+                     + (kart.IsBoosting ? boostShake : 0f)
+                     + hitImpulse;
+        if (amount < 0.0005f) return Vector3.zero;
+
+        // 펄린 노이즈는 연속이라 진동으로 보인다. Random 을 쓰면 화면 잡음처럼 보여.
+        float t = Time.time * 26f + noiseSeed;
+        return transform.right * ((Mathf.PerlinNoise(t, 0f) - 0.5f) * 2f * amount)
+             + transform.up    * ((Mathf.PerlinNoise(0f, t) - 0.5f) * 2f * amount);
     }
 
     void UpdateFov()

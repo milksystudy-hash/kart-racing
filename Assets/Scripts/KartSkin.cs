@@ -43,7 +43,18 @@ public class KartSkin : MonoBehaviour
     void Awake() => Apply(ChooseCastId());
 
     /// <summary>이 카트가 누구 것이 되는지. 밖에서 검사할 수 있게 갈라놨다.</summary>
-    public string ChooseCastId() => aiSlot < 0 ? GameSelection.SelectedCastId : AiCastId(aiSlot);
+    public string ChooseCastId()
+    {
+        int slot = aiSlot;
+
+        // <b>씬을 다시 굽지 않아도 AI 는 AI 로 알아본다.</b> aiSlot 이 없던 시절에 구운 씬에는
+        // 이 값이 -1 로 남아서, 고쳐 놓고도 똑같이 "내 카트 넷" 이 나왔다(2026-09-17 재발).
+        // 운전수가 붙어 있으면 그게 AI 라는 증거고, 순번은 형제 순서로 정한다.
+        if (slot < 0 && GetComponent<KartAi>() != null)
+            slot = Mathf.Max(0, transform.GetSiblingIndex());
+
+        return slot < 0 ? GameSelection.SelectedCastId : AiCastId(slot);
+    }
 
     /// <summary>
     /// AI 카트가 쓸 캐릭터 — <b>로비에서 고른 캐릭터를 빼고</b> 남은 것 중 순번대로.
