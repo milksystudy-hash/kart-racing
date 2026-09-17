@@ -30,11 +30,18 @@ public class PlayerModeSwitcher : MonoBehaviour
         Apply(HasKart);
     }
 
-    // Tab 으로 내려서 걸어다니는 기능은 없앴다.
-    // 레이스 도중에 내릴 일이 없고, 걷기 모드가 켜지면 마우스 시점과 점프가 끼어들어서
-    // 조작이 헷갈려진다. 맵을 걸어서 확인하고 싶으면 Testbed 씬(F3)을 쓰면 된다.
-    //
-    // 다시 필요해지면 SetMode(false) 를 부르면 되게 남겨뒀다.
+    /// <summary>
+    /// 걷기 ↔ 타기. <b>2026-09-17 에 다시 열었다.</b>
+    ///
+    /// 전에 막아뒀던 이유는 "레이스 도중에 내릴 일이 없다" 였는데, 이제 내릴 일이 생겼다 —
+    /// 곰에게 <b>다가가서</b> 말을 걸어야 하고(유저: 지금은 멀리서도 걸린다),
+    /// 캠퍼스 건물 열셋을 <b>걸어서 점검</b>해야 한다. 미니게임도 걸어서 들어갈 자리다.
+    ///
+    /// Testbed 씬은 없어졌으니(씬 셋으로 줄임) 걸어서 볼 방법이 이것뿐이야.
+    /// </summary>
+    public void SetMode(bool intoKart) => Apply(intoKart);
+
+    public void Toggle() => Apply(!InKart);
 
     void Apply(bool intoKart)
     {
@@ -64,6 +71,4 @@ public class PlayerModeSwitcher : MonoBehaviour
         player.Teleport(beside, kart.transform.eulerAngles.y);
     }
 
-    /// <summary>다른 스크립트에서 강제로 태우거나 내리게 할 때.</summary>
-    public void SetMode(bool intoKart) => Apply(intoKart);
 }

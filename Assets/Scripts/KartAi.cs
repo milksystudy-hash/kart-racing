@@ -24,8 +24,9 @@ public class KartAi : MonoBehaviour
     [Range(-1f, 1f)] public float lane;
 
     [Header("실력")]
+    // 2026-09-17 유저: "전체적으로 난이도가 좀 쉬운 것 같다." 0.80~0.89 였다.
     [Tooltip("1 이면 카트 성능을 다 쓴다. 낮추면 느긋해진다")]
-    [Range(0.5f, 1f)] public float skill = 0.85f;
+    [Range(0.5f, 1f)] public float skill = 0.92f;
 
     [Tooltip("몇 미터 앞을 보고 핸들을 꺾을지. 짧으면 코너를 못 돌고, 길면 코너를 잘라먹는다")]
     public float lookAhead = 14f;
@@ -36,11 +37,12 @@ public class KartAi : MonoBehaviour
     [Tooltip("이 각도보다 급하게 꺾이면 드리프트를 건다(도)")]
     public float driftAngle = 32f;
 
-    [Tooltip("이만큼 못 움직이면 코스 위로 되돌린다(초). 후진으로도 못 빠져나오는 경우")]
-    public float recoverAfter = 4f;
+    [Tooltip("코스를 따라 이만큼 못 나아가면 되돌린다(초). 후진으로도 못 빠져나오는 경우")]
+    public float recoverAfter = 2.5f;
 
     KartController kart;
     float progress;          // 코스에서 지금 어디쯤인지 (0~1)
+    float lastProgress;      // 마지막으로 "나아갔다" 고 인정한 지점
     float stuckFor;
 
     void Awake()
@@ -53,7 +55,11 @@ public class KartAi : MonoBehaviour
             Debug.LogWarning("[AI] 트랙을 못 찾았어. TrackBuilder 를 인스펙터에 꽂아줘.", this);
     }
 
-    void Start() => progress = NearestT(transform.position, 0f, 1f, 60);
+    void Start()
+    {
+        progress = NearestT(transform.position, 0f, 1f, 60);
+        lastProgress = progress;
+    }
 
     void Update()
     {
@@ -81,9 +87,13 @@ public class KartAi : MonoBehaviour
 
         bool drift = Mathf.Abs(angle) > driftAngle && kart.SpeedKph > 18f;
 
-        // 벽에 붙어서 못 나가면 후진해서 뺀다. 안 그러면 한 대가 영영 거기 있는다.
-        if (Mathf.Abs(kart.SpeedKph) < 2f) stuckFor += Time.deltaTime;
-        else stuckFor = 0f;
+        // <b>속도로 보면 안 된다.</b> 벽에 대고 악셀을 밟으면 제자리에서 덜덜거리며
+        // 3~5km/h 가 찍혀서 "달리는 중" 으로 판정된다 — 그래서 되돌리기가 영영 안 걸리고
+        // AI 가 경기를 포기한 것처럼 보였다(2026-09-17 유저 제보, 두 번째).
+        // <b>코스를 따라 실제로 나아갔는지</b>를 본다. 벽에 박혀 있으면 이 값이 안 움직인다.
+        float moved = Mathf.Abs(Mathf.DeltaAngle(lastProgress * 360f, progress * 360f)) / 360f;
+        if (moved * track.LapLength < 0.35f) stuckFor += Time.deltaTime;
+        else { stuckFor = 0f; lastProgress = progress; }
 
         // <b>후진으로도 못 나오면 코스 위로 되돌린다.</b> 유저 제보(2026-09-17):
         // 코너에 밀어 넣으면 AI 가 바닥을 뒤뚱거리며 박힌 채로 끝났다. 뒤집히거나 끼면
@@ -114,6 +124,7 @@ public class KartAi : MonoBehaviour
 
         kart.RespawnAt(at, Quaternion.LookRotation(forward, Vector3.up));
         progress = ahead;
+        lastProgress = ahead;
     }
 
     /// <summary>코스 위 t 지점에서 내 차선만큼 옆으로 비킨 자리.</summary>

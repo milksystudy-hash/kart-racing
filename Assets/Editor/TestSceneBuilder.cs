@@ -192,9 +192,17 @@ public static class TestSceneBuilder
         var standings = rig.AddComponent<RaceStandings>();
         standings.playerRacer = kart.GetComponent<RaceProgress>();
 
+        // 캠퍼스 건물 열셋을 걸어서 점검할 수 있게. TAB 으로 내린다(2026-09-17 유저).
+        var walker = MakePlayer(track.StartPosition + Vector3.up * 0.2f, 0f);
+
         var switcher = rig.AddComponent<PlayerModeSwitcher>();
         switcher.kart = kart;
         switcher.kartCamera = kartCam;
+        switcher.player = walker.controller;
+        switcher.playerCamera = walker.camera;
+
+        // 트랙은 카트로 시작하니 걷는 몸은 꺼 둔 채로 저장한다 — AudioListener 가 둘이면 경고가 뜬다.
+        walker.controller.gameObject.SetActive(false);
 
         // 임무 — 이게 있어야 레이스에 "실패" 가 생긴다. 장에 따라 조건이 저절로 바뀐다.
         var mission = rig.AddComponent<MissionManager>();
@@ -281,7 +289,7 @@ public static class TestSceneBuilder
             ai.track = track;
             ai.lane = lane;
             // 실력을 조금씩 다르게. 셋이 똑같으면 한 덩어리로 붙어다녀서 레이스로 안 보인다.
-            ai.skill = 0.80f + made * 0.045f;
+            ai.skill = 0.88f + made * 0.04f;   // 0.88 / 0.92 / 0.96
 
             made++;
         }

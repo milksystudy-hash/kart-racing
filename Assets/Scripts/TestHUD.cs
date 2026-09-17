@@ -49,6 +49,13 @@ public class TestHUD : MonoBehaviour
 
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
 
+        // TAB 으로 내려서 걷기. 건물을 걸어서 점검하려면 이게 있어야 한다.
+        if (k.tabKey.wasPressedThisFrame && modeSwitcher != null && modeSwitcher.HasKart)
+        {
+            modeSwitcher.Toggle();
+            Toast.Show(modeSwitcher.InKart ? "카트에 탔다" : "내려서 걷는다   TAB 다시 타기");
+        }
+
         // 화면 효과 끄기/켜기. 세기를 줄이는 것과 <b>끌 수 있는 것</b>은 다른 문제야 —
         // 멀미를 타면 아무리 연해도 거슬린다. 접근성 설정이라고 보는 게 맞다.
         if (k.vKey.wasPressedThisFrame)
@@ -314,7 +321,7 @@ public class TestHUD : MonoBehaviour
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 144f, 400f, 288f);
+        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 157f, 400f, 314f);
         Hud.Panel(box);
 
         GUI.Label(new Rect(box.x, box.y + 16f, box.width, 26f), "조작법", Hud.Title);
@@ -327,6 +334,7 @@ public class TestHUD : MonoBehaviour
             { "SPACE", "톡 누르면 폴짝 (호핑)" },
             { "R", "제자리로 되돌리기" },
             { "ENTER", "이 판 다시 하기" },
+            { "TAB", "내려서 걷기 / 다시 타기" },
             { "V", "이펙트 끄기 / 켜기" },
             { "ESC", "두 번 누르면 로비로" },
             { "H", "이 창 닫기" },

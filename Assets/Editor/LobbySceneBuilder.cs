@@ -102,9 +102,33 @@ public static class LobbySceneBuilder
         selector.orbit = orbit;
         selector.stands = stands;
 
+        // ---- 임시 몸 : 걸어가서 말을 걸 수 있게 ----
+        // 캐릭터 모델이 나오면 Player 안의 상자만 갈아 끼우면 된다.
+        var player = TestSceneBuilder.MakePlayer(new Vector3(0f, 0.1f, 11f), 180f);
+        MakeTempBody(player.controller.transform);
+
+        var entrance = new GameObject("WalkEntrance").transform;
+        entrance.SetPositionAndRotation(new Vector3(0f, 0.1f, 11f), Quaternion.Euler(0f, 180f, 0f));
+
+        var walk = rig.AddComponent<WalkMode>();
+        walk.player = player.controller;
+        walk.walkCamera = player.camera;
+        walk.browseCamera = cam;
+        walk.entrance = entrance;
+        walk.pauseWhileWalking = new Behaviour[] { orbit, selector };
+
+        // 씬에 저장될 때는 꺼 둔다. 카메라가 둘 다 켜져 있으면 AudioListener 가 둘이라
+        // 씬을 열 때마다 경고가 뜬다 (런타임에는 WalkMode.Start 가 알아서 끈다).
+        player.controller.gameObject.SetActive(false);
+
+        // 몸이 생겼으니 곰은 <b>거리</b>로 판단한다. 카메라 각도로 고르던 건 몸이 없을 때의 임시방편.
+        foreach (var bear in Object.FindObjectsByType<BearNpc>(FindObjectsSortMode.None))
+            bear.lookTarget = player.controller.transform;
+
         var hud = rig.AddComponent<LobbyHUD>();
         hud.selector = selector;
         hud.gate = gate;
+        hud.walk = walk;
 
         // 이야기 장면은 이 방 안에서 돈다. 전용 씬을 만들면 중앙홀이 두 벌이 되니까.
         StoryRigBuilder.EnsureRig();
@@ -117,6 +141,22 @@ public static class LobbySceneBuilder
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log("[Racing] Lobby.unity(중앙홀) 생성 완료. F1 로비 / F2 트랙 / F3 테스트베드.");
+    }
+
+    /// <summary>
+    /// 임시 몸뚱이. <b>보이는 건 상자뿐</b>이고, 1인칭이라 평소엔 화면에 안 나온다 —
+    /// 그림자와 씬 뷰에서 어디 있는지 보이라고 둔다. 콜라이더는 안 붙인다
+    /// (충돌은 CharacterController 가 이미 맡는다).
+    /// </summary>
+    static void MakeTempBody(Transform parent)
+    {
+        var body = TestSceneBuilder.Cube(parent, "TempBody", Vector3.zero,
+                                         new Vector3(0.5f, 1.2f, 0.35f), ColWoodDark, keepCollider: false);
+        body.transform.localPosition = new Vector3(0f, 0.6f, 0f);
+
+        var head = TestSceneBuilder.Cube(parent, "TempHead", Vector3.zero,
+                                         new Vector3(0.42f, 0.42f, 0.42f), ColStone, keepCollider: false);
+        head.transform.localPosition = new Vector3(0f, 1.45f, 0f);
     }
 
     /// <summary>

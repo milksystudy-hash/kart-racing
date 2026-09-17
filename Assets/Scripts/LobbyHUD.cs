@@ -21,6 +21,8 @@ public class LobbyHUD : MonoBehaviour
     [Header("폰트 (비워 두면 OS 한글 폰트를 쓴다)")]
     public Font uiFont;
 
+    public WalkMode walk;
+
     bool showControls;
 
     void Update()
@@ -29,6 +31,10 @@ public class LobbyHUD : MonoBehaviour
         if (k == null) return;
 
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
+
+        // 둘러보기 ↔ 걷기. 마우스가 두 가지 일(시점 돌리기 / 받침대 클릭)을 하게 두면
+        // 어느 쪽인지 알 수가 없어서 <b>모드를 가른다</b>.
+        if (k.tabKey.wasPressedThisFrame && walk != null) walk.Toggle();
 
         // 동물의 숲처럼 <b>버튼을 눌러야</b> 말한다. 가까이 갔다고 저절로 떠들면
         // 지나갈 때마다 말이 튀어나와서 금방 시끄러워진다(2026-09-16 유저).
@@ -195,15 +201,28 @@ public class LobbyHUD : MonoBehaviour
         GUI.Label(new Rect(box.x, box.y + 14f, box.width, 24f), "조작법", Hud.Title);
         Hud.Rule(box.x + 20f, box.y + 40f, box.width - 40f);
 
-        string[,] controls =
-        {
-            { "마우스 움직이기", "둘러보기" },
-            { "마우스 끌기", "빙 돌려 보기" },
-            { "휠", "가까이 · 멀리" },
-            { "클릭", "카트 고르기 / 출발문 열기" },
-            { "E", "가까운 곰에게 말 걸기" },
-            { "H", "이 창 닫기" },
-        };
+        // 걷는 중이면 걷는 조작만 보여준다. 둘을 같이 늘어놓으면 지금 뭐가 먹는지 알 수가 없다.
+        bool walking = walk != null && walk.Walking;
+
+        string[,] controls = walking
+            ? new[,]
+            {
+                { "WASD", "걷기 (SHIFT 뛰기)" },
+                { "마우스", "둘러보기" },
+                { "E", "가까이 간 곰에게 말 걸기" },
+                { "TAB", "돌아가서 카트 고르기" },
+                { "H", "이 창 닫기" },
+                { "", "" },
+            }
+            : new[,]
+            {
+                { "마우스 움직이기", "둘러보기" },
+                { "마우스 끌기", "빙 돌려 보기" },
+                { "휠", "가까이 · 멀리" },
+                { "클릭", "카트 고르기 / 출발문 열기" },
+                { "TAB", "걸어다니기" },
+                { "H", "이 창 닫기" },
+            };
         Rows(box, controls, box.y + 50f);
 
         Hud.Rule(box.x + 20f, box.y + 168f, box.width - 40f);
