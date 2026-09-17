@@ -35,11 +35,36 @@ public class KartSkin : MonoBehaviour
     [Tooltip("고른 캐릭터의 카트가 아직 없을 때 쓸 카트")]
     public string fallbackCastId = "세진";
 
+    [Tooltip("AI 카트용 순번. -1 이면 로비에서 고른 캐릭터를 따라간다(플레이어 카트)")]
+    public int aiSlot = -1;
+
     public string CurrentCastId { get; private set; } = "";
 
-    void Awake()
+    void Awake() => Apply(ChooseCastId());
+
+    /// <summary>이 카트가 누구 것이 되는지. 밖에서 검사할 수 있게 갈라놨다.</summary>
+    public string ChooseCastId() => aiSlot < 0 ? GameSelection.SelectedCastId : AiCastId(aiSlot);
+
+    /// <summary>
+    /// AI 카트가 쓸 캐릭터 — <b>로비에서 고른 캐릭터를 빼고</b> 남은 것 중 순번대로.
+    ///
+    /// <b>씬을 구울 때 정하면 안 된다.</b> 캐릭터는 씬을 구운 <i>뒤에</i> 로비에서 고르니까,
+    /// 구울 때 정해두면 플레이어가 누굴 고르든 그때 박제된 셋이 나온다. 게다가 AI 쪽 KartSkin 도
+    /// Awake 에서 GameSelection 을 읽고 있어서, 고른 캐릭터의 카트로 전부 갈아입었다 —
+    /// 정이감을 고르면 <b>정이감 카트가 네 대</b> 나왔다(2026-09-17 유저 제보).
+    /// </summary>
+    string AiCastId(int slot)
     {
-        Apply(GameSelection.SelectedCastId);
+        string player = GameSelection.SelectedCastId;
+        int seen = 0;
+
+        foreach (var skin in skins)
+        {
+            if (skin == null || skin.model == null) continue;
+            if (skin.castId == player) continue;
+            if (seen++ == slot) return skin.castId;
+        }
+        return fallbackCastId;
     }
 
     /// <summary>그 캐릭터의 카트만 켜고 나머지는 끈다.</summary>
@@ -58,6 +83,10 @@ public class KartSkin : MonoBehaviour
         // 고른 캐릭터의 제원도 같이 얹는다. "이 카트가 누구 것이 된다" 의 일부야 —
         // 모델만 바꾸고 숫자를 안 바꾸면 네 대가 생김새만 다른 같은 차가 된다.
         KartSpec.ApplyTo(GetComponent<KartController>(), CurrentCastId);
+
+        // 순위판에 뜰 이름도 같이. "이 카트가 누구 것이 된다" 에 이름도 들어간다.
+        var progress = GetComponent<RaceProgress>();
+        if (progress != null) progress.racerName = Cast.NameOf(CurrentCastId);
 
         if (wheels != null)
             wheels.Bind(chosen.steerPivots, chosen.spinWheels, chosen.steeringWheel);

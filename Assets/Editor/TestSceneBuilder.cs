@@ -164,7 +164,7 @@ public static class TestSceneBuilder
         var kart = MakeKart(startPos, startRot);
         var kartCam = MakeKartCamera(kart);
 
-        MakeAiKarts(track, GameSelection.SelectedCastId);
+        MakeAiKarts(track);
 
         // 레이스 씬에는 걸어다니는 플레이어를 두지 않는다.
         // 맵을 걸어서 확인하고 싶으면 Testbed 씬(F3)을 쓰면 돼.
@@ -232,7 +232,7 @@ public static class TestSceneBuilder
     /// 플레이어가 고른 캐릭터는 빼고 나머지 셋이 나온다 — 같은 카트가 두 대 있으면
     /// 누가 나인지 헷갈린다.
     /// </summary>
-    static void MakeAiKarts(TrackBuilder track, string playerCastId)
+    static void MakeAiKarts(TrackBuilder track)
     {
         if (AiRacers <= 0) return;
 
@@ -242,12 +242,10 @@ public static class TestSceneBuilder
         float[] lanes = { -0.62f, 0.62f, -0.30f };
         int made = 0;
 
-        foreach (var id in Cast.RacerIds)
+        // 누가 AI 가 될지는 여기서 정하지 않는다. 캐릭터는 씬을 구운 뒤에 로비에서 고르니까
+        // 여기서 정하면 박제된다 — KartSkin.aiSlot 이 런타임에 고른다.
+        while (made < AiRacers)
         {
-            if (made >= AiRacers) break;
-            if (id == playerCastId) continue;
-            if (System.Array.FindIndex(KartModels, m => m.castId == id) < 0) continue;
-
             float lane = lanes[made % lanes.Length];
             Vector3 side = Vector3.Cross(Vector3.up, track.TangentOnPath(0f));
             // 뒤로 한 줄씩 물려 세운다. 나란히 세우면 출발하자마자 서로 밀친다.
@@ -256,16 +254,16 @@ public static class TestSceneBuilder
 
             var made_kart = MakeKart(at, track.StartRotation);
             var go = made_kart.gameObject;
-            go.name = $"AiKart_{id}";
+            go.name = $"AiKart_{made + 1}";
             go.transform.SetParent(root, false);
 
             // 플레이어 표시는 떼어낸다 — 이야기 수집품을 AI 가 주워가면 진행이 막힌다(PlayerKart 참고)
             var mark = go.GetComponent<PlayerKart>();
             if (mark != null) Object.DestroyImmediate(mark);
 
-            // 카트를 이 캐릭터 것으로. KartSkin 은 보통 고른 캐릭터를 따라가니 여기서 직접 지정한다.
+            // 플레이어가 고른 캐릭터를 뺀 나머지 중 몇 번째를 쓸지. 실제 배정은 런타임에.
             var skin = go.GetComponent<KartSkin>();
-            if (skin != null) skin.fallbackCastId = id;
+            if (skin != null) skin.aiSlot = made;
 
             // KartAi.Awake 에서도 끄지만 씬에도 꺼진 채로 저장해 둔다 —
             // 에디터에서는 Awake 가 안 도니까, 안 그러면 씬만 봐서는 AI 인지 알 수가 없다.
@@ -276,9 +274,6 @@ public static class TestSceneBuilder
             ai.lane = lane;
             // 실력을 조금씩 다르게. 셋이 똑같으면 한 덩어리로 붙어다녀서 레이스로 안 보인다.
             ai.skill = 0.80f + made * 0.045f;
-
-            var progress = go.GetComponent<RaceProgress>();
-            if (progress != null) progress.racerName = Cast.NameOf(id);
 
             made++;
         }
