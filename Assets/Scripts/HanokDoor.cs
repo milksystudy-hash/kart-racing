@@ -28,7 +28,8 @@ public static class HanokDoor
     /// </summary>
     public static GameObject Build(Transform parent, Vector3 at, Quaternion facing,
                                    float width, float height, Func<Color, Material> material,
-                                   bool plaque = true)
+                                   bool plaque = true, string buildingName = "",
+                                   string department = "", string motto = "")
     {
         var root = new GameObject("Door");
         root.transform.SetParent(parent, false);
@@ -77,17 +78,24 @@ public static class HanokDoor
                   new Vector3(0.1f, 0.22f, 0.06f), Handle, material);
         }
 
-        // ---- 현판 : 건물 이름을 달 자리 ----
+        // ---- 현판 : 건물 이름 ----
         if (plaque)
-            Piece(root, "Plaque", new Vector3(0f, height + 0.62f, 0.06f),
-                  new Vector3(width * 0.62f, 0.44f, 0.14f), Plaque, material);
+        {
+            var board = Piece(root, "Plaque", new Vector3(0f, height + 0.62f, 0.06f),
+                              new Vector3(width * 0.62f, 0.44f, 0.14f), Plaque, material);
+
+            var sign = board.AddComponent<BuildingSign>();
+            sign.buildingName = buildingName;
+            sign.department = department;
+            sign.motto = motto;
+        }
 
         return root;
     }
 
     /// <summary>문에는 충돌체를 안 단다 — 벽이나 건물 몸통이 이미 막고 있다.</summary>
-    static void Piece(GameObject parent, string name, Vector3 local, Vector3 size,
-                      Color color, Func<Color, Material> material)
+    static GameObject Piece(GameObject parent, string name, Vector3 local, Vector3 size,
+                            Color color, Func<Color, Material> material)
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
         go.name = name;
@@ -103,5 +111,6 @@ public static class HanokDoor
             if (Application.isPlaying) UnityEngine.Object.Destroy(collider);
             else UnityEngine.Object.DestroyImmediate(collider);
         }
+        return go;
     }
 }

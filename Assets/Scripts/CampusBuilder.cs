@@ -79,11 +79,7 @@ public class CampusBuilder : MonoBehaviour
         BuildGate(new Vector3(0f, 0f, 100f));                 // 한옥 정문
         BuildTicketBooth(new Vector3(-26f, 0f, -88f), 150f);
 
-        Hanok(built, "Annex_W1", new Vector3(-94f, 0f, -22f),  75f, 22f, 14f, 9f);
-        Hanok(built, "Annex_W2", new Vector3(-90f, 0f,  42f),  95f, 18f, 12f, 8f);
-        Hanok(built, "Annex_NE", new Vector3( 74f, 0f,  80f), 205f, 20f, 13f, 9f);
-        Hanok(built, "Annex_E1", new Vector3( 96f, 0f, -12f), 275f, 21f, 13f, 9f);
-        Hanok(built, "Annex_SE", new Vector3( 82f, 0f, -78f), 320f, 17f, 12f, 8f);
+        BuildCampusHalls();
 
         ScatterNature();
         ScatterLanterns();
@@ -178,9 +174,49 @@ public class CampusBuilder : MonoBehaviour
     //  건물
     // ==================================================================
     /// <summary>크림 벽 + 민트 허리 패널 + 청록 기와 지붕. 캠퍼스의 기본 한옥 한 채.</summary>
+    /// <summary>
+    /// 캠퍼스 건물 열셋. <b>설정: 박물관은 폐교한 곰 전문대 부지에 들어섰고 간판만 남았다</b>
+    /// (2026-09-17). 그래서 철거는 이 자리의 <b>두 번째 죽음</b>이고, 한옥 캠퍼스에
+    /// 학과 건물이 왜 서 있는지도 설명이 된다. 기획서의 박물관 설정은 하나도 안 건드린다.
+    ///
+    /// 이름은 유저가 지었고 <b>곰이 스스로를 까는 구조</b>라서 세다 —
+    /// 공예과가 "곰손관"(손재주 없는 손), 연구동이 "곰머리관"(미련한 머리),
+    /// 방송동이 "웅성관"(웅성거림). 자학이 제일 센 농담이야.
+    ///
+    /// <b>자리는 트랙 바깥 고리에만 잡는다.</b> 코스가 x −78~70 · z −78~74 를 돌아서
+    /// 그 안쪽은 광장과 연못이 이미 쓰고 있다. 겹치는지는 눈이 아니라 재서 확인했다
+    /// (미러 프로젝트 `Editor/_Campus.cs` — 코스 양 끝까지 포함해서 검사).
+    /// </summary>
+    void BuildCampusHalls()
+    {
+        // (이름, 학과, x, z, yaw, 폭, 깊이, 높이, 한 줄)
+        var halls = new (string name, string dept, float x, float z, float yaw,
+                         float w, float d, float h, string motto)[]
+        {
+            ("곰손관",   "조리·제빵·공예·봉제",      -94f, -22f,  75f, 22f, 14f, 9f, "손재주는 타고나는 게 아니랍니다"),
+            ("곰머리관", "인문·교육·연구·심리",      -90f,  42f,  95f, 18f, 12f, 8f, ""),
+            ("곰누리관", "관광·외국어·박물관·국제문화", 74f,  80f, 205f, 20f, 13f, 9f, ""),
+            ("재주관",   "미술·음악·영상·공연",       96f, -12f, 275f, 21f, 13f, 9f, "재주는 곰이 넘고 돈은 딴 놈이 번다"),
+            ("곰테크관", "게임·공학·기계·카트",       94f, -86f, 320f, 17f, 12f, 8f, ""),
+
+            ("철곰관",   "경호·체육·안전",           -97f, -62f,  55f, 19f, 13f, 8f, ""),
+            ("웅성관",   "방송·언론·홍보·마케팅",     -80f,  90f, 130f, 18f, 12f, 9f, ""),
+            ("곰생회관", "학생회",                    50f,  96f, 195f, 17f, 12f, 8f, ""),
+            ("참잘했어요관", "시상·전시",             98f,  36f, 262f, 16f, 12f, 8f, ""),
+            ("대충기념관", "기념",                    92f, -52f, 300f, 15f, 11f, 7f, "1998년 준공 (예정)"),
+            ("곰밥마당", "학생식당·카페·조리실습",   -62f, -98f,  10f, 20f, 13f, 8f, "곰국 없음"),
+            ("곰짝박수마당", "야외 행사",             46f, -100f,  15f, 15f, 11f, 7f, ""),
+        };
+
+        foreach (var hall in halls)
+            Hanok(built, hall.name, new Vector3(hall.x, 0f, hall.z), hall.yaw,
+                  hall.w, hall.d, hall.h, 3.6f, 4.2f, hall.dept, hall.motto);
+    }
+
     GameObject Hanok(Transform parent, string name, Vector3 position, float yaw,
                      float width, float depth, float height,
-                     float doorWidth = 3.6f, float doorHeight = 4.2f)
+                     float doorWidth = 3.6f, float doorHeight = 4.2f,
+                     string department = "", string motto = "")
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
@@ -210,7 +246,8 @@ public class CampusBuilder : MonoBehaviour
         float front = depth * 0.5f + 0.1f;
         // 갈색 판자 한 장은 문으로 안 읽힌다(2026-09-17 유저). 문틀이 있어야 뚫려 보인다.
         HanokDoor.Build(t, new Vector3(0f, 0f, front), Quaternion.identity,
-                        doorWidth, doorHeight, FlatMaterial.Get);
+                        doorWidth, doorHeight, FlatMaterial.Get,
+                        plaque: true, buildingName: name, department: department, motto: motto);
         for (int i = -1; i <= 1; i += 2)
             Block(t, $"Window_{i}", new Vector3(i * width * 0.28f, 2.6f, front), Quaternion.identity,
                   new Vector3(2.6f, 2.2f, 0.25f), ColWindow, noCollider: true);
@@ -222,7 +259,9 @@ public class CampusBuilder : MonoBehaviour
     void BuildMainHall(Vector3 position, float yaw)
     {
         // 본관은 제일 크고 제일 자주 보이는 건물이라 문도 크게. 별관과 같은 문이면 건물이 작아 보인다.
-        var hall = Hanok(built, "MainHall", position, yaw, 36f, 22f, 13f, 6.4f, 6.2f);
+        // 행정동 이름만 정색한 건 일부러야 — 주변이 다 실없어야 여기가 무섭게 보인다.
+        var hall = Hanok(built, "웅지관", position, yaw, 36f, 22f, 13f, 6.4f, 6.2f,
+                         "리더십·경영·행정", "");
         var t = hall.transform;
         float front = 22f * 0.5f + 0.4f;
 
