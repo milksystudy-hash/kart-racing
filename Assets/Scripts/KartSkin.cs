@@ -67,15 +67,23 @@ public class KartSkin : MonoBehaviour
     string AiCastId(int slot)
     {
         string player = GameSelection.SelectedCastId;
-        int seen = 0;
 
+        // 쓸 수 있는 카트를 먼저 모은다. <b>모아 놓고 고르는 게 중요하다</b> —
+        // 훑으면서 순번을 세다가 모자라면 fallbackCastId("세진")로 떨어졌고, 그러면
+        // 플레이어가 세진일 때 <b>세진 카트가 두 대</b> 나왔다(2026-09-17 유저 제보).
+        var pool = new System.Collections.Generic.List<string>();
         foreach (var skin in skins)
-        {
-            if (skin == null || skin.model == null) continue;
-            if (skin.castId == player) continue;
-            if (seen++ == slot) return skin.castId;
-        }
-        return fallbackCastId;
+            if (skin != null && skin.model != null && skin.castId != player)
+                pool.Add(skin.castId);
+
+        if (pool.Count == 0) return fallbackCastId;
+
+        if (slot >= pool.Count)
+            Debug.LogWarning($"[카트] 쓸 수 있는 카트가 {pool.Count}종뿐이라 AI 카트가 겹친다. " +
+                             "씬이 카트 FBX 보다 오래된 거야 — Racing → 트랙 씬 만들기 를 한 번 돌려줘.", this);
+
+        // 모자라도 <b>플레이어 카트로는 절대 안 떨어진다.</b> 겹치더라도 AI 끼리 겹친다.
+        return pool[slot % pool.Count];
     }
 
     /// <summary>그 캐릭터의 카트만 켜고 나머지는 끈다.</summary>
@@ -98,6 +106,11 @@ public class KartSkin : MonoBehaviour
         // 순위판에 뜰 이름도 같이. "이 카트가 누구 것이 된다" 에 이름도 들어간다.
         var progress = GetComponent<RaceProgress>();
         if (progress != null) progress.racerName = Cast.NameOf(CurrentCastId);
+
+        // 뒤로 나오는 김도 이 캐릭터 색으로. 뒤에서 봐도 누군지 알아야 순위가 읽힌다.
+        var exhaust = GetComponent<KartExhaust>();
+        if (exhaust == null) exhaust = gameObject.AddComponent<KartExhaust>();
+        exhaust.SetColor(Cast.ColorOf(CurrentCastId));
 
         if (wheels != null)
             wheels.Bind(chosen.steerPivots, chosen.spinWheels, chosen.steeringWheel);

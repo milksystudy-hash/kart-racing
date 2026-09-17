@@ -24,14 +24,31 @@ public static class RaceVoice
     /// </summary>
     public static string Title(MissionManager.Goal goal, MissionManager m) => goal switch
     {
-        MissionManager.Goal.발판전부 => "발판 다 밟기",
-        MissionManager.Goal.무충돌   => "안 긁고 완주",
-        MissionManager.Goal.제한시간 => $"{Mathf.RoundToInt(m.timeLimit)}초 컷",
-        MissionManager.Goal.태엽    => $"태엽 {m.driftBoostsNeeded}번",
-        MissionManager.Goal.무발판   => "발판 없이",
-        MissionManager.Goal.광고판   => "광고판 다 부수기",
-        MissionManager.Goal.완벽    => "부딪힘 없이 시간제한에 맞춰 도착하기",
-        _                           => "세 바퀴 완주",
+        MissionManager.Goal.발판전부 => "순찰 등 전부 켜기",
+        MissionManager.Goal.무충돌   => "담장 긁지 않기",
+        MissionManager.Goal.제한시간 => $"{Mathf.RoundToInt(m.timeLimit)}초 안에 실사 끝내기",
+        MissionManager.Goal.태엽    => $"태엽 {m.driftBoostsNeeded}번 감기",
+        MissionManager.Goal.무발판   => "발판 밟지 않고 조용히",
+        MissionManager.Goal.광고판   => "골든베어 광고 철거",
+        MissionManager.Goal.완벽    => "담장 안 긁고 시간 안에 실사 끝내기",
+        _                           => "캠퍼스 세 바퀴 돌기",
+    };
+
+    /// <summary>
+    /// 임무 한 줄 설명. <b>왜 이걸 하는지</b>를 이야기로 붙인다 — 조건만 적으면
+    /// "발판 다 밟기" 처럼 게임 조작 설명이 되고, 박물관과 아무 상관이 없어진다.
+    /// (2026-09-17 유저 · 강사님 피드백. 임시 문구라 <see cref="StoryScript"/> 쪽과 같이 다듬을 것)
+    /// </summary>
+    public static string Why(MissionManager.Goal goal) => goal switch
+    {
+        MissionManager.Goal.발판전부 => "밤에 불 꺼진 캠퍼스는 폐가로 찍힌다",
+        MissionManager.Goal.무충돌   => "담장 흠집도 철거 사유로 적힌다",
+        MissionManager.Goal.제한시간 => "실사단이 오래 머물수록 트집이 늘어난다",
+        MissionManager.Goal.태엽    => "태엽 소리가 나야 아직 돌아가는 곳이다",
+        MissionManager.Goal.무발판   => "전기 쓴 기록이 남으면 예산 낭비로 잡힌다",
+        MissionManager.Goal.광고판   => "리조트 광고가 먼저 와서 서 있다",
+        MissionManager.Goal.완벽    => "마지막 실사다",
+        _                           => "아직 운영 중이라는 걸 보여야 한다",
     };
 
     // ------------------------------------------------------------------

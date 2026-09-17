@@ -138,7 +138,7 @@ public class TestHUD : MonoBehaviour
     {
         // 라벨과 값을 한 줄에 좌우로 놓으면 이름이 길 때 부딪힌다 — "무충돌로 시간 안에" 가
         // 라벨을 파고들어 "무충룰" 로 보였다(2026-09-16). 값은 아래 줄에 통째로 놓는다.
-        var p = new Rect(16f, 152f, 208f, mission == null ? 78f : (mission.AllDone ? 100f : 188f));
+        var p = new Rect(16f, 152f, 208f, mission == null ? 78f : (mission.AllDone ? 100f : 222f));
         Hud.Panel(p);
 
         float x = p.x + 14f;
@@ -184,14 +184,19 @@ public class TestHUD : MonoBehaviour
         // 이름이 길면 두 줄로 접는다. 접기가 없으면 라벨을 파고들어 "무충룰" 처럼 보인다.
         var wrap = Hud.Resize(Hud.Text, 14);
         wrap.wordWrap = true;
-        GUI.Label(new Rect(x, p.y + 114f, full, 36f), mission.Title, wrap);
+        GUI.Label(new Rect(x, p.y + 114f, full, 40f), mission.Title, wrap);
 
         // 진행도 한 줄 통째로. 임무 이름 옆에 붙이면 "무사고 + 시간" 처럼 둘 다 긴 경우 부딪힌다.
         var state = Hud.Resize(Hud.Value, 16);
         if (mission.Failed) state.normal.textColor = Hud.Ribbon;
         else if (mission.Cleared) state.normal.textColor = Hud.Brass;
-        GUI.Label(new Rect(x, p.y + 152f, full, 20f),
+        GUI.Label(new Rect(x, p.y + 156f, full, 20f),
                   mission.Failed ? RaceVoice.Failed() : mission.Progress, state);
+
+        // 왜 이걸 하는지. 조건만 적으면 조작 설명이 되고 박물관과 아무 상관이 없어진다.
+        var why = Hud.Resize(Hud.Label, 11);
+        why.wordWrap = true;
+        GUI.Label(new Rect(x, p.y + 180f, full, 34f), RaceVoice.Why(mission.goal), why);
     }
 
     // ---- 순위 ----

@@ -154,8 +154,90 @@ public class KartController : MonoBehaviour
     ///
     /// 바닥은 건드리지 않는다 — 접촉면이 위를 보면(그러니까 노면이면) 그냥 넘어간다.
     /// </summary>
-    void OnCollisionEnter(Collision collision) => ScrubOnWall(collision, impact: true);
-    void OnCollisionStay(Collision collision) => ScrubOnWall(collision, impact: false);
+    [Header("카트끼리 부딪히기")]
+    [Tooltip("튕겨나가는 세기. 0 이면 안 튕긴다")]
+    public float bumpPush = 1.15f;
+
+    [Tooltip("가만히 있다 받혀도 이만큼은 튕긴다(m/s)")]
+    public float bumpMinimum = 2.2f;
+
+    [Tooltip("부딪힌 뒤 조종이 덜 먹는 시간(초)")]
+    public float bumpStun = 0.35f;
+
+    [Tooltip("부딪힐 때 팽이처럼 도는 세기(도/초)")]
+    public float bumpSpin = 150f;
+
+    const float BumpCooldown = 0.25f;
+    float lastBumpAt = -99f;
+    float bumpedUntil = -99f;
+    float spinRate;
+
+    public float Mass => rb != null ? rb.mass : 1f;
+    public Vector3 Velocity => rb != null ? rb.linearVelocity : Vector3.zero;
+
+    /// <summary>방금 다른 카트에 받혔나. HUD 나 이펙트가 쓸 수 있게 열어둔다.</summary>
+    public bool IsBumped => Time.time < bumpedUntil;
+
+    void OnCollisionEnter(Collision collision)
+    {
+        var other = OtherKart(collision);
+        if (other != null) { Bump(collision, other); return; }
+        ScrubOnWall(collision, impact: true);
+    }
+
+    void OnCollisionStay(Collision collision)
+    {
+        // 카트끼리는 벽 처리를 타면 안 된다. 그러면 <b>속도가 매 프레임 지워져서</b>
+        // 둘이 붙은 채 서로 밀기만 하고 아무도 못 빠져나간다(2026-09-17 유저 제보).
+        // 벽 부딪힘 횟수에도 잘못 세졌다.
+        if (OtherKart(collision) != null) return;
+        ScrubOnWall(collision, impact: false);
+    }
+
+    static KartController OtherKart(Collision collision)
+        => collision.rigidbody != null ? collision.rigidbody.GetComponent<KartController>() : null;
+
+    /// <summary>
+    /// 카트끼리 <b>탁 튕긴다.</b> 유저: *"탑블레이드 팽이처럼 부딪혀야 재밌잖아."*
+    ///
+    /// 물리 엔진에 맡기면 안 튕긴다 — 서스펜션이 매 프레임 속도를 다시 쓰고,
+    /// 양쪽이 서로를 향해 구동력을 넣고 있어서 <b>밀기 싸움</b>이 된다. 그래서 충돌 순간에
+    /// 속도를 직접 바꿔준다(ForceMode.VelocityChange — 질량과 무관하게 딱 그만큼 튄다).
+    ///
+    /// <b>무게가 여기서 처음으로 의미를 가진다.</b> 전에는 제원표의 중량이 사실상 장식이었어
+    /// (구동력이 ForceMode.Acceleration 이라 질량을 무시한다). 이제 가벼운 카트가 더 많이 튄다 —
+    /// 세진(11.7)이 시우(14.2)를 받으면 세진이 더 날아간다.
+    ///
+    /// 양쪽 카트가 각자 이 함수를 돌려서 <b>서로 반대 방향으로</b> 튄다. 한쪽만 계산하면
+    /// 누가 먼저 충돌을 받았느냐에 따라 결과가 달라진다.
+    /// </summary>
+    void Bump(Collision collision, KartController other)
+    {
+        if (rb == null || collision.contactCount == 0) return;
+        if (Time.time - lastBumpAt < BumpCooldown) return;
+        lastBumpAt = Time.time;
+
+        Vector3 normal = collision.GetContact(0).normal;   // 상대 -> 나
+        normal.y = 0f;
+        if (normal.sqrMagnitude < 0.01f) return;
+        normal.Normalize();
+
+        // 서로 다가가던 속도. 나란히 스치면 작고, 정면으로 받으면 크다.
+        float closing = Vector3.Dot(other.Velocity - rb.linearVelocity, normal);
+        float strength = Mathf.Max(bumpMinimum, closing) * bumpPush;
+
+        // 1 이면 동급. 내가 가벼울수록 커진다.
+        float ratio = 2f * other.Mass / Mathf.Max(0.1f, Mass + other.Mass);
+
+        rb.AddForce(normal * (strength * ratio), ForceMode.VelocityChange);
+
+        // 팽이처럼 한 번 돌아간다. 조향이 MoveRotation 이라 토크는 안 먹어서 직접 돌린다.
+        spinRate = Mathf.Sign(Vector3.Dot(Vector3.Cross(normal, transform.forward), Vector3.up))
+                 * bumpSpin * ratio * Mathf.Clamp01(strength / 8f);
+
+        bumpedUntil = Time.time + bumpStun * ratio;
+        CancelBoost();   // 받히면 부스트는 날아간다. 안 그러면 밀려나면서도 앞으로 간다
+    }
 
     void ScrubOnWall(Collision collision, bool impact)
     {
@@ -344,6 +426,16 @@ public class KartController : MonoBehaviour
         float multiplier = IsDrifting ? driftSteerMultiplier : 1f;
 
         float yaw = steerInput * steerDegreesPerSecond * rollingFactor * speedCut * direction * multiplier * dt;
+
+        // 받힌 직후에는 조종이 덜 먹고, 팽이처럼 돌던 게 남아 있다
+        if (IsBumped) yaw *= 0.35f;
+        if (Mathf.Abs(spinRate) > 0.5f)
+        {
+            yaw += spinRate * dt;
+            spinRate = Mathf.Lerp(spinRate, 0f, 1f - Mathf.Exp(-6f * dt));
+        }
+        else spinRate = 0f;
+
         rb.MoveRotation(rb.rotation * Quaternion.Euler(0f, yaw, 0f));
     }
 
