@@ -32,10 +32,13 @@ public class KartCamera : MonoBehaviour
     [Header("속도감 — 흔들림")]
     // 시야각만으로는 부족했다. 화면이 <b>가만히</b> 있으면 22m/s 도 8m/s 처럼 보인다.
     // 손떨림 같은 잡음이 아니라 노면 진동처럼 보여야 해서 펄린 노이즈를 쓴다.
-    [Tooltip("최고 속도에서 카메라가 떠는 폭(m). 0 이면 안 떤다")]
-    public float shakeAtTopSpeed = 0.045f;
-    [Tooltip("부스트 중에 더해지는 떨림(m)")]
-    public float boostShake = 0.09f;
+    // 2026-09-17 유저: "달릴 때마다 지진 온 것 같다. 뭐 부딪히거나 해야 진동이 실감 난다."
+    // 맞는 말이야 — 늘 떨고 있으면 그건 진동이 아니라 <b>화면 상태</b>가 된다. 떨림은
+    // 사건일 때만 의미가 있어서 <b>주행 진동은 껐다.</b> 속도감은 시야각과 물러나기가 맡는다.
+    [Tooltip("최고 속도에서 카메라가 떠는 폭(m). 0 이면 안 떤다 — 기본은 0")]
+    public float shakeAtTopSpeed = 0f;
+    [Tooltip("부스트가 터지는 순간의 떨림(m)")]
+    public float boostShake = 0.035f;
     [Tooltip("벽에 부딪힌 순간의 충격(m). 0.35초쯤에 걸쳐 잦아든다")]
     public float hitShake = 0.30f;
 

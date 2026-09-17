@@ -179,7 +179,8 @@ public class CampusBuilder : MonoBehaviour
     // ==================================================================
     /// <summary>크림 벽 + 민트 허리 패널 + 청록 기와 지붕. 캠퍼스의 기본 한옥 한 채.</summary>
     GameObject Hanok(Transform parent, string name, Vector3 position, float yaw,
-                     float width, float depth, float height)
+                     float width, float depth, float height,
+                     float doorWidth = 3.6f, float doorHeight = 4.2f)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
@@ -207,8 +208,9 @@ public class CampusBuilder : MonoBehaviour
 
         // 정면 문과 창 — +Z 쪽이 앞이다
         float front = depth * 0.5f + 0.1f;
-        Block(t, "Door", new Vector3(0f, 1.9f, front), Quaternion.identity,
-              new Vector3(3.4f, 3.8f, 0.3f), ColWood, noCollider: true);
+        // 갈색 판자 한 장은 문으로 안 읽힌다(2026-09-17 유저). 문틀이 있어야 뚫려 보인다.
+        HanokDoor.Build(t, new Vector3(0f, 0f, front), Quaternion.identity,
+                        doorWidth, doorHeight, FlatMaterial.Get);
         for (int i = -1; i <= 1; i += 2)
             Block(t, $"Window_{i}", new Vector3(i * width * 0.28f, 2.6f, front), Quaternion.identity,
                   new Vector3(2.6f, 2.2f, 0.25f), ColWindow, noCollider: true);
@@ -219,7 +221,8 @@ public class CampusBuilder : MonoBehaviour
     /// <summary>본관 — 정면 박공에 곰 얼굴과 빨간 리본이 달려 있다.</summary>
     void BuildMainHall(Vector3 position, float yaw)
     {
-        var hall = Hanok(built, "MainHall", position, yaw, 36f, 22f, 13f);
+        // 본관은 제일 크고 제일 자주 보이는 건물이라 문도 크게. 별관과 같은 문이면 건물이 작아 보인다.
+        var hall = Hanok(built, "MainHall", position, yaw, 36f, 22f, 13f, 6.4f, 6.2f);
         var t = hall.transform;
         float front = 22f * 0.5f + 0.4f;
 

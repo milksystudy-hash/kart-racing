@@ -1,0 +1,107 @@
+using System;
+using UnityEngine;
+
+/// <summary>
+/// 한옥 <b>여닫이문</b> 한 짝. 세 씬이 같이 쓴다 — <see cref="HanokRoof"/> 와 같은 방식.
+///
+/// 2026-09-17 유저: *"다들 문이 없는데 어떻게 들어가고 나간 거야."* 맞는 말이다.
+/// 박물관인데 벽이 통짜라 방들이 서로 <b>이어져 보이지 않았다.</b> 별관에는 문이 있긴 했는데
+/// 갈색 판자 한 장이라 문으로 안 읽혔고, 로비와 전시실에는 아예 없었다.
+///
+/// 문이 방을 이어 보이게 하는 건 <b>틀</b>이다. 판자 한 장은 벽에 칠한 자국으로 보이고,
+/// 문틀·문지방·상인방이 있어야 "저기가 뚫려 있다" 로 읽힌다. 그래서 판보다 틀에 조각을 더 썼다.
+///
+/// 열리지는 않는다. 씬 이동은 F 키와 이야기가 하고, 문은 <b>어디가 입구인지 알려주는 표지</b>야.
+/// </summary>
+public static class HanokDoor
+{
+    static readonly Color Wood    = new Color32(0x6B, 0x4A, 0x32, 0xFF);   // 문틀
+    static readonly Color Leaf    = new Color32(0x8A, 0x5E, 0x3C, 0xFF);   // 문짝
+    static readonly Color Paper   = new Color32(0xF2, 0xE6, 0xCC, 0xFF);   // 한지 — 안쪽 불빛
+    static readonly Color Slat    = new Color32(0x5A, 0x3E, 0x2A, 0xFF);   // 살
+    static readonly Color Plaque  = new Color32(0x3A, 0x2E, 0x24, 0xFF);   // 현판
+    static readonly Color Handle  = new Color32(0xC9, 0xA2, 0x27, 0xFF);   // 문고리
+
+    /// <summary>
+    /// <paramref name="at"/> 는 문지방 한가운데(바닥). <paramref name="facing"/> 의 +Z 가 바깥쪽.
+    /// <paramref name="plaque"/> 를 켜면 상인방 위에 현판이 붙는다 — 건물 이름을 달 자리야.
+    /// </summary>
+    public static GameObject Build(Transform parent, Vector3 at, Quaternion facing,
+                                   float width, float height, Func<Color, Material> material,
+                                   bool plaque = true)
+    {
+        var root = new GameObject("Door");
+        root.transform.SetParent(parent, false);
+        // 부모 기준 좌표다. 건물이 돌아가 있어도 "정면 한가운데" 를 그대로 적을 수 있게.
+        root.transform.localPosition = at;
+        root.transform.localRotation = facing;
+
+        float half = width * 0.5f;
+
+        // ---- 틀 : 문을 문으로 보이게 하는 건 판이 아니라 이쪽이다 ----
+        for (int s = -1; s <= 1; s += 2)
+            Piece(root, $"Jamb_{s}", new Vector3(s * (half + 0.14f), height * 0.5f, 0f),
+                  new Vector3(0.28f, height + 0.1f, 0.62f), Wood, material);
+
+        Piece(root, "Lintel", new Vector3(0f, height + 0.17f, 0f),
+              new Vector3(width + 0.84f, 0.34f, 0.7f), Wood, material);
+
+        // 문지방 — 이게 없으면 문짝이 바닥에 떠 있는 것처럼 보인다
+        Piece(root, "Sill", new Vector3(0f, 0.07f, 0f),
+              new Vector3(width + 0.5f, 0.14f, 0.72f), Wood, material);
+
+        // ---- 문짝 둘 ----
+        float leaf = half - 0.04f;
+        for (int s = -1; s <= 1; s += 2)
+        {
+            float cx = s * leaf * 0.5f;
+
+            Piece(root, $"Leaf_{s}", new Vector3(cx, height * 0.5f + 0.07f, 0.02f),
+                  new Vector3(leaf, height - 0.14f, 0.1f), Leaf, material);
+
+            // 한지 — 안에 불이 켜져 있다는 신호. 이것 하나로 "들어갈 수 있는 곳" 이 된다
+            Piece(root, $"Paper_{s}", new Vector3(cx, height * 0.55f + 0.07f, 0.075f),
+                  new Vector3(leaf - 0.22f, height * 0.62f, 0.03f), Paper, material);
+
+            // 격자살 — 세로 셋, 가로 둘. 한지 앞에 얹혀야 창살로 보인다
+            for (int v = -1; v <= 1; v++)
+                Piece(root, $"SlatV_{s}_{v}", new Vector3(cx + v * leaf * 0.27f, height * 0.55f + 0.07f, 0.1f),
+                      new Vector3(0.055f, height * 0.62f, 0.03f), Slat, material);
+
+            for (int h = 0; h < 2; h++)
+                Piece(root, $"SlatH_{s}_{h}", new Vector3(cx, height * (0.4f + h * 0.3f) + 0.07f, 0.1f),
+                      new Vector3(leaf - 0.22f, 0.055f, 0.03f), Slat, material);
+
+            // 문고리 — 두 짝이 만나는 쪽에
+            Piece(root, $"Handle_{s}", new Vector3(-s * 0.12f, height * 0.42f, 0.12f),
+                  new Vector3(0.1f, 0.22f, 0.06f), Handle, material);
+        }
+
+        // ---- 현판 : 건물 이름을 달 자리 ----
+        if (plaque)
+            Piece(root, "Plaque", new Vector3(0f, height + 0.62f, 0.06f),
+                  new Vector3(width * 0.62f, 0.44f, 0.14f), Plaque, material);
+
+        return root;
+    }
+
+    /// <summary>문에는 충돌체를 안 단다 — 벽이나 건물 몸통이 이미 막고 있다.</summary>
+    static void Piece(GameObject parent, string name, Vector3 local, Vector3 size,
+                      Color color, Func<Color, Material> material)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        go.transform.SetParent(parent.transform, false);
+        go.transform.localPosition = local;
+        go.transform.localScale = size;
+        go.GetComponent<Renderer>().sharedMaterial = material(color);
+        go.isStatic = true;
+
+        var collider = go.GetComponent<Collider>();
+        if (collider != null)
+        {
+            if (Application.isPlaying) UnityEngine.Object.Destroy(collider);
+            else UnityEngine.Object.DestroyImmediate(collider);
+        }
+    }
+}

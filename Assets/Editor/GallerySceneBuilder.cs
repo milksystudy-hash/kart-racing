@@ -53,6 +53,7 @@ public static class GallerySceneBuilder
 
         MakeGalleryLighting();
         MakeHall();
+        MakeDoor();
         MakeLanterns();
 
         var cases = MakeCases();
@@ -266,6 +267,19 @@ public static class GallerySceneBuilder
     // ==================================================================
     //  홀
     // ==================================================================
+    /// <summary>
+    /// 로비로 돌아가는 문 하나. 유저: *"다들 문이 없는데 어떻게 들어가고 나간 거야."*
+    /// 전시실은 <b>들어왔다가 나가는 방</b>인데 출입구가 없으면 방이 아니라 상자로 보인다.
+    /// 남쪽 벽 한가운데 — 전시 케이스는 반지름 8.2m 원형으로 놓여 있어서 벽은 비어 있다.
+    /// </summary>
+    static void MakeDoor()
+    {
+        var root = new GameObject("Doors").transform;
+        HanokDoor.Build(root, new Vector3(0f, 0f, HallDepth * 0.5f - 0.25f),
+                        Quaternion.Euler(0f, 180f, 0f), 3.8f, 4.4f,
+                        c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c)));
+    }
+
     static void MakeHall()
     {
         var root = new GameObject("Hall").transform;

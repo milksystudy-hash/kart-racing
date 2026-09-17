@@ -75,6 +75,7 @@ public static class LobbySceneBuilder
         MakePawMedallion(new Vector3(0f, 0.02f, 0f), 1f);
         MakeWalls();
         MakeBeams();
+        MakeDoors();
         MakeCraft();
         MakeStoneLanterns();
 
@@ -207,6 +208,25 @@ public static class LobbySceneBuilder
     // ==================================================================
     //  벽 · 기둥 · 보
     // ==================================================================
+    /// <summary>
+    /// 중앙홀 문 둘. 유저: *"다들 문이 없는데 어떻게 들어가고 나간 거야."*
+    /// <b>남쪽 = 밖(캠퍼스·트랙), 동쪽 = 전시실.</b> 서쪽은 방송 화면이 붙어 있어서 비워 둔다.
+    /// 문은 안 열린다 — 씬 이동은 따로 하고, 문은 <b>어디가 입구인지</b>만 말한다.
+    /// </summary>
+    static void MakeDoors()
+    {
+        var root = new GameObject("Doors").transform;
+        System.Func<Color, Material> mat = c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c));
+
+        // 남쪽 — 밖으로. 문의 +Z 가 바깥쪽이라 홀 안을 보게 180도 돌린다.
+        HanokDoor.Build(root, new Vector3(0f, 0f, HallDepth * 0.5f - 0.25f),
+                        Quaternion.Euler(0f, 180f, 0f), 4.2f, 4.6f, mat);
+
+        // 동쪽 — 전시실로. 접수대(x 11.5, z 4)를 피해 z -6 에.
+        HanokDoor.Build(root, new Vector3(HallWidth * 0.5f - 0.25f, 0f, -6f),
+                        Quaternion.Euler(0f, 270f, 0f), 3.6f, 4.4f, mat);
+    }
+
     static void MakeWalls()
     {
         var root = new GameObject("Walls").transform;
