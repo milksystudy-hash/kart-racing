@@ -96,14 +96,65 @@ public class BuildingSign : MonoBehaviour
         var text = go.AddComponent<TextMesh>();
         text.font = font;
         text.text = body;
-        text.fontSize = 64;                  // 크게 구워서 줄여 쓴다 — 작게 구우면 계단이 보인다
+
+        // <b>크게 구워서 줄여 쓴다.</b> 64 로는 가까이 갔을 때 계단이 보였다
+        // (2026-09-17 유저: "확대하면 글자가 깨져 보인다"). 동적 폰트라 아틀라스에
+        // 이 크기로 새로 굽히는 거고, 쓰는 글자가 스무 자 남짓이라 아틀라스도 안 터진다.
+        const int baked = 120;
+        text.fontSize = baked;
+
         // TextMesh 한 줄의 월드 높이 = fontSize × characterSize / 10. 원하는 높이에서 거꾸로 구한다.
-        text.characterSize = lineHeight * 10f / 64f;
+        text.characterSize = lineHeight * 10f / baked;
         text.anchor = anchor;
         text.alignment = TextAlignment.Center;
         text.color = color;
 
-        go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+        go.GetComponent<MeshRenderer>().sharedMaterial = TextMaterial(font);
+    }
+
+    // ------------------------------------------------------------------
+    //  글자가 벽을 통과해서 보이던 것
+    // ------------------------------------------------------------------
+    /// <summary>
+    /// 유니티 기본 폰트 재질은 <b>"GUI/Text Shader" 라서 ZTest 가 Always</b> 다 —
+    /// 화면 위 UI 용이라 그게 맞지만, 월드에 세운 글자에 쓰면 <b>벽 뒤에 있어도 그려진다.</b>
+    /// 그래서 캠퍼스 반대편 건물 이름이 앞 건물을 뚫고 떠 보였다(2026-09-17 유저 제보).
+    ///
+    /// 깊이 검사만 켠 셰이더(Racing/PlaqueText)로 갈아 끼운다. 폰트마다 한 장이면 되고,
+    /// <b>아틀라스가 다시 구워지면 텍스처가 바뀌므로</b> 그때마다 다시 꽂아준다 —
+    /// 안 하면 어느 순간 글자가 뭉개진다(동적 폰트의 오래된 함정).
+    /// </summary>
+    static Material textMaterial;
+    static Font boundFont;
+
+    static Material TextMaterial(Font font)
+    {
+        if (textMaterial != null && boundFont == font)
+        {
+            textMaterial.mainTexture = font.material.mainTexture;
+            return textMaterial;
+        }
+
+        var shader = Shader.Find("Racing/PlaqueText");
+        if (shader == null) return font.material;   // 셰이더가 없으면 기본으로 — 글씨는 나와야 한다
+
+        textMaterial = new Material(shader)
+        {
+            name = "PlaqueText",
+            mainTexture = font.material.mainTexture,
+            hideFlags = HideFlags.HideAndDontSave,
+        };
+        boundFont = font;
+
+        Font.textureRebuilt -= OnFontRebuilt;
+        Font.textureRebuilt += OnFontRebuilt;
+        return textMaterial;
+    }
+
+    static void OnFontRebuilt(Font font)
+    {
+        if (textMaterial != null && font == boundFont)
+            textMaterial.mainTexture = font.material.mainTexture;
     }
 
     /// <summary>Resources 안에 이미 있는 한글 폰트. 새로 넣는 게 없다.</summary>

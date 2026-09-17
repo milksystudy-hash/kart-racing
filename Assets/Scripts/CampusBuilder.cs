@@ -70,10 +70,10 @@ public class CampusBuilder : MonoBehaviour
         built.SetParent(transform, false);
 
         doorFronts.Clear();
+        footprints.Clear();
 
         BuildGround();
         ScatterGroundPatches();
-        BuildPerimeterWall();
         BuildPlaza();
         BuildPond(new Vector3(30f, 0f, 24f));
 
@@ -88,6 +88,9 @@ public class CampusBuilder : MonoBehaviour
         BuildTicketBooth(new Vector3(-26f, 0f, -88f), 150f);
 
         BuildCampusHalls();
+
+        // <b>담장은 건물 다음에.</b> 건물이 어디 있는지 알아야 비켜갈 수 있다.
+        BuildPerimeterWall();
 
         ScatterNature();
         ScatterLanterns();
@@ -111,30 +114,63 @@ public class CampusBuilder : MonoBehaviour
         var root = new GameObject("PerimeterWall").transform;
         root.SetParent(built, false);
 
-        // 남쪽 담장 한가운데는 <b>본관이 대신한다.</b> 본관(36 × 22)은 코스와 담장 사이
-        // 22.8m 에 안 들어가서 처음부터 담장을 넘고 있었는데, 안에 들어갈 수 있게 되니까
-        // <b>담장이 방 한가운데를 가로질렀다</b>(2026-09-17, 들어가기 검사에서 잡혔다).
-        // 담장을 비켜 놓는 게 맞다 — 담장에 물린 건물은 문간채라 어색하지도 않다.
-        const float hallGap = 23f;                      // 본관 폭 36 의 절반 + 여유
-        float southPane = wallHalfX - hallGap;
+        // <b>담장은 건물을 비켜간다.</b> 큰 건물은 코스와 담장 사이에 안 들어가서 담장을
+        // 넘을 수밖에 없는데, 안에 들어갈 수 있게 되고 나서는 <b>담장이 방을 가로지른다</b>
+        // (2026-09-17, 본관과 곰밥마당이 그랬다). 건물마다 손으로 구멍을 내면 건물을 옮길
+        // 때마다 또 틀리니까, <b>담장이 알아서 끊기게</b> 만든다. 담장에 물린 건물은
+        // 문간채라 어색하지도 않다.
+        Side(root, "S", -wallHalfZ, alongX: true);
+        Side(root, "N",  wallHalfZ, alongX: true);
+        Side(root, "W", -wallHalfX, alongX: false);
+        Side(root, "E",  wallHalfX, alongX: false);
+    }
 
-        (Vector3 pos, Vector3 size)[] sides =
-        {
-            (new Vector3(-(hallGap + southPane * 0.5f), 0f, -wallHalfZ), new Vector3(southPane, 0f, 2.2f)),
-            (new Vector3( (hallGap + southPane * 0.5f), 0f, -wallHalfZ), new Vector3(southPane, 0f, 2.2f)),
-            (new Vector3(0f, 0f,  wallHalfZ), new Vector3(wallHalfX * 2f, 0f, 2.2f)),
-            (new Vector3(-wallHalfX, 0f, 0f), new Vector3(2.2f, 0f, wallHalfZ * 2f)),
-            (new Vector3( wallHalfX, 0f, 0f), new Vector3(2.2f, 0f, wallHalfZ * 2f)),
-        };
+    /// <summary>담장 한 변. 건물 발자국이 걸치는 구간을 빼고 남은 토막만 세운다.</summary>
+    void Side(Transform root, string tag, float fixedCoord, bool alongX)
+    {
+        float half = alongX ? wallHalfX : wallHalfZ;
 
-        for (int i = 0; i < sides.Length; i++)
+        // 이 변을 가로지르는 건물들의 구간을 모은다
+        var cuts = new System.Collections.Generic.List<(float from, float to)>();
+        foreach (var box in footprints)
         {
-            var (pos, size) = sides[i];
-            Block(root, $"Wall_{i}", pos + Vector3.up * (wallHeight * 0.5f), Quaternion.identity,
-                  new Vector3(size.x, wallHeight, size.z), ColStoneWall);
-            Block(root, $"WallTile_{i}", pos + Vector3.up * (wallHeight + 0.2f), Quaternion.identity,
-                  new Vector3(size.x + 1.2f, 0.4f, size.z + 1.2f), ColWallTile, noCollider: true);
+            float across = alongX ? box.center.z : box.center.x;
+            float reach = alongX ? box.extents.z : box.extents.x;
+            if (Mathf.Abs(across - fixedCoord) > reach) continue;   // 이 변에 안 닿는다
+
+            float mid = alongX ? box.center.x : box.center.z;
+            float span = alongX ? box.extents.x : box.extents.z;
+            cuts.Add((mid - span, mid + span));
         }
+        cuts.Sort((a, b) => a.from.CompareTo(b.from));
+
+        // 남은 토막을 세운다
+        float cursor = -half;
+        int piece = 0;
+
+        foreach (var (from, to) in cuts)
+        {
+            if (to <= cursor) continue;
+            if (from > cursor) Pane(root, $"Wall_{tag}{piece++}", cursor, Mathf.Min(from, half), fixedCoord, alongX);
+            cursor = Mathf.Max(cursor, to);
+            if (cursor >= half) break;
+        }
+        if (cursor < half) Pane(root, $"Wall_{tag}{piece}", cursor, half, fixedCoord, alongX);
+    }
+
+    void Pane(Transform root, string name, float from, float to, float fixedCoord, bool alongX)
+    {
+        float length = to - from;
+        if (length < 1f) return;
+
+        float mid = (from + to) * 0.5f;
+        Vector3 pos = alongX ? new Vector3(mid, 0f, fixedCoord) : new Vector3(fixedCoord, 0f, mid);
+        Vector3 size = alongX ? new Vector3(length, 0f, 2.2f) : new Vector3(2.2f, 0f, length);
+
+        Block(root, name, pos + Vector3.up * (wallHeight * 0.5f), Quaternion.identity,
+              new Vector3(size.x, wallHeight, size.z), ColStoneWall);
+        Block(root, name + "_Tile", pos + Vector3.up * (wallHeight + 0.2f), Quaternion.identity,
+              new Vector3(size.x + 1.2f, 0.4f, size.z + 1.2f), ColWallTile, noCollider: true);
     }
 
     // ==================================================================
@@ -220,7 +256,7 @@ public class CampusBuilder : MonoBehaviour
             ("곰생회관", "학생회",                    42f, 101f, 195f, 17f, 12f, 8f, ""),
             ("참잘했어요관", "시상·전시",             98f,  36f, 262f, 16f, 12f, 8f, ""),
             ("대충기념관", "기념",                    92f, -52f, 300f, 15f, 11f, 7f, "1998년 준공 (예정)"),
-            ("곰밥마당", "학생식당·카페·조리실습",   -65f, -102f, 10f, 20f, 13f, 8f, "곰국 없음"),
+            ("곰밥마당", "학생식당·카페·조리실습",   -73f, -107f, 10f, 30f, 19f, 9f, "곰국 없음"),
             ("곰짝박수마당", "야외 행사",             49f, -106f,  15f, 15f, 11f, 7f, ""),
         };
 
@@ -273,6 +309,11 @@ public class CampusBuilder : MonoBehaviour
 
         // 문 앞 6m 를 기억해 둔다 — 나무가 문을 막지 않게
         doorFronts.Add(t.TransformPoint(new Vector3(0f, 0f, front + 6f)));
+
+        // 담장이 이 건물을 비켜가게. 회전까지 감안해 <b>바깥으로 넉넉히</b> 잡는다 —
+        // 담장이 방을 조금이라도 가로지르면 걸어서 지나갈 수가 없다.
+        float reach = Mathf.Max(width, depth) * 0.5f + 3f;
+        footprints.Add(new Bounds(position, new Vector3(reach * 2f, 40f, reach * 2f)));
 
         // 문짝 둘을 젖힐 수 있게. 문틀이 실제로 뚫려 있으니 열고 걸어 들어가면 된다.
         var hinge = door.AddComponent<HingedDoor>();
@@ -448,17 +489,8 @@ public class CampusBuilder : MonoBehaviour
                       new Vector3(w - 5f, 0.1f, 3f), ColBush, noCollider: true);
                 break;
 
-            case "곰밥마당":   // 학생식당 — 배식대와 식탁
-                Block(t, "InServe", new Vector3(0f, 0.55f, -halfD + 1.4f), Quaternion.identity,
-                      new Vector3(w - 4f, 1.1f, 1.2f), ColStoneWall, noCollider: true);
-                for (int i = -1; i <= 1; i += 2)
-                {
-                    Block(t, $"InTable_{i}", new Vector3(i * 3f, 0.4f, 1.5f), Quaternion.identity,
-                          new Vector3(1.6f, 0.8f, 4f), ColWoodRail, noCollider: true);
-                    for (int j = -1; j <= 1; j += 2)
-                        Block(t, $"InSeat_{i}_{j}", new Vector3(i * 3f + j * 1.4f, 0.25f, 1.5f),
-                              Quaternion.identity, new Vector3(0.6f, 0.5f, 3.6f), ColWood, noCollider: true);
-                }
+            case "곰밥마당":   // 학생식당 — 한옥 급식소
+                BapMadang(t, w, d, h, halfW, halfD);
                 break;
 
             case "곰짝박수마당":  // 행사 — 접의자와 현수막
@@ -479,6 +511,120 @@ public class CampusBuilder : MonoBehaviour
                           Quaternion.identity, new Vector3(1.8f, 2.2f, 0.7f), ColStoneWall, noCollider: true);
                 break;
         }
+    }
+
+    /// <summary>
+    /// <b>곰밥마당 — 한옥 급식소.</b> 유저가 첫 인테리어로 고른 곳(2026-09-17).
+    /// *"한옥 + 곰인형 박물관 + 급식소처럼. 한국 문화 나게. 대형 박물관이라 의자가 많이 필요할지도."*
+    ///
+    /// 한국 급식소를 한국 급식소로 만드는 건 밥이 아니라 <b>줄 서는 동선</b>이다 —
+    /// 식판 쌓인 곳 → 배식대 → 자리 → 반납대. 이 순서가 보이면 설명이 필요 없다.
+    /// 그래서 이 방은 <b>한쪽 벽을 통째로 배식 줄</b>에 쓰고 나머지를 자리로 채운다.
+    ///
+    /// <b>곰은 안 둔다</b>(유저 지시). 곰인형 박물관이지 곰이 밥 먹는 곳이 아니야 —
+    /// 대신 한옥 요소(평상·방석·주련·한지 창)와 놋그릇 색으로 한국 문화를 낸다.
+    /// </summary>
+    void BapMadang(Transform t, float w, float d, float h, float halfW, float halfD)
+    {
+        // ---- 배식 줄 : 왼쪽 벽을 따라 ----
+        float lineX = -halfW + 1.2f;
+
+        // 식판 쌓아둔 곳 — 줄의 시작
+        Block(t, "InTrayStand", new Vector3(lineX, 0.45f, halfD - 2.2f), Quaternion.identity,
+              new Vector3(1.6f, 0.9f, 1.4f), ColWoodRail, noCollider: true);
+        for (int i = 0; i < 5; i++)
+            Block(t, $"InTray_{i}", new Vector3(lineX, 0.94f + i * 0.055f, halfD - 2.2f), Quaternion.identity,
+                  new Vector3(1.2f, 0.05f, 1f), ColLantern, noCollider: true);
+
+        // 배식대 — 스테인리스 상판에 국통 넷
+        Block(t, "InServe", new Vector3(lineX, 0.5f, 0f), Quaternion.identity,
+              new Vector3(1.9f, 1f, d - 8f), ColStoneWall, noCollider: true);
+        Block(t, "InServeTop", new Vector3(lineX, 1.03f, 0f), Quaternion.identity,
+              new Vector3(2.1f, 0.08f, d - 7.6f), ColWallTile, noCollider: true);
+        for (int i = -2; i <= 1; i++)
+            Disc(t, $"InPot_{i + 2}", new Vector3(lineX, 1.2f, i * 2.2f + 1.1f),
+                 new Vector3(1.2f, 0.28f, 1.2f), ColBearDark);
+
+        // 위생 가림막 — 급식소에 반드시 있는 것
+        Block(t, "InGuard", new Vector3(lineX + 1.1f, 1.75f, 0f), Quaternion.Euler(-18f, 0f, 0f),
+              new Vector3(0.06f, 0.7f, d - 7.6f), ColWindow, noCollider: true);
+
+        // 메뉴판 — 배식대 위 벽에
+        Block(t, "InMenuBoard", new Vector3(-halfW - 0.05f, 2.9f, 0f), Quaternion.identity,
+              new Vector3(0.12f, 1.6f, d - 8f), ColBearDark, noCollider: true);
+        for (int i = -2; i <= 2; i++)
+            Block(t, $"InMenuSlip_{i + 2}", new Vector3(-halfW + 0.05f, 3.3f - 0f, i * 1.5f),
+                  Quaternion.identity, new Vector3(0.04f, 0.5f, 1.1f), ColCream, noCollider: true);
+
+        // 반납대 — 줄의 끝. 문 가까이 둬야 나가면서 놓고 간다
+        Block(t, "InReturn", new Vector3(lineX, 0.45f, -halfD + 2f), Quaternion.identity,
+              new Vector3(1.8f, 0.9f, 1.8f), ColWallTile, noCollider: true);
+        Block(t, "InReturnBin", new Vector3(lineX + 1.4f, 0.4f, -halfD + 2f), Quaternion.identity,
+              new Vector3(0.9f, 0.8f, 0.9f), ColBearDark, noCollider: true);
+
+        // ---- 자리 : 입식 긴 탁자 + 좌식 평상 ----
+        // 대형 박물관이라 자리가 많이 필요하다는 유저 말대로 <b>서른여섯 자리</b>.
+        for (int row = 0; row < 3; row++)
+        {
+            float z = -3.4f + row * 3.4f;
+            float x = 3.2f;
+
+            Block(t, $"InTable_{row}", new Vector3(x, 0.74f, z), Quaternion.identity,
+                  new Vector3(7.2f, 0.1f, 1.1f), ColWoodRail, noCollider: true);
+            for (int leg = -1; leg <= 1; leg += 2)
+                Block(t, $"InTableLeg_{row}_{leg}", new Vector3(x + leg * 3.2f, 0.37f, z),
+                      Quaternion.identity, new Vector3(0.14f, 0.74f, 0.9f), ColWood, noCollider: true);
+
+            // 의자 — 한 줄에 열둘(위아래 여섯씩)
+            for (int seat = -2; seat <= 3; seat++)
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    Vector3 at = new Vector3(x + seat * 1.25f + 0.6f, 0.23f, z + side * 1.05f);
+                    Block(t, $"InChair_{row}_{seat}_{side}", at, Quaternion.identity,
+                          new Vector3(0.44f, 0.46f, 0.44f), ColWood, noCollider: true);
+                    Block(t, $"InChairBack_{row}_{seat}_{side}",
+                          at + new Vector3(0f, 0.42f, side * 0.2f), Quaternion.identity,
+                          new Vector3(0.44f, 0.5f, 0.06f), ColWoodRail, noCollider: true);
+                }
+        }
+
+        // 좌식 평상 둘 — 한옥다운 자리. 신 벗고 올라가는 마루
+        for (int i = -1; i <= 1; i += 2)
+        {
+            Vector3 at = new Vector3(halfW - 2.6f, 0f, i * 4.2f);
+            Block(t, $"InFloorSeat_{i}", at + Vector3.up * 0.22f, Quaternion.identity,
+                  new Vector3(3.6f, 0.44f, 3.6f), ColWoodRail, noCollider: true);
+            Block(t, $"InFloorTable_{i}", at + Vector3.up * 0.62f, Quaternion.identity,
+                  new Vector3(1.7f, 0.36f, 1.7f), ColWood, noCollider: true);
+            for (int c = -1; c <= 1; c += 2)
+                for (int r = -1; r <= 1; r += 2)
+                    Block(t, $"InCushion_{i}_{c}_{r}", at + new Vector3(c * 1.15f, 0.49f, r * 1.15f),
+                          Quaternion.identity, new Vector3(0.7f, 0.1f, 0.7f),
+                          c * r > 0 ? ColRibbon : ColMint, noCollider: true);
+        }
+
+        // ---- 한옥 손맛 ----
+        // 주련 — 기둥에 세로로 거는 글판. 이것 하나로 방이 한옥이 된다
+        for (int i = -1; i <= 1; i += 2)
+            Block(t, $"InCouplet_{i}", new Vector3(i * (halfW - 0.4f), 2.6f, halfD - 4f),
+                  Quaternion.identity, new Vector3(0.1f, 2.6f, 0.5f), ColRibbon, noCollider: true);
+
+        // 한지 창 — 뒷벽에. 안에서 보면 바깥 빛이 드는 것처럼
+        for (int i = -1; i <= 1; i++)
+            Block(t, $"InPaperWindow_{i + 1}", new Vector3(i * 5.5f, 3.2f, -halfD - 0.05f),
+                  Quaternion.identity, new Vector3(3.4f, 2.2f, 0.12f), ColWindow, noCollider: true);
+
+        // 물동이와 컵 — 입구 옆
+        Disc(t, "InWaterJar", new Vector3(halfW - 1.4f, 0.5f, halfD - 2.4f),
+             new Vector3(1.3f, 0.5f, 1.3f), ColWallTile);
+        for (int i = 0; i < 4; i++)
+            Block(t, $"InCup_{i}", new Vector3(halfW - 2.6f, 1.02f, halfD - 2.2f + i * 0.28f),
+                  Quaternion.identity, new Vector3(0.16f, 0.2f, 0.16f), ColLantern, noCollider: true);
+
+        // 천장 서까래 한 겹 — 급식소라도 천장이 민짜면 창고로 보인다
+        for (int i = -4; i <= 4; i++)
+            Block(t, $"InRafter_{i + 4}", new Vector3(i * (w * 0.1f), h - 0.75f, 0f), Quaternion.identity,
+                  new Vector3(0.22f, 0.26f, d - 2f), ColWood, noCollider: true);
     }
 
     /// <summary>
@@ -902,6 +1048,9 @@ public class CampusBuilder : MonoBehaviour
 
     /// <summary>건물 문 앞 자리. `Hanok` 이 지으면서 채운다.</summary>
     readonly System.Collections.Generic.List<Vector3> doorFronts = new System.Collections.Generic.List<Vector3>();
+
+    /// <summary>건물이 차지한 자리. 담장이 이걸 보고 비켜간다.</summary>
+    readonly System.Collections.Generic.List<Bounds> footprints = new System.Collections.Generic.List<Bounds>();
 
     bool TooCloseToDoor(Vector3 spot)
     {
