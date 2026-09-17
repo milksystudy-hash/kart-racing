@@ -32,7 +32,7 @@ public class MissionManager : MonoBehaviour
         제한시간,    // 정해진 시간 안에 완주
         태엽,        // 드리프트로 모은 태엽을 정해진 횟수만큼 터뜨리기
         무발판,      // 발판을 하나도 안 밟고 완주 — 발판전부의 정반대
-        빠른랩,      // 한 바퀴를 정해진 시간 안에
+        광고판,      // 골든베어 입간판을 전부 들이받아 부수기
         완벽,        // 무충돌 + 제한시간 동시. 마지막 판
     }
 
@@ -49,7 +49,7 @@ public class MissionManager : MonoBehaviour
     [Tooltip("제한시간 임무의 제한(초). 코스가 535m 로 늘어난 뒤 값")]
     public float timeLimit = 121f;
 
-    [Tooltip("빠른랩 임무에서 한 바퀴를 몇 초 안에. 535m 기준")]
+    [Tooltip("빠른랩 임무에서 한 바퀴를 몇 초 안에. 535m 기준 (지금은 안 쓴다 — 광고판으로 바뀜)")]
     public float lapLimit = 38f;
 
     [Tooltip("태엽 임무에서 태엽을 몇 번 터뜨려야 하는지")]
@@ -72,12 +72,14 @@ public class MissionManager : MonoBehaviour
     public Goal goal { get; private set; }
 
     int padsTotal;
+    int signsTotal;
     int lastLapSeen = 1;
     bool rewarded;
 
     void Start()
     {
         padsTotal = BoostPad.CountInScene();
+        signsTotal = AdBoard.CountInScene();
         Restart();
     }
 
@@ -111,6 +113,7 @@ public class MissionManager : MonoBehaviour
 
         // 씬을 안 다시 굽고 카트만 바꾸면 발판 수가 0으로 남는다. 그때 조용히 통과되면 안 된다.
         if (goal == Goal.발판전부 && padsTotal == 0) padsTotal = BoostPad.CountInScene();
+        if (goal == Goal.광고판 && signsTotal == 0) signsTotal = AdBoard.CountInScene();
 
         if (tracker.CurrentLap != lastLapSeen)
         {
@@ -140,7 +143,7 @@ public class MissionManager : MonoBehaviour
             Goal.제한시간 => tracker.TotalTime <= timeLimit,
             Goal.태엽    => kart.DriftBoosts >= driftBoostsNeeded,
             Goal.무발판   => BoostPad.TakenCount() == 0,
-            Goal.빠른랩   => tracker.BestLapTime > 0f && tracker.BestLapTime <= lapLimit,
+            Goal.광고판   => signsTotal > 0 && AdBoard.BrokenCount() >= signsTotal,
             Goal.완벽    => kart.WallHits <= allowedHits && tracker.TotalTime <= perfectTimeLimit,
             _             => true,
         };
@@ -150,7 +153,7 @@ public class MissionManager : MonoBehaviour
         {
             Goal.발판전부 => RaceVoice.MissedPads(BoostPad.TakenCount(), padsTotal),
             Goal.태엽    => RaceVoice.NotEnoughDrift(kart.DriftBoosts, driftBoostsNeeded),
-            Goal.빠른랩   => RaceVoice.NoFastLap(),
+            Goal.광고판   => RaceVoice.MissedSigns(AdBoard.BrokenCount(), signsTotal),
             _             => RaceVoice.Generic(),
         });
     }
@@ -207,6 +210,7 @@ public class MissionManager : MonoBehaviour
         lastLapSeen = 1;
 
         BoostPad.ClearTaken();
+        AdBoard.ResetAll();
         if (kart != null) kart.ResetWallHits();
     }
 
@@ -221,8 +225,7 @@ public class MissionManager : MonoBehaviour
         Goal.제한시간 => Remaining(timeLimit),
         Goal.태엽    => $"{(kart != null ? kart.DriftBoosts : 0)} / {driftBoostsNeeded}",
         Goal.무발판   => BoostPad.TakenCount() == 0 ? "아직 깨끗" : "밟았다",
-        Goal.빠른랩   => tracker != null && tracker.BestLapTime > 0f
-                         ? LapTracker.FormatTime(tracker.BestLapTime) : "아직 없음",
+        Goal.광고판   => $"{AdBoard.BrokenCount()} / {signsTotal}",
         // 두 조건을 다 보여줘야 하는데 칸이 좁다. "남은 기회 2" 대신 "2회" 로 줄인다.
         Goal.완벽    => $"{Mathf.Max(0, allowedHits - WallHits)}회 · {Remaining(perfectTimeLimit)}",
         _             => tracker != null ? $"{Mathf.Min(tracker.CurrentLap, tracker.totalLaps)} / {tracker.totalLaps}" : "",

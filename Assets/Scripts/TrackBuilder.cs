@@ -158,6 +158,7 @@ public class TrackBuilder : MonoBehaviour
         BuildStartLine();
         BuildBoostPads();
         BuildAdBoards(built);
+        BuildAdSigns(built);
         BuildFinishArch(built);
         BuildCheckpoints();
     }
@@ -580,6 +581,79 @@ public class TrackBuilder : MonoBehaviour
             // 글씨 대신 곰 실루엣 한 덩어리 — 멀리서도 "저 회사" 로 읽히게
             Block(board, "Mark", at + Vector3.up * 4.4f + facing * Vector3.forward * -0.2f, facing,
                   new Vector3(1.5f, 1.5f, 0.1f), ColAdMagenta, noCollider: true);
+        }
+    }
+
+    /// <summary>
+    /// 부술 수 있는 골든베어 입간판. 큰 광고판은 길 <b>바깥</b>이라 못 닿으니까
+    /// 코스 <b>안쪽 갓길</b>에 작은 걸 따로 세운다.
+    ///
+    /// 자리는 발판과 같은 사고방식이야 — <b>갓길에 두면 레이싱 라인을 포기해야 닿는다.</b>
+    /// 한가운데 두면 그냥 지나가다 부숴져서 고를 게 없어진다. 좌우로 번갈아 둬서
+    /// 전부 부수려면 코스를 지그재그로 돌게 된다.
+    ///
+    /// <b>한 번 부수면 그 판이 끝날 때까지 그대로 부서져 있다.</b> 바퀴마다 되살리면
+    /// 발판전부 임무와 똑같아지고, 세 바퀴에 나눠 챙길 여유도 없어진다.
+    /// </summary>
+    static readonly (float t, float lane)[] AdSigns =
+    {
+        // 발판 자리(0.11 · 0.26 · 0.45 · 0.63 · 0.88)와 겹치지 않게 사이사이에 둔다
+        (0.04f, -0.80f),   // 결승 직선 — 첫 판에 뭘 하는 건지 바로 보인다
+        (0.17f,  0.82f),
+        (0.33f, -0.82f),
+        (0.39f,  0.80f),
+        (0.52f, -0.80f),   // 정문앞 — 한옥 정문 옆이라 제일 안 어울린다
+        (0.58f,  0.82f),
+        (0.70f, -0.82f),
+        (0.81f,  0.80f),
+    };
+
+    void BuildAdSigns(Transform parent)
+    {
+        var root = new GameObject("AdSigns").transform;
+        root.SetParent(parent, false);
+
+        for (int i = 0; i < AdSigns.Length; i++)
+        {
+            var (t, lane) = AdSigns[i];
+
+            Vector3 forward = TangentOnPath(t);
+            Vector3 side = Vector3.Cross(Vector3.up, forward);
+            Vector3 at = transform.position + PointOnPath(t) + side * (lane * WidthOnPath(t) * 0.5f);
+            var facing = Quaternion.LookRotation(-side * Mathf.Sign(lane), Vector3.up);
+
+            var sign = new GameObject($"AdSign_{i}");
+            sign.transform.SetParent(root, false);
+            sign.transform.SetPositionAndRotation(at, facing);
+
+            // 뚫고 지나가는 느낌이어야 하니 트리거. 충돌체면 벽 부딪힘으로 세지고 카트가 튕긴다.
+            var box = sign.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.size = new Vector3(1.5f, 2.4f, 1.2f);
+            box.center = new Vector3(0f, 1.2f, 0f);
+
+            var ad = sign.AddComponent<AdBoard>();
+            ad.pieceColor = ColAdGold;
+
+            // 부서질 때 통째로 끌 수 있게 그림은 자식 하나에 모아둔다
+            var art = new GameObject("Visual").transform;
+            art.SetParent(sign.transform, false);
+            ad.visual = art;
+
+            // 다리는 판 속으로 6cm 밀어 넣는다. 딱 맞대면 두 면이 같은 높이가 되어 번쩍거린다.
+            Block(art, "Leg_L", at + facing * new Vector3(-0.45f, 0.38f, 0f), facing,
+                  new Vector3(0.12f, 0.76f, 0.12f), ColAdFrame, noCollider: true);
+            Block(art, "Leg_R", at + facing * new Vector3(0.45f, 0.38f, 0f), facing,
+                  new Vector3(0.12f, 0.76f, 0.12f), ColAdFrame, noCollider: true);
+
+            Block(art, "Panel", at + facing * new Vector3(0f, 1.35f, 0f), facing,
+                  new Vector3(1.3f, 1.3f, 0.09f), ColAdGold, noCollider: true);
+            // 띠와 마크는 <b>코스 쪽(+z)</b>으로 나와야 보인다. 간판의 +z 가 코스 가운데를 향한다.
+            // 폭도 판(1.3)보다 좁게 — 딱 맞추면 좌우 모서리가 같은 평면이 되어 번쩍거린다.
+            Block(art, "Stripe", at + facing * new Vector3(0f, 0.95f, 0.07f), facing,
+                  new Vector3(1.22f, 0.26f, 0.06f), ColAdMagenta, noCollider: true);
+            Block(art, "Mark", at + facing * new Vector3(0f, 1.45f, 0.07f), facing,
+                  new Vector3(0.55f, 0.55f, 0.06f), ColAdMagenta, noCollider: true);
         }
     }
 

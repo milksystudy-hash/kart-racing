@@ -29,7 +29,7 @@ public static class RaceVoice
         MissionManager.Goal.제한시간 => $"{Mathf.RoundToInt(m.timeLimit)}초 컷",
         MissionManager.Goal.태엽    => $"태엽 {m.driftBoostsNeeded}번",
         MissionManager.Goal.무발판   => "발판 없이",
-        MissionManager.Goal.빠른랩   => $"한 바퀴 {Mathf.RoundToInt(m.lapLimit)}초",
+        MissionManager.Goal.광고판   => "광고판 다 부수기",
         MissionManager.Goal.완벽    => "부딪힘 없이 시간제한에 맞춰 도착하기",
         _                           => "세 바퀴 완주",
     };
@@ -47,7 +47,7 @@ public static class RaceVoice
 
     public static string NotEnoughDrift(int got, int need) => $"태엽 {got}/{need}번";
 
-    public static string NoFastLap() => "목표 랩타임 못 냄";
+    public static string MissedSigns(int got, int total) => $"광고판 {got}/{total} 부숨";
 
     public static string Generic() => "조건 미달";
 
