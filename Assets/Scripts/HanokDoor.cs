@@ -105,10 +105,38 @@ public static class HanokDoor
                     Piece(root, $"PlaqueRope_{s2}", new Vector3(s2 * width * 0.38f, plaqueY + 0.9f, 0.05f),
                           new Vector3(0.07f, 0.65f, 0.07f), Slat, material);
 
+            // <b>현판에는 이름만.</b> 작은 줄까지 얹으면 판이 모자라서 넘치고, 처마 밑이라
+            // 높아서 작은 글씨는 어차피 안 읽힌다(2026-09-17 유저: "작은 글씨가 깨져 보인다").
             var sign = board.AddComponent<BuildingSign>();
             sign.buildingName = buildingName;
-            sign.department = department;
-            sign.motto = motto;
+            sign.maxLine = 0.62f;
+        }
+
+        // ---- 안내판 : 학과와 한 줄은 <b>눈높이</b>에 따로 세운다 ----
+        // 처마 밑 현판은 멀리서 "저 건물 이름" 을 읽는 것이고, 안내판은 문 앞에 서서
+        // "여기가 뭐 하는 데" 를 읽는 것이다. 둘은 <b>보는 거리가 달라서</b> 한 판에 못 넣는다.
+        if (plaque && !(string.IsNullOrEmpty(department) && string.IsNullOrEmpty(motto)))
+        {
+            float side = width * 0.5f + 1.5f;
+
+            Piece(root, "BoardPost", new Vector3(side, 0.75f, 0.5f),
+                  new Vector3(0.14f, 1.5f, 0.14f), Wood, material);
+            Piece(root, "BoardFoot", new Vector3(side, 0.08f, 0.5f),
+                  new Vector3(0.6f, 0.16f, 0.6f), Wood, material);
+
+            var notice = Piece(root, "Board", new Vector3(side, 1.62f, 0.5f),
+                               new Vector3(2.3f, 1.05f, 0.12f), Plaque, material);
+            Piece(root, "BoardFrame", new Vector3(side, 1.62f, 0.46f),
+                  new Vector3(2.5f, 1.25f, 0.08f), Wood, material);
+
+            // 작은 지붕 한 겹 — 비 가리는 시늉. 판만 서 있으면 표지판이 아니라 널빤지다
+            Piece(root, "BoardRoof", new Vector3(side, 2.28f, 0.42f),
+                  new Vector3(2.7f, 0.1f, 0.5f), Slat, material);
+
+            var info = notice.AddComponent<BuildingSign>();
+            info.department = department;
+            info.motto = motto;
+            info.maxLine = 0.3f;
         }
 
         return root;

@@ -49,7 +49,11 @@ public class BuildingSign : MonoBehaviour
     /// </summary>
     void WriteName()
     {
-        if (wrote || string.IsNullOrEmpty(buildingName)) return;
+        // 안내판은 <b>이름이 비어 있고 학과만</b> 들어온다. 이름만 보고 빠지면 안 그려진다.
+        if (wrote) return;
+        if (string.IsNullOrEmpty(buildingName)
+            && string.IsNullOrEmpty(department)
+            && string.IsNullOrEmpty(motto)) return;
         wrote = true;
 
         var font = Resources.Load<Font>(PlaqueFontName);
@@ -57,28 +61,91 @@ public class BuildingSign : MonoBehaviour
 
         var parent = transform.parent != null ? transform.parent : transform;
 
-        // <b>크기를 현판 폭에서 뽑으면 안 된다.</b> 현판 높이는 0.78 로 고정인데 폭은 문마다
-        // 달라서, 넓은 문에서는 글자가 판 높이를 넘어 아래 줄과 겹쳤다(2026-09-17 유저 제보 —
-        // 흰 글씨와 노란 글씨가 포개져 있었다). 높이에 맞춘 <b>절대값</b>으로 잡는다.
-        const float nameLine = 0.46f;    // 이름 한 줄의 높이(m)
-        const float subLine  = 0.21f;    // 아래 작은 줄
+        // <b>판마다 글자를 따로 담는다.</b> 전에는 현판과 안내판의 줄이 전부 문 루트에
+        // 형제로 붙어서 어느 판 것인지 구분이 안 됐다 — 검사도 못 하고, 하나를 지우면
+        // 다른 것까지 흔들린다. 판 위치에 빈 통을 하나 두고 그 밑에 넣는다.
+        var holder = new GameObject(name + "_Text").transform;
+        holder.SetParent(parent, false);
+        holder.localPosition = transform.localPosition;
+        holder.localRotation = Quaternion.identity;
 
-        Label(parent, "PlaqueText", buildingName, font,
-              transform.localPosition + new Vector3(0f, 0.28f, 0.24f),
-              new Color32(0xF6, 0xEC, 0xD6, 0xFF), nameLine, TextAnchor.MiddleCenter);
+        // 판의 실제 크기. 글자는 <b>이 안에 맞춰서 줄인다</b> —
+        // 고정 크기로 두면 이름이 길 때 판 밖으로 넘친다(2026-09-17 유저: "글자가 차고 넘쳤다").
+        float plateW = transform.localScale.x * 0.88f;
+        float plateH = transform.localScale.y * 0.80f;
 
-        // 학과와 한 줄은 <b>현판 밖, 그 아래</b>로 내린다. 판 안에 같이 넣으면 자리가 안 나온다.
-        // 둘을 한 줄로 이어붙이면 "조리·제빵·공예·봉제   손재주는…" 처럼 판보다 길어지니 줄을 나눈다.
-        string under = department;
-        if (!string.IsNullOrEmpty(motto))
-            under = string.IsNullOrEmpty(department) ? motto : department + "\n" + motto;
-        if (string.IsNullOrEmpty(under)) return;
+        // 줄을 모은다. 현판에는 이름만, 안내판에는 학과와 한 줄.
+        var lines = new System.Collections.Generic.List<string>();
+        if (!string.IsNullOrEmpty(buildingName)) lines.Add(buildingName);
+        if (!string.IsNullOrEmpty(department)) lines.AddRange(Wrap(department, 9));
+        if (!string.IsNullOrEmpty(motto)) lines.AddRange(Wrap(motto, 11));
+        if (lines.Count == 0) return;
 
-        // 금색은 어두운 판 위에서도 탁하다. <b>밝은 크림</b>으로 올린다 — 색으로 구분하는 건
-        // 크기와 자리가 이미 하고 있어서, 여기서까지 색을 쓰면 읽기만 나빠진다.
-        Label(parent, "PlaqueSub", under, font,
-              transform.localPosition + new Vector3(0f, -0.06f, 0.24f),
-              new Color32(0xE6, 0xD6, 0xAE, 0xFF), subLine, TextAnchor.UpperCenter);
+        // 한 줄 높이 — 세로로도 들어가야 하고 제일 긴 줄이 가로로도 들어가야 한다.
+        float byHeight = plateH / lines.Count;
+        float byWidth = plateW / Mathf.Max(1, Longest(lines)) / CharRatio;
+        float line = Mathf.Min(byHeight, byWidth, maxLine);
+
+        // 여러 줄이면 첫 줄만 크게. 이름과 설명은 크기로 구분하는 게 색으로 구분하는 것보다 낫다.
+        float top = (lines.Count - 1) * line * 0.5f;
+
+        for (int i = 0; i < lines.Count; i++)
+        {
+            float size = i == 0 ? line : line * 0.82f;
+            Label(holder, $"SignLine_{i}", lines[i], font,
+                  new Vector3(0f, top - i * line, 0.24f),
+                  i == 0 ? new Color32(0xF6, 0xEC, 0xD6, 0xFF) : new Color32(0xE0, 0xCE, 0xA4, 0xFF),
+                  size, TextAnchor.MiddleCenter);
+        }
+    }
+
+    [Tooltip("한 줄이 이보다 커지지는 않는다(m)")]
+    public float maxLine = 0.5f;
+
+    /// <summary>
+    /// 한글은 글자 하나가 대체로 정사각형이라 <b>글자 수 × 높이</b> 로 폭을 어림할 수 있다.
+    /// 0.95 는 자간까지 친 값 — 로마자와 가운뎃점은 이보다 좁아서 <b>조금 작게 잡히는 쪽</b>으로
+    /// 틀린다. 넘치는 것보다 작은 게 낫다.
+    /// </summary>
+    const float CharRatio = 0.95f;
+
+    static int Longest(System.Collections.Generic.List<string> lines)
+    {
+        int most = 0;
+        foreach (var line in lines) most = Mathf.Max(most, line.Length);
+        return most;
+    }
+
+    /// <summary>
+    /// 긴 줄을 <b>가운뎃점에서</b> 자른다. 한글은 띄어쓰기가 드물어서 공백으로 자르면
+    /// 안 잘리는 줄이 생긴다 — 이 프로젝트의 학과 이름은 전부 "조리·제빵·공예·봉제" 꼴이야.
+    /// </summary>
+    static System.Collections.Generic.List<string> Wrap(string body, int per)
+    {
+        var lines = new System.Collections.Generic.List<string>();
+        if (body.Length <= per) { lines.Add(body); return lines; }
+
+        var parts = body.Split('·');
+        string current = "";
+
+        foreach (var part in parts)
+        {
+            string next = current.Length == 0 ? part : current + "·" + part;
+            if (next.Length <= per) { current = next; continue; }
+
+            if (current.Length > 0) lines.Add(current);
+            current = part;
+        }
+        if (current.Length > 0) lines.Add(current);
+
+        // 가운뎃점이 없어서 못 잘랐으면 글자 수로 자른다
+        if (lines.Count == 1 && lines[0].Length > per)
+        {
+            lines.Clear();
+            for (int i = 0; i < body.Length; i += per)
+                lines.Add(body.Substring(i, Mathf.Min(per, body.Length - i)));
+        }
+        return lines;
     }
 
     static void Label(Transform parent, string name, string body, Font font,
