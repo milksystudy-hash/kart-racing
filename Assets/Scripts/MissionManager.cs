@@ -84,8 +84,18 @@ public class MissionManager : MonoBehaviour
     public static bool WantsDebris =>
         !string.IsNullOrEmpty(NextReward()) && CurrentGoal == Goal.장애물;
 
+    /// <summary>
+    /// <b>여덟 판을 전부 깬 뒤인가.</b> AI 카트는 여기서만 나온다.
+    ///
+    /// 2026-09-17 유저(세 번째): *"임무 1번부터 8번까지는 선택한 캐릭터 혼자 달리게 하고,
+    /// 8번까지 다 깨면 그제서야 AI 카트 3대와 경주하는 걸로."*
+    ///
+    /// 전에는 <c>Count >= Count − 1</c>(7개)이라 <b>8번째 판에 이미 AI 가 나왔다.</b>
+    /// 8번째도 임무 판이다 — 임무를 도는 동안에는 언제나 혼자야.
+    /// AI 는 임무가 다 끝난 뒤의 <b>자유 주행</b>에서만 나온다.
+    /// </summary>
     public static bool FinalRace =>
-        CollectionState.Count >= ExhibitCatalogue.Count - 1;
+        ExhibitCatalogue.Count > 0 && CollectionState.Count >= ExhibitCatalogue.Count;
 
     public Goal goal { get; private set; }
 
