@@ -379,7 +379,9 @@ public class TestHUD : MonoBehaviour
         var box = new Rect(w * 0.5f - 170f, h * 0.5f - 104f, 340f, 208f);
         Hud.Panel(box);
 
-        bool ok = mission == null || mission.Cleared;
+        // 다 모았으면 걸린 임무가 없다. 판정을 그대로 돌리면 "임무 실패 — 세 바퀴 완주" 가 뜬다.
+        bool freeRun = mission != null && mission.AllDone;
+        bool ok = mission == null || freeRun || mission.Cleared;
         var head = Hud.Resize(Hud.Title, 32);
         head.normal.textColor = ok ? Hud.Ink : Hud.Ribbon;
         GUI.Label(new Rect(box.x, box.y + 20f, box.width, 40f), ok ? "완주!" : RaceVoice.Failed(), head);
@@ -393,10 +395,11 @@ public class TestHUD : MonoBehaviour
         if (mission != null)
         {
             var line = Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter);
-            line.normal.textColor = mission.Cleared ? Hud.Brass : Hud.Ribbon;
+            line.normal.textColor = freeRun || mission.Cleared ? Hud.Brass : Hud.Ribbon;
             GUI.Label(new Rect(box.x, box.y + 132f, box.width, 24f),
-                      mission.Cleared ? $"◆ 임무 달성 — {mission.Title}"
-                                      : $"임무 실패 — {mission.Title}", line);
+                      freeRun        ? RaceVoice.FreeRun()
+                      : mission.Cleared ? $"◆ 임무 달성 — {mission.Title}"
+                                        : $"임무 실패 — {mission.Title}", line);
         }
 
         GUI.Label(new Rect(box.x, box.y + 166f, box.width, 22f), "ENTER 를 누르면 다시 시작",

@@ -61,6 +61,12 @@ public static class RaceVoice
     public static string Failed() => "임무 실패";
     public static string Cleared() => "성공";
 
+    /// <summary>
+    /// 수집품을 여덟 개 다 모은 뒤의 레이스. <b>임무가 없으니 실패도 없다.</b>
+    /// 전에는 상품이 없는 상태에서도 판정을 그대로 돌려서 "임무 실패 — 세 바퀴 완주" 가 떴다.
+    /// </summary>
+    public static string FreeRun() => "자유 주행 — 기록을 줄여 봐";
+
     public static string Reward(string itemName, int got, int total)
         => $"{itemName} 획득   ({got} / {total})";
 }

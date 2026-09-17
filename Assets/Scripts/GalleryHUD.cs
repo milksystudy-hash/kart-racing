@@ -16,15 +16,13 @@ public class GalleryHUD : MonoBehaviour
     [Tooltip("켜두면 F9 로 전부 수집, F10 으로 전부 초기화. 제출 전에 꺼")]
     public bool debugKeys = true;
 
-    Texture2D panelTex, dimTex, accentTex;
-    GUIStyle titleStyle, labelStyle, valueStyle, promptStyle, bodyStyle, hintStyle;
+    Texture2D panelTex;
+    GUIStyle titleStyle, labelStyle, valueStyle, promptStyle, bodyStyle;
     bool ready;
 
     void Awake()
     {
-        panelTex  = Solid(new Color(0.09f, 0.10f, 0.08f, 0.78f));
-        dimTex    = Solid(new Color(1f, 1f, 1f, 0.16f));
-        accentTex = Solid(new Color(0.94f, 0.71f, 0.29f, 0.95f));
+        panelTex = Solid(new Color(0.09f, 0.10f, 0.08f, 0.78f));
     }
 
     void Update()
@@ -75,10 +73,6 @@ public class GalleryHUD : MonoBehaviour
         bodyStyle = HudFont.With(new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true }, font);
         bodyStyle.normal.textColor = new Color(1f, 1f, 1f, 0.85f);
 
-        hintStyle = HudFont.With(new GUIStyle(GUI.skin.label)
-        { fontSize = 13, alignment = TextAnchor.MiddleCenter }, font);
-        hintStyle.normal.textColor = new Color(1f, 1f, 1f, 0.5f);
-
         ready = true;
     }
 
@@ -91,16 +85,19 @@ public class GalleryHUD : MonoBehaviour
         DrawHoverName(w, h);
         DrawOpenedPanel(w, h);
 
-        string keys = "마우스 끌기 둘러보기     휠 확대·축소     클릭 전시품 보기     F1·F2 씬 이동";
-        if (debugKeys) keys += "     F9 전부수집 / F10 초기화";
-        GUI.Label(new Rect(0, h - 26, w, 20), keys, hintStyle);
+        // 화면 아래 조작 안내줄은 뺐다(2026-09-17 유저). 마우스로 끌어보면 바로 아는 조작이라
+        // 줄글로 설명할 게 아니었고, 전시실은 "가만히 보는 방" 이라 글자가 적을수록 낫다.
+        // 개발용 단축키는 사라진 게 아니라 여전히 듣는다 — 목록은 프로젝트 루트의
+        // 개발자_단축키.md 에 있다.
     }
 
     void DrawProgress()
     {
-        // 제목과 숫자를 같은 줄 양끝에 두고, 설명과 막대를 그 아래로 내린다.
-        // 예전엔 세로로 쌓았는데 한글 폰트가 22px 에서 줄높이를 넘겨서 글자가 겹쳤다.
-        const float x = 16f, y = 16f, w = 256f, h = 88f;
+        // 제목과 숫자를 같은 줄 양끝에. 예전엔 세로로 쌓았는데 한글 폰트가 22px 에서
+        // 줄높이를 넘겨서 글자가 겹쳤다.
+        // 진행 막대도 뺐다(2026-09-17 유저) — 숫자가 이미 "3 / 8" 이라고 말하는데 막대가
+        // 같은 말을 한 번 더 한다. 불이 켜지는 연출이 진짜 진행도 표시야.
+        const float x = 16f, y = 16f, w = 256f, h = 72f;
         GUI.DrawTexture(new Rect(x, y, w, h), panelTex);
 
         int got = selector != null ? selector.CollectedCount : 0;
@@ -112,10 +109,6 @@ public class GalleryHUD : MonoBehaviour
         GUI.Label(new Rect(x + 150, y + 12, w - 166, 28), $"{got} / {total}", countStyle);
 
         GUI.Label(new Rect(x + 16, y + 46, w - 32, 18), "모은 전시품", labelStyle);
-
-        var bar = new Rect(x + 16, y + 70, w - 32, 6);
-        GUI.DrawTexture(bar, dimTex);
-        GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * ((float)got / total), bar.height), accentTex);
     }
 
     void DrawHoverName(float w, float h)
