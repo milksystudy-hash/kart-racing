@@ -30,7 +30,7 @@ public class MissionManager : MonoBehaviour
         발판전부,    // 가속 발판을 매 바퀴 하나도 빠뜨리지 않고
         무충돌,      // 벽에 세게 부딪히지 않고
         제한시간,    // 정해진 시간 안에 완주
-        무정차,      // 한 번도 멈추지 않고 완주 — 드리프트를 강요하지 않는다
+        장애물,      // 길에 널린 철거 자재를 치지 않고 완주
         무발판,      // 발판을 하나도 안 밟고 완주 — 발판전부의 정반대
         광고판,      // 골든베어 입간판을 전부 들이받아 부수기
         완벽,        // 무충돌 + 제한시간 동시. 마지막 판
@@ -55,8 +55,8 @@ public class MissionManager : MonoBehaviour
     [Tooltip("태엽 임무에서 태엽을 몇 번 터뜨려야 하는지 (지금은 안 쓴다 — 무정차로 바뀜)")]
     public int driftBoostsNeeded = 6;
 
-    [Tooltip("무정차 임무에서 이 속도(㎞/h) 아래로 떨어지면 실패")]
-    public float minSpeedKph = 12f;
+    [Tooltip("장애물 임무에서 봐주는 충돌 횟수")]
+    public int allowedDebris = 2;
 
     [Tooltip("완벽 임무의 제한(초). 무충돌까지 같이 지켜야 한다")]
     public float perfectTimeLimit = 133f;
@@ -85,7 +85,6 @@ public class MissionManager : MonoBehaviour
 
     public Goal goal { get; private set; }
 
-    bool started;          // 무정차 판정용 — 한 번 달리기 시작했나
     int padsTotal;
     int signsTotal;
     int lastLapSeen = 1;
@@ -135,6 +134,8 @@ public class MissionManager : MonoBehaviour
             lastLapSeen = tracker.CurrentLap;
             // 한 바퀴가 끝날 때마다 발판은 다시 밟아야 한다 — 3바퀴 내내 챙기라는 뜻이야
             if (goal == Goal.발판전부) BoostPad.ClearTaken();
+            // 첫 바퀴에 다 치워버리면 두세 바퀴가 그냥 완주가 된다
+            if (goal == Goal.장애물) RoadDebris.RestoreAll();
         }
 
         if (Failed || Cleared) return;
@@ -148,13 +149,9 @@ public class MissionManager : MonoBehaviour
             Fail(RaceVoice.WallHit(kart.WallHits));
         if (goal == Goal.제한시간 && tracker.TotalTime > timeLimit) Fail(RaceVoice.OutOfTime());
 
-        // 무정차 — 출발하고 나서 한 번이라도 멈추면 그 자리에서 끝.
-        // 출발 전에는 당연히 0 이라 <b>한 번 달리기 시작한 뒤부터</b> 본다.
-        if (goal == Goal.무정차)
-        {
-            if (kart.SpeedKph > minSpeedKph + 4f) started = true;
-            if (started && kart.SpeedKph < minSpeedKph) Fail(RaceVoice.Stopped());
-        }
+        // 장애물 — 정해진 횟수를 넘겨 치면 그 자리에서 끝
+        if (goal == Goal.장애물 && RoadDebris.Hits > allowedDebris)
+            Fail(RaceVoice.HitDebris(RoadDebris.Hits));
         if (goal == Goal.완벽 && tracker.TotalTime > perfectTimeLimit) Fail(RaceVoice.OutOfTime());
 
         if (Failed || !tracker.Finished) return;
@@ -164,7 +161,7 @@ public class MissionManager : MonoBehaviour
             Goal.발판전부 => padsTotal > 0 && BoostPad.TakenCount() >= padsTotal,
             Goal.무충돌   => kart.WallHits <= allowedHits,
             Goal.제한시간 => tracker.TotalTime <= timeLimit,
-            Goal.무정차   => true,   // 도중에 멈췄으면 이미 실패했다
+            Goal.장애물   => RoadDebris.Hits <= allowedDebris,
             Goal.무발판   => BoostPad.TakenCount() == 0,
             Goal.광고판   => signsTotal > 0 && AdBoard.BrokenCount() >= signsTotal,
             Goal.완벽    => kart.WallHits <= allowedHits && tracker.TotalTime <= perfectTimeLimit,
@@ -175,7 +172,7 @@ public class MissionManager : MonoBehaviour
         else Fail(goal switch
         {
             Goal.발판전부 => RaceVoice.MissedPads(BoostPad.TakenCount(), padsTotal),
-            Goal.무정차   => RaceVoice.Stopped(),
+            Goal.장애물   => RaceVoice.HitDebris(RoadDebris.Hits),
             Goal.광고판   => RaceVoice.MissedSigns(AdBoard.BrokenCount(), signsTotal),
             _             => RaceVoice.Generic(),
         });
@@ -228,18 +225,22 @@ public class MissionManager : MonoBehaviour
 
         Failed = false;
         Cleared = false;
-        started = false;
         FailReason = "";
         rewarded = false;
         lastLapSeen = 1;
 
         BoostPad.ClearTaken();
         AdBoard.ResetAll();
+        RoadDebris.ResetHits();
+        RoadDebris.RestoreAll();
         if (kart != null) kart.ResetWallHits();
 
         // 방금 여덟 번째를 받았으면 이 판부터 AI 가 나온다
         var gate = FindFirstObjectByType<AiRaceGate>();
         if (gate != null) gate.Apply();
+
+        var debris = FindFirstObjectByType<DebrisGate>();
+        if (debris != null) debris.Apply();
     }
 
     // ---- 화면에 띄울 글 ----
@@ -251,7 +252,7 @@ public class MissionManager : MonoBehaviour
         Goal.발판전부 => $"{BoostPad.TakenCount()} / {padsTotal}",
         Goal.무충돌   => Chances,
         Goal.제한시간 => Remaining(timeLimit),
-        Goal.무정차   => kart != null && kart.SpeedKph >= minSpeedKph ? "달리는 중" : "멈추면 실패",
+        Goal.장애물   => $"기회 {Mathf.Max(0, allowedDebris - RoadDebris.Hits)}",
         Goal.무발판   => BoostPad.TakenCount() == 0 ? "아직 깨끗" : "밟았다",
         Goal.광고판   => $"{AdBoard.BrokenCount()} / {signsTotal}",
         // 두 조건을 다 보여줘야 하는데 칸이 좁다. "남은 기회 2" 대신 "2회" 로 줄인다.

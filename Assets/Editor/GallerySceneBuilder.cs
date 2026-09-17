@@ -276,10 +276,18 @@ public static class GallerySceneBuilder
     static void MakeDoor()
     {
         var root = new GameObject("Doors").transform;
-        HanokDoor.Build(root, new Vector3(0f, 0f, HallDepth * 0.5f - 0.25f),
-                        Quaternion.Euler(0f, 180f, 0f), 3.8f, 4.4f,
-                        c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c)),
-                        plaque: true, buildingName: "중앙홀", department: "돌아가기");
+        var door = HanokDoor.Build(root, new Vector3(0f, 0f, HallDepth * 0.5f - 0.25f),
+                                   Quaternion.Euler(0f, 180f, 0f), 3.8f, 4.4f,
+                                   c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c)),
+                                   plaque: true, buildingName: "중앙홀", department: "돌아가기");
+
+        // 2026-09-17 유저: 전시실에서 로비로 돌아갈 길이 없었다(F1 은 개발용이라 빌드에서 꺼진다).
+        // 전시실은 <b>걸어다니는 씬이 아니라</b> 궤도 카메라라 "다가가서 E" 가 안 된다 —
+        // 그래서 거리를 넉넉히 주고 카메라를 기준으로 본다.
+        var back = door.AddComponent<SceneDoor>();
+        back.sceneIndex = 0;          // 로비
+        back.label = "중앙홀로";
+        back.range = 40f;             // 방이 30×26 이라 어디서든 닿는다
     }
 
     /// <summary>

@@ -192,6 +192,9 @@ public static class TestSceneBuilder
         var standings = rig.AddComponent<RaceStandings>();
         standings.playerRacer = kart.GetComponent<RaceProgress>();
 
+        // 길에 널린 철거 자재는 그 판에만. 물건은 씬에 두고 켜고 끄기만 한다.
+        rig.AddComponent<DebrisGate>();
+
         // AI 는 마지막 판에만. 카트는 씬에 두고 켜고 끄기만 한다.
         var gate = rig.AddComponent<AiRaceGate>();
         var aiRoot = GameObject.Find("AiKarts");

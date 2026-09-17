@@ -20,12 +20,25 @@ public class AiRaceGate : MonoBehaviour
     [Tooltip("켜면 몇 판째든 AI 가 나온다 — 달리는 걸 확인할 때만")]
     public bool alwaysOn;
 
+    /// <summary>
+    /// AI 가 나와야 하나. <b>`KartAi` 도 이걸 본다</b> — 게이트가 씬에 없거나 순서가 밀려도
+    /// 카트가 스스로 꺼질 수 있게. 새 컴포넌트에만 기대면 옛날에 구운 씬에서 안 먹는다
+    /// (이 프로젝트에서 세 번 겪었다).
+    /// </summary>
+    public static bool ShouldRace => DebugAlways || MissionManager.FinalRace;
+
+    /// <summary>`alwaysOn` 이 켜진 게이트가 하나라도 있으면 true. 정적으로 들고 있는다.</summary>
+    public static bool DebugAlways { get; private set; }
+
+    void Awake() => DebugAlways = alwaysOn;
+
     void Start() => Apply();
 
     /// <summary>레이스를 다시 시작할 때도 맞춰준다 — 그 사이에 마지막 판이 됐을 수 있다.</summary>
     public void Apply()
     {
-        bool race = alwaysOn || MissionManager.FinalRace;
+        DebugAlways = alwaysOn;
+        bool race = ShouldRace;
 
         if (aiKarts != null)
         {

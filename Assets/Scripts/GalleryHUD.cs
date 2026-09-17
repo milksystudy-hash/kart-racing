@@ -27,7 +27,17 @@ public class GalleryHUD : MonoBehaviour
 
     void Update()
     {
-        if (!debugKeys || Keyboard.current == null || selector == null) return;
+        var keys = Keyboard.current;
+        if (keys == null) return;
+
+        // 로비로 돌아가기. 전시실은 궤도 카메라라 걸어가서 여는 문이 아니다 — 어디서든 E.
+        if (keys.eKey.wasPressedThisFrame && SceneDoor.Nearest != null)
+        {
+            SceneDoor.Nearest.Enter();
+            return;
+        }
+
+        if (!debugKeys || selector == null) return;
 
         if (Keyboard.current.f9Key.wasPressedThisFrame)
         {
@@ -84,6 +94,7 @@ public class GalleryHUD : MonoBehaviour
         DrawProgress();
         DrawHoverName(w, h);
         DrawOpenedPanel(w, h);
+        DrawBackPrompt(w, h);
 
         // 화면 아래 조작 안내줄은 뺐다(2026-09-17 유저). 마우스로 끌어보면 바로 아는 조작이라
         // 줄글로 설명할 게 아니었고, 전시실은 "가만히 보는 방" 이라 글자가 적을수록 낫다.
@@ -109,6 +120,16 @@ public class GalleryHUD : MonoBehaviour
         GUI.Label(new Rect(x + 150, y + 12, w - 166, 28), $"{got} / {total}", countStyle);
 
         GUI.Label(new Rect(x + 16, y + 46, w - 32, 18), "모은 전시품", labelStyle);
+    }
+
+    /// <summary>화면 아래 한 줄. 나가는 길이 없으면 방이 아니라 상자다.</summary>
+    void DrawBackPrompt(float w, float h)
+    {
+        if (SceneDoor.Nearest == null) return;
+
+        var box = new Rect(w * 0.5f - 90f, h - 56f, 180f, 30f);
+        GUI.DrawTexture(box, panelTex);
+        GUI.Label(box, "E   중앙홀로", promptStyle);
     }
 
     void DrawHoverName(float w, float h)

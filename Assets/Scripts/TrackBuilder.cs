@@ -164,6 +164,7 @@ public class TrackBuilder : MonoBehaviour
         if (raceFurniture) BuildBoostPads();
         BuildAdBoards(built);
         BuildAdSigns(built);
+        BuildDebris(built);
         BuildFinishArch(built);
         if (raceFurniture) BuildCheckpoints();
     }
@@ -373,6 +374,17 @@ public class TrackBuilder : MonoBehaviour
             Ribbon(parent, $"StripeInner_{i:000}", bandInner, bandInner, i, to, top, low, color, flip: true, collider: false);
         }
     }
+    /// <summary>광고판 임무를 이미 깼나. 그 판의 상품이 들어와 있으면 깬 것이다.</summary>
+    public static bool AdSignsCleared
+    {
+        get
+        {
+            const int adMission = 6;   // MissionManager.Goal.광고판 의 목록 순번
+            return ExhibitCatalogue.Count > adMission
+                && CollectionState.Has(ExhibitCatalogue.All[adMission].id);
+        }
+    }
+
     void BuildRailPosts(Transform parent, Vector3[] outer, Vector3[] inner, int[] zones, int total)
     {
         const int every = 5;   // 조각 다섯 개마다 하나 — 대략 4m 간격
@@ -603,20 +615,82 @@ public class TrackBuilder : MonoBehaviour
     static readonly (float t, float lane)[] AdSigns =
     {
         // 발판 자리(0.11 · 0.26 · 0.45 · 0.63 · 0.88)와 겹치지 않게 사이사이에 둔다
-        (0.04f, -0.80f),   // 결승 직선 — 첫 판에 뭘 하는 건지 바로 보인다
-        (0.17f,  0.82f),
-        (0.33f, -0.82f),
-        (0.39f,  0.80f),
-        (0.52f, -0.80f),   // 정문앞 — 한옥 정문 옆이라 제일 안 어울린다
-        (0.58f,  0.82f),
-        (0.70f, -0.82f),
-        (0.81f,  0.80f),
+        (0.04f, -0.72f),   // 결승 직선 — 첫 판에 뭘 하는 건지 바로 보인다
+        (0.17f,  0.74f),
+        (0.33f, -0.74f),
+        (0.39f,  0.72f),
+        (0.52f, -0.72f),   // 정문앞 — 한옥 정문 옆이라 제일 안 어울린다
+        (0.58f,  0.74f),
+        (0.70f, -0.74f),
+        (0.81f,  0.72f),
     };
+
+    /// <summary>
+    /// 길에 널린 철거 자재. <b>장애물 임무에서만</b> 쓰고 평소엔 꺼져 있다
+    /// (<see cref="DebrisGate"/>). 드럼통과 파이프 — 치면 날아간다.
+    ///
+    /// 자리는 <b>코스 한가운데를 비켜</b> 놓는다. 한가운데 놓으면 피할 길이 하나뿐이라
+    /// 외우기 게임이 되고, 가장자리에만 놓으면 그냥 가운데로 달리면 된다.
+    /// 왼쪽·오른쪽·가운데를 섞어서 <b>매번 다른 쪽으로 틀게</b> 만든다.
+    /// </summary>
+    static readonly (float t, float lane)[] Debris =
+    {
+        (0.07f, -0.35f), (0.09f,  0.40f),
+        (0.20f,  0.30f), (0.23f, -0.45f),
+        (0.31f,  0.00f),
+        (0.42f, -0.40f), (0.44f,  0.35f),
+        (0.55f,  0.25f),
+        (0.66f, -0.30f), (0.68f,  0.40f),
+        (0.79f,  0.00f),
+        (0.86f, -0.35f), (0.91f,  0.30f),
+    };
+
+    void BuildDebris(Transform parent)
+    {
+        var root = new GameObject("RoadDebris").transform;
+        root.SetParent(parent, false);
+
+        for (int i = 0; i < Debris.Length; i++)
+        {
+            var (t, lane) = Debris[i];
+
+            Vector3 forward = TangentOnPath(t);
+            Vector3 side = Vector3.Cross(Vector3.up, forward);
+            Vector3 at = transform.position + PointOnPath(t) + side * (lane * WidthOnPath(t) * 0.5f);
+
+            bool drum = i % 3 != 2;
+            var go = new GameObject(drum ? $"Drum_{i}" : $"Pipe_{i}");
+            go.transform.SetParent(root, false);
+            go.transform.SetPositionAndRotation(at + Vector3.up * (drum ? 0.45f : 0.2f),
+                                                Quaternion.LookRotation(forward, Vector3.up)
+                                                * Quaternion.Euler(0f, i * 37f, drum ? 0f : 90f));
+
+            var box = go.AddComponent<BoxCollider>();
+            box.size = drum ? new Vector3(0.8f, 0.9f, 0.8f) : new Vector3(0.4f, 0.4f, 2.4f);
+
+            go.AddComponent<RoadDebris>();
+
+            // 그림은 자식으로. 콜라이더는 위에 하나만 둔다.
+            var art = GameObject.CreatePrimitive(drum ? PrimitiveType.Cylinder : PrimitiveType.Cube);
+            art.name = "Art";
+            art.transform.SetParent(go.transform, false);
+            art.transform.localScale = drum ? new Vector3(0.8f, 0.45f, 0.8f)
+                                            : new Vector3(0.4f, 0.4f, 2.4f);
+            art.GetComponent<Renderer>().sharedMaterial =
+                FlatMaterial.Get(drum ? ColKerb : ColPostCap);
+            Discard(art.GetComponent<Collider>());
+        }
+    }
 
     void BuildAdSigns(Transform parent)
     {
         var root = new GameObject("AdSigns").transform;
         root.SetParent(parent, false);
+
+        // <b>임무를 깨서 이미 부순 뒤라면 안 세운다.</b> 유저: "임무에서 다 없애면
+        // 그 뒤로는 안 나와야지, 이미 부숴서 없다는 설정이야."
+        // 상품(수집품)이 곧 기록이라 따로 저장할 게 없다 — 목록 7번째가 광고판 임무의 상품.
+        if (AdSignsCleared) return;
 
         for (int i = 0; i < AdSigns.Length; i++)
         {
@@ -634,8 +708,8 @@ public class TrackBuilder : MonoBehaviour
             // 뚫고 지나가는 느낌이어야 하니 트리거. 충돌체면 벽 부딪힘으로 세지고 카트가 튕긴다.
             var box = sign.AddComponent<BoxCollider>();
             box.isTrigger = true;
-            box.size = new Vector3(1.5f, 2.4f, 1.2f);
-            box.center = new Vector3(0f, 1.2f, 0f);
+            box.size = new Vector3(2.4f, 3.2f, 1.2f);
+            box.center = new Vector3(0f, 1.6f, 0f);
 
             var ad = sign.AddComponent<AdBoard>();
             ad.pieceColor = ColAdGold;
@@ -645,20 +719,22 @@ public class TrackBuilder : MonoBehaviour
             art.SetParent(sign.transform, false);
             ad.visual = art;
 
-            // 다리는 판 속으로 6cm 밀어 넣는다. 딱 맞대면 두 면이 같은 높이가 되어 번쩍거린다.
-            Block(art, "Leg_L", at + facing * new Vector3(-0.45f, 0.38f, 0f), facing,
-                  new Vector3(0.12f, 0.76f, 0.12f), ColAdFrame, noCollider: true);
-            Block(art, "Leg_R", at + facing * new Vector3(0.45f, 0.38f, 0f), facing,
-                  new Vector3(0.12f, 0.76f, 0.12f), ColAdFrame, noCollider: true);
+            // 2026-09-17 유저: "나중에 포스터 PNG 를 붙일 건데 너무 작아서 안 보인다."
+            // 판을 1.3 → <b>2.2</b> 로. 포스터를 붙일 자리는 넉넉해야 그림이 산다.
+            // 대신 갓길에서 벽까지 여유가 0.64m 뿐이라 자리를 안쪽(0.72)으로 당겼다.
+            Block(art, "Leg_L", at + facing * new Vector3(-0.8f, 0.45f, 0f), facing,
+                  new Vector3(0.14f, 0.9f, 0.14f), ColAdFrame, noCollider: true);
+            Block(art, "Leg_R", at + facing * new Vector3(0.8f, 0.45f, 0f), facing,
+                  new Vector3(0.14f, 0.9f, 0.14f), ColAdFrame, noCollider: true);
 
-            Block(art, "Panel", at + facing * new Vector3(0f, 1.35f, 0f), facing,
-                  new Vector3(1.3f, 1.3f, 0.09f), ColAdGold, noCollider: true);
+            Block(art, "Panel", at + facing * new Vector3(0f, 2f, 0f), facing,
+                  new Vector3(2.2f, 2.2f, 0.09f), ColAdGold, noCollider: true);
             // 띠와 마크는 <b>코스 쪽(+z)</b>으로 나와야 보인다. 간판의 +z 가 코스 가운데를 향한다.
             // 폭도 판(1.3)보다 좁게 — 딱 맞추면 좌우 모서리가 같은 평면이 되어 번쩍거린다.
-            Block(art, "Stripe", at + facing * new Vector3(0f, 0.95f, 0.07f), facing,
-                  new Vector3(1.22f, 0.26f, 0.06f), ColAdMagenta, noCollider: true);
-            Block(art, "Mark", at + facing * new Vector3(0f, 1.45f, 0.07f), facing,
-                  new Vector3(0.55f, 0.55f, 0.06f), ColAdMagenta, noCollider: true);
+            Block(art, "Stripe", at + facing * new Vector3(0f, 1.15f, 0.07f), facing,
+                  new Vector3(2.1f, 0.3f, 0.06f), ColAdMagenta, noCollider: true);
+            Block(art, "Mark", at + facing * new Vector3(0f, 2.25f, 0.07f), facing,
+                  new Vector3(0.85f, 0.85f, 0.06f), ColAdMagenta, noCollider: true);
         }
     }
 

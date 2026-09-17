@@ -27,7 +27,10 @@ public class BearNpc : MonoBehaviour
     public float breathSpeed = 1.5f;
 
     [Header("고개 갸웃")]
-    public float tiltDegrees = 15f;
+    // 2026-09-17 유저: "곰들의 볼이 찌그러지게 움직여서 신경이 쓰인다."
+    // 머리 본 하나에 볼까지 물려 있어서 많이 돌리면 얼굴이 눌린다. 자동 웨이트의 한계라
+    // 스키닝을 다시 칠하지 않는 한 <b>덜 돌리는 것</b>이 답이다 — 15도는 인형에 과했다.
+    public float tiltDegrees = 7f;
     [Tooltip("갸웃하는 간격(초) 최소·최대")]
     public Vector2 tiltEvery = new Vector2(5f, 11f);
     public float tiltHold = 1.6f;
@@ -45,7 +48,7 @@ public class BearNpc : MonoBehaviour
     [Tooltip("이 거리 안에 들어오면 쳐다보고, 처음 들어온 순간 손을 흔든다")]
     public float noticeRange = 5f;
     [Tooltip("고개를 좌우로 최대 몇 도까지 돌릴지")]
-    public float maxTurn = 55f;
+    public float maxTurn = 34f;
     public float turnSpeed = 4f;
 
     Quaternion bodyRest, headRest, armLeftRest, armRightRest;

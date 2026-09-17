@@ -47,10 +47,10 @@ public class KartAi : MonoBehaviour
 
     void Awake()
     {
-        // <b>씬을 다시 굽지 않아도 꺼진다.</b> AiRaceGate 는 새로 붙는 컴포넌트라
-        // 옛날에 구운 씬에는 없다 — 그래서 고쳐 놓고도 2/8 에서 AI 가 따라왔다
-        // (2026-09-17 유저 제보, 두 번째). 카트가 스스로도 확인한다.
-        if (!MissionManager.FinalRace && FindFirstObjectByType<AiRaceGate>() == null)
+        // <b>조건 없이 스스로 확인한다.</b> 전에는 "게이트가 없을 때만" 봤는데,
+        // 게이트가 있어도 Start 순서가 밀리면 한 프레임 달린다. 유저가 같은 문제를
+        // 세 번 신고했으니 <b>가장 안 틀리는 쪽</b>으로 둔다(2026-09-17).
+        if (!AiRaceGate.ShouldRace)
         {
             gameObject.SetActive(false);
             return;

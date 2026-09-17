@@ -27,7 +27,7 @@ public static class RaceVoice
         MissionManager.Goal.발판전부 => "순찰 등 전부 켜기",
         MissionManager.Goal.무충돌   => "담장 긁지 않기",
         MissionManager.Goal.제한시간 => $"{Mathf.RoundToInt(m.timeLimit)}초 안에 실사 끝내기",
-        MissionManager.Goal.무정차   => "멈추지 않고 완주",
+        MissionManager.Goal.장애물   => "자재 피해서 완주",
         MissionManager.Goal.무발판   => "발판 밟지 않고 조용히",
         MissionManager.Goal.광고판   => "골든베어 광고 철거",
         MissionManager.Goal.완벽    => "담장 안 긁고 시간 안에 실사 끝내기",
@@ -44,7 +44,7 @@ public static class RaceVoice
         MissionManager.Goal.발판전부 => "밤에 불 꺼진 캠퍼스는 폐가로 찍힌다",
         MissionManager.Goal.무충돌   => "담장 흠집도 철거 사유로 적힌다",
         MissionManager.Goal.제한시간 => "실사단이 오래 머물수록 트집이 늘어난다",
-        MissionManager.Goal.무정차   => "실사단 앞에서 멈칫하면 고장 난 줄 안다",
+        MissionManager.Goal.장애물   => "철거 자재를 벌써 길에 부려 놨다",
         MissionManager.Goal.무발판   => "전기 쓴 기록이 남으면 예산 낭비로 잡힌다",
         MissionManager.Goal.광고판   => "리조트 광고가 먼저 와서 서 있다",
         MissionManager.Goal.완벽    => "마지막 실사다",
@@ -65,6 +65,8 @@ public static class RaceVoice
     public static string NotEnoughDrift(int got, int need) => $"태엽 {got}/{need}번";
 
     public static string Stopped() => "도중에 멈춤";
+
+    public static string HitDebris(int hits) => $"자재 {hits}번 침";
 
     public static string MissedSigns(int got, int total) => $"광고판 {got}/{total} 부숨";
 
