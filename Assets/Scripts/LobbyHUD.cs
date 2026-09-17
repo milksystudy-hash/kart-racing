@@ -32,9 +32,7 @@ public class LobbyHUD : MonoBehaviour
 
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
 
-        // 둘러보기 ↔ 걷기. 마우스가 두 가지 일(시점 돌리기 / 받침대 클릭)을 하게 두면
-        // 어느 쪽인지 알 수가 없어서 <b>모드를 가른다</b>.
-        if (k.tabKey.wasPressedThisFrame && walk != null) walk.Toggle();
+        // TAB 은 WalkMode 가 직접 듣는다 — 이야기가 도는 동안 이 스크립트가 꺼져도 먹게.
 
         // 동물의 숲처럼 <b>버튼을 눌러야</b> 말한다. 가까이 갔다고 저절로 떠들면
         // 지나갈 때마다 말이 튀어나와서 금방 시끄러워진다(2026-09-16 유저).
@@ -42,6 +40,7 @@ public class LobbyHUD : MonoBehaviour
         {
             // 문이 먼저다. 문 앞에 곰이 서 있을 때 말만 걸리고 못 들어가면 답답하다.
             if (SceneDoor.Nearest != null) SceneDoor.Nearest.Enter();
+            else if (HingedDoor.Nearest != null) HingedDoor.Nearest.Toggle();
             else if (BearNpc.Nearest != null) BearNpc.Nearest.Talk();
         }
     }

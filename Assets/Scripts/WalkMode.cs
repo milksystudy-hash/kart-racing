@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// 로비에서 <b>둘러보기(궤도 카메라) ↔ 걷기</b> 를 오간다. TAB.
@@ -34,7 +35,22 @@ public class WalkMode : MonoBehaviour
 
     void Start() => Apply(false);
 
-    public void Toggle() => Apply(!Walking);
+    /// <summary>
+    /// <b>키를 여기서 직접 듣는다.</b> 전에는 LobbyHUD 가 들었는데, 이야기 장면이 도는 동안
+    /// LobbyHUD 가 꺼져서 TAB 이 안 먹었다(2026-09-17 유저: "로비에서 못 돌아다닌다").
+    /// 모드를 바꾸는 키가 <b>화면 표시에 딸려 있으면</b> 이런 일이 생긴다.
+    /// </summary>
+    void Update()
+    {
+        var k = Keyboard.current;
+        if (k != null && k.tabKey.wasPressedThisFrame) Toggle();
+    }
+
+    public void Toggle()
+    {
+        Apply(!Walking);
+        Toast.Show(Walking ? "걷는다   TAB 돌아가기" : "둘러본다   TAB 걸어다니기");
+    }
 
     void Apply(bool walking)
     {

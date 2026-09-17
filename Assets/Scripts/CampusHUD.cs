@@ -22,6 +22,7 @@ public class CampusHUD : MonoBehaviour
         {
             // 문이 먼저다. 문 앞에 곰이 서 있을 때 말을 걸다가 못 들어가면 답답하다.
             if (SceneDoor.Nearest != null) SceneDoor.Nearest.Enter();
+            else if (HingedDoor.Nearest != null) HingedDoor.Nearest.Toggle();
             else if (BearNpc.Nearest != null) BearNpc.Nearest.Talk();
         }
     }
@@ -49,6 +50,9 @@ public class CampusHUD : MonoBehaviour
         if (SceneDoor.Nearest != null)
             what = string.IsNullOrEmpty(SceneDoor.Nearest.label)
                  ? "들어가기" : $"{SceneDoor.Nearest.label} 들어가기";
+        else if (HingedDoor.Nearest != null)
+            what = string.IsNullOrEmpty(HingedDoor.Nearest.label)
+                 ? "문 열기" : $"{HingedDoor.Nearest.label} 문 열기";
         else if (BearNpc.Nearest != null)
             what = "말 걸기";
 

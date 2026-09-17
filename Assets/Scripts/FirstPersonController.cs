@@ -32,6 +32,12 @@ public class FirstPersonController : MonoBehaviour
     public float fallResetY = -15f;
 
     [Header("자유 비행 — F 키")]
+    // 2026-09-17 유저: "담장을 못 넘어서 캠퍼스를 자세히 못 보겠다. 임시 사각형이니까
+    // 물체 다 통과하게 해줘." <b>개발용 유령</b>이다 — 플레이어한테는 안 간다.
+    // 담장·벽은 그대로 두고(그게 맞는 설정이니까) 점검할 때만 통과한다.
+    [Tooltip("켜면 벽을 통과한다. 개발용 — G 로 켜고 끈다")]
+    public bool ghost;
+
     public bool flyMode;
     public float flySpeed = 12f;
     [Tooltip("비행 중 Shift 를 누르면 몇 배 빨라지는지")]
@@ -86,6 +92,9 @@ public class FirstPersonController : MonoBehaviour
         if (Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame)
             ToggleFly();
 
+        if (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame)
+            ToggleGhost();
+
         CursorLock.HandleEscapeAndClick();
 
         if (CursorLock.IsLocked) HandleLook();
@@ -118,6 +127,20 @@ public class FirstPersonController : MonoBehaviour
 
         bool sprint = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
         Vector3 wish = Vector3.ClampMagnitude(transform.right * x + transform.forward * z, 1f);
+
+        // <b>유령</b>은 CharacterController 를 아예 끄고 좌표를 직접 옮긴다.
+        // Move() 를 쓰면 컨트롤러가 살아 있어서 벽에 걸린다 — 통과하려면 이 방법뿐이야.
+        if (ghost)
+        {
+            float rise = 0f;
+            if (keyboard.spaceKey.isPressed) rise += 1f;
+            if (keyboard.leftCtrlKey.isPressed || keyboard.cKey.isPressed) rise -= 1f;
+
+            float ghostSpeed = flySpeed * (sprint ? flySprintMultiplier : 1f);
+            transform.position += (wish * ghostSpeed + Vector3.up * (rise * ghostSpeed)) * Time.deltaTime;
+            verticalVelocity = 0f;
+            return;
+        }
 
         if (flyMode)
         {
@@ -159,12 +182,21 @@ public class FirstPersonController : MonoBehaviour
         verticalVelocity = 0f;
     }
 
+    /// <summary>벽 통과. 개발용이라 플레이어 빌드에서는 쓸 일이 없다.</summary>
+    public void ToggleGhost()
+    {
+        ghost = !ghost;
+        controller.enabled = !ghost;
+        verticalVelocity = 0f;
+        if (ghost) flyMode = false;
+    }
+
     /// <summary>카트에서 내릴 때처럼, 특정 위치로 순간이동시킬 때.</summary>
     public void Teleport(Vector3 position, float yaw)
     {
         controller.enabled = false;
         transform.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
-        controller.enabled = true;
+        controller.enabled = !ghost;   // 유령 중이면 꺼진 채로 둔다
         verticalVelocity = 0f;
     }
 }
