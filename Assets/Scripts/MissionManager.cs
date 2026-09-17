@@ -85,6 +85,13 @@ public class MissionManager : MonoBehaviour
         !string.IsNullOrEmpty(NextReward()) && CurrentGoal == Goal.장애물;
 
     /// <summary>
+    /// 지금 판이 광고판 판인가. 유저: *"그 이후 임무에도 골든베어가 붙어 있더라."*
+    /// 자재와 같은 규칙이야 — <b>그 판에만</b> 세운다. 판마다 널려 있으면 그 판만의 성격이 없어진다.
+    /// </summary>
+    public static bool WantsAdSigns =>
+        !string.IsNullOrEmpty(NextReward()) && CurrentGoal == Goal.광고판;
+
+    /// <summary>
     /// <b>여덟 판을 전부 깬 뒤인가.</b> AI 카트는 여기서만 나온다.
     ///
     /// 2026-09-17 유저(세 번째): *"임무 1번부터 8번까지는 선택한 캐릭터 혼자 달리게 하고,
@@ -159,6 +166,9 @@ public class MissionManager : MonoBehaviour
             if (goal == Goal.발판전부) BoostPad.ClearTaken();
             // 첫 바퀴에 다 치워버리면 두세 바퀴가 그냥 완주가 된다
             if (goal == Goal.장애물) RoadDebris.RestoreAll();
+            // 간판도 바퀴마다 다시 선다. <b>부순 누적 개수는 안 지운다</b> — 그래서
+            // 3바퀴에 8×3 = 24개를 부숴야 하고, 첫 바퀴에 몰아 부수는 게 의미가 없어진다.
+            if (goal == Goal.광고판) AdBoard.RestoreAll();
         }
 
         if (Failed || Cleared) return;
@@ -186,7 +196,7 @@ public class MissionManager : MonoBehaviour
             Goal.제한시간 => tracker.TotalTime <= timeLimit,
             Goal.장애물   => RoadDebris.Hits <= allowedDebris,
             Goal.무발판   => BoostPad.TakenCount() == 0,
-            Goal.광고판   => signsTotal > 0 && AdBoard.BrokenCount() >= signsTotal,
+            Goal.광고판   => SignQuota > 0 && AdBoard.Breaks >= SignQuota,
             Goal.완벽    => kart.WallHits <= allowedHits && tracker.TotalTime <= perfectTimeLimit,
             _             => true,
         };
@@ -196,7 +206,7 @@ public class MissionManager : MonoBehaviour
         {
             Goal.발판전부 => RaceVoice.MissedPads(BoostPad.TakenCount(), padsTotal),
             Goal.장애물   => RaceVoice.HitDebris(RoadDebris.Hits),
-            Goal.광고판   => RaceVoice.MissedSigns(AdBoard.BrokenCount(), signsTotal),
+            Goal.광고판   => RaceVoice.MissedSigns(AdBoard.Breaks, SignQuota),
             _             => RaceVoice.Generic(),
         });
     }
@@ -264,6 +274,13 @@ public class MissionManager : MonoBehaviour
 
         var debris = FindFirstObjectByType<DebrisGate>();
         if (debris != null) debris.Apply();
+
+        var ads = FindFirstObjectByType<AdSignGate>();
+        if (ads != null) ads.Apply();
+
+        // 게이트가 간판을 켜고 끈 다음에 세야 맞다. 꺼져 있으면 0 이고, 그러면
+        // 광고판 임무가 아니라는 뜻이라 어차피 안 쓴다.
+        signsTotal = AdBoard.CountInScene();
     }
 
     // ---- 화면에 띄울 글 ----
@@ -277,7 +294,7 @@ public class MissionManager : MonoBehaviour
         Goal.제한시간 => Remaining(timeLimit),
         Goal.장애물   => $"기회 {Mathf.Max(0, allowedDebris - RoadDebris.Hits)}",
         Goal.무발판   => BoostPad.TakenCount() == 0 ? "아직 깨끗" : "밟았다",
-        Goal.광고판   => $"{AdBoard.BrokenCount()} / {signsTotal}",
+        Goal.광고판   => $"{AdBoard.Breaks} / {SignQuota}",
         // 두 조건을 다 보여줘야 하는데 칸이 좁다. "남은 기회 2" 대신 "2회" 로 줄인다.
         Goal.완벽    => $"{Mathf.Max(0, allowedHits - WallHits)}회 · {Remaining(perfectTimeLimit)}",
         _             => tracker != null ? $"{Mathf.Min(tracker.CurrentLap, tracker.totalLaps)} / {tracker.totalLaps}" : "",
@@ -291,4 +308,7 @@ public class MissionManager : MonoBehaviour
         tracker != null ? LapTracker.FormatTime(Mathf.Max(0f, limit - tracker.TotalTime)) : "";
 
     int WallHits => kart != null ? kart.WallHits : 0;
+
+    /// <summary>광고판 임무에서 부숴야 하는 총 개수 = 간판 수 × 바퀴 수.</summary>
+    int SignQuota => signsTotal * Mathf.Max(1, tracker != null ? tracker.totalLaps : 1);
 }

@@ -37,7 +37,8 @@ public class RoadDebris : MonoBehaviour
     static RoadDebris[] All()
     {
         if (all == null || all.Length == 0 || all[0] == null)
-            all = FindObjectsByType<RoadDebris>(FindObjectsSortMode.None);
+            // 꺼진 것도 담는다. 안 그러면 꺼놓은 판 다음에 목록이 비어서 되살릴 수가 없다.
+            all = FindObjectsByType<RoadDebris>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         return all;
     }
 

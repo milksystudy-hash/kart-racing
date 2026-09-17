@@ -28,6 +28,8 @@ public class GalleryCase : MonoBehaviour
     public Renderer itemRenderer;
 
     [Header("연출")]
+    [Tooltip("아직 못 모은 진열장을 덮고 있는 흰 천. 모으면 걷힌다")]
+    public GameObject dustCover;
     public Renderer plaqueRenderer;
     public Color plaqueIdle     = new Color32(0xB4, 0xCD, 0xBC, 0xFF);
     public Color plaqueHover    = new Color32(0xF0, 0xB5, 0x4A, 0xFF);
@@ -68,6 +70,9 @@ public class GalleryCase : MonoBehaviour
 
     void Update()
     {
+        // 로비의 F9/F10 로 수집을 지웠다 채웠다 할 수 있으니 상태가 바뀌면 따라간다.
+        if (dustCover != null && dustCover.activeSelf == IsCollected) ApplyLook();
+
         // 모은 전시품만 천천히 돈다
         if (itemAnchor != null && IsCollected)
             itemAnchor.Rotate(0f, spinSpeed * Time.deltaTime, 0f, Space.Self);
@@ -86,6 +91,11 @@ public class GalleryCase : MonoBehaviour
     void ApplyLook()
     {
         bool collected = IsCollected;
+
+        // 아직 못 모은 진열장은 <b>천을 덮어 둔다.</b> 비어 있는 것과 덮여 있는 것은
+        // 읽히는 게 다르다 — 빈 진열장은 "아직 안 만들었나" 지만, 덮인 진열장은
+        // "여긴 아직 못 열었다" 가 된다. 여덟 장이 한 장씩 걷히는 게 이 방의 진행도야.
+        if (dustCover != null) dustCover.SetActive(!collected);
 
         if (plaqueRenderer != null)
         {

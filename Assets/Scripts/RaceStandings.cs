@@ -34,7 +34,7 @@ public class RaceStandings : MonoBehaviour
     /// </summary>
     public void Recount()
     {
-        var found = FindObjectsByType<RaceProgress>(FindObjectsSortMode.None);
+        var found = FindObjectsByType<RaceProgress>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         var live = new List<RaceProgress>();
         foreach (var racer in found)
             if (racer != null && racer.gameObject.activeInHierarchy) live.Add(racer);
@@ -70,11 +70,31 @@ public class RaceStandings : MonoBehaviour
     /// <summary>등수를 "1위 / 2위" 처럼 읽기 좋게.</summary>
     public static string PlaceLabel(int place) => place <= 0 ? "—" : $"{place}위";
 
+    /// <summary>
+    /// 다시 시작. <b>랩만 0 으로 돌리면 안 되고 카트를 출발선에 갖다 놔야 한다.</b>
+    ///
+    /// 2026-09-17 유저: *"AI 3대와 시합해서 이기고 다시 ENTER 를 누르면, 다들 결승선
+    /// 근처 마지막 위치에서 다시 시작해서 무조건 내가 이긴다."* 맞다 — 랩 수만 0 이 되고
+    /// 몸은 그 자리에 있었으니 출발부터 한 바퀴를 앞서 준 꼴이야.
+    ///
+    /// <c>Respawn()</c> 은 카트가 Awake 때 적어둔 제 출발 자리로 돌아간다. AI 는 출발선에
+    /// 뒤로 물려 세워뒀으니 그 간격도 그대로 살아난다.
+    /// </summary>
     public void ResetRace()
     {
         PlayerFinishedFirst = false;
         PlayerPlace = 0;
+
+        // 꺼져 있던 AI 가 방금 켜졌을 수도 있다. 목록을 새로 만든 다음에 되돌린다.
+        Recount();
+
         foreach (var racer in racers)
-            if (racer != null) racer.ResetRace();
+        {
+            if (racer == null) continue;
+            racer.ResetRace();
+
+            var kart = racer.GetComponent<KartController>();
+            if (kart != null) kart.Respawn();
+        }
     }
 }

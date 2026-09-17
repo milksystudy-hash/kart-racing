@@ -27,6 +27,16 @@ public class AdBoard : MonoBehaviour
 
     public bool Broken { get; private set; }
 
+    /// <summary>
+    /// <b>이 판에서 부순 누적 개수.</b> 바퀴마다 간판이 되살아나므로 지금 부서져 있는
+    /// 개수(<see cref="BrokenCount"/>)와 다르다.
+    ///
+    /// 2026-09-17 유저: *"한 바퀴 돌 때 8개를 미리 다 부수는 사람이 있다. 바퀴마다
+    /// 되살아나되 부순 횟수는 임무가 끝날 때까지 안 지워지게, 3바퀴에 8×3=24개가 되도록."*
+    /// 맞는 지적이야 — 안 그러면 첫 바퀴에 다 부수고 남은 두 바퀴는 그냥 완주가 된다.
+    /// </summary>
+    public static int Breaks { get; private set; }
+
     static AdBoard[] all;
 
     // 임무가 개수를 직접 세지 않게 한다 — 표를 고쳐서 간판을 늘려도 임무는 안 고친다.
@@ -39,7 +49,15 @@ public class AdBoard : MonoBehaviour
         return n;
     }
 
+    /// <summary>판을 처음부터 다시 할 때. 누적 개수까지 지운다.</summary>
     public static void ResetAll()
+    {
+        Breaks = 0;
+        foreach (var a in All()) if (a != null) a.Restore();
+    }
+
+    /// <summary>바퀴가 넘어갈 때. <b>누적 개수는 그대로 두고</b> 간판만 다시 세운다.</summary>
+    public static void RestoreAll()
     {
         foreach (var a in All()) if (a != null) a.Restore();
     }
@@ -49,12 +67,23 @@ public class AdBoard : MonoBehaviour
     static AdBoard[] All()
     {
         if (all == null || all.Length == 0 || all[0] == null)
-            all = FindObjectsByType<AdBoard>(FindObjectsSortMode.None);
+            // 꺼진 것도 담는다 — 게이트가 꺼놓은 뒤에 되살리려면 목록에 있어야 한다.
+            all = FindObjectsByType<AdBoard>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         return all;
     }
 
     void Reset() => Bind();
-    void Awake() => Bind();
+
+    void Awake()
+    {
+        Bind();
+
+        // 게이트가 없는 씬(옛날에 구운 것)에서도 스스로 꺼진다. <b>물건이 스스로 판단할 수
+        // 있어야</b> "씬을 다시 구워야만 고쳐지는" 수정이 안 된다 — 이 프로젝트에서 다섯 번째야
+        // (카트 중복 · 벽 부딪힘 · AI · 장애물 · 광고판).
+        if (!AdSignGate.ShouldStand && FindFirstObjectByType<AdSignGate>() == null)
+            gameObject.SetActive(false);
+    }
 
     void Bind()
     {
@@ -76,6 +105,7 @@ public class AdBoard : MonoBehaviour
     void Break(Vector3 away)
     {
         Broken = true;
+        Breaks++;
         if (visual != null) visual.gameObject.SetActive(false);
 
         var box = GetComponent<Collider>();

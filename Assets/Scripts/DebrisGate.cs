@@ -30,7 +30,11 @@ public class DebrisGate : MonoBehaviour
         }
         else
         {
-            foreach (var piece in FindObjectsByType<RoadDebris>(FindObjectsSortMode.None))
+            // <b>꺼진 오브젝트까지 찾아야 한다.</b> FindObjectsByType 의 기본값은 꺼진 것을
+            // 건너뛴다 — 그래서 한 번 꺼두면 <b>같은 씬에서 영영 다시 못 켠다.</b>
+            // 유저가 4번 판에서 자재를 못 본 이유가 이거야(2026-09-17): 3번 판에서 껐는데
+            // 4번 판이 되어 켜려고 보니 목록이 비어 있었다. 씬을 나갔다 오면 고쳐지던 것도 같은 이유.
+            foreach (var piece in FindObjectsByType<RoadDebris>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 piece.gameObject.SetActive(wanted);
         }
     }

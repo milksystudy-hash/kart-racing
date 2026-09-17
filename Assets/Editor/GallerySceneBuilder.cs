@@ -41,6 +41,14 @@ public static class GallerySceneBuilder
     static readonly Color ColBearFur   = new Color32(0xA5, 0x75, 0x4A, 0xFF);
     static readonly Color ColRibbon    = new Color32(0xC4, 0x45, 0x3E, 0xFF);
     static readonly Color ColNumber    = new Color32(0x4A, 0x33, 0x26, 0xFF);
+    static readonly Color ColDustCloth = new Color32(0xDE, 0xD7, 0xC6, 0xFF);
+    static readonly Color ColDustFold  = new Color32(0xC3, 0xBA, 0xA6, 0xFF);
+    static readonly Color ColNotice    = new Color32(0xC2, 0x3B, 0x2E, 0xFF);
+    static readonly Color ColNoticeInk = new Color32(0xF3, 0xEC, 0xDE, 0xFF);
+    static readonly Color ColTapeWarn  = new Color32(0xD8, 0xB0, 0x2A, 0xFF);
+    static readonly Color ColCarpet    = new Color32(0x9B, 0x2F, 0x2A, 0xFF);
+    static readonly Color ColBannerBg  = new Color32(0xF1, 0xE8, 0xD3, 0xFF);
+    static readonly Color ColLeaf      = new Color32(0x5B, 0x7A, 0x4E, 0xFF);
 
     // 전시품 목록은 ExhibitCatalogue 하나로 모았다.
     // 트랙에 놓는 수집품도 같은 목록을 읽어서, 주운 물건과 진열장이 어긋날 수가 없다.
@@ -70,6 +78,11 @@ public static class GallerySceneBuilder
 
         var hud = rig.AddComponent<GalleryHUD>();
         hud.selector = selector;
+
+        // 다 모으기 전 / 다 모은 뒤 — 방 자체가 달라진다
+        var mood = rig.AddComponent<GalleryMood>();
+        mood.beforeThings = MakeClosedNotice();
+        mood.afterThings = MakeReopenedDressing();
 
         MakeReflectionProbe();
         MuseumLook.RefineMaterials();   // 손으로 다듬을 필요 없이 구워 나올 때부터 마감이 붙어 있게
@@ -238,15 +251,19 @@ public static class GallerySceneBuilder
             _ => new[] { true,  true,  true,  true,  true,  true,  true  },   // 8
         };
 
+        // ★ x 부호가 <b>음수가 오른쪽</b>이다. 진열장은 방 가운데를 보게 180도 돌아 있어서,
+        // 물체의 로컬 +X 가 보는 사람 <b>왼쪽</b>에 온다. 그대로 그리면 숫자가 통째로
+        // 거울상이 된다 — 유저가 "4가 뒤집혔다" 고 한 게 이거야(2026-09-17).
+        // 현판 글씨를 180도 돌려 단 것과 같은 병이고, 여기는 도형이라 각도가 아니라 부호로 푼다.
         Vector3[] offsets =
         {
-            new Vector3( 0f,     0.065f, 0f),   // a
-            new Vector3( 0.043f, 0.033f, 0f),   // b
-            new Vector3( 0.043f,-0.033f, 0f),   // c
-            new Vector3( 0f,    -0.065f, 0f),   // d
-            new Vector3(-0.043f,-0.033f, 0f),   // e
-            new Vector3(-0.043f, 0.033f, 0f),   // f
-            new Vector3( 0f,     0f,     0f),   // g
+            new Vector3( 0f,     0.065f, 0f),   // a 위
+            new Vector3(-0.043f, 0.033f, 0f),   // b 오른위
+            new Vector3(-0.043f,-0.033f, 0f),   // c 오른아래
+            new Vector3( 0f,    -0.065f, 0f),   // d 아래
+            new Vector3( 0.043f,-0.033f, 0f),   // e 왼아래
+            new Vector3( 0.043f, 0.033f, 0f),   // f 왼위
+            new Vector3( 0f,     0f,     0f),   // g 가운데
         };
         Vector3 horizontal = new Vector3(0.085f, 0.022f, 0.012f);
         Vector3 vertical   = new Vector3(0.022f, 0.070f, 0.012f);
@@ -609,7 +626,11 @@ public static class GallerySceneBuilder
         for (int i = 0; i < ExhibitCatalogue.Count; i++)
         {
             var item = ExhibitCatalogue.All[i];
-            float angle = ((float)i / ExhibitCatalogue.Count) * Mathf.PI * 2f + Mathf.PI * 0.5f;
+            // <b>시계방향</b>으로 1번부터(2026-09-17 유저). 각도를 더하면 반시계라
+            // 문으로 들어와서 오른쪽을 보면 8번이 먼저 나온다 — 번호를 따라가려면
+            // 왼쪽으로 돌아야 해서 읽는 순서와 걷는 순서가 어긋났다.
+            // 1번은 문 맞은편(북쪽), 거기서 오른쪽으로 돌면 2·3·4… 가 차례로 나온다.
+            float angle = Mathf.PI * 0.5f - ((float)i / ExhibitCatalogue.Count) * Mathf.PI * 2f;
             Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * CaseRadius;
 
             var go = new GameObject($"Case_{i + 1}_{item.id}");
@@ -678,6 +699,17 @@ public static class GallerySceneBuilder
             display.plaqueRenderer = plaque.GetComponent<Renderer>();
             display.caseLight = caseLight;
 
+            // 아직 못 모은 진열장을 덮는 흰 천. 유리보다 한 뼘 크게 씌워야 "덮었다" 로 보인다.
+            var cover = new GameObject("DustCover").transform;
+            cover.SetParent(go.transform, false);
+            TestSceneBuilder.Cube(cover, "Cloth", new Vector3(0f, 1.7f, 0f),
+                                  new Vector3(1.28f, 1.34f, 1.28f), ColDustCloth, keepCollider: false);
+            TestSceneBuilder.Cube(cover, "Fold", new Vector3(0f, 1.02f, 0f),
+                                  new Vector3(1.36f, 0.09f, 1.36f), ColDustFold, keepCollider: false);
+            TestSceneBuilder.Cube(cover, "Hem", new Vector3(0f, 2.39f, 0f),
+                                  new Vector3(1.2f, 0.06f, 1.2f), ColDustFold, keepCollider: false);
+            display.dustCover = cover.gameObject;
+
             result[i] = display;
         }
         return result;
@@ -709,6 +741,79 @@ public static class GallerySceneBuilder
                                              new Vector3(0.4f, 0.36f, 0.3f), Color.grey,
                                              keepCollider: false);
         }
+    }
+
+    // ==================================================================
+    //  다 모으기 전 / 다 모은 뒤
+    // ==================================================================
+    /// <summary>
+    /// <b>폐관 중.</b> 문 옆에 붉은 철거 통지서, 문 앞에 노란 출입 금지 띠, 구석에 싸둔 상자.
+    ///
+    /// 불이 꺼져 있는 <b>이유</b>가 방 안에 있어야 한다. 어둡기만 하면 조명 설정으로 보이고,
+    /// 통지서가 붙어 있으면 "이 방은 닫혔다" 가 된다. 글씨는 안 쓴다 —
+    /// 붉은 종이에 흰 줄 두 개면 통지서로 읽히고, 달리 읽힐 것도 없다.
+    /// </summary>
+    static GameObject[] MakeClosedNotice()
+    {
+        var root = new GameObject("ClosedNotice").transform;
+        float wall = HallDepth * 0.5f - 0.3f;
+
+        // 문 왼쪽 벽에 붙은 통지서 — 눈높이
+        TestSceneBuilder.Cube(root, "Notice", new Vector3(-3.4f, 1.75f, wall),
+                              new Vector3(0.9f, 1.25f, 0.04f), ColNotice, keepCollider: false);
+        for (int i = 0; i < 4; i++)
+            TestSceneBuilder.Cube(root, $"NoticeLine_{i}", new Vector3(-3.4f, 2.05f - i * 0.22f, wall - 0.03f),
+                                  new Vector3(0.62f, 0.07f, 0.02f), ColNoticeInk, keepCollider: false);
+
+        // 문 앞을 가로지르는 출입 금지 띠 두 줄
+        for (int i = 0; i < 2; i++)
+            TestSceneBuilder.Cube(root, $"Tape_{i}", new Vector3(0f, 1.15f + i * 0.5f, wall - 0.9f),
+                                  new Vector3(5.2f, 0.11f, 0.03f), ColTapeWarn, keepCollider: false);
+
+        // 구석에 싸둔 이삿짐 상자 — 방이 비워지는 중이라는 신호
+        var boxAt = new[] { new Vector3(-10.6f, 0f, -9.4f), new Vector3(10.4f, 0f, -9.8f) };
+        for (int b = 0; b < boxAt.Length; b++)
+            for (int s = 0; s < 3; s++)
+                TestSceneBuilder.Cube(root, $"Crate_{b}_{s}",
+                                      boxAt[b] + new Vector3(s * 0.12f, 0.33f + s * 0.66f, s * 0.1f),
+                                      new Vector3(1.05f - s * 0.12f, 0.64f, 0.9f - s * 0.1f),
+                                      ColWoodDark, keepCollider: false, finish: Finish.나무);
+
+        return new[] { root.gameObject };
+    }
+
+    /// <summary>
+    /// <b>재개관.</b> 문 위 현수막, 문에서 방 가운데로 깔린 붉은 카펫, 화분 둘.
+    /// 여덟 개를 다 모은 대가가 불빛 하나로만 끝나면 허전하다 — 방이 <b>손님을 받는 방</b>이 된다.
+    /// </summary>
+    static GameObject[] MakeReopenedDressing()
+    {
+        var root = new GameObject("Reopened").transform;
+        float wall = HallDepth * 0.5f - 0.3f;
+
+        // 문 위 현수막 — 붉은 리본 두 줄이 걸린 크림색 천
+        TestSceneBuilder.Cube(root, "Banner", new Vector3(0f, 5.1f, wall - 0.08f),
+                              new Vector3(7.4f, 1.15f, 0.05f), ColBannerBg, keepCollider: false);
+        TestSceneBuilder.Cube(root, "BannerTop", new Vector3(0f, 5.72f, wall - 0.12f),
+                              new Vector3(7.6f, 0.12f, 0.05f), ColCarpet, keepCollider: false);
+        TestSceneBuilder.Cube(root, "BannerBottom", new Vector3(0f, 4.48f, wall - 0.12f),
+                              new Vector3(7.6f, 0.12f, 0.05f), ColCarpet, keepCollider: false);
+
+        // 문에서 방 가운데까지 붉은 카펫. 바닥보다 2cm 만 띄운다 — 같은 높이면 번쩍거린다.
+        TestSceneBuilder.Cube(root, "Carpet", new Vector3(0f, 0.02f, wall * 0.5f),
+                              new Vector3(3.1f, 0.03f, wall), ColCarpet, keepCollider: false);
+
+        // 문 양옆 화분
+        for (int s = -1; s <= 1; s += 2)
+        {
+            TestSceneBuilder.Cube(root, $"Pot_{s}", new Vector3(s * 2.6f, 0.34f, wall - 0.7f),
+                                  new Vector3(0.62f, 0.68f, 0.62f), ColWoodDark, keepCollider: false,
+                                  finish: Finish.나무);
+            TestSceneBuilder.Cube(root, $"Bush_{s}", new Vector3(s * 2.6f, 1.06f, wall - 0.7f),
+                                  new Vector3(0.9f, 0.86f, 0.9f), ColLeaf, keepCollider: false);
+        }
+
+        return new[] { root.gameObject };
     }
 
     // ==================================================================

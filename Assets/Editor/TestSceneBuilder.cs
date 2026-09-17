@@ -195,6 +195,12 @@ public static class TestSceneBuilder
         // 길에 널린 철거 자재는 그 판에만. 물건은 씬에 두고 켜고 끄기만 한다.
         rig.AddComponent<DebrisGate>();
 
+        // 골든베어 입간판도 마찬가지. 굽는 시점의 판단만으로는 부족했다 —
+        // 트랙은 한 번 굽고 여덟 판을 같은 씬 안에서 이어서 돈다(2026-09-17 유저).
+        var adGate = rig.AddComponent<AdSignGate>();
+        var adRoot = GameObject.Find("AdSigns");
+        if (adRoot != null) adGate.adSigns = adRoot.transform;
+
         // AI 는 마지막 판에만. 카트는 씬에 두고 켜고 끄기만 한다.
         var gate = rig.AddComponent<AiRaceGate>();
         var aiRoot = GameObject.Find("AiKarts");

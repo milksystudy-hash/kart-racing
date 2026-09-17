@@ -541,10 +541,15 @@ public class KartController : MonoBehaviour
 
     public void RespawnAt(Vector3 position, Quaternion rotation)
     {
-        rb.linearVelocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
-        rb.position = position;
-        rb.rotation = rotation;
+        // 에디터(배치모드)에서는 Awake 가 안 돌아서 rb 가 비어 있다. 검사 스크립트가
+        // 부를 수 있으니 막아둔다 — 실행 중에는 항상 있다.
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.position = position;
+            rb.rotation = rotation;
+        }
         transform.SetPositionAndRotation(position, rotation);
         BoostCharge = 0f;
         boostTimer = 0f;

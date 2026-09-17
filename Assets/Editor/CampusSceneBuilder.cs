@@ -22,8 +22,16 @@ public static class CampusSceneBuilder
     const string SceneFolder = "Assets/Scenes";
     public const string CampusPath = SceneFolder + "/Campus.unity";
 
-    /// <summary>로비에서 들어오는 자리 — 웅지관(본관) 앞 광장. 문 열고 나오면 캠퍼스가 펼쳐진다.</summary>
-    static readonly Vector3 Entrance = new Vector3(0f, 0.2f, -70f);
+    /// <summary>
+    /// 로비에서 들어오는 자리 — <b>한옥 정문 안쪽</b>. 문 열고 나오면 캠퍼스가 남쪽으로 펼쳐진다.
+    ///
+    /// 2026-09-17 유저: *"레이스 한가운데에 로비홀 들어가는 게 있는 게 좀 이상해."* 맞다.
+    /// 전에는 (0, −70) 이었는데 남쪽 직선이 <c>z −78</c> 에 폭 12m 라 <b>도로 위</b>였다
+    /// (z −84 ~ −72). 차가 지나다니는 길 한복판에 현관이 있는 꼴이야.
+    /// 정문(0, 100) 안쪽으로 옮겼다 — 코스 북쪽 끝이 z ≈ 79 라 10m 넘게 떨어져 있고,
+    /// 캠퍼스에 들어오고 나가는 자리가 정문인 게 설명도 필요 없다.
+    /// </summary>
+    static readonly Vector3 Entrance = new Vector3(0f, 0.2f, 84f);
 
     [MenuItem("Racing/캠퍼스 씬 만들기", false, 4)]
     public static void BuildCampus()
@@ -52,10 +60,11 @@ public static class CampusSceneBuilder
         track.buildOnAwake = false;
 
         // ---- 걸어다닐 몸 ----
-        var player = TestSceneBuilder.MakePlayer(Entrance, 0f);
+        // 정문에서 캠퍼스 안쪽(남쪽)을 보고 선다
+        var player = TestSceneBuilder.MakePlayer(Entrance, 180f);
 
-        // ---- 돌아가는 문 : 본관 앞에 세운다 ----
-        MakeReturnDoor(new Vector3(0f, 0f, -74f), 0f);
+        // ---- 돌아가는 문 : 정문 안쪽에 세운다 (코스 밖) ----
+        MakeReturnDoor(new Vector3(0f, 0f, 90f), 180f);
 
         foreach (var door in Object.FindObjectsByType<SceneDoor>(FindObjectsSortMode.None))
             door.visitor = player.controller.transform;
@@ -80,6 +89,9 @@ public static class CampusSceneBuilder
     /// <summary>
     /// 로비로 돌아가는 문. <b>건물에 붙이지 않고 따로 세운다</b> — 본관(웅지관)에 붙이면
     /// "웅지관에 들어간다" 로 읽히는데 실제로는 중앙홀로 가는 거라 헷갈린다.
+    ///
+    /// <b>코스 위에 놓지 마라.</b> 한 번 그렇게 놨다가 레이스 직선 한가운데에 현관이 서 있었다.
+    /// 코스는 <c>TrackBuilder.Path</c> 의 점들이고 폭이 7~12m 다 — 자리를 잡기 전에 그 표를 봐라.
     /// </summary>
     static void MakeReturnDoor(Vector3 at, float yaw)
     {

@@ -26,11 +26,13 @@ public static class RaceVoice
     {
         MissionManager.Goal.발판전부 => "순찰 등 전부 켜기",
         MissionManager.Goal.무충돌   => "담장 긁지 않기",
-        MissionManager.Goal.제한시간 => $"{Mathf.RoundToInt(m.timeLimit)}초 안에 실사 끝내기",
+        // 2026-09-17 유저: "실사 끝내기 말고 완주하기로." 화면에서 바로 뭘 해야 하는지가
+        // 읽혀야 하는데 "실사"는 이야기 쪽 낱말이라 한 번 더 생각하게 만든다.
+        MissionManager.Goal.제한시간 => $"{Mathf.RoundToInt(m.timeLimit)}초 안에 완주하기",
         MissionManager.Goal.장애물   => "자재 피해서 완주",
         MissionManager.Goal.무발판   => "발판 밟지 않고 조용히",
-        MissionManager.Goal.광고판   => "골든베어 광고 철거",
-        MissionManager.Goal.완벽    => "담장 안 긁고 시간 안에 실사 끝내기",
+        MissionManager.Goal.광고판   => "골든베어 간판 매 바퀴 전부 철거",
+        MissionManager.Goal.완벽    => "담장 안 긁고 시간 안에 완주하기",
         _                           => "캠퍼스 세 바퀴 돌기",
     };
 
