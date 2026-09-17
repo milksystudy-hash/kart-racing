@@ -38,6 +38,9 @@ public class FirstPersonController : MonoBehaviour
     [Tooltip("켜면 벽을 통과한다. 개발용 — G 로 켜고 끈다")]
     public bool ghost;
 
+    /// <summary>화면에 상태를 띄우려고 열어둔다.</summary>
+    public bool IsGhost => ghost;
+
     public bool flyMode;
     public float flySpeed = 12f;
     [Tooltip("비행 중 Shift 를 누르면 몇 배 빨라지는지")]
@@ -180,15 +183,28 @@ public class FirstPersonController : MonoBehaviour
     {
         flyMode = !flyMode;
         verticalVelocity = 0f;
+        Toast.Show(flyMode ? "날기 켬 (SPACE 위 · C 아래)" : "날기 끔");
     }
 
-    /// <summary>벽 통과. 개발용이라 플레이어 빌드에서는 쓸 일이 없다.</summary>
+    /// <summary>
+    /// 벽 통과. 개발용이라 플레이어 빌드에서는 쓸 일이 없다.
+    ///
+    /// <b>켠 걸 화면에 알린다.</b> 안 알리면 눌렀는데 안 눌린 건지, 눌렸는데 안 통과하는 건지
+    /// 구분이 안 된다 — 실제로 유저가 "벽을 못 넘겠다" 고 했을 때 키는 이미 있었고
+    /// 화면 어디에도 안 적혀 있던 게 문제였다(2026-09-17).
+    /// </summary>
     public void ToggleGhost()
     {
         ghost = !ghost;
-        controller.enabled = !ghost;
+
+        // Awake 전에 불릴 수 있다(에디터 검사, 다른 스크립트의 Awake). 없으면 그때 찾는다.
+        if (controller == null) controller = GetComponent<CharacterController>();
+        if (controller != null) controller.enabled = !ghost;
+
         verticalVelocity = 0f;
         if (ghost) flyMode = false;
+
+        Toast.Show(ghost ? "유령 켬 — 벽 통과 (SPACE 위 · C 아래)" : "유령 끔");
     }
 
     /// <summary>카트에서 내릴 때처럼, 특정 위치로 순간이동시킬 때.</summary>

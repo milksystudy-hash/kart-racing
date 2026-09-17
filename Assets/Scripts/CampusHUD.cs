@@ -76,8 +76,25 @@ public class CampusHUD : MonoBehaviour
         GUI.Label(box, Toast.Message, Hud.Resize(Hud.Title, 17));
     }
 
+    public FirstPersonController player;
+
+    /// <summary>
+    /// 왼쪽 아래. 조작법 칩 위에 <b>개발용 키를 늘 띄운다</b> —
+    /// 키가 있어도 화면에 없으면 없는 것과 같다.
+    /// </summary>
     void DrawCorner(float h)
     {
+        if (player == null) player = FindFirstObjectByType<FirstPersonController>();
+
+        var dev = new Rect(16f, h - 54f, 214f, 22f);
+        Hud.Chip(dev);
+
+        string state = player != null && player.IsGhost ? "유령 ON" : "G 벽 통과";
+        var tiny = Hud.Resize(Hud.Text, 12);
+        if (player != null && player.IsGhost) tiny.normal.textColor = Hud.Brass;
+        GUI.Label(new Rect(dev.x + 9f, dev.y + 4f, dev.width - 16f, 16f),
+                  $"{state}  ·  F 날기  ·  F1 로비", tiny);
+
         if (showControls) return;
         var chip = new Rect(16f, h - 28f, 88f, 22f);
         Hud.Chip(chip);
@@ -86,7 +103,7 @@ public class CampusHUD : MonoBehaviour
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 190f, h * 0.5f - 104f, 380f, 208f);
+        var box = new Rect(w * 0.5f - 190f, h * 0.5f - 130f, 380f, 260f);
         Hud.Panel(box);
 
         GUI.Label(new Rect(box.x, box.y + 16f, box.width, 26f), "조작법", Hud.Title);
@@ -98,6 +115,8 @@ public class CampusHUD : MonoBehaviour
             { "마우스", "둘러보기" },
             { "SPACE", "뛰어넘기" },
             { "E", "문으로 들어가기 · 곰에게 말 걸기" },
+            { "G", "벽 통과 (개발용)" },
+            { "F", "날기 (개발용)" },
             { "H", "이 창 닫기" },
         };
 
