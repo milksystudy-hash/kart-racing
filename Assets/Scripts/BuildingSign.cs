@@ -64,7 +64,7 @@ public class BuildingSign : MonoBehaviour
         const float subLine  = 0.21f;    // 아래 작은 줄
 
         Label(parent, "PlaqueText", buildingName, font,
-              transform.localPosition + new Vector3(0f, 0.28f, 0.1f),
+              transform.localPosition + new Vector3(0f, 0.28f, 0.24f),
               new Color32(0xF6, 0xEC, 0xD6, 0xFF), nameLine, TextAnchor.MiddleCenter);
 
         // 학과와 한 줄은 <b>현판 밖, 그 아래</b>로 내린다. 판 안에 같이 넣으면 자리가 안 나온다.
@@ -77,7 +77,7 @@ public class BuildingSign : MonoBehaviour
         // 금색은 어두운 판 위에서도 탁하다. <b>밝은 크림</b>으로 올린다 — 색으로 구분하는 건
         // 크기와 자리가 이미 하고 있어서, 여기서까지 색을 쓰면 읽기만 나빠진다.
         Label(parent, "PlaqueSub", under, font,
-              transform.localPosition + new Vector3(0f, -0.06f, 0.1f),
+              transform.localPosition + new Vector3(0f, -0.06f, 0.24f),
               new Color32(0xE6, 0xD6, 0xAE, 0xFF), subLine, TextAnchor.UpperCenter);
     }
 

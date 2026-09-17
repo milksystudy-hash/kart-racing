@@ -247,9 +247,12 @@ public class CampusBuilder : MonoBehaviour
         // 정면 문과 창 — +Z 쪽이 앞이다
         float front = depth * 0.5f + 0.1f;
         // 갈색 판자 한 장은 문으로 안 읽힌다(2026-09-17 유저). 문틀이 있어야 뚫려 보인다.
+        // 현판은 <b>처마 바로 밑</b>(건물 높이 −1.1)에 건다. 문 위가 아니라 — 한옥이 그렇고,
+        // 달리면서 보면 높이 걸린 쪽이 훨씬 잘 보인다. 처마는 height+0.35 에 있다.
         HanokDoor.Build(t, new Vector3(0f, 0f, front), Quaternion.identity,
                         doorWidth, doorHeight, FlatMaterial.Get,
-                        plaque: true, buildingName: name, department: department, motto: motto);
+                        plaque: true, buildingName: name, department: department, motto: motto,
+                        plaqueHeight: height - 1.1f);
         for (int i = -1; i <= 1; i += 2)
             Block(t, $"Window_{i}", new Vector3(i * width * 0.28f, 2.6f, front), Quaternion.identity,
                   new Vector3(2.6f, 2.2f, 0.25f), ColWindow, noCollider: true);

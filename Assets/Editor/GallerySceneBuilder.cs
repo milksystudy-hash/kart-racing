@@ -55,6 +55,7 @@ public static class GallerySceneBuilder
         MakeHall();
         MakeDoor();
         MakeLanterns();
+        MakeDressing();
 
         var cases = MakeCases();
         var orbit = MakeOrbitCamera();
@@ -279,6 +280,141 @@ public static class GallerySceneBuilder
                         Quaternion.Euler(0f, 180f, 0f), 3.8f, 4.4f,
                         c => TestSceneBuilder.MaterialAsset(c, FlatMaterial.FinishFor(c)),
                         plaque: true, buildingName: "중앙홀", department: "돌아가기");
+    }
+
+    /// <summary>
+    /// 박물관처럼 보이게 하는 물건들. 유저: *"사각형 구조물이 많고 단색이라 레고 냄새가 난다."*
+    ///
+    /// 레고처럼 보이는 이유는 상자가 많아서가 아니라 <b>크기가 다 비슷해서</b>다.
+    /// 30cm 보다 작은 게 하나도 없으면 눈이 크기를 잴 기준을 못 찾고, 그러면 방 전체가
+    /// 장난감으로 보인다. 그래서 여기 넣는 건 대부분 <b>작은 것</b>이야 —
+    /// 라벨, 콘센트, 환기구, 소화기. 실제 박물관에는 다 있고, 없으면 그게 더 이상하다.
+    ///
+    /// 큰 것 셋(로프·벤치·액자)은 <b>사람 크기</b>를 알려준다. 벤치 옆에 서 보면
+    /// 방이 얼마나 큰지 바로 안다 — 그게 상자 백 개보다 낫다.
+    /// </summary>
+    static void MakeDressing()
+    {
+        var root = new GameObject("Dressing").transform;
+        float halfW = HallWidth * 0.5f, halfD = HallDepth * 0.5f;
+
+        // ---- 벨벳 로프 : 전시 케이스 앞을 두른다. 이것 하나로 "전시실" 이 된다 ----
+        const int posts = 12;
+        const float ropeR = 6.1f;
+        for (int i = 0; i < posts; i++)
+        {
+            float a = i / (float)posts * Mathf.PI * 2f;
+            var at = new Vector3(Mathf.Cos(a) * ropeR, 0f, Mathf.Sin(a) * ropeR);
+
+            TestSceneBuilder.Cube(root, $"PostBase_{i}", at + Vector3.up * 0.03f,
+                                  new Vector3(0.34f, 0.06f, 0.34f), ColFixture,
+                                  keepCollider: false, finish: Finish.금속).isStatic = true;
+            TestSceneBuilder.Cube(root, $"Post_{i}", at + Vector3.up * 0.48f,
+                                  new Vector3(0.07f, 0.9f, 0.07f), ColLantern,
+                                  keepCollider: false, finish: Finish.금속).isStatic = true;
+
+            // 기둥 사이를 잇는 줄. 가운데가 처지게 두 토막으로 꺾는다 — 곧은 막대는 로프로 안 보인다.
+            float b = (i + 1) / (float)posts * Mathf.PI * 2f;
+            var next = new Vector3(Mathf.Cos(b) * ropeR, 0f, Mathf.Sin(b) * ropeR);
+            var mid = (at + next) * 0.5f;
+            float span = Vector3.Distance(at, next) * 0.52f;
+            var face = Quaternion.LookRotation(next - at, Vector3.up);
+
+            for (int h = 0; h < 2; h++)
+            {
+                Vector3 from = h == 0 ? at : mid;
+                Vector3 to = h == 0 ? mid : next;
+                var seg = TestSceneBuilder.Cube(root, $"Rope_{i}_{h}", (from + to) * 0.5f + Vector3.up * (h == 0 ? 0.78f : 0.78f),
+                                                new Vector3(0.05f, 0.05f, span), ColRibbon, keepCollider: false);
+                seg.transform.rotation = Quaternion.LookRotation(to - from, Vector3.up)
+                                       * Quaternion.Euler(h == 0 ? 7f : -7f, 0f, 0f);
+                seg.isStatic = true;
+            }
+        }
+
+        // ---- 관람 벤치 : 사람 크기를 알려주는 제일 싼 물건 ----
+        for (int i = -1; i <= 1; i += 2)
+        {
+            var at = new Vector3(i * 3.1f, 0f, 0f);
+            TestSceneBuilder.Cube(root, $"BenchTop_{i}", at + Vector3.up * 0.43f,
+                                  new Vector3(0.62f, 0.09f, 2.6f), ColWoodDark,
+                                  keepCollider: false, finish: Finish.나무).isStatic = true;
+            for (int e = -1; e <= 1; e += 2)
+                TestSceneBuilder.Cube(root, $"BenchLeg_{i}_{e}", at + new Vector3(0f, 0.2f, e * 1.05f),
+                                      new Vector3(0.5f, 0.4f, 0.12f), ColFixture,
+                                      keepCollider: false, finish: Finish.금속).isStatic = true;
+        }
+
+        // ---- 벽 액자 : 빈 벽이 제일 큰 문제다 ----
+        var frames = new (float x, float z, float yaw)[]
+        {
+            (-halfW + 0.35f,  6f, 90f), (-halfW + 0.35f, -6f, 90f),
+            ( halfW - 0.35f,  6f, 270f), ( halfW - 0.35f, -6f, 270f),
+            (-7f, -halfD + 0.35f, 0f), ( 7f, -halfD + 0.35f, 0f),
+        };
+        for (int i = 0; i < frames.Length; i++)
+        {
+            var (x, z, yaw) = frames[i];
+            var rot = Quaternion.Euler(0f, yaw, 0f);
+            var at = new Vector3(x, 2.55f, z);
+            bool tall = i % 2 == 0;
+            float fw = tall ? 1.1f : 1.6f, fh = tall ? 1.5f : 1.05f;
+
+            Place(root, $"Frame_{i}", at, rot, new Vector3(fw + 0.16f, fh + 0.16f, 0.09f),
+                  ColWoodDark, Finish.나무);
+            Place(root, $"Mat_{i}", at + rot * new Vector3(0f, 0f, -0.05f),
+                  rot, new Vector3(fw, fh, 0.03f), ColCaseGlass, Finish.무광);
+            Place(root, $"Art_{i}", at + rot * new Vector3(0f, 0f, -0.07f),
+                  rot, new Vector3(fw - 0.24f, fh - 0.24f, 0.02f),
+                  i % 3 == 0 ? ColRibbon : (i % 3 == 1 ? ColRoofTeal : ColBearFur), Finish.무광);
+
+            // 액자 조명 — 그림 위에 얹은 작은 갓
+            Place(root, $"ArtLamp_{i}", at + rot * new Vector3(0f, fh * 0.5f + 0.24f, -0.16f),
+                  rot * Quaternion.Euler(28f, 0f, 0f), new Vector3(fw * 0.5f, 0.07f, 0.2f),
+                  ColFixture, Finish.금속);
+        }
+
+        // ---- 안내 배너 : 문 옆에 세운 입간판 ----
+        var bannerAt = new Vector3(-3.4f, 0f, halfD - 2.2f);
+        Place(root, "BannerPost", bannerAt + Vector3.up * 1.1f, Quaternion.identity,
+              new Vector3(0.08f, 2.2f, 0.08f), ColFixture, Finish.금속);
+        Place(root, "BannerFoot", bannerAt + Vector3.up * 0.03f, Quaternion.identity,
+              new Vector3(0.5f, 0.06f, 0.5f), ColFixture, Finish.금속);
+        Place(root, "Banner", bannerAt + new Vector3(0f, 1.55f, -0.05f), Quaternion.identity,
+              new Vector3(0.9f, 1.3f, 0.04f), ColCaseGlass, Finish.무광);
+
+        // ---- 작은 것들 : 레고 냄새를 빼는 건 사실 이쪽이다 ----
+        // 크기 기준이 30cm 짜리 하나뿐이면 방이 장난감으로 보인다. 10cm 짜리가 있어야 한다.
+        Place(root, "Extinguisher", new Vector3(halfW - 0.5f, 0.32f, halfD - 1.4f),
+              Quaternion.identity, new Vector3(0.16f, 0.5f, 0.16f), ColRibbon, Finish.광택);
+        Place(root, "ExtinguisherSign", new Vector3(halfW - 0.36f, 1.35f, halfD - 1.4f),
+              Quaternion.Euler(0f, 270f, 0f), new Vector3(0.22f, 0.3f, 0.02f), ColRibbon, Finish.무광);
+
+        for (int i = -1; i <= 1; i += 2)
+        {
+            Place(root, $"Socket_{i}", new Vector3(i * (halfW - 0.32f), 0.32f, 2.5f),
+                  Quaternion.Euler(0f, i > 0 ? 270f : 90f, 0f),
+                  new Vector3(0.14f, 0.1f, 0.02f), ColCaseGlass, Finish.무광);
+
+            Place(root, $"Vent_{i}", new Vector3(i * (halfW - 0.3f), WallHeight - 0.9f, -4f),
+                  Quaternion.Euler(0f, i > 0 ? 270f : 90f, 0f),
+                  new Vector3(0.7f, 0.4f, 0.04f), ColFixture, Finish.금속);
+        }
+
+        // 바닥 관람 동선 표시 — 얇은 띠 두 줄. 눈이 어디로 걸어야 하는지 알려준다.
+        for (int i = -1; i <= 1; i += 2)
+            Place(root, $"Guide_{i}", new Vector3(i * 2.3f, 0.016f, 0f), Quaternion.identity,
+                  new Vector3(0.06f, 0.01f, HallDepth - 6f), ColFloorTrim, Finish.무광);
+    }
+
+    /// <summary>회전이 필요한 조각 하나. Cube 는 회전을 안 받아서 한 번 더 감싼다.</summary>
+    static GameObject Place(Transform parent, string name, Vector3 at, Quaternion rot,
+                            Vector3 size, Color color, Finish finish)
+    {
+        var go = TestSceneBuilder.Cube(parent, name, at, size, color, keepCollider: false, finish: finish);
+        go.transform.rotation = rot;
+        go.isStatic = true;
+        return go;
     }
 
     static void MakeHall()

@@ -29,7 +29,8 @@ public static class HanokDoor
     public static GameObject Build(Transform parent, Vector3 at, Quaternion facing,
                                    float width, float height, Func<Color, Material> material,
                                    bool plaque = true, string buildingName = "",
-                                   string department = "", string motto = "")
+                                   string department = "", string motto = "",
+                                   float plaqueHeight = 0f)
     {
         var root = new GameObject("Door");
         root.transform.SetParent(parent, false);
@@ -86,12 +87,23 @@ public static class HanokDoor
             // 판을 <b>학과 줄까지 덮을 만큼</b> 키운다. 작은 글씨가 나무 기둥 위에 얹히면
             // 배경이 밝아서 안 읽힌다(2026-09-17 유저: "노란 글씨도 잘 안 보여").
             // 어두운 판 위에 올려야 밝은 글씨가 산다.
-            var board = Piece(root, "Plaque", new Vector3(0f, height + 0.9f, 0.06f),
+            // <b>한옥 현판은 처마 밑에 건다.</b> 문 바로 위에 붙이면 높은 건물에서는
+            // 벽 한가운데에 뜬 채로 보인다(2026-09-17 유저: "위치가 이상해").
+            // plaqueHeight 를 주면 그 높이에, 안 주면 문 바로 위에.
+            float plaqueY = plaqueHeight > 0f ? plaqueHeight : height + 0.9f;
+
+            var board = Piece(root, "Plaque", new Vector3(0f, plaqueY, 0.06f),
                               new Vector3(width * 1.15f, 1.16f, 0.16f), Plaque, material);
 
             // 현판 테두리 — 검은 판만 있으면 벽에 뚫린 구멍처럼 보인다
-            Piece(root, "PlaqueFrame", new Vector3(0f, height + 0.9f, 0.03f),
+            Piece(root, "PlaqueFrame", new Vector3(0f, plaqueY, 0.03f),
                   new Vector3(width * 1.26f, 1.32f, 0.1f), Wood, material);
+
+            // 현판을 매다는 끈 두 줄 — 처마 밑에 걸린 것처럼 보이게. 벽에 박힌 판과 다르다.
+            if (plaqueHeight > 0f)
+                for (int s2 = -1; s2 <= 1; s2 += 2)
+                    Piece(root, $"PlaqueRope_{s2}", new Vector3(s2 * width * 0.38f, plaqueY + 0.9f, 0.05f),
+                          new Vector3(0.07f, 0.65f, 0.07f), Slat, material);
 
             var sign = board.AddComponent<BuildingSign>();
             sign.buildingName = buildingName;
