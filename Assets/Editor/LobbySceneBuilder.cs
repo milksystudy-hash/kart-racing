@@ -125,6 +125,11 @@ public static class LobbySceneBuilder
         foreach (var bear in Object.FindObjectsByType<BearNpc>(FindObjectsSortMode.None))
             bear.lookTarget = player.controller.transform;
 
+        // 문도 같은 몸을 본다. 둘러보기 모드에서는 몸이 꺼져 있어서 문이 안 잡힌다 —
+        // 걸어가서 여는 문이니까 그게 맞아.
+        foreach (var door in Object.FindObjectsByType<SceneDoor>(FindObjectsSortMode.None))
+            door.visitor = player.controller.transform;
+
         var hud = rig.AddComponent<LobbyHUD>();
         hud.selector = selector;
         hud.gate = gate;
@@ -140,7 +145,7 @@ public static class LobbySceneBuilder
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        Debug.Log("[Racing] Lobby.unity(중앙홀) 생성 완료. F1 로비 / F2 트랙 / F3 테스트베드.");
+        Debug.Log("[Racing] Lobby.unity(중앙홀) 생성 완료. F1 로비 · F2 트랙 · F3 전시실 · F4 캠퍼스.");
     }
 
     /// <summary>
@@ -161,15 +166,16 @@ public static class LobbySceneBuilder
 
     /// <summary>
     /// 있는 씬만 골라 순서대로 빌드 설정에 넣는다.
-    /// <b>F1 로비 · F2 트랙 · F3 전시실.</b> 씬은 이 셋뿐이다 (2026-09-15 정리).
+    /// <b>F1 로비 · F2 트랙 · F3 전시실 · F4 캠퍼스.</b> (캠퍼스는 2026-09-17 에 붙었다)
     ///
     /// 이야기 장면은 씬이 아니라 로비 안에서 돈다(StoryStage) — 중앙홀을 두 벌로 만들지 않으려고.
-    /// 새 씬을 만들 일이 생기면 <b>뒤에 붙인다</b>. 중간에 끼우면 외운 F 키가 전부 밀린다.
+    /// 새 씬은 <b>뒤에 붙인다</b>. 중간에 끼우면 외운 F 키가 전부 밀린다.
+    /// 캠퍼스가 F4 로 들어간 건 테스트베드가 지워지면서 그 번호가 비어 있었기 때문이야.
     /// </summary>
     public static void RegisterScenes()
     {
         var list = new System.Collections.Generic.List<EditorBuildSettingsScene>();
-        foreach (var path in new[] { LobbyPath, TrackPath, GalleryPath })
+        foreach (var path in new[] { LobbyPath, TrackPath, GalleryPath, CampusSceneBuilder.CampusPath })
             if (File.Exists(path)) list.Add(new EditorBuildSettingsScene(path, true));
 
         EditorBuildSettings.scenes = list.ToArray();
@@ -281,11 +287,16 @@ public static class LobbySceneBuilder
         HanokDoor.Build(root, east, Quaternion.Euler(0f, 270f, 0f), 3.6f, 4.4f, mat,
                         plaque: true, buildingName: "전시실", department: "모은 것");
 
-        // 서쪽 — 캠퍼스로. 아직 못 나가지만 문은 서 있다.
+        // 서쪽 — 캠퍼스로. 2026-09-17 에 진짜로 열렸다(F4 캠퍼스 씬).
         var west = new Vector3(-HallWidth * 0.5f + 0.25f, 0f, 8f);
         doorSpots.Add(west);
-        HanokDoor.Build(root, west, Quaternion.Euler(0f, 90f, 0f), 3.6f, 4.4f, mat,
-                        plaque: true, buildingName: "캠퍼스", department: "곰밥마당 · 별관", motto: "준비 중");
+        var westDoor = HanokDoor.Build(root, west, Quaternion.Euler(0f, 90f, 0f), 3.6f, 4.4f, mat,
+                                       plaque: true, buildingName: "캠퍼스", department: "곰밥마당 · 별관");
+
+        var toCampus = westDoor.AddComponent<SceneDoor>();
+        toCampus.sceneIndex = 3;      // F4
+        toCampus.label = "캠퍼스로";
+        toCampus.range = 3.4f;
     }
 
     static void MakeWalls()

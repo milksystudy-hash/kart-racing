@@ -67,6 +67,11 @@ public class TrackBuilder : MonoBehaviour
     [Header("만들기")]
     [Tooltip("끄면 트랙이 아예 안 생긴다. 빈 맵으로 테스트하고 싶을 때")]
     public bool buildOnAwake = true;
+
+    // 캠퍼스 씬은 <b>같은 코스를 길로만</b> 쓴다. 길을 없애면 캠퍼스 한가운데가 빈터가 되고,
+    // 발판과 체크포인트를 남기면 걷다가 밟혀서 "여기서도 레이스를 하나" 로 읽힌다.
+    [Tooltip("끄면 가속 발판과 체크포인트를 안 만든다 — 걸어다니는 씬용")]
+    public bool raceFurniture = true;
     [Tooltip("조절점 하나당 몇 조각으로 쪼갤지. 높을수록 곡선이 부드럽지만 오브젝트가 늘어난다")]
     [Range(4, 24)] public int segmentsPerControl = 10;
 
@@ -156,11 +161,11 @@ public class TrackBuilder : MonoBehaviour
 
         BuildSurface();
         BuildStartLine();
-        BuildBoostPads();
+        if (raceFurniture) BuildBoostPads();
         BuildAdBoards(built);
         BuildAdSigns(built);
         BuildFinishArch(built);
-        BuildCheckpoints();
+        if (raceFurniture) BuildCheckpoints();
     }
 
     // ------------------------------------------------------------------

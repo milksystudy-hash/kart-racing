@@ -49,8 +49,9 @@ public class TestHUD : MonoBehaviour
 
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
 
-        // TAB 으로 내려서 걷기. 건물을 걸어서 점검하려면 이게 있어야 한다.
-        if (k.tabKey.wasPressedThisFrame && modeSwitcher != null && modeSwitcher.HasKart)
+        // TAB 으로 내려서 걷기. <b>개발용이다</b> — 플레이어가 걸어다니는 건 캠퍼스 씬(F4)이고,
+        // 레이스 도중에 내리는 건 이상하다는 유저 판단(2026-09-17). 점검할 때만 쓴다.
+        if (debugKeys && k.tabKey.wasPressedThisFrame && modeSwitcher != null && modeSwitcher.HasKart)
         {
             modeSwitcher.Toggle();
             Toast.Show(modeSwitcher.InKart ? "카트에 탔다" : "내려서 걷는다   TAB 다시 타기");
@@ -334,7 +335,7 @@ public class TestHUD : MonoBehaviour
             { "SPACE", "톡 누르면 폴짝 (호핑)" },
             { "R", "제자리로 되돌리기" },
             { "ENTER", "이 판 다시 하기" },
-            { "TAB", "내려서 걷기 / 다시 타기" },
+            { "TAB", "내려서 걷기 (개발용)" },
             { "V", "이펙트 끄기 / 켜기" },
             { "ESC", "두 번 누르면 로비로" },
             { "H", "이 창 닫기" },
