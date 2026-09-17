@@ -255,9 +255,12 @@ public class CampusBuilder : MonoBehaviour
             ("웅성관",   "방송·언론·홍보·마케팅",     -80f,  90f, 130f, 18f, 12f, 9f, ""),
             ("곰생회관", "학생회",                    42f, 101f, 195f, 17f, 12f, 8f, ""),
             ("참잘했어요관", "시상·전시",             98f,  36f, 262f, 16f, 12f, 8f, ""),
-            ("대충기념관", "기념",                    92f, -52f, 300f, 15f, 11f, 7f, "1998년 준공 (예정)"),
+            ("대충기념관", "기념",                    92f, -52f, 300f, 15f, 11f, 7f, "2026년 준공"),
             ("곰밥마당", "학생식당·카페·조리실습",   -73f, -107f, 10f, 30f, 19f, 9f, "곰국 없음"),
             ("곰짝박수마당", "야외 행사",             49f, -106f,  15f, 15f, 11f, 7f, ""),
+            // 유저: "웅지관 오른쪽에 아무것도 없으면 화장실로 쓰자." 정비 곰이 노상 변기 얘기를
+            // 하는데 정작 화장실이 없었다 — 이제 있다.
+            ("화장실",   "손 씻는 곳",                30f, -100f,   0f,  8f,  7f, 6f, "정비 중"),
         };
 
         foreach (var hall in halls)
@@ -649,10 +652,15 @@ public class CampusBuilder : MonoBehaviour
                       new Vector3(1.5f, 3.4f, 1.5f), ColStoneWall, noCollider: true);
                 Block(t, "ChimneyCap", new Vector3(side * 0.55f, h + 4.2f, -d * 0.2f), Quaternion.identity,
                       new Vector3(2.1f, 0.3f, 2.1f), ColRoof, noCollider: true);
-                for (int i = -2; i <= 2; i++)   // 처마에 널린 천 — 봉제과니까
-                    Block(t, $"Cloth_{i}", new Vector3(i * w * 0.16f, h - 1.1f, front + 1.6f),
+                // 천은 <b>현판 높이를 피해서</b> 양옆으로만. 전에는 h-1.1 이라 현판을 덮었다
+                // (2026-09-17 유저: "빨간 패널에 이름이 가려짐").
+                for (int i = -3; i <= 3; i++)
+                {
+                    if (Mathf.Abs(i) < 2) continue;          // 가운데는 비운다 — 거기가 현판
+                    Block(t, $"Cloth_{i + 3}", new Vector3(i * w * 0.13f, h - 2.6f, front + 1.6f),
                           Quaternion.identity, new Vector3(0.9f, 2.2f, 0.08f),
                           i % 2 == 0 ? ColRibbon : ColMint, noCollider: true);
+                }
                 break;
 
             case "곰머리관":  // 인문·연구 — 쌓아 올린 책 더미
@@ -745,7 +753,9 @@ public class CampusBuilder : MonoBehaviour
                 for (int i = 0; i < 2; i++)
                     Block(t, $"Bench_{i}", new Vector3(side - 2.5f - i * 3.4f, 0.45f, front + 3.4f),
                           Quaternion.identity, new Vector3(2.8f, 0.3f, 2.2f), ColWoodRail, noCollider: true);
-                Block(t, "Awning", new Vector3(0f, h - 0.6f, front + 2.2f), Quaternion.Euler(-16f, 0f, 0f),
+                // 차양은 <b>현판보다 낮게.</b> h-0.6 이면 현판(h-1.1) 바로 앞을 가린다
+                // (2026-09-17 유저: "곰밥마당 글자가 가림판에 막힘").
+                Block(t, "Awning", new Vector3(0f, h - 3.2f, front + 2.2f), Quaternion.Euler(-16f, 0f, 0f),
                       new Vector3(w * 0.8f, 0.12f, 4.4f), ColMint, noCollider: true);
                 break;
 
@@ -1058,7 +1068,9 @@ public class CampusBuilder : MonoBehaviour
         {
             Vector3 flat = spot - door;
             flat.y = 0f;
-            if (flat.sqrMagnitude < 9f * 9f) return true;
+            // 9m 로는 모자랐다 — 소나무 갓이 반경 3m 에 키가 5m 라 조금 멀리서 보면
+            // 처마 밑 현판을 가린다(2026-09-17 유저: "철곰관 글자가 나무에 가려짐").
+            if (flat.sqrMagnitude < 17f * 17f) return true;
         }
         return false;
     }

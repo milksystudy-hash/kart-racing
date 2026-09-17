@@ -47,6 +47,15 @@ public class KartAi : MonoBehaviour
 
     void Awake()
     {
+        // <b>씬을 다시 굽지 않아도 꺼진다.</b> AiRaceGate 는 새로 붙는 컴포넌트라
+        // 옛날에 구운 씬에는 없다 — 그래서 고쳐 놓고도 2/8 에서 AI 가 따라왔다
+        // (2026-09-17 유저 제보, 두 번째). 카트가 스스로도 확인한다.
+        if (!MissionManager.FinalRace && FindFirstObjectByType<AiRaceGate>() == null)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+
         kart = GetComponent<KartController>();
         kart.acceptPlayerInput = false;   // 키보드를 안 읽는다. 이게 없으면 플레이어와 같이 움직인다
 
