@@ -406,10 +406,10 @@ public class MissionManager : MonoBehaviour
     int SignQuota => signsTotal * Mathf.Max(1, tracker != null ? tracker.totalLaps : 1);
 
     /// <summary>발판 목표치. 씬에 있는 수보다 크게 잡히지 않는다.</summary>
-    int PadQuota => padsNeeded <= 0 ? padsTotal : Mathf.Min(padsNeeded, padsTotal);
+    public int PadQuota => padsNeeded <= 0 ? padsTotal : Mathf.Min(padsNeeded, padsTotal);
 
     /// <summary>전시품 목표치. 놓쳐도 되는 여유가 있어야 <b>모으는 재미</b>가 된다.</summary>
-    int CargoQuota
+    public int CargoQuota
     {
         get
         {

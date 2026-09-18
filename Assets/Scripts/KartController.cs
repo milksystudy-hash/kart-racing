@@ -327,6 +327,11 @@ public class KartController : MonoBehaviour
 
     void FixedUpdate()
     {
+        // 멈춰 있는 동안은 물리를 아예 안 돌린다. 리지드바디가 키네마틱이라
+        // 여기서 힘을 줘도 안 먹지만, 드리프트 게이지 같은 <b>타이머까지 돌면</b>
+        // 멈춰 놓고 태엽이 감긴다.
+        if (RacePause.On) return;
+
         float dt = Time.fixedDeltaTime;
         TryHop(dt);
         ApplySuspension(dt);

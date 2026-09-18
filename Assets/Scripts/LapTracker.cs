@@ -59,7 +59,8 @@ public class LapTracker : MonoBehaviour
         if (progress == null) return;
 
         // 카운트 중에는 시계도 안 간다. 안 그러면 제한시간 판이 3초를 손해 본다.
-        if (RaceCountdown.Blocked) return;
+        // ESC 로 멈춘 동안도 마찬가지 — <b>고민하는 시간이 기록에 들어가면 안 된다.</b>
+        if (RaceCountdown.Blocked || RacePause.On) return;
 
         if (!progress.Finished)
         {

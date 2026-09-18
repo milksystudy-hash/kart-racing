@@ -27,13 +27,19 @@ public static class RaceVoice
         // 2026-09-17 유저: "임무 2 와 임무 6 에서 속도 발판을 부르는 이름이 다른데
         // 괜찮은 건가." 안 괜찮다 — 같은 물건을 두 이름으로 부르면 둘이 같은 건지
         // 플레이어가 알 수가 없다. 둘 다 <b>가속 발판</b>으로 통일한다.
-        MissionManager.Goal.발판전부 => $"가속 발판 {Mathf.Max(1, m.padsNeeded)}개 밟기",
+        // ★ <b>`padsNeeded`(설정값)가 아니라 `PadQuota`(실제 목표치)를 읽는다.</b>
+        // 2026-09-18 유저: *"임무가 발판 4개 밟기인데 발판이 5개야."* 씬에 4가 구워져 있는데
+        // 라벨은 그 값을 날것으로 읽고 «이상» 도 안 붙여서, 5개 중 4개라는 게 안 보였다.
+        // 목표치는 한 군데(`PadQuota`)에서만 나와야 화면과 판정이 절대 안 어긋난다.
+        MissionManager.Goal.발판전부 => $"가속 발판 {m.PadQuota}개 이상 밟기",
         MissionManager.Goal.무충돌   => "담장 긁지 않기",
         // 2026-09-17 유저: "실사 끝내기 말고 완주하기로." 화면에서 바로 뭘 해야 하는지가
         // 읽혀야 하는데 "실사"는 이야기 쪽 낱말이라 한 번 더 생각하게 만든다.
         MissionManager.Goal.제한시간 => $"{Mathf.RoundToInt(m.timeLimit)}초 안에 완주하기",
         MissionManager.Goal.장애물   => "자재 피해서 완주",
-        MissionManager.Goal.전시품   => "곰인형 싣고 완주하기",
+        // 유저: *"기준이 6개인데 진행은 0/8 이라고 적혀 있어. 말 좀 맞춰줘."* 맞다 —
+        // 제목과 진행 숫자가 다른 값을 읽고 있었다. 둘 다 `CargoQuota` 하나만 본다.
+        MissionManager.Goal.전시품   => $"곰인형 {m.CargoQuota}개 이상 싣고 완주",
         MissionManager.Goal.광고판   => "골든베어 간판 매 바퀴 전부 철거",
         MissionManager.Goal.완벽    => "담장 안 긁고 시간 안에 완주하기",
         MissionManager.Goal.결승    => "개발업자·시의원보다 먼저 들어오기",

@@ -62,6 +62,29 @@ public static class RaceRecords
     /// <summary>빠른 순서대로. 최대 세 줄.</summary>
     public static IReadOnlyList<Row> Best => Loaded;
 
+    /// <summary>
+    /// <b>캐릭터마다 제일 잘한 기록 한 줄씩.</b> 2026-09-18 유저: *"한세운 기준으로 달렸는데
+    /// 이전에 플레이한 정이감 기록만 쫘르륵 나온다. 넷 다 이름 써주고 기록 비교해 줘."*
+    ///
+    /// 전에는 <b>전체에서 상위 셋</b>만 남겨서, 한 번 잘 달린 캐릭터가 표를 독차지했다 —
+    /// 다른 카트를 골라 아무리 잘 달려도 «잘 달린 기록» 에 자기 이름이 안 뜬다.
+    /// 비교하려면 <b>줄마다 다른 사람</b>이어야 한다.
+    /// </summary>
+    public static List<Row> BestPerCast()
+    {
+        var best = new Dictionary<string, Row>();
+        foreach (var r in Loaded)
+        {
+            string key = r.castId ?? "";
+            if (!best.TryGetValue(key, out var cur) || r.total < cur.total)
+                best[key] = r;
+        }
+
+        var rows = new List<Row>(best.Values);
+        rows.Sort((a, b) => a.total.CompareTo(b.total));
+        return rows;
+    }
+
     /// <summary>이번 기록이 몇 번째로 좋은지. 1~3 이면 표에 올랐고, 0 이면 못 들었다.</summary>
     public static int Submit(float total, float bestLap, int place, int racers, string castId)
     {
@@ -79,8 +102,28 @@ public static class RaceRecords
         Loaded.Add(row);
         Loaded.Sort((a, b) => a.total.CompareTo(b.total));
 
-        int rank = Loaded.IndexOf(row) + 1;
-        if (Loaded.Count > Keep) Loaded.RemoveRange(Keep, Loaded.Count - Keep);
+        // ★ <b>남기는 것도 캐릭터마다 따로.</b> 전체 상위 셋만 남기면 한 번 잘 달린 캐릭터가
+        // 표를 독차지하고, 다른 카트로 아무리 잘 달려도 자기 기록이 그 자리에서 밀려 사라진다.
+        var kept = new Dictionary<string, int>();
+        for (int i = Loaded.Count - 1; i >= 0; i--)
+        {
+            string key = Loaded[i].castId ?? "";
+            kept.TryGetValue(key, out int n);
+            if (n >= Keep) Loaded.RemoveAt(i); else kept[key] = n + 1;
+        }
+
+        // 등수도 <b>같은 캐릭터 안에서</b> 센다 — "내 기록을 내가 깼다" 가 보여야 다시 달린다.
+        int rank = 0, seen = 0;
+        foreach (var r in Loaded)
+        {
+            if ((r.castId ?? "") != row.castId) continue;
+            seen++;
+            if (Mathf.Approximately(r.total, row.total) && Mathf.Approximately(r.bestLap, row.bestLap))
+            {
+                rank = seen;
+                break;
+            }
+        }
 
         Save();
         return rank <= Keep ? rank : 0;

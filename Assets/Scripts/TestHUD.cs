@@ -48,11 +48,11 @@ public class TestHUD : MonoBehaviour
     void Resume()
     {
         confirmQuit = false;
-        Time.timeScale = 1f;
+        RacePause.Set(false);
     }
 
     // 씬을 옮기거나 이 HUD 가 꺼질 때도 반드시 푼다 — 로비로 나갔는데 로비가 얼어 있으면 안 된다.
-    void OnDisable() { if (Time.timeScale == 0f) Time.timeScale = 1f; }
+    void OnDisable() { RacePause.Set(false); RacePause.Clear(); }
 
     bool InKart => modeSwitcher != null && modeSwitcher.InKart;
 
@@ -83,15 +83,18 @@ public class TestHUD : MonoBehaviour
         // 한 번에 나가면 잘 달리던 판을 실수로 날린다. 두 번 눌러야 나가고, 다른 키를 누르면 취소된다.
         //
         // ★ <b>진짜 일시정지다</b>(2026-09-18 유저: *"ESC 누르면 속력이 0으로 줄어드는데
-        // 일시정지 같은 느낌이니까 속력 그대로, 시간도 계속 흐르게 두지 말고"*). 맞는 말이야 —
+        // 일시정지 같은 느낌이니까 속력 그대로, 시간도 계속 흐르게 두지 말고"*).
         // 패널을 띄워 놓고 게임이 계속 돌면 <b>고민하는 동안 판이 망가진다.</b>
-        // `Time.timeScale = 0` 이면 물리도 시계도 멈춰서 <b>속도가 그대로 보존</b>된다
-        // (FixedUpdate 가 안 도니까 감속도 안 걸린다). OnGUI 와 키 입력은 그대로 돈다.
+        //
+        // ★★ <c>Time.timeScale = 0</c> 으로 했다가 <b>카트가 트랙 밑으로 빠졌다</b>(유저 제보).
+        // 이 카트는 레이캐스트 서스펜션이 매 FixedUpdate 마다 밀어 올려서 떠 있는 거라,
+        // 물리를 세우면 <b>받쳐주던 힘도 같이 멈춘다.</b> <see cref="RacePause"/> 를 쓴다 —
+        // 카트를 키네마틱으로 재워서 떨어질 수가 없게 하고, 풀 때 속도를 그대로 돌려준다.
         if (k.escapeKey.wasPressedThisFrame)
         {
             if (confirmQuit) { Resume(); SceneNavigator.LoadByIndex(0); return; }
             confirmQuit = true;
-            Time.timeScale = 0f;
+            RacePause.Set(true);
         }
         else if (confirmQuit && k.rKey.wasPressedThisFrame)
         {
@@ -520,7 +523,8 @@ public class TestHUD : MonoBehaviour
         // 셋을 가로로 놓으면 칸 하나가 (폭−40)/3 밖에 안 된다. 360 일 때 107px 인데
         // "1:51.17" 이 26px 로 그리면 100px 이라 옆 칸과 딱 붙는다(2026-09-17 유저 제보).
         // 패널을 넓히고 숫자를 줄였다 — 둘 다 해야 여유가 생긴다.
-        var box = new Rect(w * 0.5f - 208f, h * 0.5f - 146f, 416f, 292f);
+        // 캐릭터마다 한 줄이라 최대 네 줄 — 세 줄 시절(292)보다 한 줄(19px) 더 필요하다.
+        var box = new Rect(w * 0.5f - 208f, h * 0.5f - 156f, 416f, 311f);
         Hud.Panel(box);
 
         // 결승선을 넘은 <b>그 판에 한 번만</b> 기록을 낸다. OnGUI 는 매 프레임 도니까
@@ -593,7 +597,9 @@ public class TestHUD : MonoBehaviour
     /// </summary>
     void DrawRecords(Rect box)
     {
-        var best = RaceRecords.Best;
+        // ★ <b>줄마다 다른 사람</b>이어야 비교가 된다. 전체 상위 셋을 뽑으면 한 번 잘 달린
+        // 캐릭터가 세 줄을 다 먹어서, 다른 카트로 달린 사람은 자기 이름을 못 본다.
+        var best = RaceRecords.BestPerCast();
         if (best.Count == 0) return;
 
         float y = box.y + 168f;
@@ -610,7 +616,9 @@ public class TestHUD : MonoBehaviour
         for (int i = 0; i < best.Count; i++)
         {
             var r = best[i];
-            bool isMine = recordRank == i + 1;
+            // 줄이 캐릭터마다 하나라 «몇 위 줄» 로는 못 짚는다 — <b>내가 고른 캐릭터</b>의 줄을 짚는다.
+            bool isMine = !string.IsNullOrEmpty(r.castId)
+                          && r.castId == GameSelection.SelectedCastId;
             float row = y + 20f + i * 19f;
 
             string who = Cast.NameOf(r.castId);
