@@ -58,6 +58,11 @@ public class CampusBuilder : MonoBehaviour
     static readonly Color ColPaw      = new Color32(0x9A, 0x8E, 0x80, 0xFF);
     static readonly Color ColLantern  = new Color32(0xF5, 0xC0, 0x69, 0xFF);
     static readonly Color ColAsphalt  = new Color32(0x56, 0x54, 0x52, 0xFF);
+    // 레고 느낌 잡기(2026-09-18). 벽 <b>아래쪽만</b> 어두운 색 — 실제 건물은 아래가 때가 타고
+    // 위가 바랜다. 차이를 작게 둔다: 세면 얼룩으로 보이고 약하면 그늘로 보인다.
+    static readonly Color ColWallFoot = new Color32(0xD8, 0xCE, 0xB8, 0xFF);
+    static readonly Color ColTrimDark = new Color32(0xB9, 0xAE, 0x98, 0xFF);
+    static readonly Color ColGroove   = new Color32(0xC9, 0xBF, 0xAA, 0xFF);
 
     Transform built;
 
@@ -448,6 +453,101 @@ public class CampusBuilder : MonoBehaviour
             for (int s2 = -1; s2 <= 1; s2 += 2)
                 Block(t, $"SkirtFront_{s2}", new Vector3(s2 * (gap + pane) * 0.5f, 1.3f, halfD + 0.1f),
                       Quaternion.identity, new Vector3(pane, 2.6f, 0.3f), ColMint, noCollider: true);
+
+        Weathering(t, w, d, h);
+    }
+
+    /// <summary>
+    /// <b>레고 느낌을 잡는 세 가지 중 둘.</b> 2026-09-18 유저: *"캠퍼스 씬에서 아직 레고
+    /// 냄새가 난다."* 원인은 상자가 많아서가 아니다:
+    ///
+    /// 1. <b>모든 면이 90도</b> — 상자는 모서리가 완벽하게 날카로워서 빛이 한 번에 꺾인다.
+    ///    실제 건물은 모서리가 살짝 둥글거나 <b>홈</b>이 있다. 홈을 파면 그 줄에 그림자가
+    ///    한 줄 생기고, 그 한 줄이 "면이 하나가 아니다" 를 말해준다.
+    /// 2. <b>한 덩어리 = 한 색</b> — 벽 하나가 통째로 크림색이었다. 실제 벽은 <b>아래가
+    ///    때가 타고 위가 바랜다.</b> 아래 0.9m 만 조금 어두운 색으로 갈면 벽이 벽이 된다.
+    ///
+    /// <b>기하를 늘리는 게 아니라 면을 쪼개는 것</b>이야 — 새 물건이 아니라 이미 있는
+    /// 벽 위에 얇은 판을 얹는다. 전부 <c>noCollider</c> 라 걷는 데 아무 영향이 없다.
+    /// </summary>
+    void Weathering(Transform t, float w, float d, float h)
+    {
+        float halfW = w * 0.5f, halfD = d * 0.5f;
+        const float foot = 0.9f;     // 때가 타는 높이 — 사람 허리 아래
+
+        // ---- 굽도리 : 벽 아래쪽만 다른 색 ----
+        Block(t, "FootBack", new Vector3(0f, foot * 0.5f, -halfD - 0.16f), Quaternion.identity,
+              new Vector3(w + 0.3f, foot, 0.12f), ColWallFoot, noCollider: true);
+        Block(t, "FootFront", new Vector3(0f, foot * 0.5f, halfD + 0.16f), Quaternion.identity,
+              new Vector3(w + 0.3f, foot, 0.12f), ColWallFoot, noCollider: true);
+        for (int s = -1; s <= 1; s += 2)
+            Block(t, $"FootSide_{s}", new Vector3(s * (halfW + 0.16f), foot * 0.5f, 0f),
+                  Quaternion.identity, new Vector3(0.12f, foot, d + 0.3f), ColWallFoot, noCollider: true);
+
+        // 굽도리 윗선 — 색만 바뀌면 칠한 자국이고, <b>턱</b>이 있어야 다른 재료로 읽힌다
+        Block(t, "FootCapBack", new Vector3(0f, foot, -halfD - 0.2f), Quaternion.identity,
+              new Vector3(w + 0.4f, 0.1f, 0.2f), ColTrimDark, noCollider: true);
+        Block(t, "FootCapFront", new Vector3(0f, foot, halfD + 0.2f), Quaternion.identity,
+              new Vector3(w + 0.4f, 0.1f, 0.2f), ColTrimDark, noCollider: true);
+        for (int s = -1; s <= 1; s += 2)
+            Block(t, $"FootCapSide_{s}", new Vector3(s * (halfW + 0.2f), foot, 0f),
+                  Quaternion.identity, new Vector3(0.2f, 0.1f, d + 0.4f), ColTrimDark, noCollider: true);
+
+        // ---- 세로 홈 : 벽을 일정 간격으로 쪼갠다 ----
+        // 간격은 <b>2.4m 고정</b>. 건물 폭에 비례로 두면 큰 건물의 홈이 넓어져서
+        // 다시 한 덩어리로 보인다 — 실제 벽체 간격은 건물 크기와 상관없이 일정하다.
+        int across = Mathf.Max(2, Mathf.RoundToInt(w / 2.4f));
+        for (int i = 1; i < across; i++)
+        {
+            float x = -halfW + w * i / across;
+            Block(t, $"GrooveFront_{i}", new Vector3(x, (h + foot) * 0.5f, halfD + 0.14f),
+                  Quaternion.identity, new Vector3(0.14f, h - foot, 0.1f), ColGroove, noCollider: true);
+            Block(t, $"GrooveBack_{i}", new Vector3(x, (h + foot) * 0.5f, -halfD - 0.14f),
+                  Quaternion.identity, new Vector3(0.14f, h - foot, 0.1f), ColGroove, noCollider: true);
+        }
+
+        int along = Mathf.Max(2, Mathf.RoundToInt(d / 2.4f));
+        for (int i = 1; i < along; i++)
+        {
+            float z = -halfD + d * i / along;
+            for (int s = -1; s <= 1; s += 2)
+                Block(t, $"GrooveSide_{s}_{i}", new Vector3(s * (halfW + 0.14f), (h + foot) * 0.5f, z),
+                      Quaternion.identity, new Vector3(0.1f, h - foot, 0.14f), ColGroove, noCollider: true);
+        }
+
+        // ---- 모서리 기둥 : 네 귀퉁이를 세로로 덮는다 ----
+        // 이게 제일 크게 듣는다. <b>상자의 날 선 모서리 넷</b>이 레고의 정체거든 —
+        // 기둥으로 덮으면 그 선이 사라지고 면이 셋으로 갈린다.
+        for (int sx = -1; sx <= 1; sx += 2)
+            for (int sz = -1; sz <= 1; sz += 2)
+            {
+                Block(t, $"Corner_{sx}_{sz}", new Vector3(sx * (halfW + 0.05f), h * 0.5f, sz * (halfD + 0.05f)),
+                      Quaternion.identity, new Vector3(0.44f, h, 0.44f), ColWoodRail, noCollider: true);
+                Block(t, $"CornerCap_{sx}_{sz}", new Vector3(sx * (halfW + 0.05f), h - 0.2f, sz * (halfD + 0.05f)),
+                      Quaternion.identity, new Vector3(0.62f, 0.22f, 0.62f), ColTrimDark, noCollider: true);
+                Block(t, $"CornerFoot_{sx}_{sz}", new Vector3(sx * (halfW + 0.05f), 0.16f, sz * (halfD + 0.05f)),
+                      Quaternion.identity, new Vector3(0.62f, 0.32f, 0.62f), ColStoneWall, noCollider: true);
+            }
+
+        // ---- 3. 작은 물건 : 30cm 미만이 있어야 눈이 크기를 잰다 ----
+        // 문 옆에만 놓는다. 사방에 흩뿌리면 조각 수만 늘고 걸어 다닐 때 안 보인다.
+        float front = halfD + 0.3f;
+        Block(t, "Vent", new Vector3(halfW - 1.2f, 2.3f, front), Quaternion.identity,
+              new Vector3(0.6f, 0.4f, 0.1f), ColStoneWall, noCollider: true);
+        for (int i = 0; i < 3; i++)
+            Block(t, $"VentSlat_{i}", new Vector3(halfW - 1.2f, 2.16f + i * 0.13f, front + 0.04f),
+                  Quaternion.identity, new Vector3(0.5f, 0.05f, 0.06f), ColTrimDark, noCollider: true);
+
+        Block(t, "Socket", new Vector3(-halfW + 0.9f, 0.55f, front), Quaternion.identity,
+              new Vector3(0.16f, 0.22f, 0.08f), ColCream, noCollider: true);
+        Block(t, "Downpipe", new Vector3(-halfW + 0.45f, h * 0.5f, front - 0.05f), Quaternion.identity,
+              new Vector3(0.22f, h, 0.22f), ColStoneWall, noCollider: true);
+        Block(t, "DownpipeShoe", new Vector3(-halfW + 0.45f, 0.3f, front + 0.12f),
+              Quaternion.Euler(22f, 0f, 0f), new Vector3(0.24f, 0.5f, 0.24f), ColStoneWall, noCollider: true);
+        Block(t, "Notice", new Vector3(halfW - 2.4f, 1.6f, front), Quaternion.Euler(0f, 0f, 2f),
+              new Vector3(0.3f, 0.42f, 0.04f), ColCream, noCollider: true);
+        Block(t, "Hose", new Vector3(-halfW + 1.6f, 0.28f, front), Quaternion.identity,
+              new Vector3(0.28f, 0.28f, 0.28f), ColWoodRail, noCollider: true);
     }
 
     /// <summary>
