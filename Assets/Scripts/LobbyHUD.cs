@@ -56,6 +56,11 @@ public class LobbyHUD : MonoBehaviour
     /// </summary>
     void DrawWalkHint(float w, float h)
     {
+        // 큰 패널이 떠 있으면 <b>한 장도 안 그린다.</b> 2026-09-18 유저: *"UI 가 겹쳐서
+        // 좀 드러워 보인다."* 레이스 HUD 에서 이미 배운 규칙이야 — `if` 를 나열하면
+        // 둘 다 그려지고, 반투명이 아니라서 겹친 걸 바로 못 알아챈다.
+        if (DeskClock.PanelOpen) return;
+
         bool walking = walk != null && walk.Walking;
 
         var chip = new Rect(w - 214f, h - 40f, 198f, 24f);
@@ -83,15 +88,21 @@ public class LobbyHUD : MonoBehaviour
         Rect screen = Hud.Begin(uiFont);
         float w = screen.width, h = screen.height;
 
-        DrawDriverPanel();
-        DrawSpecSheet();
-        DrawToast(w, h);
-        DrawTalkPrompt(w, h);
-        DrawPrompt(w, h);
-        DrawGate(w, h);
-        DrawCorner(h);
-        DrawWalkHint(w, h);
-        if (showControls) DrawControls(w, h);
+        // ★ 시계 돋보기가 떠 있으면 <b>그 창 하나만</b> 남기고 전부 접는다.
+        // 유저: *"UI 가 겹쳐서 좀 드러워 보인다."* 안내가 대여섯 장이라 큰 창 위아래로
+        // 다 삐져나온다 — 큰 패널은 한 번에 한 장만(레이스 HUD 와 같은 규칙).
+        if (!DeskClock.PanelOpen)
+        {
+            DrawDriverPanel();
+            DrawSpecSheet();
+            DrawToast(w, h);
+            DrawTalkPrompt(w, h);
+            DrawPrompt(w, h);
+            DrawGate(w, h);
+            DrawCorner(h);
+            DrawWalkHint(w, h);
+            if (showControls) DrawControls(w, h);
+        }
 
         Hud.End();
     }

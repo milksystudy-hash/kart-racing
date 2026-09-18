@@ -47,20 +47,15 @@ public class DeskClock : MonoBehaviour
     static readonly Color Tile   = new Color32(0x3E, 0x6B, 0x63, 0xFF);   // 처마 청기와
     static readonly Color Paper  = new Color32(0xF2, 0xE6, 0xCC, 0xFF);   // 한지 창
     static readonly Color Glow   = new Color32(0xFF, 0xC9, 0x6B, 0xFF);   // 숫자 — 발광
-    static readonly Color Dim    = new Color32(0x5A, 0x4A, 0x36, 0xFF);   // 꺼진 획
 
     // ── 치수 ──────────────────────────────────────────────────────────
-    const float BarLong = 0.052f, BarThin = 0.014f, BarDeep = 0.008f;
-    const float DigitW = 0.070f;     // 숫자 하나가 차지하는 가로
     // ★ <b>정면은 +Z 다.</b> 처음에 −0.082 로 붙였다가 숫자판이 <b>케이스 뒤쪽</b>에 달렸고,
     // 보는 사람은 그 뒤통수를 통해 본 꼴이라 <b>시각이 거울상</b>으로 나왔다
     // (2026-09-18 유저: *"시계가 망가졌나봐"* — 17:13 이 뒤집혀 보였다).
     // 케이스가 z −0.075~+0.075 니까 0.082 면 그 앞에 1mm 띄워 붙는다.
     const float PanelZ = 0.082f;     // 한지 창 앞면
-    const float GlyphZ = PanelZ + 0.006f;
 
-    GameObject[,] segments;          // [자리 4][획 7]
-    GameObject[] colonDots;
+    TextMesh face;                   // 시각 — 글자 한 줄
     TextMesh strip;
     string weather = "";
     int shownMinute = -1;
@@ -99,6 +94,15 @@ public class DeskClock : MonoBehaviour
     bool open;
     string typed = "";
 
+    /// <summary>
+    /// 돋보기 창이 떠 있나. <b>로비 HUD 가 이걸 보고 제 안내를 접는다</b> —
+    /// 2026-09-18 유저: *"UI 가 겹쳐서 좀 드러워 보인다."*
+    /// 큰 패널이 뜨면 나머지는 한 장도 안 그린다(레이스 HUD 에서 배운 것).
+    /// </summary>
+    public static bool PanelOpen { get; private set; }
+
+    void OnDisable() { if (open) { open = false; PanelOpen = false; } }
+
     void TickInteraction()
     {
         if (frameStamp != Time.frameCount)
@@ -130,12 +134,13 @@ public class DeskClock : MonoBehaviour
         else if (Nearest == this && k.eKey.wasPressedThisFrame)
         {
             open = true;
+            PanelOpen = true;
             typed = city;
             GUI.FocusControl(null);
         }
     }
 
-    void Close() => open = false;
+    void Close() { open = false; PanelOpen = false; }
 
     void Apply()
     {
@@ -143,6 +148,7 @@ public class DeskClock : MonoBehaviour
         weather = "";
         if (useOnlineWeather) StartCoroutine(Fetch());
         open = false;
+        PanelOpen = false;
     }
 
     void OnGUI()
@@ -206,51 +212,26 @@ public class DeskClock : MonoBehaviour
         Box("EaveLip",  new Vector3(0f, 0.208f, 0.104f),  new Vector3(0.58f, 0.030f, 0.022f), Tile);
         Box("Ridge",    new Vector3(0f, 0.216f, -0.010f), new Vector3(0.34f, 0.016f, 0.05f), Tile);
 
-        // ── 숫자 네 자리 ──────────────────────────────────────────────
-        // ★ <b>−X 가 보는 사람의 오른쪽</b>이다. 시계는 +Z 로 서 있고 보는 사람은 +Z 쪽에 있어서,
-        //   카메라의 오른쪽 벡터가 −X 가 된다. 그냥 +X 순서로 늘어놓으면 «12:34» 가 «43:21» 로
-        //   거울상이 된다 — 진열장 숫자가 뒤집혔던 것과 <b>똑같은 병</b>이야(2026-09-17).
-        segments = new GameObject[4, 7];
-        // 숫자 한 자가 가로 0.066(획 0.052 + 두께 0.014)이라 간격을 0.076 으로 벌렸다 —
-        // 0.070 이면 자리 사이가 4mm 뿐이라 «두 자리» 가 «한 덩어리» 로 붙어 보인다.
-        float[] slotX = { 0.152f, 0.076f, -0.076f, -0.152f };   // 시10 시1 : 분10 분1
-        for (int d = 0; d < 4; d++)
-            for (int s = 0; s < 7; s++)
-                segments[d, s] = Segment($"D{d}_{"abcdefg"[s]}", slotX[d], s);
-
-        colonDots = new GameObject[2];
-        for (int i = 0; i < 2; i++)
-            colonDots[i] = Box($"Colon_{i}", new Vector3(0f, 0.105f + (i == 0 ? 0.026f : -0.026f), GlyphZ),
-                               new Vector3(0.014f, 0.014f, BarDeep), Glow, Finish.발광);
+        // ── 시각 ─────────────────────────────────────────────────────
+        // ★★ <b>막대 일곱 개(7세그먼트)를 버렸다.</b> 2026-09-18 에 두 번 고쳐 봤는데
+        // (앞뒤 뒤집힘 → 창틀이 획을 깎음) 계속 «깨져 보인다» 가 남았다.
+        // 원인을 하나씩 잡는 것보다 <b>방법을 바꾸는 게 맞다</b>:
+        //
+        //  · 획이 28개라 조금만 어긋나도 글자가 아니라 막대 뭉치로 보인다
+        //  · 비스듬히 보는 각도 + 발광 + Bloom 이면 얇은 막대가 서로 번진다
+        //  · 좌우 방향을 손으로 계산해야 해서 <b>틀릴 자리가 많다</b>
+        //
+        // 이 프로젝트에는 <b>이미 검증된 월드 글자</b>가 있다 — 현판·안내판이 쓰는
+        // `TextMesh` + `HudFont` + `Racing/PlaqueText`. 거기로 간다.
+        // 조각 28개가 <b>하나</b>로 줄고, 방향 문제도 현판에서 이미 푼 방식 그대로다.
+        face = MakeText("FaceText", new Vector3(0f, 0.108f, PanelZ + 0.010f), 0.074f, Glow);
 
         // ── 종이 띠 : 날짜·요일·날씨 ─────────────────────────────────
         // 한지 창 바닥이 y 0.0475 라 그보다 아래에 둔다 — 겹치면 같은 평면에서 지지직거린다.
         Box("Strip", new Vector3(0f, 0.026f, PanelZ + 0.003f),
             new Vector3(0.40f, 0.036f, 0.010f), Paper);
-        strip = MakeLabel();
-    }
-
-    /// <summary>획 하나. 일곱 개를 다 만들어 두고 <b>켜고 끄기만</b> 한다.</summary>
-    GameObject Segment(string name, float cx, int index)
-    {
-        // a 위 · b 오른위 · c 오른아래 · d 아래 · e 왼아래 · f 왼위 · g 가운데
-        // 오른쪽이 −X 라 b·c 가 음수, e·f 가 양수다.
-        Vector3[] offset =
-        {
-            new Vector3( 0f,     0.039f, 0f),
-            new Vector3(-0.026f, 0.020f, 0f),
-            new Vector3(-0.026f,-0.020f, 0f),
-            new Vector3( 0f,    -0.039f, 0f),
-            new Vector3( 0.026f,-0.020f, 0f),
-            new Vector3( 0.026f, 0.020f, 0f),
-            new Vector3( 0f,     0f,     0f),
-        };
-        bool flat = index == 0 || index == 3 || index == 6;
-        Vector3 size = flat ? new Vector3(BarLong, BarThin, BarDeep)
-                            : new Vector3(BarThin, BarLong * 0.78f, BarDeep);
-
-        return Box(name, new Vector3(cx + offset[index].x, 0.105f + offset[index].y, GlyphZ),
-                   size, Glow, Finish.발광);
+        strip = MakeText("StripText", new Vector3(0f, 0.026f, PanelZ + 0.012f), 0.0264f,
+                         new Color32(0x4A, 0x3A, 0x2C, 0xFF));   // 종이 위 먹색
     }
 
     GameObject Box(string name, Vector3 at, Vector3 size, Color color,
@@ -270,23 +251,29 @@ public class DeskClock : MonoBehaviour
         return go;
     }
 
-    TextMesh MakeLabel()
+    /// <summary>
+    /// 월드 글자 한 줄. 현판·안내판과 <b>같은 방식</b>이다 —
+    /// `TextMesh` + `Resources/HudFont.ttf` + `Racing/PlaqueText`(깊이 검사 켠 셰이더).
+    /// 새로 넣는 에셋이 0개고, 방향·깊이 함정은 현판에서 이미 다 풀어놨다.
+    /// </summary>
+    /// <param name="height">글자 한 줄의 월드 높이(m). 한 줄 높이 = fontSize × characterSize / 10</param>
+    TextMesh MakeText(string name, Vector3 at, float height, Color color)
     {
-        var go = new GameObject("StripText");
+        var go = new GameObject(name);
         go.transform.SetParent(transform, false);
-        // TextMesh 는 자기 +Z 쪽에서 읽히게 생겼는데 시계 정면은 −Z 쪽이라 180도 돌린다
-        // (현판 글씨가 거울상으로 나왔던 것과 같은 이유 — 2026-09-17).
-        go.transform.localPosition = new Vector3(0f, 0.026f, PanelZ + 0.012f);
+        // TextMesh 는 자기 +Z 쪽에서 <b>뒤에서 본 꼴</b>로 생겼다. 시계 정면이 +Z 라
+        // 그대로 두면 좌우가 뒤집힌다 — 180도 돌려 단다(현판에서 배운 것, 2026-09-17).
+        go.transform.localPosition = at;
         go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
         var font = Resources.Load<Font>("HudFont");
         var text = go.AddComponent<TextMesh>();
         text.font = font;
         text.fontSize = 120;                       // 크게 굽고 characterSize 로 줄인다 — 작게 구우면 계단이 진다
-        text.characterSize = 0.0022f;
+        text.characterSize = height * 10f / 120f;
         text.anchor = TextAnchor.MiddleCenter;
         text.alignment = TextAlignment.Center;
-        text.color = new Color32(0x4A, 0x3A, 0x2C, 0xFF);   // 종이 위 먹색 (Hud.Ink 와 같은 값)
+        text.color = color;
 
         if (font != null)
             go.GetComponent<MeshRenderer>().sharedMaterial = BuildingSign.TextMaterial(font);
@@ -299,47 +286,13 @@ public class DeskClock : MonoBehaviour
         var now = System.DateTime.Now;
         shownMinute = now.Minute;
 
-        if (segments != null)
-        {
-            ShowDigit(0, now.Hour / 10);
-            ShowDigit(1, now.Hour % 10);
-            ShowDigit(2, now.Minute / 10);
-            ShowDigit(3, now.Minute % 10);
-        }
+        if (face != null) face.text = now.ToString("HH:mm");
 
         if (strip != null)
         {
             string[] days = { "일", "월", "화", "수", "목", "금", "토" };
             string date = $"{now.Month}월 {now.Day}일 ({days[(int)now.DayOfWeek]})";
             strip.text = string.IsNullOrEmpty(weather) ? date : $"{date}  ·  {weather}";
-        }
-    }
-
-    static readonly bool[][] Glyph =
-    {                  //  a      b      c      d      e      f      g
-        new[] { true,  true,  true,  true,  true,  true,  false },   // 0
-        new[] { false, true,  true,  false, false, false, false },   // 1
-        new[] { true,  true,  false, true,  true,  false, true  },   // 2
-        new[] { true,  true,  true,  true,  false, false, true  },   // 3
-        new[] { false, true,  true,  false, false, true,  true  },   // 4
-        new[] { true,  false, true,  true,  false, true,  true  },   // 5
-        new[] { true,  false, true,  true,  true,  true,  true  },   // 6
-        new[] { true,  true,  true,  false, false, false, false },   // 7
-        new[] { true,  true,  true,  true,  true,  true,  true  },   // 8
-        new[] { true,  true,  true,  true,  false, true,  true  },   // 9
-    };
-
-    void ShowDigit(int slot, int value)
-    {
-        var on = Glyph[Mathf.Clamp(value, 0, 9)];
-        for (int s = 0; s < 7; s++)
-        {
-            var seg = segments[slot, s];
-            if (seg == null) continue;
-            // <b>끄는 대신 어둡게 한다.</b> 안 쓰는 획이 사라지면 «숫자» 가 아니라
-            // «막대 몇 개» 로 보인다 — 실제 전자시계도 꺼진 획이 흐리게 남아 있다.
-            seg.GetComponent<Renderer>().sharedMaterial =
-                on[s] ? FlatMaterial.Get(Glow, Finish.발광) : FlatMaterial.Get(Dim);
         }
     }
 
