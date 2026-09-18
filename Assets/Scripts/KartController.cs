@@ -64,7 +64,22 @@ public class KartController : MonoBehaviour
     public float visualLeanWhileDrifting = 16f;
 
     // --- HUD 와 다른 스크립트가 읽어가는 값들 ---
-    public float SpeedKph => Vector3.Dot(rb.linearVelocity, transform.forward) * 3.6f;
+    /// <summary>
+    /// ★ <b>멈춰 있는 동안의 속도.</b> <see cref="RacePause"/> 가 리지드바디를 키네마틱으로
+    /// 재우는데, 유니티는 그 순간 <b>속도를 0 으로 지운다.</b> 그래서 ESC 를 누르면
+    /// 속도계가 0 으로 떨어져 보였다(2026-09-18 유저). 실제 속도는 안 잃었고
+    /// 풀면 그대로 돌아오는데, <b>화면만 거짓말</b>을 한 거야.
+    /// 재우기 직전 값을 적어 두고 멈춘 동안에는 그걸 보여준다.
+    /// </summary>
+    Vector3 pausedVelocity;
+
+    public void RememberVelocityForPause(Vector3 v) => pausedVelocity = v;
+
+    /// <summary>속도를 읽는 곳은 전부 여기를 거친다 — 속도계·김·화면효과·카메라가 다 같은 값을 본다.</summary>
+    public Vector3 CurrentVelocity =>
+        RacePause.On ? pausedVelocity : (rb != null ? rb.linearVelocity : Vector3.zero);
+
+    public float SpeedKph => Vector3.Dot(CurrentVelocity, transform.forward) * 3.6f;
     /// <summary>-1(좌) ~ +1(우). 바퀴와 운전대를 돌릴 때 KartWheels 가 읽는다.</summary>
     public float SteerInput => steerInput;
     public bool IsGrounded { get; private set; }
@@ -179,7 +194,7 @@ public class KartController : MonoBehaviour
     float spinRate;
 
     public float Mass => rb != null ? rb.mass : 1f;
-    public Vector3 Velocity => rb != null ? rb.linearVelocity : Vector3.zero;
+    public Vector3 Velocity => CurrentVelocity;
 
     /// <summary>방금 다른 카트에 받혔나. HUD 나 이펙트가 쓸 수 있게 열어둔다.</summary>
     public bool IsBumped => Time.time < bumpedUntil;

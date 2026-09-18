@@ -58,6 +58,10 @@ public static class RacePause
                 spin = rb.angularVelocity,
                 wasKinematic = rb.isKinematic,
             });
+
+            // ★ <b>키네마틱으로 바꾸는 순간 유니티가 속도를 0 으로 지운다.</b> 그 전에
+            // 카트에게 «네 속도는 이거였다» 를 알려줘야 속도계가 0 으로 안 떨어진다.
+            kart.RememberVelocityForPause(rb.linearVelocity);
             rb.isKinematic = true;
         }
     }

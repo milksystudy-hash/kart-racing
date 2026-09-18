@@ -75,6 +75,12 @@ public class KartCamera : MonoBehaviour
     {
         if (target == null) return;
 
+        // ★ <b>멈춘 동안에는 카메라도 멈춘다</b>(2026-09-18 유저: *"ESC 누르면 화면이 덜덜 떨려"*).
+        // 카트는 물리로 재워 놨는데 카메라는 `LateUpdate` 라 계속 돌았고, 흔들림·물러나기·
+        // 시야각이 전부 <b>0 이 된 속도</b>를 보고 원위치로 되돌아오려다 매 프레임 떨었다.
+        // 멈춤은 «그림도 멈추는 것» 이어야 일시정지로 읽힌다.
+        if (RacePause.On) return;
+
         // 카트의 Y 회전만 부드럽게 따라간다
         yaw = Mathf.LerpAngle(yaw, target.eulerAngles.y, 1f - Mathf.Exp(-rotationSmoothing * Time.deltaTime));
         Quaternion flatRotation = Quaternion.Euler(0f, yaw, 0f);
