@@ -420,6 +420,28 @@ public class CampusBuilder : MonoBehaviour
     }
 
     /// <summary>
+    /// <b>이 건물 지붕의 제일 높은 점</b>(월드 y). 지붕 위에 뭘 올릴 때 쓴다.
+    ///
+    /// 눈으로 어림하면 틀린다 — 곰밥마당은 높이 9 인데 기와까지 쌓이면 <b>10.95</b> 다.
+    /// 처마·기와·능선이 층층이 올라가서 `height + 0.55` 같은 어림값이 안 맞아.
+    /// </summary>
+    static float RoofTopLocal(Transform building, float height)
+    {
+        // 지붕 조각을 아직 안 지었을 수도 있으니 <b>바닥값</b>을 둔다 —
+        // 측정해 보면 기와까지 대략 `높이 + 2.0` 이다(곰밥마당 9 → 10.95).
+        float top = height + 2.0f;
+
+        foreach (var r in building.GetComponentsInChildren<Renderer>())
+        {
+            string n = r.name;
+            if (!n.Contains("Eave") && !n.Contains("Roof") && !n.Contains("Tile") && !n.Contains("Ridge"))
+                continue;
+            top = Mathf.Max(top, r.bounds.max.y - building.position.y);
+        }
+        return top;
+    }
+
+    /// <summary>
     /// <b>유저가 만든 FBX 를 자리에 앉힌다.</b> 2026-09-18, 밥그릇이 첫 손님이야.
     ///
     /// <paramref name="targetWidth"/> 가 핵심이다 — 블렌더에서 몇 미터로 만들었든
@@ -1090,29 +1112,37 @@ public class CampusBuilder : MonoBehaviour
                 // 받침대를 먼저 깔고 그 위에 올린다 — 지붕에 그릇만 떠 있으면 <b>얹은 게 아니라
                 // 박힌 것</b>처럼 보인다. 지붕 능선은 h + 0.55 쯤이야.
                 {
-                    float shelfY = h + 0.62f;
+                    // ★ 지붕 <b>가운데</b>에 놓는다. 처음에 `front − 1.4`(앞쪽 끝)에 뒀더니
+                    // 처마가 폭+4.5 로 튀어나와서 <b>그릇이 처마 밑에 가렸다</b> —
+                    // 유저: "위에 내 밥그릇 에셋이 없어." 지붕 능선은 h + 0.55 쯤이야.
+                    // 측정해서 정했다. 곰밥마당 h=9 인데 <b>지붕 윗면이 y 10.95</b> 였다 —
+                    // 능선(h+0.55)이 아니라 기와 층까지 쌓인 값이야. h+0.9(9.9)에 뒀더니
+                    // 그릇 바닥이 10.16 으로 <b>지붕에 0.8m 묻혔다.</b>
+                    // 지붕을 눈으로 어림하지 말고 <b>렌더러 최고점을 읽어라.</b>
+                    float shelfY = RoofTopLocal(t, h) + 0.15f;
+                    float shelfZ = 0f;           // 건물 앞뒤 한가운데
                     float shelfX = -w * 0.22f;   // <b>왼쪽</b> — 오른쪽은 국밥 그릇 자리로 비워 둔다
 
-                    Block(t, "BowlShelf", new Vector3(shelfX, shelfY, front - 1.4f), Quaternion.identity,
-                          new Vector3(2.0f, 0.24f, 1.6f), ColWood, noCollider: true);
-                    Block(t, "BowlShelfLip", new Vector3(shelfX, shelfY + 0.16f, front - 1.4f),
-                          Quaternion.identity, new Vector3(2.2f, 0.1f, 1.8f), ColWoodRail, noCollider: true);
+                    Block(t, "BowlShelf", new Vector3(shelfX, shelfY, shelfZ), Quaternion.identity,
+                          new Vector3(2.4f, 0.3f, 2.0f), ColWood, noCollider: true);
+                    Block(t, "BowlShelfLip", new Vector3(shelfX, shelfY + 0.2f, shelfZ),
+                          Quaternion.identity, new Vector3(2.6f, 0.12f, 2.2f), ColWoodRail, noCollider: true);
 
                     // 지붕 위에 올리는 거라 <b>크게</b>. 1.5m 는 멀리서도 "밥그릇" 으로 읽힌다 —
                     // 간판은 건물에 비해 과하다 싶을 만큼 커야 보인다(현판에서 배운 것).
                     MyModel(t, "Assets/My blender/Rice_bowl.fbx", "RiceBowl",
-                            new Vector3(shelfX, shelfY + 0.22f, front - 1.4f), 1.5f);
+                            new Vector3(shelfX, shelfY + 0.26f, shelfZ), 1.8f);
 
                     // 오른쪽 자리 — 국밥 그릇이 올 곳. 받침대를 <b>미리</b> 깔아 둔다:
                     // 빈 받침대가 보이면 "여기 뭐가 올라오겠구나" 가 되고, 나중에 파일만 놓으면 된다.
-                    Block(t, "BowlShelf_R", new Vector3(-shelfX, shelfY, front - 1.4f), Quaternion.identity,
-                          new Vector3(2.0f, 0.24f, 1.6f), ColWood, noCollider: true);
-                    Block(t, "BowlShelfLip_R", new Vector3(-shelfX, shelfY + 0.16f, front - 1.4f),
-                          Quaternion.identity, new Vector3(2.2f, 0.1f, 1.8f), ColWoodRail, noCollider: true);
+                    Block(t, "BowlShelf_R", new Vector3(-shelfX, shelfY, shelfZ), Quaternion.identity,
+                          new Vector3(2.4f, 0.3f, 2.0f), ColWood, noCollider: true);
+                    Block(t, "BowlShelfLip_R", new Vector3(-shelfX, shelfY + 0.2f, shelfZ),
+                          Quaternion.identity, new Vector3(2.6f, 0.12f, 2.2f), ColWoodRail, noCollider: true);
 
                     // 유저가 만들면 저절로 들어온다. 없으면 아무 일도 안 한다.
                     MyModel(t, "Assets/My blender/Soup_bowl.fbx", "SoupBowl",
-                            new Vector3(-shelfX, shelfY + 0.22f, front - 1.4f), 1.5f);
+                            new Vector3(-shelfX, shelfY + 0.26f, shelfZ), 1.8f);
                 }
                 Disc(t, "Cauldron", new Vector3(-side + 2.6f, 0.9f, front + 3.2f),
                      new Vector3(3.2f, 0.9f, 3.2f), ColBearDark);

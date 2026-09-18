@@ -104,10 +104,20 @@ public class HingedDoor : MonoBehaviour
             shut[i] = leaves[i].localPosition;
 
             // 두 짝이 서로 반대쪽으로 미끄러진다. 같은 쪽으로 가면 한 짝이 다른 짝을 뚫는다.
-            // 통은 스케일이 1 이라 폭을 제 자식(판)에서 읽어야 한다.
-            float width = Mathf.Abs(leaves[i].localScale.x);
-            if (width < 0.2f && leaves[i].childCount > 0)
-                width = Mathf.Abs(leaves[i].GetChild(0).localScale.x);
+            // ★ <b>통의 스케일은 1 이다.</b> 그걸 문짝 폭으로 쓰면 실제 폭 1.96m 짜리 문이
+            // 0.96m 만 미끄러져서 <b>구멍을 절반 막은 채로 멈춘다</b> — 유저가 네 번째로
+            // "문이 안 열린다" 고 한 게 이거야(2026-09-18). 로그의 `폭 1.00` 이 단서였다.
+            //
+            // 전 조건은 `width < 0.2f` 였는데 1.0 은 그보다 크니 <b>자식을 안 봤다.</b>
+            // <b>자식이 있으면 무조건 자식에서 읽는다</b> — 통은 늘 스케일 1 이라 못 믿는다.
+            float width = 0f;
+            for (int c = 0; c < leaves[i].childCount; c++)
+            {
+                var kid = leaves[i].GetChild(c);
+                if (kid.name.StartsWith("Leaf_")) { width = Mathf.Abs(kid.localScale.x); break; }
+                width = Mathf.Max(width, Mathf.Abs(kid.localScale.x));
+            }
+            if (width < 0.2f) width = Mathf.Abs(leaves[i].localScale.x);
 
             float dir = shut[i].x >= 0f ? 1f : -1f;
             float travel = width * Mathf.Max(0.5f, slideRatio);
