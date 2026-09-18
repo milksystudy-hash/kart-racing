@@ -90,15 +90,11 @@ public class LapTracker : MonoBehaviour
         LapTime = 0f;
     }
 
+    // 코스 밖으로 떨어진 것과 R 키는 <b>같은 사고</b>다 — 처리도 한 군데에 둔다
+    // (`KartController.RespawnToCourse`). 둘을 따로 두면 한쪽만 고쳐놓고 놓친다.
     void RespawnAtLastCheckpoint()
     {
-        if (kart == null) return;
-
-        var last = progress != null ? progress.LastPassed : null;
-        if (last != null && last.respawnPoint != null)
-            kart.RespawnAt(last.respawnPoint.position + Vector3.up * 0.6f, last.respawnPoint.rotation);
-        else
-            kart.Respawn();
+        if (kart != null) kart.RespawnToCourse();
     }
 
     public void ResetRace()

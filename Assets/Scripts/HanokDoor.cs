@@ -30,7 +30,7 @@ public static class HanokDoor
                                    float width, float height, Func<Color, Material> material,
                                    bool plaque = true, string buildingName = "",
                                    string department = "", string motto = "",
-                                   float plaqueHeight = 0f)
+                                   float plaqueHeight = 0f, bool openable = false)
     {
         var root = new GameObject("Door");
         root.transform.SetParent(parent, false);
@@ -62,7 +62,22 @@ public static class HanokDoor
         //
         // <b>빈 통에 묶는다.</b> `LeafRoot_s` 를 옮기면 여섯 조각이 같이 간다 —
         // 조각을 하나씩 옮기는 코드를 쓰지 않아도 되고, 나중에 조각을 더해도 저절로 따라온다.
-        float leaf = half - 0.04f;
+        //
+        // ★★ <b>움직이는 문짝은 static 이면 안 된다.</b> 2026-09-18, 문이 안 열린 <b>여섯 번째</b>
+        // 이자 진짜 원인. <see cref="Piece"/> 가 모든 조각에 `isStatic = true` 를 달았는데,
+        // 유니티는 씬을 열 때 static 렌더러들을 <b>하나의 메시로 합쳐 버린다</b>(정적 배칭).
+        // 합쳐진 뒤에는 개별 오브젝트의 트랜스폼을 옮겨도 <b>그려지는 자리가 안 바뀐다</b> —
+        // 트랜스폼은 실제로 움직이니까 <b>로그도 배치모드 검사도 전부 통과하는데</b>
+        // 화면만 그대로였다. 앞의 다섯 번을 헛짚은 이유가 이거야.
+        //
+        // 그래서 <paramref name="openable"/> 인 문만 문짝을 non-static 으로 둔다. 안 열리는 문
+        // (로비·전시실)은 그대로 배칭에 맡긴다 — 공짜로 얻던 드로우콜 절약을 다 버릴 이유가 없다.
+        // ★ <b>문짝이 구멍보다 좁아서 닫혀 있어도 틈이 보였다</b>(2026-09-18 유저:
+        // *"문 열지도 않았는데 이미 살짝 열린 상태로 모델링되어 있다"*).
+        // 전에는 `half − 0.04` 라 두 짝을 합쳐도 문폭보다 <b>8cm 좁았고</b>, 벽 구멍은
+        // 그보다 더 넓었다(`Hollow` 쪽 주석 참고). 이제 `half + 0.06` 으로
+        // <b>문설주에 6cm 물리게</b> 한다 — 겹치면 안 보이고, 딱 맞추면 같은 평면이라 지지직거린다.
+        float leaf = half + 0.06f;
         for (int s = -1; s <= 1; s += 2)
         {
             float cx = s * leaf * 0.5f;
@@ -88,9 +103,25 @@ public static class HanokDoor
                 Piece(swing, $"SlatH_{s}_{h}", new Vector3(0f, height * (0.4f + h * 0.3f) + 0.07f, 0.1f),
                       new Vector3(leaf - 0.22f, 0.055f, 0.03f), Slat, material);
 
-            // 문고리 — 두 짝이 만나는 쪽에. 통이 cx 를 들고 있으니 여기서 빼준다
-            Piece(swing, $"Handle_{s}", new Vector3(-s * 0.12f - cx, height * 0.42f, 0.12f),
+            // 문고리 — 두 짝이 만나는 쪽 <b>자기 문짝 위</b>에.
+            //
+            // ★ 전에는 `-s * 0.12f - cx` 라 <b>부호가 반대</b>였다. 그러면 문고리가 제 문짝을
+            // 넘어 <b>맞은편 문짝 위</b>에 얹힌다 — 닫혀 있을 때는 거기 문짝이 있으니 안 보이다가,
+            // <b>문이 열리면 둘 다 가운데 빈 구멍에 떠 있다</b>(2026-09-18 유저:
+            // "문 열 때 노란 경첩이 떠 있어"). 열어 봐야만 드러나는 자리 버그야.
+            //
+            // 문짝은 통 기준으로 −leaf/2 ~ +leaf/2 이고, 가운데를 보는 안쪽 끝이
+            // `-s * leaf * 0.5` 다. 거기서 제 문짝 쪽으로 0.14 들여놓는다.
+            // z 도 0.12 → 0.085 로 당겼다. 문짝 앞면이 0.07 이라 0.12 면 5cm 떠 있었다.
+            Piece(swing, $"Handle_{s}", new Vector3(s * (0.14f - leaf * 0.5f), height * 0.42f, 0.085f),
                   new Vector3(0.1f, 0.22f, 0.06f), Handle, material);
+
+            // ★★ 여기서 통째로 static 을 벗긴다. 조각마다 인자로 넘기면 <b>나중에 조각을
+            // 하나 더했을 때 그것만 static 으로 남아</b> 제자리에 붙어 버린다 —
+            // 한 조각만 안 움직여도 문이 부서져 보이니까 <b>통 아래 전부</b>를 훑는다.
+            if (openable)
+                foreach (var kid in swing.GetComponentsInChildren<Transform>(true))
+                    kid.gameObject.isStatic = false;
         }
 
         // ---- 현판 : 건물 이름 ----

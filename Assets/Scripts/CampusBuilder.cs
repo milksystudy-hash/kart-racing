@@ -364,7 +364,11 @@ public class CampusBuilder : MonoBehaviour
         // <b>속을 비운다.</b> 통짜 상자면 문이 아무리 예뻐도 들어갈 데가 없다
         // (2026-09-17 유저: "모든 건물에 E 눌러서 문 열고, 안을 모델링 해줘").
         // 벽 넉 장 + 바닥 + 천장으로 짓고 정면에 문 만큼 구멍을 낸다.
-        Hollow(t, width, depth, height, doorWidth + 0.9f);
+        // ★ 구멍을 `doorWidth + 0.9` 로 뚫었더니 <b>문틀이 다 못 메웠다.</b> 문설주 바깥 끝이
+        // `half + 0.28` 인데 구멍 끝은 `half + 0.45` 라 <b>양옆 17cm 가 그냥 뚫려 있었다</b> —
+        // 닫힌 문이 살짝 열려 보인 진짜 이유(2026-09-18). `+0.5` 면 구멍 끝이 `half + 0.25` 라
+        // 문설주(1.80~2.08)가 벽을 3cm 물고 들어간다.
+        Hollow(t, width, depth, height, doorWidth + 0.5f, doorHeight);
         Interior(t, name, width, depth, height);
 
         // 처마가 벽보다 넉넉히 나오는 게 한옥 지붕의 인상
@@ -391,7 +395,11 @@ public class CampusBuilder : MonoBehaviour
         var door = HanokDoor.Build(t, new Vector3(0f, 0f, front), Quaternion.identity,
                                    doorWidth, doorHeight, FlatMaterial.Get,
                                    plaque: true, buildingName: name, department: department, motto: motto,
-                                   plaqueHeight: height - 1.1f);
+                                   plaqueHeight: height - 1.1f,
+                                   // ★ 이 문은 <b>열린다.</b> 문짝을 static 으로 두면 유니티가
+                                   // 씬을 열 때 메시를 합쳐 버려서(정적 배칭) 트랜스폼을 옮겨도
+                                   // 그려지는 자리가 안 바뀐다 — 문이 안 열린 진짜 원인(2026-09-18).
+                                   openable: true);
 
         // 문 앞 6m 를 기억해 둔다 — 나무가 문을 막지 않게
         doorFronts.Add(t.TransformPoint(new Vector3(0f, 0f, front + 6f)));
@@ -452,11 +460,41 @@ public class CampusBuilder : MonoBehaviour
     /// 파일이 없으면 <b>아무 일도 안 한다.</b> 없는 걸 기다리며 방을 비워 두면 안 되고,
     /// 나중에 파일만 놓고 씬을 다시 구우면 저절로 들어온다.
     /// </summary>
-    void MyModel(Transform parent, string assetPath, string name, Vector3 at, float targetWidth)
+    void MyModel(Transform parent, string assetPath, string name, Vector3 at, float targetWidth,
+                 float maxHeight = 0f)
     {
 #if UNITY_EDITOR
+        // <b>임포트 설정을 먼저 맞춘다.</b> 유니티 기본값은 `materialLocation: External` 이라
+        // 짝이 맞는 `.mat` 에셋이 없으면 <b>모델이 새하얗게</b> 나온다 — 카트와 곰에서 이미
+        // 두 번 겪은 함정이야. 유저에게 임포터를 만지라고 시키지 않는다(기획서 §9.3).
+        var importer = UnityEditor.AssetImporter.GetAtPath(assetPath) as UnityEditor.ModelImporter;
+        if (importer != null &&
+            (importer.materialLocation != UnityEditor.ModelImporterMaterialLocation.InPrefab
+             || importer.importCameras || importer.importLights || importer.addCollider))
+        {
+            importer.materialLocation = UnityEditor.ModelImporterMaterialLocation.InPrefab;
+            importer.importCameras = false;   // 블렌더 기본 내보내기가 카메라·조명을 같이 싣는다
+            importer.importLights = false;
+            importer.addCollider = false;
+            importer.SaveAndReimport();
+        }
+
         var fbx = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
         if (fbx == null) return;
+
+        // ★ <b>기하가 비어 있는 FBX 를 걸러낸다.</b> 2026-09-18 유저가 준
+        // `pot lid_PLUS IRON_spoon.fbx` 가 그랬다 — 4KB 에 `Objects` 가 통째로 비어서
+        // 유니티에는 <b>빈 상자(트랜스폼)만</b> 떴다(유저: "박스만 나오고 아이템이 안 나와").
+        // 블렌더에서 <b>「선택된 오브젝트만」을 켠 채 아무것도 안 고르고</b> 내보내면 이렇게 된다.
+        // 그냥 두면 씬에 빈 오브젝트가 남아서 "배치는 됐는데 안 보인다" 로 또 헤맨다.
+        if (fbx.GetComponentsInChildren<Renderer>(true).Length == 0)
+        {
+            Debug.LogError($"[내 모델] '{assetPath}' 안에 <b>메시가 하나도 없다.</b> " +
+                           $"블렌더에서 내보낼 때 오브젝트를 고르고 다시 내보내라 " +
+                           $"(File → Export → FBX, 「Limit to: Selected Objects」를 끄거나 " +
+                           $"모델을 선택한 상태로). 그 자리는 비워 둔다.");
+            return;
+        }
 
         var go = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(fbx);
         go.name = name;
@@ -473,6 +511,13 @@ public class CampusBuilder : MonoBehaviour
 
         float widest = Mathf.Max(bounds.size.x, bounds.size.z);
         float scale = widest > 0.001f ? targetWidth / widest : 1f;
+
+        // <b>키 제한.</b> 폭만 보고 키우면 <b>거의 정육면체인 모델이 건물보다 높아진다</b> —
+        // 솥뚜껑은 1.85 × 1.88 × 2.06 이라 폭 8m 로 맞추면 높이가 7.3m 가 된다(건물이 9m).
+        // 간판은 커야 읽히지만 <b>지붕보다 높은 간판은 건물을 가린다.</b>
+        if (maxHeight > 0.01f && bounds.size.y * scale > maxHeight)
+            scale = maxHeight / bounds.size.y;
+
         go.transform.localScale = Vector3.one * scale;
 
         // <b>원점이 바닥이 아니어도 바닥에 앉힌다.</b> 블렌더에서 원점을 가운데 둔 모델이
@@ -552,7 +597,7 @@ public class CampusBuilder : MonoBehaviour
     /// 그래도 싼 편이야 — <b>안에 들어갈 수 있다는 게 건물 하나를 방 하나로 바꾼다.</b>
     /// 창도 이제 진짜로 안이 비친다.
     /// </summary>
-    void Hollow(Transform t, float w, float d, float h, float gap)
+    void Hollow(Transform t, float w, float d, float h, float gap, float doorHeight = 4.2f)
     {
         const float wall = 0.6f;
         float halfW = w * 0.5f, halfD = d * 0.5f;
@@ -570,8 +615,11 @@ public class CampusBuilder : MonoBehaviour
                 Block(t, $"WallFront_{s2}", new Vector3(s2 * (gap + pane) * 0.5f, h * 0.5f, halfD - wall * 0.5f),
                       Quaternion.identity, new Vector3(pane, h, wall), ColCream);
 
-        // 문 위 인방 — 구멍이 천장까지 뚫려 있으면 건물이 잘린 것처럼 보인다
-        float lintel = h - 4.6f;
+        // 문 위 인방 — 구멍이 천장까지 뚫려 있으면 건물이 잘린 것처럼 보인다.
+        // ★ 전에는 `h − 4.6` 이라 벽이 y 4.6 부터 시작했는데 문 상인방은 4.54 에서 끝난다 —
+        // 그 사이 <b>6cm 가 가로로 뚫려</b> 문 위에 검은 줄이 보였다(2026-09-18).
+        // 상인방이 `doorHeight + 0.34` 까지 올라오니 벽을 `doorHeight + 0.3` 부터 시작해 물린다.
+        float lintel = h - (doorHeight + 0.3f);
         if (lintel > 0.4f)
             Block(t, "WallOverDoor", new Vector3(0f, h - lintel * 0.5f, halfD - wall * 0.5f),
                   Quaternion.identity, new Vector3(gap, lintel, wall), ColCream);
@@ -1109,8 +1157,10 @@ public class CampusBuilder : MonoBehaviour
                 // (통닭집 닭 모형, 국밥집 뚝배기). 급식소를 한눈에 알아보게 만드는 데
                 // 글자 간판보다 낫고, 유저가 만든 모델을 제일 잘 보이는 자리에 쓰는 거다.
                 //
-                // 받침대를 먼저 깔고 그 위에 올린다 — 지붕에 그릇만 떠 있으면 <b>얹은 게 아니라
-                // 박힌 것</b>처럼 보인다. 지붕 능선은 h + 0.55 쯤이야.
+                // <b>받침대는 뺐다</b>(2026-09-18 유저: *"밥상 받침대 제거하고 크게 배치해줘"*).
+                // 처음에 깐 이유는 "그릇만 있으면 떠 보인다" 였는데, 이 지붕은 경사면이 아니라
+                // <b>납작한 판 세 장</b>(Eaves·Roof·Ridge)이라 능선 위가 그냥 평평하다 —
+                // 받침대가 없어도 그릇이 바닥에 닿는다. 밥상만 하나 더 떠 있는 꼴이었어.
                 {
                     // ★ 지붕 <b>가운데</b>에 놓는다. 처음에 `front − 1.4`(앞쪽 끝)에 뒀더니
                     // 처마가 폭+4.5 로 튀어나와서 <b>그릇이 처마 밑에 가렸다</b> —
@@ -1119,34 +1169,36 @@ public class CampusBuilder : MonoBehaviour
                     // 능선(h+0.55)이 아니라 기와 층까지 쌓인 값이야. h+0.9(9.9)에 뒀더니
                     // 그릇 바닥이 10.16 으로 <b>지붕에 0.8m 묻혔다.</b>
                     // 지붕을 눈으로 어림하지 말고 <b>렌더러 최고점을 읽어라.</b>
-                    float shelfY = RoofTopLocal(t, h) + 0.15f;
-                    float shelfZ = 0f;           // 건물 앞뒤 한가운데
-                    float shelfX = -w * 0.26f;   // <b>왼쪽</b> — 오른쪽은 국밥 그릇 자리로 비워 둔다
+                    // <b>능선 윗면에 바로 앉힌다.</b> 0.06 만 묻어서 접지선을 만든다 —
+                    // 딱 0 에 맞추면 z-파이팅 위험이 있고, 조금 묻히면 "놓인" 걸로 읽힌다.
+                    float bowlY = RoofTopLocal(t, h) - 0.06f;
+                    float bowlZ = 0f;           // 건물 앞뒤 한가운데
+                    // 유저의 기준(2026-09-18): *"면수는 적게, 에셋 크기는 크게. 멀리서 봐도
+                    // 솥뚜껑이랑 숟가락이 보여서 그 건물이 뭐 하는 데인지 알았으면."*
+                    // 크게 만드는 값은 `BowlSize`, 싸게 만드는 값은 에셋의 면 수 —
+                    // <b>둘은 서로 안 묶여 있다.</b> 그래서 둘 다 극단으로 갈 수 있다.
+                    const float BowlSize = 10.0f;    // 폭
+                    const float BowlTall = 8.5f;     // 키 상한
+                    float bowlX = -6.5f;             // <b>왼쪽</b> — 오른쪽은 솥뚜껑 자리
 
-                    // 받침대도 그릇에 맞춰 키운다 — 4m 그릇을 2.4m 받침에 올리면 떠 보인다
-                    Block(t, "BowlShelf", new Vector3(shelfX, shelfY, shelfZ), Quaternion.identity,
-                          new Vector3(4.6f, 0.4f, 3.8f), ColWood, noCollider: true);
-                    Block(t, "BowlShelfLip", new Vector3(shelfX, shelfY + 0.26f, shelfZ),
-                          Quaternion.identity, new Vector3(5.0f, 0.16f, 4.2f), ColWoodRail, noCollider: true);
-
-                    // 지붕 위에 올리는 거라 <b>크게</b>. 1.5m 는 멀리서도 "밥그릇" 으로 읽힌다 —
-                    // 간판은 건물에 비해 과하다 싶을 만큼 커야 보인다(현판에서 배운 것).
-                    // 2026-09-18 유저: "밥그릇은 있는데 너무 작고." 1.8m 로는 26m 떨어져서 보면
-                    // 점으로 보인다 — 간판은 <b>건물에 비해 과하다 싶을 만큼</b> 커야 읽힌다.
-                    // 건물 폭이 30m 니 4m 면 지붕의 1/7 이고, 실제 국밥집 간판 비율이 대략 그렇다.
+                    // ★ <b>바운딩박스를 능선 안에 가두려던 걸 그만뒀다.</b> 그 규칙으로는
+                    // 7m 가 한계였는데(능선 폭 `w × 0.7` = ±10.5), 유저가 원하는 건
+                    // <b>멀리서 봐도 뭐 하는 건물인지 아는 것</b>이라 크기가 먼저다.
+                    //
+                    // 실제로 떠 보이는지는 <b>바운딩박스가 아니라 접지면</b>이 정한다:
+                    // 밥그릇은 굽(바닥)이 지름의 40% 남짓이라 중심 ±6.5 면 굽이 4.5~8.5 에
+                    // 얹혀 능선(±10.5) 한가운데다. 밖으로 나가는 건 <b>위로 벌어진 전</b>뿐이고
+                    // 그 밑에는 `Roof` 판이 0.3m 아래·±15.8 까지 깔려 있어 하늘이 안 보인다.
+                    //
+                    // 결과: 밥그릇 10.0 × 2.63 × 10.0, 솥뚜껑 8.36 × 8.50 × 9.33,
+                    // 둘 사이 3.8m. 전보다 <b>43% 크다.</b>
                     MyModel(t, "Assets/My blender/Rice_bowl.fbx", "RiceBowl",
-                            new Vector3(shelfX, shelfY + 0.34f, shelfZ), 4.0f);
+                            new Vector3(bowlX, bowlY, bowlZ), BowlSize, BowlTall);
 
-                    // 오른쪽 자리 — 국밥 그릇이 올 곳. 받침대를 <b>미리</b> 깔아 둔다:
-                    // 빈 받침대가 보이면 "여기 뭐가 올라오겠구나" 가 되고, 나중에 파일만 놓으면 된다.
-                    Block(t, "BowlShelf_R", new Vector3(-shelfX, shelfY, shelfZ), Quaternion.identity,
-                          new Vector3(4.6f, 0.4f, 3.8f), ColWood, noCollider: true);
-                    Block(t, "BowlShelfLip_R", new Vector3(-shelfX, shelfY + 0.26f, shelfZ),
-                          Quaternion.identity, new Vector3(5.0f, 0.16f, 4.2f), ColWoodRail, noCollider: true);
-
-                    // 유저가 만들면 저절로 들어온다. 없으면 아무 일도 안 한다.
-                    MyModel(t, "Assets/My blender/Soup_bowl.fbx", "SoupBowl",
-                            new Vector3(-shelfX, shelfY + 0.34f, shelfZ), 4.0f);
+                    // 오른쪽 — <b>솥뚜껑 + 쇠숟가락</b>(2026-09-18 유저가 만든 두 번째 모델).
+                    // 파일이 없거나 <b>기하가 비어 있으면</b> 아무 것도 안 놓는다(`MyModel` 이 판단).
+                    MyModel(t, "Assets/My blender/pot lid_PLUS IRON_spoon_2fbx.fbx", "PotLidSpoon",
+                            new Vector3(-bowlX, bowlY, bowlZ), BowlSize, BowlTall);
                 }
                 Disc(t, "Cauldron", new Vector3(-side + 2.6f, 0.9f, front + 3.2f),
                      new Vector3(3.2f, 0.9f, 3.2f), ColBearDark);

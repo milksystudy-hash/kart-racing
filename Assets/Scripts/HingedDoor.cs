@@ -95,6 +95,25 @@ public class HingedDoor : MonoBehaviour
             Debug.Log($"[문] '{label}' 문짝 [{leaves[0].name}] / [{leaves[1].name}] " +
                       $"· 조각 {leaves[0].childCount} + {leaves[1].childCount}", this);
 
+        // ★★ <b>정적 배칭에 잡힌 문짝은 옮겨도 안 움직인다.</b> 유니티가 씬을 열 때 static
+        // 렌더러를 하나의 메시로 합쳐 놔서, 트랜스폼은 멀쩡히 움직이는데 <b>그려지는 자리만
+        // 그대로</b>다. 로그도 배치모드 검사도 전부 통과하니까 이걸 다섯 번 헛짚었다(2026-09-18).
+        //
+        // 이건 <b>씬 데이터</b> 문제라 코드로 못 되돌린다 — 배칭은 Start 보다 먼저 끝나 있고,
+        // 여기서 `isStatic = false` 를 해도 이미 합쳐진 메시는 안 풀린다. 그래서 <b>말해 준다.</b>
+        foreach (var leafRoot in leaves)
+        {
+            if (leafRoot == null) continue;
+            foreach (var r in leafRoot.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!r.isPartOfStaticBatch) continue;
+                Debug.LogError($"[문] '{label}' 문짝이 <b>정적 배칭</b>에 묶여 있어서 움직여도 " +
+                               $"화면이 안 바뀐다. 캠퍼스 씬을 다시 구워라 " +
+                               $"(Racing → 캠퍼스 씬 만들기).", this);
+                break;
+            }
+        }
+
         shut = new Vector3[leaves.Length];
         swung = new Vector3[leaves.Length];
 

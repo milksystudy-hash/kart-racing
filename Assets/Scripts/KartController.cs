@@ -316,7 +316,8 @@ public class KartController : MonoBehaviour
             driftHeld = KartInput.Drift;
             if (KartInput.HopPressed) hopQueued = true;   // 물리는 FixedUpdate 에서 처리한다
 
-            if (KartInput.RespawnPressed) Respawn();
+            // R 은 <b>구조 요청</b>이지 재시작이 아니다 — 지나온 체크포인트로 돌아간다.
+            if (KartInput.RespawnPressed) RespawnToCourse();
 
             if (RaceCountdown.Blocked) { throttleInput = 0f; driftHeld = false; hopQueued = false; }
         }
@@ -539,10 +540,37 @@ public class KartController : MonoBehaviour
         visual.localRotation = Quaternion.Slerp(visual.localRotation, goal, 1f - Mathf.Exp(-10f * Time.deltaTime));
     }
 
-    /// <summary>뒤집히거나 코스 밖으로 떨어졌을 때. R 키로도 부를 수 있다.</summary>
+    /// <summary>
+    /// <b>제 출발 자리로.</b> 판을 다시 시작할 때만 쓴다(<see cref="RaceStandings.ResetRace"/>).
+    /// 레이스 중에 이걸 부르면 출발선까지 끌려간다 — 그건 구조가 아니라 벌이야.
+    /// </summary>
     public void Respawn()
     {
         RespawnAt(spawnPosition, spawnRotation);
+    }
+
+    /// <summary>
+    /// <b>R 키 — 지나온 체크포인트로 돌아간다.</b>
+    ///
+    /// 2026-09-18 유저: *"AI 세 대랑 달리다 멈춰서 추월당한 뒤 R 을 누르면 나만 출발선으로
+    /// 가고 AI 는 가던 길 그대로던데 이게 맞아?"* 안 맞다. R 은 <b>뒤집히거나 낀 걸 빼주는
+    /// 구조 요청</b>이고, 그 대가는 «그 자리에서 조금 뒤로» 여야 한다. 출발선으로 보내면
+    /// 한 바퀴를 통째로 날리는 거라 <b>차라리 낀 채로 버티는 게 이득</b>이 되고,
+    /// 그러면 키가 있으나 마나야.
+    ///
+    /// 코스 밖으로 떨어졌을 때(<see cref="LapTracker"/> 의 killPlane)와 <b>같은 자리</b>로 간다 —
+    /// 같은 사고를 두 가지로 처리하면 플레이어가 규칙을 못 배운다.
+    /// 체크포인트를 아직 하나도 안 지났으면(출발 직후) 출발 자리가 곧 마지막 체크포인트다.
+    /// </summary>
+    public void RespawnToCourse()
+    {
+        var progress = GetComponent<RaceProgress>();
+        var last = progress != null ? progress.LastPassed : null;
+
+        if (last != null && last.respawnPoint != null)
+            RespawnAt(last.respawnPoint.position + Vector3.up * 0.6f, last.respawnPoint.rotation);
+        else
+            RespawnAt(spawnPosition, spawnRotation);
     }
 
     public void RespawnAt(Vector3 position, Quaternion rotation)
