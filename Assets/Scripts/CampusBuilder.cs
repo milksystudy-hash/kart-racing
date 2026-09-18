@@ -451,11 +451,13 @@ public class CampusBuilder : MonoBehaviour
               new Vector3(0.14f, 1.6f, 0.14f), ColWood, noCollider: true);
         Block(go, "SpotFoot", new Vector3(0f, 0.08f, 0f), Quaternion.identity,
               new Vector3(0.7f, 0.16f, 0.7f), ColWood, noCollider: true);
-        var board = Block(go, "SpotBoard", new Vector3(0f, 1.75f, 0f), Quaternion.identity,
+        // ★ 판·테두리·띠의 <b>z 범위가 겹치면 지지직거린다.</b> 층을 확실히 나눈다:
+        // 테두리 0.11~0.17(뒤) · 판 0.00~0.10 · 띠 −0.06~−0.02(앞).
+        var board = Block(go, "SpotBoard", new Vector3(0f, 1.75f, 0.05f), Quaternion.identity,
                           new Vector3(1.9f, 0.9f, 0.1f), ColCream, noCollider: true);
-        Block(go, "SpotFrame", new Vector3(0f, 1.75f, 0.06f), Quaternion.identity,
+        Block(go, "SpotFrame", new Vector3(0f, 1.75f, 0.14f), Quaternion.identity,
               new Vector3(2.1f, 1.1f, 0.06f), ColWood, noCollider: true);
-        Block(go, "SpotTape", new Vector3(0f, 1.4f, -0.07f), Quaternion.Euler(0f, 0f, 9f),
+        Block(go, "SpotTape", new Vector3(0f, 1.4f, -0.04f), Quaternion.Euler(0f, 0f, 9f),
               new Vector3(2.2f, 0.14f, 0.04f), ColRibbon, noCollider: true);
 
         // <b>글자는 판에 붙인다.</b> BuildingSign 이 판의 localScale 에서 크기를 뽑기 때문에

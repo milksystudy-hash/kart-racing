@@ -125,9 +125,14 @@ public static class HanokDoor
                   new Vector3(0.6f, 0.16f, 0.6f), Wood, material);
 
             // 한 줄 문구까지 넉넉히 담게 조금 키웠다(2026-09-18). 네 줄이 들어간다.
+            //
+            // ★ <b>판과 테두리의 z 범위가 겹치면 지지직거린다</b>(2026-09-18 유저 제보).
+            // 전에는 판 0.44~0.56, 테두리 0.42~0.50 이라 <b>0.06m 가 겹쳤다</b> —
+            // 두 면이 같은 깊이에 있으면 GPU 가 앞뒤를 못 정해서 픽셀마다 번갈아 찍힌다.
+            // 테두리를 판 <b>완전히 뒤로</b> 뺀다: 테두리 0.36~0.44, 판 0.44~0.56. 맞닿을 뿐 안 겹친다.
             var notice = Piece(root, "Board", new Vector3(side, 1.66f, 0.5f),
                                new Vector3(2.6f, 1.25f, 0.12f), Plaque, material);
-            Piece(root, "BoardFrame", new Vector3(side, 1.66f, 0.46f),
+            Piece(root, "BoardFrame", new Vector3(side, 1.66f, 0.4f),
                   new Vector3(2.8f, 1.45f, 0.08f), Wood, material);
 
             // 작은 지붕 한 겹 — 비 가리는 시늉. 판만 서 있으면 표지판이 아니라 널빤지다

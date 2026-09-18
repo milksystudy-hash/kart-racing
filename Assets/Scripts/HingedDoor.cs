@@ -9,7 +9,13 @@ using UnityEngine;
 /// 그냥 걸어 들어간다.</b> 건물 열셋마다 씬을 만들면 로딩만 열세 번이고, 방 하나 보자고
 /// 씬을 갈아타는 건 비싸다. 문틀이 실제로 뚫려 있으니 열고 들어가면 된다.
 ///
-/// 한 번 열면 <b>다시 안 닫는다.</b> 나갈 때 또 눌러야 하면 짜증만 난다.
+/// <b>열고 닫는다.</b> 2026-09-18 유저: *"모든 문이 존재하는 건물에 문 열기/문 닫기
+/// 시스템이 있으면 좋겠어. 연출적으로 좋아 보이게."*
+///
+/// 전에는 한 번 열면 다시 안 닫았다 — "나갈 때 또 눌러야 하면 짜증" 이라고 판단했는데,
+/// 실제로 써 보니 <b>열린 문이 캠퍼스에 열셋 널려 있는 게</b> 더 어수선했다.
+/// 게다가 문을 닫을 수 있으면 그 자체가 <b>연출</b>이 된다 — 들어와서 문을 닫는 동작은
+/// 공짜로 생기는 이야기야.
 /// </summary>
 public class HingedDoor : MonoBehaviour
 {
@@ -33,12 +39,15 @@ public class HingedDoor : MonoBehaviour
 
     public bool Open { get; private set; }
 
+    [Tooltip("열려 있을 때도 표시를 띄울지. 끄면 한 번 열면 끝")]
+    public bool canClose = true;
+
     public static HingedDoor Nearest { get; private set; }
 
     static int frameStamp = -1;
     static float nearestDistance;
 
-    float openedAt = -99f;
+    float movedAt = -99f;
     Vector3[] shut, swung;
 
     void Start()
@@ -84,7 +93,8 @@ public class HingedDoor : MonoBehaviour
             nearestDistance = float.MaxValue;
             Nearest = null;
         }
-        if (Open) return;   // 이미 열린 문은 표시를 안 띄운다
+        // 열린 문도 표시를 띄운다 — <b>닫을 수 있어야</b> 여닫이다.
+        if (Open && !canClose) return;
 
         Transform who = visitor != null ? visitor
                       : (Camera.main != null ? Camera.main.transform : null);
@@ -100,9 +110,16 @@ public class HingedDoor : MonoBehaviour
 
     public void Toggle()
     {
-        Open = true;                 // 한 번 열면 계속 열려 있다
-        openedAt = Time.time;
+        // 여는 중이거나 닫는 중이면 무시한다. 반쯤 열린 문에서 또 누르면
+        // 문짝이 <b>제자리에서 튀어</b> 고장처럼 보인다.
+        if (Time.time - movedAt < openSeconds) return;
+
+        Open = canClose ? !Open : true;
+        movedAt = Time.time;
     }
+
+    /// <summary>화면에 띄울 말. 상태에 따라 달라야 한다 — 늘 "문 열기" 면 닫는 법을 모른다.</summary>
+    public string Action => Open ? "문 닫기" : "문 열기";
 
     /// <summary>
     /// 문짝을 <b>옆으로 민다.</b> 한옥 장지문은 여닫이가 아니라 미닫이야
@@ -115,9 +132,13 @@ public class HingedDoor : MonoBehaviour
     {
         if (leaves == null || shut == null) return;
 
-        float t = Mathf.Clamp01((Time.time - openedAt) / Mathf.Max(0.05f, openSeconds));
-        if (!Open) t = 0f;
-        t = t * t * (3f - 2f * t);   // 부드럽게 — 일정한 속도로 열리면 기계 같다
+        // <b>닫힐 때도 같은 곡선을 탄다.</b> 열 때만 부드럽고 닫을 때 툭 끊기면
+        // 같은 문이 두 물건처럼 보인다.
+        float p = Mathf.Clamp01((Time.time - movedAt) / Mathf.Max(0.05f, openSeconds));
+        float t = Open ? p : 1f - p;
+        if (movedAt < -90f) t = 0f;   // 한 번도 안 건드린 문
+
+        t = t * t * (3f - 2f * t);   // 부드럽게 — 일정한 속도로 움직이면 기계 같다
 
         for (int i = 0; i < leaves.Length; i++)
         {

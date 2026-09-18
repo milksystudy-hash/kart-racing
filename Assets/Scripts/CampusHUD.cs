@@ -63,8 +63,10 @@ public class CampusHUD : MonoBehaviour
             what = string.IsNullOrEmpty(SceneDoor.Nearest.label)
                  ? "들어가기" : $"{SceneDoor.Nearest.label} 들어가기";
         else if (HingedDoor.Nearest != null)
+            // 상태에 맞는 말이 떠야 한다 — 열린 문에 "문 열기" 가 뜨면 닫는 법을 모른다.
             what = string.IsNullOrEmpty(HingedDoor.Nearest.label)
-                 ? "문 열기" : $"{HingedDoor.Nearest.label} 문 열기";
+                 ? HingedDoor.Nearest.Action
+                 : $"{HingedDoor.Nearest.label} {HingedDoor.Nearest.Action}";
         else if (BearNpc.Nearest != null)
             what = "말 걸기";
 
