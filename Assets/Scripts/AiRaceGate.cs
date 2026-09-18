@@ -55,6 +55,9 @@ public class AiRaceGate : MonoBehaviour
                 var skin = kart.GetComponent<KartSkin>();
                 int slot = skin != null ? skin.aiSlot : 0;
                 kart.gameObject.SetActive(race && SlotRaces(slot));
+                // ★ 판이 바뀌면 <b>누가 상대인지도 바뀐다.</b> Awake 는 씬을 열 때 한 번뿐이라
+                // 결승을 이기고 자유 주행이 돼도 악당 카트를 그대로 입고 있었다.
+                if (skin != null && kart.gameObject.activeSelf) skin.Reskin();
             }
         }
         else
@@ -68,6 +71,7 @@ public class AiRaceGate : MonoBehaviour
                 var skin = ai.GetComponent<KartSkin>();
                 int slot = skin != null ? skin.aiSlot : 0;
                 ai.gameObject.SetActive(race && SlotRaces(slot));
+                if (skin != null && ai.gameObject.activeSelf) skin.Reskin();
             }
         }
 

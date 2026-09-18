@@ -40,6 +40,20 @@ public class TestHUD : MonoBehaviour
     bool showControls;
     bool confirmQuit;
 
+    /// <summary>
+    /// 멈춘 걸 푼다. <b>timeScale 을 켜는 자리를 한 군데로 모은다</b> —
+    /// 빠져나가는 길이 넷(ESC 로 로비 · R 로 다시 · 아무 키로 취소 · 컴포넌트가 꺼짐)이라
+    /// 한 군데라도 빠뜨리면 <b>게임이 멈춘 채로 남는다.</b> 그건 버그 중에 제일 무섭다.
+    /// </summary>
+    void Resume()
+    {
+        confirmQuit = false;
+        Time.timeScale = 1f;
+    }
+
+    // 씬을 옮기거나 이 HUD 가 꺼질 때도 반드시 푼다 — 로비로 나갔는데 로비가 얼어 있으면 안 된다.
+    void OnDisable() { if (Time.timeScale == 0f) Time.timeScale = 1f; }
+
     bool InKart => modeSwitcher != null && modeSwitcher.InKart;
 
     void Update()
@@ -67,13 +81,21 @@ public class TestHUD : MonoBehaviour
 
         // ESC — 망한 판을 빠져나갈 길. <b>게임을 끄는 게 아니라 로비로</b> 간다.
         // 한 번에 나가면 잘 달리던 판을 실수로 날린다. 두 번 눌러야 나가고, 다른 키를 누르면 취소된다.
+        //
+        // ★ <b>진짜 일시정지다</b>(2026-09-18 유저: *"ESC 누르면 속력이 0으로 줄어드는데
+        // 일시정지 같은 느낌이니까 속력 그대로, 시간도 계속 흐르게 두지 말고"*). 맞는 말이야 —
+        // 패널을 띄워 놓고 게임이 계속 돌면 <b>고민하는 동안 판이 망가진다.</b>
+        // `Time.timeScale = 0` 이면 물리도 시계도 멈춰서 <b>속도가 그대로 보존</b>된다
+        // (FixedUpdate 가 안 도니까 감속도 안 걸린다). OnGUI 와 키 입력은 그대로 돈다.
         if (k.escapeKey.wasPressedThisFrame)
         {
-            if (confirmQuit) { SceneNavigator.LoadByIndex(0); return; }
+            if (confirmQuit) { Resume(); SceneNavigator.LoadByIndex(0); return; }
             confirmQuit = true;
+            Time.timeScale = 0f;
         }
         else if (confirmQuit && k.rKey.wasPressedThisFrame)
         {
+            Resume();
             // 2026-09-17 유저: *"다른 애들이 뛰쳐나가서 기분이 안 좋은 사람들을 위해
             // 다시 1:3 레이싱을 하는 패널이 있으면 좋겠다."* 출발을 망쳤을 때
             // <b>로비를 거쳐 돌아오는 것 말고</b> 그 자리에서 다시 할 길이 필요하다.
@@ -82,7 +104,7 @@ public class TestHUD : MonoBehaviour
         }
         else if (confirmQuit && k.anyKey.wasPressedThisFrame)
         {
-            confirmQuit = false;
+            Resume();
         }
 
         // 완주했을 때뿐 아니라 <b>임무가 글러버린 순간부터</b> 다시 시작할 수 있다.

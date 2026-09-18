@@ -42,6 +42,16 @@ public class KartSkin : MonoBehaviour
 
     void Awake() => Apply(ChooseCastId());
 
+    /// <summary>
+    /// <b>지금 판에 맞는 카트로 갈아입는다.</b> 2026-09-18 유저: *"정치인이랑 개발업자 이기고
+    /// 나면 정치인이랑 개발업자랑 아군 카트 하나랑 경쟁하게 돼요."*
+    ///
+    /// <c>Awake</c> 는 <b>씬을 열 때 딱 한 번</b> 돈다. 그래서 결승을 이겨서 자유 주행으로
+    /// 넘어가도 AI 둘은 <b>결승에서 입은 악당 카트를 그대로 입고 있었다.</b>
+    /// 판이 바뀌는 자리(<see cref="AiRaceGate.Apply"/>)에서 이걸 다시 부른다.
+    /// </summary>
+    public void Reskin() => Apply(ChooseCastId());
+
     /// <summary>이 카트가 누구 것이 되는지. 밖에서 검사할 수 있게 갈라놨다.</summary>
     public string ChooseCastId()
     {

@@ -47,8 +47,13 @@ public class MissionManager : MonoBehaviour
 
     // 한 바퀴가 464 -> 535m 로 15% 길어져서(2026-09-16 직선 추가) 전부 비례로 옮겼다.
     // 난이도는 그대로 둔 값이야 — 실제 랩타임을 재면 그때 조인다.
-    [Tooltip("제한시간 임무의 제한(초). 코스가 535m 로 늘어난 뒤 값")]
-    public float timeLimit = 121f;
+    // ★ 2026-09-18 유저: *"121초 임무는 어차피 발판 밟으면 단축되는데 의미가 없지 않나."* 맞다.
+    // 발판을 쓴 한 판이 <b>약 87초</b>인데 제한이 121초면 <b>여유가 39%</b> 다 — 그냥 완주와 같다.
+    // 96초면 여유 10% 라 «조금만 흘려도 놓친다» 가 된다. 발판을 막는 게 아니라
+    // <b>발판을 써야 겨우 되는 선</b>으로 내리는 게 맞아 — 그래야 발판이 보상이 된다.
+    // 이건 계산값이다. 실제로 달려서 재면 그 숫자로 다시 조일 것.
+    [Tooltip("제한시간 임무의 제한(초). 발판 쓴 한 판이 ~87초")]
+    public float timeLimit = 96f;
 
     [Tooltip("빠른랩 임무에서 한 바퀴를 몇 초 안에. 535m 기준 (지금은 안 쓴다 — 광고판으로 바뀜)")]
     public float lapLimit = 38f;
@@ -59,14 +64,22 @@ public class MissionManager : MonoBehaviour
     [Tooltip("장애물 임무에서 봐주는 충돌 횟수")]
     public int allowedDebris = 2;
 
+    // ★ 2026-09-18 유저: *"임무가 가속 발판 4개 밟기인데 발판이 5개야. 이럴 바에는 5개가 낫지 않나."*
+    // 맞다. <b>0 = 전부</b> 로 둔다 — 숫자를 5 로 박으면 나중에 발판을 하나 더 놓는 순간 또 어긋난다.
+    // 발판은 <b>코스 위</b>에 있어서 라인을 크게 안 버리고도 다 밟을 수 있으니 «전부» 가 가혹하지 않다.
     [Tooltip("발판전부 임무에서 밟아야 하는 최소 개수. 0 이면 전부")]
-    public int padsNeeded = 4;
+    public int padsNeeded = 0;
 
+    // ★ 곰인형은 <b>갓길</b>에 있다. 하나 주우려면 레이싱 라인을 버려야 해서 «전부» 로 두면
+    // 순수 감점제가 된다(2026-09-18 에 그 이유로 «발판 안 밟기» 판을 없앴다).
+    // 8마리 중 6마리 — <b>두 마리는 놓쳐도 된다</b>는 여유가 있어야 «모으는 재미» 가 된다.
+    // 발판과 숫자가 다른 건 실수가 아니라 <b>자리가 달라서</b>야.
     [Tooltip("전시품 임무에서 실어야 하는 최소 개수. 0 이면 전부")]
     public int cargoNeeded = 6;
 
+    // 제한시간(96)보다 조금 넉넉하다 — 담장을 안 긁으려면 코너에서 어차피 늦어지니까.
     [Tooltip("완벽 임무의 제한(초). 무충돌까지 같이 지켜야 한다")]
-    public float perfectTimeLimit = 133f;
+    public float perfectTimeLimit = 106f;
 
     public bool Failed { get; private set; }
     public bool Cleared { get; private set; }
