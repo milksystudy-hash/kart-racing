@@ -1,0 +1,106 @@
+using UnityEngine;
+
+/// <summary>
+/// <b>미니게임이 들어올 자리.</b> 건물 안에 입간판을 세우고 상태를 알려준다.
+///
+/// 2026-09-18 유저: *"미리 건물마다 미니게임을 하나씩 다 만들어 놓는 건 어때.
+/// 못 만든 게임은 '준비 중' 패널 씌우면 되잖아.
+/// (정치인들도 폐관 절차를 밟으려고 건물 안을 싹 밀어버려서 복구 준비 중이야) 식으로."*
+///
+/// 핑계는 훌륭하다 — 설정에도 맞고 다크코미디 톤도 산다. 다만 <b>숫자가 중요하다:</b>
+///
+/// | 준비 중 개수 | 어떻게 읽히나 |
+/// |---|---|
+/// | 1~2개 | "여기는 나중에 열리겠구나" → 기대 |
+/// | 10개 이상 | <b>"미완성"</b> |
+///
+/// 13동 전부에 붙이면 핑계가 아니라 <b>못 만든 목록</b>으로 보인다.
+/// 그래서 <b>세 동에만</b> 단다 — 곰밥마당(만들 것) · 곰짝박수마당 · 철곰관(준비 중).
+/// 나머지 열 동은 지금처럼 그냥 둘러보는 방이야. 시간이 남으면 그때 늘리면 된다.
+///
+/// <b>상태는 셋이다:</b>
+/// <list type="bullet">
+/// <item>잠김 — 여덟 판을 아직 다 안 깼다. "철거 심사가 끝나야 문을 연다"</item>
+/// <item>준비 중 — 다 깼지만 이 게임은 아직 안 만들었다. 설정으로 덮는다</item>
+/// <item>열림 — 들어가서 할 수 있다</item>
+/// </list>
+/// </summary>
+public class MinigameSpot : MonoBehaviour
+{
+    [Tooltip("여기서 할 것. 화면에 그대로 뜬다")]
+    public string title = "";
+
+    [Tooltip("한 줄 설명")]
+    public string blurb = "";
+
+    [Tooltip("켜면 실제로 할 수 있다. 끄면 '준비 중'")]
+    public bool ready;
+
+    [Tooltip("이 거리 안에 들어와야 안내가 뜬다")]
+    public float range = 5f;
+
+    [Tooltip("걸어다니는 몸. 비워두면 카메라")]
+    public Transform visitor;
+
+    /// <summary>지금 제일 가까운 자리. <see cref="CampusHUD"/> 가 읽는다.</summary>
+    public static MinigameSpot Nearest { get; private set; }
+
+    static int frameStamp = -1;
+    static float nearestDistance;
+
+    /// <summary>여덟 판을 다 깼나. 안 깼으면 어느 자리도 안 열린다.</summary>
+    public static bool Unlocked =>
+        ExhibitCatalogue.Count > 0 && CollectionState.Count >= ExhibitCatalogue.Count;
+
+    public enum State { 잠김, 준비중, 열림 }
+
+    public State Now => !Unlocked ? State.잠김 : (ready ? State.열림 : State.준비중);
+
+    /// <summary>
+    /// 화면에 띄울 한 줄. <b>세 상태가 전부 다른 말을 해야 한다</b> —
+    /// "안 된다" 만 세 번 뜨면 플레이어는 왜 안 되는지 모른다.
+    /// </summary>
+    public string Line => Now switch
+    {
+        State.잠김   => $"{title} — 철거 심사 중에는 문을 안 연다",
+        // 유저가 준 핑계 그대로. 없는 걸 없다고 적는 것보다 <b>이유가 있는 게</b> 낫고,
+        // 이 게임은 원래 그런 농담을 하는 게임이다.
+        State.준비중 => $"{title} — 폐관 절차 때 안을 싹 밀어버렸다. 복구 중",
+        _             => title,
+    };
+
+    /// <summary>지금 E 를 눌러서 뭔가 되나. HUD 가 키를 보여줄지 결정한다.</summary>
+    public bool Actionable => Now == State.열림;
+
+    void Update()
+    {
+        if (frameStamp != Time.frameCount)
+        {
+            frameStamp = Time.frameCount;
+            nearestDistance = float.MaxValue;
+            Nearest = null;
+        }
+
+        Transform who = visitor != null ? visitor
+                      : (Camera.main != null ? Camera.main.transform : null);
+        if (who == null) return;
+        if (visitor != null && !visitor.gameObject.activeInHierarchy) return;
+
+        float d = Vector3.Distance(who.position, transform.position);
+        if (d > range || d >= nearestDistance) return;
+
+        nearestDistance = d;
+        Nearest = this;
+    }
+
+    /// <summary>E 를 눌렀을 때. 아직 만든 게임이 없어서 알림만 띄운다.</summary>
+    public void Enter()
+    {
+        if (Now != State.열림)
+        {
+            Toast.Show(Line);
+            return;
+        }
+        Toast.Show($"{title} — 곧 들어갑니다");
+    }
+}

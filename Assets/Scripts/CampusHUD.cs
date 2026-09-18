@@ -21,7 +21,11 @@ public class CampusHUD : MonoBehaviour
         if (k.eKey.wasPressedThisFrame)
         {
             // 문이 먼저다. 문 앞에 곰이 서 있을 때 말을 걸다가 못 들어가면 답답하다.
+            // 순서: 씬 문 → 미니게임 자리 → 건물 문 → 곰.
+            // 미니게임 자리는 <b>건물 안</b>에 있어서 문보다 먼저 잡혀야 안 헷갈린다 —
+            // 이미 열고 들어온 문을 또 여는 것보다 안에 있는 걸 집는 게 맞다.
             if (SceneDoor.Nearest != null) SceneDoor.Nearest.Enter();
+            else if (MinigameSpot.Nearest != null) MinigameSpot.Nearest.Enter();
             else if (HingedDoor.Nearest != null) HingedDoor.Nearest.Toggle();
             else if (BearNpc.Nearest != null) BearNpc.Nearest.Talk();
         }
@@ -47,7 +51,15 @@ public class CampusHUD : MonoBehaviour
     {
         string key = "E", what = null;
 
-        if (SceneDoor.Nearest != null)
+        // 미니게임 자리가 제일 먼저. 잠겼거나 준비 중이면 <b>그 이유</b>가 한 줄로 뜬다 —
+        // "안 된다" 만 뜨면 플레이어는 왜 안 되는지 모른다.
+        if (MinigameSpot.Nearest != null)
+        {
+            what = MinigameSpot.Nearest.Line;
+            // 눌러도 아무 일이 안 되는데 키를 보여주면 <b>고장으로 읽힌다.</b>
+            if (!MinigameSpot.Nearest.Actionable) key = "";
+        }
+        else if (SceneDoor.Nearest != null)
             what = string.IsNullOrEmpty(SceneDoor.Nearest.label)
                  ? "들어가기" : $"{SceneDoor.Nearest.label} 들어가기";
         else if (HingedDoor.Nearest != null)
@@ -58,12 +70,14 @@ public class CampusHUD : MonoBehaviour
 
         if (what == null) return;
 
+        string label = string.IsNullOrEmpty(key) ? what : $"{key}   {what}";
+
         var text = Hud.Resize(Hud.Text, 16);
-        float wide = text.CalcSize(new GUIContent($"{key}   {what}")).x + 34f;
+        float wide = text.CalcSize(new GUIContent(label)).x + 34f;
 
         var chip = new Rect(w * 0.5f - wide * 0.5f, h - 116f, wide, 30f);
         Hud.Chip(chip);
-        GUI.Label(new Rect(chip.x + 16f, chip.y + 5f, chip.width - 24f, 20f), $"{key}   {what}", text);
+        GUI.Label(new Rect(chip.x + 16f, chip.y + 5f, chip.width - 24f, 20f), label, text);
     }
 
     void DrawToast(float w, float h)

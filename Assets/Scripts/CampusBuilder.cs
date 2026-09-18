@@ -334,7 +334,12 @@ public class CampusBuilder : MonoBehaviour
             ("곰생회관", "학생회",                    42f, 101f, 195f, 17f, 12f, 8f, ""),
             ("참잘했어요관", "시상·전시",             98f,  36f, 262f, 16f, 12f, 8f, ""),
             ("대충기념관", "기념",                    92f, -52f, 300f, 15f, 11f, 7f, "2026년 준공"),
-            ("곰밥마당", "학생식당·카페·조리실습",   -73f, -107f, 10f, 30f, 19f, 9f, "곰국 없음"),
+            ("곰밥마당", "학생식당·카페·배식",       -73f, -107f, 10f, 30f, 19f, 9f, "곰국 없음"),
+            // 2026-09-18 유저: "곰밥마당 옆에 조리실습 공부하는 공간을 더 지어 줘."
+            // 곰밥마당에 묶여 있던 "조리실습" 을 떼어 제 건물을 줬다 —
+            // 급식소 옆에 조리실습실이 없는 게 오히려 이상했다(곰 전문대잖아).
+            // 자리: 곰밥마당 오른쪽 끝(−58+처마) 과 본관 왼쪽 끝(−18−처마) 사이가 35m 라 들어간다.
+            ("곰솥관",   "조리실습·제과제빵",        -40f, -107f,  10f, 20f, 14f, 8f, "불 조심. 곰은 더 조심"),
             ("곰짝박수마당", "야외 행사",             49f, -106f,  15f, 15f, 11f, 7f, ""),
             // 유저: "웅지관 오른쪽에 아무것도 없으면 화장실로 쓰자." 정비 곰이 노상 변기 얘기를
             // 하는데 정작 화장실이 없었다 — 이제 있다.
@@ -396,6 +401,10 @@ public class CampusBuilder : MonoBehaviour
         float reach = Mathf.Max(width, depth) * 0.5f + 3f;
         footprints.Add(new Bounds(position, new Vector3(reach * 2f, 40f, reach * 2f)));
 
+        // 미니게임이 들어올 자리. <b>세 동에만</b> 단다 — 열세 동 전부에 "준비 중" 이 뜨면
+        // 핑계가 아니라 <b>못 만든 목록</b>으로 보인다(2026-09-18).
+        MinigameSpotFor(t, name, position);
+
         // 문짝 둘을 젖힐 수 있게. 문틀이 실제로 뚫려 있으니 열고 걸어 들어가면 된다.
         var hinge = door.AddComponent<HingedDoor>();
         hinge.label = name;
@@ -405,6 +414,56 @@ public class CampusBuilder : MonoBehaviour
                   new Vector3(2.6f, 2.2f, 0.25f), ColWindow, noCollider: true);
 
         return go;
+    }
+
+    /// <summary>
+    /// 미니게임 자리를 다는 세 동. 나머지 열 동은 그냥 둘러보는 방이다 —
+    /// 시간이 남으면 그때 늘리면 된다(유저: *"시간 남으면 더 오픈하면 되잖아"*).
+    /// </summary>
+    void MinigameSpotFor(Transform t, string name, Vector3 position)
+    {
+        string title, blurb;
+        bool ready;
+
+        switch (name)
+        {
+            case "곰밥마당":
+                title = "오늘의 급식"; blurb = "배식 줄을 감당해 봐라"; ready = false; break;
+            case "곰짝박수마당":
+                title = "한마당 무대"; blurb = "박자에 맞춰 손뼉을"; ready = false; break;
+            case "철곰관":
+                title = "곰 씨름판"; blurb = "밀어서 넘기면 이긴다"; ready = false; break;
+            default:
+                return;   // 나머지는 자리를 안 둔다
+        }
+
+        var go = new GameObject("MinigameSpot").transform;
+        go.SetParent(t, false);
+        go.localPosition = new Vector3(0f, 0f, 2.5f);   // 문 안쪽 — 들어와야 보인다
+
+        var spot = go.gameObject.AddComponent<MinigameSpot>();
+        spot.title = title;
+        spot.blurb = blurb;
+        spot.ready = ready;
+
+        // 입간판 — 나무 판에 붉은 띠. "여기서 뭔가 한다" 가 멀리서도 보여야 한다.
+        Block(go, "SpotPost", new Vector3(0f, 0.8f, 0f), Quaternion.identity,
+              new Vector3(0.14f, 1.6f, 0.14f), ColWood, noCollider: true);
+        Block(go, "SpotFoot", new Vector3(0f, 0.08f, 0f), Quaternion.identity,
+              new Vector3(0.7f, 0.16f, 0.7f), ColWood, noCollider: true);
+        var board = Block(go, "SpotBoard", new Vector3(0f, 1.75f, 0f), Quaternion.identity,
+                          new Vector3(1.9f, 0.9f, 0.1f), ColCream, noCollider: true);
+        Block(go, "SpotFrame", new Vector3(0f, 1.75f, 0.06f), Quaternion.identity,
+              new Vector3(2.1f, 1.1f, 0.06f), ColWood, noCollider: true);
+        Block(go, "SpotTape", new Vector3(0f, 1.4f, -0.07f), Quaternion.Euler(0f, 0f, 9f),
+              new Vector3(2.2f, 0.14f, 0.04f), ColRibbon, noCollider: true);
+
+        // <b>글자는 판에 붙인다.</b> BuildingSign 이 판의 localScale 에서 크기를 뽑기 때문에
+        // 빈 통에 붙이면 1×1 로 계산해서 글자가 판 밖으로 넘친다.
+        var sign = board.AddComponent<BuildingSign>();
+        sign.department = title;
+        sign.motto = blurb;
+        sign.maxLine = 0.26f;
     }
 
     /// <summary>
