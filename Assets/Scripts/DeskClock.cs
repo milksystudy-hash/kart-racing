@@ -185,28 +185,35 @@ public class DeskClock : MonoBehaviour
         transform.localRotation *= Quaternion.Euler(-8f, 0f, 0f);
         transform.localScale = Vector3.one * Mathf.Max(0.2f, scale);
 
-        Box("Case",     new Vector3(0f, 0.095f, 0f),      new Vector3(0.44f, 0.19f, 0.15f), Wood);
-        Box("Base",     new Vector3(0f, 0.012f, 0.012f),  new Vector3(0.50f, 0.024f, 0.19f), Trim);
-        Box("Panel",    new Vector3(0f, 0.105f, PanelZ),  new Vector3(0.36f, 0.115f, 0.012f), Paper,
+        // ★ 폭을 <b>숫자가 차지하는 자리에서 거꾸로</b> 잡는다. 전에는 케이스 0.44 에
+        // 숫자를 ±0.183 까지 늘어놓고 창틀을 ±0.177 에 세워서 <b>창틀이 바깥 두 자리를
+        // 깎아먹었다</b> — 유저가 «숫자가 이상하다» 고 한 게 이거야(2026-09-18).
+        // 숫자 바깥 끝 0.185 < 창틀 안쪽 0.218 < 케이스 끝 0.25. 이제 아무 데도 안 닿는다.
+        Box("Case",     new Vector3(0f, 0.095f, 0f),      new Vector3(0.50f, 0.19f, 0.15f), Wood);
+        Box("Base",     new Vector3(0f, 0.012f, 0.012f),  new Vector3(0.56f, 0.024f, 0.19f), Trim);
+        Box("Panel",    new Vector3(0f, 0.105f, PanelZ),  new Vector3(0.42f, 0.115f, 0.012f), Paper,
             Finish.발광);
 
-        // 창틀 — 한지 창은 살이 있어야 창으로 읽힌다(로비 살창과 같은 이유)
+        // 창틀 — 한지 창은 살이 있어야 창으로 읽힌다(로비 살창과 같은 이유).
+        // <b>숫자 바깥</b>에 세운다. 안쪽에 세우면 그게 획처럼 보여서 숫자가 깨져 보인다.
         for (int s = -1; s <= 1; s += 2)
-            Box($"Mullion_{s}", new Vector3(s * 0.185f, 0.105f, PanelZ + 0.002f),
-                new Vector3(0.016f, 0.135f, 0.016f), Trim);
+            Box($"Mullion_{s}", new Vector3(s * 0.225f, 0.105f, PanelZ + 0.002f),
+                new Vector3(0.014f, 0.135f, 0.016f), Trim);
 
         // 작은 처마 — 이게 있어야 «디지털 시계» 가 아니라 «한옥 물건» 이 된다.
         // 처마는 <b>정면(+Z)으로</b> 나와야 창을 덮는다.
-        Box("Eave",     new Vector3(0f, 0.198f, 0.012f),  new Vector3(0.52f, 0.018f, 0.20f), Tile);
-        Box("EaveLip",  new Vector3(0f, 0.208f, 0.104f),  new Vector3(0.52f, 0.030f, 0.022f), Tile);
-        Box("Ridge",    new Vector3(0f, 0.216f, -0.010f), new Vector3(0.30f, 0.016f, 0.05f), Tile);
+        Box("Eave",     new Vector3(0f, 0.198f, 0.012f),  new Vector3(0.58f, 0.018f, 0.20f), Tile);
+        Box("EaveLip",  new Vector3(0f, 0.208f, 0.104f),  new Vector3(0.58f, 0.030f, 0.022f), Tile);
+        Box("Ridge",    new Vector3(0f, 0.216f, -0.010f), new Vector3(0.34f, 0.016f, 0.05f), Tile);
 
         // ── 숫자 네 자리 ──────────────────────────────────────────────
         // ★ <b>−X 가 보는 사람의 오른쪽</b>이다. 시계는 +Z 로 서 있고 보는 사람은 +Z 쪽에 있어서,
         //   카메라의 오른쪽 벡터가 −X 가 된다. 그냥 +X 순서로 늘어놓으면 «12:34» 가 «43:21» 로
         //   거울상이 된다 — 진열장 숫자가 뒤집혔던 것과 <b>똑같은 병</b>이야(2026-09-17).
         segments = new GameObject[4, 7];
-        float[] slotX = { 0.150f, 0.080f, -0.080f, -0.150f };   // 시10 시1 : 분10 분1
+        // 숫자 한 자가 가로 0.066(획 0.052 + 두께 0.014)이라 간격을 0.076 으로 벌렸다 —
+        // 0.070 이면 자리 사이가 4mm 뿐이라 «두 자리» 가 «한 덩어리» 로 붙어 보인다.
+        float[] slotX = { 0.152f, 0.076f, -0.076f, -0.152f };   // 시10 시1 : 분10 분1
         for (int d = 0; d < 4; d++)
             for (int s = 0; s < 7; s++)
                 segments[d, s] = Segment($"D{d}_{"abcdefg"[s]}", slotX[d], s);
@@ -354,9 +361,28 @@ public class DeskClock : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// <b>«플레이어 사는 곳» 을 알아내는 정직한 방법.</b> 2026-09-18 유저가 물었다:
+    /// *"도시는 플레이어 사는 곳 해킹 안 되나. 개인정보 위반인가."*
+    ///
+    /// 해킹은 필요 없고 해서도 안 된다. 대신 <b>운영체제가 이미 알려주는 것</b>을 쓴다 —
+    /// <b>표준 시간대</b>는 인터넷도 권한도 없이 읽히고, 바깥으로 나가는 정보가 0이다.
+    /// 나라 단위라 «서울 사는 사람에게 부산 날씨» 가 뜨는 일은 없지만 도시 단위로는 대충이야.
+    /// 정확히 보고 싶으면 <b>플레이어가 직접 적는다</b> — 그게 제일 정확하고 제일 안전하다.
+    /// </summary>
+    static string GuessCityFromTimeZone()
+    {
+        string id = System.TimeZoneInfo.Local.Id ?? "";
+        if (id.Contains("Korea")) return "Seoul";
+        if (id.Contains("Tokyo")) return "Tokyo";
+        if (id.Contains("China") || id.Contains("Taipei")) return "Taipei";
+        return "";   // 모르면 비워 둔다 — 그때만 wttr.in 이 접속 위치로 짐작한다
+    }
+
     IEnumerator Fetch()
     {
-        string where = string.IsNullOrEmpty(city) ? "" : UnityWebRequest.EscapeURL(city);
+        string pick = string.IsNullOrEmpty(city) ? GuessCityFromTimeZone() : city;
+        string where = string.IsNullOrEmpty(pick) ? "" : UnityWebRequest.EscapeURL(pick);
         string url = $"https://wttr.in/{where}?format=%C+%t&lang=ko";
 
         using (var req = UnityWebRequest.Get(url))
