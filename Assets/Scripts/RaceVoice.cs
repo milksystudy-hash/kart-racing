@@ -27,13 +27,13 @@ public static class RaceVoice
         // 2026-09-17 유저: "임무 2 와 임무 6 에서 속도 발판을 부르는 이름이 다른데
         // 괜찮은 건가." 안 괜찮다 — 같은 물건을 두 이름으로 부르면 둘이 같은 건지
         // 플레이어가 알 수가 없다. 둘 다 <b>가속 발판</b>으로 통일한다.
-        MissionManager.Goal.발판전부 => "가속 발판 전부 밟기",
+        MissionManager.Goal.발판전부 => $"가속 발판 {Mathf.Max(1, m.padsNeeded)}개 밟기",
         MissionManager.Goal.무충돌   => "담장 긁지 않기",
         // 2026-09-17 유저: "실사 끝내기 말고 완주하기로." 화면에서 바로 뭘 해야 하는지가
         // 읽혀야 하는데 "실사"는 이야기 쪽 낱말이라 한 번 더 생각하게 만든다.
         MissionManager.Goal.제한시간 => $"{Mathf.RoundToInt(m.timeLimit)}초 안에 완주하기",
         MissionManager.Goal.장애물   => "자재 피해서 완주",
-        MissionManager.Goal.무발판   => "가속 발판 밟지 않기",
+        MissionManager.Goal.전시품   => "곰인형 싣고 완주하기",
         MissionManager.Goal.광고판   => "골든베어 간판 매 바퀴 전부 철거",
         MissionManager.Goal.완벽    => "담장 안 긁고 시간 안에 완주하기",
         _                           => "캠퍼스 세 바퀴 돌기",
@@ -50,7 +50,7 @@ public static class RaceVoice
         MissionManager.Goal.무충돌   => "담장 흠집도 철거 사유로 적힌다",
         MissionManager.Goal.제한시간 => "실사단이 오래 머물수록 트집이 늘어난다",
         MissionManager.Goal.장애물   => "철거 자재를 벌써 길에 부려 놨다",
-        MissionManager.Goal.무발판   => "전기 쓴 기록이 남으면 예산 낭비로 잡힌다",
+        MissionManager.Goal.전시품   => "전시할 게 없으면 박물관이 아니라 빈 건물이다",
         MissionManager.Goal.광고판   => "리조트 광고가 먼저 와서 서 있다",
         MissionManager.Goal.완벽    => "마지막 실사다",
         _                           => "아직 운영 중이라는 걸 보여야 한다",
@@ -66,6 +66,11 @@ public static class RaceVoice
     public static string SteppedOnPad() => "가속 발판을 밟음";
 
     public static string MissedPads(int got, int total) => $"발판 {got}/{total} 밟음";
+
+    public static string MissedCargo(int got, int need) => $"곰인형 {got}/{need}개";
+
+    /// <summary>하나 실을 때마다. 숫자가 올라가는 걸 보여주는 게 이 판의 전부야.</summary>
+    public static string PickedUp(int got, int total) => $"곰인형 실음   {got} / {total}";
 
     public static string NotEnoughDrift(int got, int need) => $"태엽 {got}/{need}번";
 

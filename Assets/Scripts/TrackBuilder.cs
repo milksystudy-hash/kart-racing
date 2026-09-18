@@ -110,6 +110,9 @@ public class TrackBuilder : MonoBehaviour
     static readonly Color ColKerbAlt = new Color32(0xEF, 0xE7, 0xD6, 0xFF);   // 연석 크림 — 번갈아
     static readonly Color ColPostCap = new Color32(0x4E, 0x7A, 0x70, 0xFF);   // 기둥 머리 청록 기와
     // 담장 기단(2026-09-18). 두 돌색을 번갈아 — 담장을 따라 달릴 때 속도가 보인다.
+    // 곰인형 — 로비 곰 조각상과 같은 색(2026-09-18)
+    static readonly Color ColBearFur  = new Color32(0xA5, 0x75, 0x4A, 0xFF);
+    static readonly Color ColBearFace = new Color32(0xE6, 0xDA, 0xC4, 0xFF);
     static readonly Color ColWallBase    = new Color32(0x8E, 0x89, 0x7E, 0xFF);
     static readonly Color ColWallBaseAlt = new Color32(0x9C, 0x96, 0x8A, 0xFF);
     static readonly Color ColWallBaseCap = new Color32(0x6F, 0x6A, 0x60, 0xFF);
@@ -169,6 +172,7 @@ public class TrackBuilder : MonoBehaviour
         BuildAdBoards(built);
         BuildAdSigns(built);
         BuildDebris(built);
+        BuildCargo(built);
         BuildFinishArch(built);
         if (raceFurniture) BuildCheckpoints();
     }
@@ -734,6 +738,74 @@ public class TrackBuilder : MonoBehaviour
             art.GetComponent<Renderer>().sharedMaterial =
                 FlatMaterial.Get(drum ? ColKerb : ColPostCap);
             Discard(art.GetComponent<Collider>());
+        }
+    }
+
+    /// <summary>
+    /// <b>코스에 흩어진 곰인형.</b> 창고에서 굴러 나온 전시품이고, 실어서 결승선까지 나른다.
+    ///
+    /// 자리는 발판·광고판과 같은 사고방식 — <b>갓길이라 레이싱 라인을 포기해야 닿는다.</b>
+    /// 좌우로 번갈아 둬서 다 실으려면 지그재그로 돈다. 대신 광고판과 달리
+    /// <b>목표치만 넘기면 되니까</b> 몇 개는 버려도 된다 — 그게 이 판이 마음 편한 이유야.
+    /// </summary>
+    static readonly (float t, float lane)[] Cargo =
+    {
+        (0.07f, -0.62f), (0.15f,  0.58f),
+        (0.24f,  0.60f), (0.33f, -0.58f),
+        (0.47f, -0.60f), (0.58f,  0.62f),
+        (0.72f,  0.58f), (0.84f, -0.60f),
+    };
+
+    /// <summary>구 하나. 곰인형처럼 둥근 걸 만들 때 쓴다 — 콜라이더는 안 단다.</summary>
+    void Ball(Transform parent, string name, Vector3 localPosition, Vector3 size, Color color)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        go.name = name;
+        Discard(go.GetComponent<Collider>());
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPosition;
+        go.transform.localScale = size;
+        go.GetComponent<Renderer>().sharedMaterial = FlatMaterial.Get(color);
+    }
+
+    void BuildCargo(Transform parent)
+    {
+        var root = new GameObject("Cargo").transform;
+        root.SetParent(parent, false);
+
+        for (int i = 0; i < Cargo.Length; i++)
+        {
+            var (t, lane) = Cargo[i];
+
+            Vector3 forward = TangentOnPath(t);
+            Vector3 side = Vector3.Cross(Vector3.up, forward);
+            Vector3 at = transform.position + PointOnPath(t) + side * (lane * WidthOnPath(t) * 0.5f);
+
+            var go = new GameObject($"Bear_{i}");
+            go.transform.SetParent(root, false);
+            go.transform.SetPositionAndRotation(at + Vector3.up * 0.1f,
+                                                Quaternion.LookRotation(-forward, Vector3.up));
+
+            go.AddComponent<ExhibitCargo>();
+
+            // 곰인형 — 몸 · 머리 · 귀 둘 · 리본. 로비 곰 조각상과 같은 색을 쓴다.
+            Ball(go.transform, "Body", new Vector3(0f, 0.34f, 0f),
+                 new Vector3(0.62f, 0.58f, 0.62f), ColBearFur);
+            Ball(go.transform, "Head", new Vector3(0f, 0.78f, 0.02f),
+                 new Vector3(0.5f, 0.48f, 0.5f), ColBearFur);
+            Ball(go.transform, "Muzzle", new Vector3(0f, 0.72f, 0.2f),
+                 new Vector3(0.24f, 0.2f, 0.2f), ColBearFace);
+
+            for (int s = -1; s <= 1; s += 2)
+            {
+                Ball(go.transform, $"Ear_{s}", new Vector3(s * 0.19f, 0.99f, 0f),
+                     new Vector3(0.2f, 0.2f, 0.12f), ColBearFur);
+                Ball(go.transform, $"Arm_{s}", new Vector3(s * 0.33f, 0.4f, 0.04f),
+                     new Vector3(0.22f, 0.3f, 0.22f), ColBearFur);
+            }
+
+            Ball(go.transform, "Ribbon", new Vector3(0f, 0.6f, 0.16f),
+                 new Vector3(0.3f, 0.12f, 0.16f), ColKerb);
         }
     }
 

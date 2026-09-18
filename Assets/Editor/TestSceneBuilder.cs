@@ -201,6 +201,11 @@ public static class TestSceneBuilder
         var adRoot = GameObject.Find("AdSigns");
         if (adRoot != null) adGate.adSigns = adRoot.transform;
 
+        // 코스에 흩어진 곰인형도 그 판에만. 임무 6이 감점제에서 플러스형으로 바뀌었다.
+        var cargoGate = rig.AddComponent<CargoGate>();
+        var cargoRoot = GameObject.Find("Cargo");
+        if (cargoRoot != null) cargoGate.cargo = cargoRoot.transform;
+
         // AI 는 마지막 판에만. 카트는 씬에 두고 켜고 끄기만 한다.
         var gate = rig.AddComponent<AiRaceGate>();
         var aiRoot = GameObject.Find("AiKarts");

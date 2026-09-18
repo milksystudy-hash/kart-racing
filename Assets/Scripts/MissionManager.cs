@@ -31,7 +31,7 @@ public class MissionManager : MonoBehaviour
         무충돌,      // 벽에 세게 부딪히지 않고
         제한시간,    // 정해진 시간 안에 완주
         장애물,      // 길에 널린 철거 자재를 치지 않고 완주
-        무발판,      // 발판을 하나도 안 밟고 완주 — 발판전부의 정반대
+        전시품,      // 창고에 처박힌 곰인형을 전시실로 나른다 — <b>플러스형</b>
         광고판,      // 골든베어 입간판을 전부 들이받아 부수기
         완벽,        // 무충돌 + 제한시간 동시. 마지막 판
     }
@@ -58,6 +58,12 @@ public class MissionManager : MonoBehaviour
     [Tooltip("장애물 임무에서 봐주는 충돌 횟수")]
     public int allowedDebris = 2;
 
+    [Tooltip("발판전부 임무에서 밟아야 하는 최소 개수. 0 이면 전부")]
+    public int padsNeeded = 4;
+
+    [Tooltip("전시품 임무에서 실어야 하는 최소 개수. 0 이면 전부")]
+    public int cargoNeeded = 6;
+
     [Tooltip("완벽 임무의 제한(초). 무충돌까지 같이 지켜야 한다")]
     public float perfectTimeLimit = 133f;
 
@@ -80,6 +86,10 @@ public class MissionManager : MonoBehaviour
     /// 자리인데 옆에서 세 대가 달리면 조작을 익힐 겨를이 없다.
     /// 다 모은 뒤 자유 주행에서도 남겨둔다 — 그때는 같이 달릴 상대가 있는 게 낫다.
     /// </summary>
+    /// <summary>지금 판이 전시품 판인가. 곰인형들이 스스로 이걸 본다.</summary>
+    public static bool WantsCargo =>
+        !string.IsNullOrEmpty(NextReward()) && CurrentGoal == Goal.전시품;
+
     /// <summary>지금 판이 장애물 판인가. 자재들이 스스로 이걸 본다.</summary>
     public static bool WantsDebris =>
         !string.IsNullOrEmpty(NextReward()) && CurrentGoal == Goal.장애물;
@@ -175,9 +185,6 @@ public class MissionManager : MonoBehaviour
 
         if (Failed || Cleared) return;
 
-        // 발판을 하나라도 밟으면 그 자리에서 끝. 매 바퀴 초기화되니까 여기서 직접 센다.
-        if (goal == Goal.무발판 && BoostPad.TakenCount() > 0) Fail(RaceVoice.SteppedOnPad());
-
         // 판이 끝나기 전에 이미 글러버린 것들은 그 자리에서 알려준다.
         // 실패한 줄 모르고 두 바퀴를 더 도는 게 제일 허탈하다.
         if ((goal == Goal.무충돌 || goal == Goal.완벽) && kart.WallHits > allowedHits)
@@ -193,11 +200,13 @@ public class MissionManager : MonoBehaviour
 
         Cleared = goal switch
         {
-            Goal.발판전부 => padsTotal > 0 && BoostPad.TakenCount() >= padsTotal,
+            // <b>전부</b>가 아니라 <b>목표치</b>다(2026-09-18). 하나 놓쳤다고 실패하면
+            // 그 판은 감점제가 되고, 감점제만 여덟 판이면 게임이 안 신난다.
+            Goal.발판전부 => padsTotal > 0 && BoostPad.TakenCount() >= PadQuota,
             Goal.무충돌   => kart.WallHits <= allowedHits,
             Goal.제한시간 => tracker.TotalTime <= timeLimit,
             Goal.장애물   => RoadDebris.Hits <= allowedDebris,
-            Goal.무발판   => BoostPad.TakenCount() == 0,
+            Goal.전시품   => CargoQuota > 0 && ExhibitCargo.Loaded >= CargoQuota,
             Goal.광고판   => SignQuota > 0 && AdBoard.Breaks >= SignQuota,
             Goal.완벽    => kart.WallHits <= allowedHits && tracker.TotalTime <= perfectTimeLimit,
             _             => true,
@@ -206,7 +215,8 @@ public class MissionManager : MonoBehaviour
         if (Cleared) GiveReward();
         else Fail(goal switch
         {
-            Goal.발판전부 => RaceVoice.MissedPads(BoostPad.TakenCount(), padsTotal),
+            Goal.발판전부 => RaceVoice.MissedPads(BoostPad.TakenCount(), PadQuota),
+            Goal.전시품   => RaceVoice.MissedCargo(ExhibitCargo.Loaded, CargoQuota),
             Goal.장애물   => RaceVoice.HitDebris(RoadDebris.Hits),
             Goal.광고판   => RaceVoice.MissedSigns(AdBoard.Breaks, SignQuota),
             _             => RaceVoice.Generic(),
@@ -266,6 +276,7 @@ public class MissionManager : MonoBehaviour
         lapBaseBreaks = 0;
 
         BoostPad.ClearTaken();
+        ExhibitCargo.ResetAll();
         AdBoard.ResetAll();
         RoadDebris.ResetHits();
         RoadDebris.RestoreAll();
@@ -281,6 +292,9 @@ public class MissionManager : MonoBehaviour
         var ads = FindFirstObjectByType<AdSignGate>();
         if (ads != null) ads.Apply();
 
+        var crowd = FindFirstObjectByType<CargoGate>();
+        if (crowd != null) crowd.Apply();
+
         // 게이트가 간판을 켜고 끈 다음에 세야 맞다. 꺼져 있으면 0 이고, 그러면
         // 광고판 임무가 아니라는 뜻이라 어차피 안 쓴다.
         signsTotal = AdBoard.CountInScene();
@@ -292,11 +306,11 @@ public class MissionManager : MonoBehaviour
 
     public string Progress => goal switch
     {
-        Goal.발판전부 => $"{BoostPad.TakenCount()} / {padsTotal}",
+        Goal.발판전부 => $"{BoostPad.TakenCount()} / {PadQuota}",
         Goal.무충돌   => ChanceLabel,
         Goal.제한시간 => Remaining(timeLimit),
         Goal.장애물   => $"기회 {Chances(allowedDebris, RoadDebris.Hits)}",
-        Goal.무발판   => BoostPad.TakenCount() == 0 ? "아직 깨끗" : "밟았다",
+        Goal.전시품   => $"{ExhibitCargo.Loaded} / {CargoQuota}",
         // 2026-09-17 유저: *"처음부터 0/24 를 띄우면 플레이어가 부담을 느낀다.
         // 1랩에 0/8, 2랩에도 0/8 로."* 맞다 — 지금 이 바퀴에 <b>몇 개 남았는지</b>가
         // 운전에 필요한 숫자고, 24 는 판이 끝나야 의미가 있는 숫자야.
@@ -332,4 +346,17 @@ public class MissionManager : MonoBehaviour
 
     /// <summary>광고판 임무에서 부숴야 하는 총 개수 = 간판 수 × 바퀴 수.</summary>
     int SignQuota => signsTotal * Mathf.Max(1, tracker != null ? tracker.totalLaps : 1);
+
+    /// <summary>발판 목표치. 씬에 있는 수보다 크게 잡히지 않는다.</summary>
+    int PadQuota => padsNeeded <= 0 ? padsTotal : Mathf.Min(padsNeeded, padsTotal);
+
+    /// <summary>전시품 목표치. 놓쳐도 되는 여유가 있어야 <b>모으는 재미</b>가 된다.</summary>
+    int CargoQuota
+    {
+        get
+        {
+            int there = ExhibitCargo.CountInScene();
+            return cargoNeeded <= 0 ? there : Mathf.Min(cargoNeeded, there);
+        }
+    }
 }

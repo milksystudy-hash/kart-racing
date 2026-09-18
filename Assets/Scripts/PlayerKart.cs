@@ -12,8 +12,15 @@ using UnityEngine;
 /// </summary>
 public class PlayerKart : MonoBehaviour
 {
+    /// <summary>씬에 있는 플레이어 카트. 전시품·수집품이 매 프레임 씬을 훑지 않게 들고 있는다.</summary>
+    public static PlayerKart Current { get; private set; }
+
+    void OnEnable() => Current = this;
+
     void Awake()
     {
+        Current = this;
+
         // 씬이 낡으면 카트 모델이 하나로 박힌 채로 남아서, 누굴 골라도 같은 카트가 나온다.
         // 실제로 "세운이를 골라도 세진 카트가 나온다" 가 이것 때문이었다.
         // 그림은 멀쩡히 나오니까 눈으로는 고장인 줄 모른다 — 그래서 여기서 말해준다.
