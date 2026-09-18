@@ -155,13 +155,6 @@ public class TestHUD : MonoBehaviour
                   LapTracker.FormatTime(tracker.BestLapTime), time);
     }
 
-    /// <summary>수집품 패널의 <b>오른쪽 끝</b>. 카운트다운이 이걸 피해 앉는다.</summary>
-    float CollectionRight()
-    {
-        if (!InKart || (mission != null && mission.AllDone)) return 16f;
-        return 16f + 208f;
-    }
-
     /// <summary>수집품 패널이 어디서 끝나는지. 지도가 이 아래로 간다.</summary>
     float CollectionBottom()
     {
@@ -328,22 +321,28 @@ public class TestHUD : MonoBehaviour
         if (string.IsNullOrEmpty(label)) return;
 
         bool go = label == "출발!";
-        var style = Hud.Resize(Hud.Title, Mathf.RoundToInt((go ? 46 : 84) * RaceCountdown.Pop),
-                               TextAnchor.MiddleCenter);
-        style.normal.textColor = go ? Hud.Brass : Hud.Ink;
 
-        // 종이 판을 깔아야 코스 위에서도 읽힌다 — 흰 글씨만 띄우면 하늘색 벽에서 묻힌다.
+        // ★ 2026-09-18 유저(두 번째): *"임무가 하나 추가될 때마다 321 패널 뒤에 있어서
+        // 잘 안 보여."* 자리를 옮겨 봤자 <b>판이 있는 한</b> 뭔가는 가린다 —
+        // 임무 칸은 판이 길어지면 아래로 자라고, 카운트는 세로 가운데에 있으니까.
         //
-        // 2026-09-18 유저: *"321 출발 패널이 임무 패널이랑 겹치거나 사이가 너무 가깝다."*
-        // 수집품 패널은 왼쪽 위(x 16~224)에 있고 카운트는 화면 가운데였는데, 창이 좁으면
-        // 가운데가 224 근처까지 내려온다. **왼쪽 패널 오른쪽 끝을 피해서** 자리를 잡는다 —
-        // 좌표를 고정으로 적으면 해상도가 바뀔 때 또 겹친다(지도 자리와 같은 판단).
-        const float boxW = 180f, boxH = 120f;
-        float left = Mathf.Max(w * 0.5f - boxW * 0.5f, CollectionRight() + 28f);
+        // <b>판을 없앤다.</b> 카운트는 3초짜리고 그동안 카트가 아예 안 움직이니
+        // 화면 한가운데를 통째로 써도 아무 손해가 없다. 대신 종이 판이 없으면 밝은 노면에서
+        // 묻히니까 <b>글자 뒤에 그림자를 깔아</b> 읽히게 한다 — 판보다 싸고 아무것도 안 가린다.
+        var style = Hud.Resize(Hud.Title, Mathf.RoundToInt((go ? 64 : 120) * RaceCountdown.Pop),
+                               TextAnchor.MiddleCenter);
 
-        var box = new Rect(left, h * 0.34f - boxH * 0.5f, boxW, boxH);
-        Hud.Panel(box);
-        GUI.Label(box, label, style);
+        var area = new Rect(0f, h * 0.5f - 80f, w, 160f);
+
+        // 그림자 넉 장 — 한 장만 깔면 한쪽만 읽히고, 넉 장이면 어느 배경에서도 테두리가 생긴다
+        var shade = Hud.Resize(Hud.Title, style.fontSize, TextAnchor.MiddleCenter);
+        shade.normal.textColor = new Color(0.12f, 0.09f, 0.07f, 0.75f);
+        for (int dx = -1; dx <= 1; dx += 2)
+            for (int dy = -1; dy <= 1; dy += 2)
+                GUI.Label(new Rect(area.x + dx * 3f, area.y + dy * 3f, area.width, area.height), label, shade);
+
+        style.normal.textColor = go ? Hud.Brass : new Color(0.98f, 0.95f, 0.88f);
+        GUI.Label(area, label, style);
     }
 
     // ---- 주운 물건 안내 ----
