@@ -101,7 +101,7 @@ public class DeskClock : MonoBehaviour
     /// </summary>
     public static bool PanelOpen { get; private set; }
 
-    void OnDisable() { if (open) { open = false; PanelOpen = false; } }
+    void OnDisable() { if (open) Close(); }
 
     void TickInteraction()
     {
@@ -136,19 +136,47 @@ public class DeskClock : MonoBehaviour
             open = true;
             PanelOpen = true;
             typed = city;
-            GUI.FocusControl(null);
+            k.onTextInput += OnChar;      // ★ 아래 설명 — IMGUI 로는 글자가 안 들어온다
         }
+
+        if (open && k.backspaceKey.wasPressedThisFrame && typed.Length > 0)
+            typed = typed.Substring(0, typed.Length - 1);
     }
 
-    void Close() { open = false; PanelOpen = false; }
+    /// <summary>
+    /// ★★ <b>`GUI.TextField` 는 이 프로젝트에서 글자를 못 받는다.</b> 2026-09-18 유저:
+    /// *"지금은 입력할 수 있는 키보드 입력키가 아예 없어."* 회색 막대만 뜨고 아무리 쳐도 안 들어갔다.
+    ///
+    /// 이유는 CLAUDE.md 맨 위에 적혀 있던 것과 같다 — 이 프로젝트는 <b>Input System 전용</b>
+    /// (`activeInputHandler: 1`)이고, IMGUI 의 글자 입력은 <b>옛 입력 시스템의 이벤트</b>를 타고 온다.
+    /// 그 통로가 꺼져 있으니 `GUI.TextField` 는 영영 빈 칸이야. 키 «누름» 은
+    /// `Keyboard.current` 로 읽히는데 «글자» 는 그것만으로 안 된다(한글·자판 배열·조합 때문).
+    ///
+    /// <b>`Keyboard.onTextInput` 이 정답이다.</b> 운영체제가 만들어 준 글자가 그대로 온다 —
+    /// 자판 배열도 알아서 맞고, 우리는 문자열에 붙이기만 하면 된다.
+    /// 지우기는 글자가 아니라 키라서 `backspaceKey` 로 따로 본다.
+    /// </summary>
+    void OnChar(char c)
+    {
+        if (!open) return;
+        if (c == '\b' || c == '\n' || c == '\r' || c == 27) return;   // 지우기·줄바꿈·ESC 는 키로 처리
+        if (typed.Length < 24) typed += c;
+    }
+
+    void Close()
+    {
+        open = false;
+        PanelOpen = false;
+        var k = UnityEngine.InputSystem.Keyboard.current;
+        if (k != null) k.onTextInput -= OnChar;   // 안 떼면 창을 닫고도 계속 글자가 쌓인다
+    }
 
     void Apply()
     {
         city = typed.Trim();
         weather = "";
         if (useOnlineWeather) StartCoroutine(Fetch());
-        open = false;
-        PanelOpen = false;
+        Close();
     }
 
     void OnGUI()
@@ -171,14 +199,28 @@ public class DeskClock : MonoBehaviour
                   string.IsNullOrEmpty(weather) ? "날씨 정보 없음" : weather,
                   Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
 
+        // ── 도시 입력칸 ──────────────────────────────────────────────
+        // `GUI.TextField` 를 안 쓴다(위 OnChar 설명). 칸은 우리가 그리고 글자는 우리가 받는다.
         var inner = Hud.Inner(panel);
-        GUI.Label(new Rect(inner.x, panel.y + 132f, 52f, 22f), "도시",
+        float boxY = panel.y + 130f;
+        GUI.Label(new Rect(inner.x + 4f, boxY, 40f, 24f), "도시",
                   Hud.Resize(Hud.Label, 12, TextAnchor.MiddleLeft));
-        typed = GUI.TextField(new Rect(inner.x + 54f, panel.y + 132f, inner.width - 54f, 22f),
-                              typed ?? "", 24);
+
+        var box = new Rect(inner.x + 48f, boxY, inner.width - 52f, 24f);
+        Hud.Chip(box);
+
+        // 빈 칸이면 <b>무엇을 적는 칸인지</b> 흐리게 알려준다. 회색 막대만 있으면
+        // 적는 칸인지 아닌지도 모른다 — 유저가 «회색 막대» 라고 부른 게 그거야.
+        bool empty = string.IsNullOrEmpty(typed);
+        string shown = empty ? "현재 위치 (Seoul 처럼 적으면 그 도시)" : typed;
+        var entry = Hud.Resize(empty ? Hud.Label : Hud.Text, 13, TextAnchor.MiddleLeft);
+
+        // 깜빡이는 커서 — 지금 여기에 글자가 들어간다는 유일한 신호다.
+        if (!empty && (int)(Time.unscaledTime * 2f) % 2 == 0) shown += "|";
+        GUI.Label(new Rect(box.x + 8f, box.y, box.width - 16f, box.height), shown, entry);
 
         GUI.Label(new Rect(panel.x, panel.y + 158f, panel.width, 18f),
-                  "ENTER 적용 · ESC 닫기 · 비우면 현재 위치",
+                  "글자를 치면 바로 입력 · ENTER 적용 · ESC 닫기",
                   Hud.Resize(Hud.Label, 11, TextAnchor.MiddleCenter));
 
         Hud.End();
@@ -224,13 +266,15 @@ public class DeskClock : MonoBehaviour
         // 이 프로젝트에는 <b>이미 검증된 월드 글자</b>가 있다 — 현판·안내판이 쓰는
         // `TextMesh` + `HudFont` + `Racing/PlaqueText`. 거기로 간다.
         // 조각 28개가 <b>하나</b>로 줄고, 방향 문제도 현판에서 이미 푼 방식 그대로다.
-        face = MakeText("FaceText", new Vector3(0f, 0.108f, PanelZ + 0.010f), 0.074f, Glow);
+        face = MakeText("FaceText", new Vector3(0f, 0.115f, PanelZ + 0.010f), 0.072f, Glow);
 
         // ── 종이 띠 : 날짜·요일·날씨 ─────────────────────────────────
         // 한지 창 바닥이 y 0.0475 라 그보다 아래에 둔다 — 겹치면 같은 평면에서 지지직거린다.
-        Box("Strip", new Vector3(0f, 0.026f, PanelZ + 0.003f),
-            new Vector3(0.40f, 0.036f, 0.010f), Paper);
-        strip = MakeText("StripText", new Vector3(0f, 0.026f, PanelZ + 0.012f), 0.0264f,
+        // 한지 창 바닥이 y 0.0475, 시각 글자 밑단이 0.079 다. 띠를 0.030 에 둬서
+        // 둘 사이를 <b>38mm 띄운다</b> — 유저: *"글씨가 겹쳤다"*(2026-09-18).
+        Box("Strip", new Vector3(0f, 0.030f, PanelZ + 0.003f),
+            new Vector3(0.46f, 0.032f, 0.010f), Paper);
+        strip = MakeText("StripText", new Vector3(0f, 0.030f, PanelZ + 0.012f), 0.021f,
                          new Color32(0x4A, 0x3A, 0x2C, 0xFF));   // 종이 위 먹색
     }
 
