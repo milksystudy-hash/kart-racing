@@ -31,6 +31,11 @@ public static class LobbySceneBuilder
     static readonly Color ColFloorTrim  = new Color32(0x8A, 0x6A, 0x48, 0xFF);
     static readonly Color ColWallCream  = new Color32(0xEF, 0xE7, 0xD6, 0xFF);
     static readonly Color ColWallMint   = new Color32(0xB4, 0xCD, 0xBC, 0xFF);
+    // 레고 느낌 잡기(2026-09-18). 굽도리는 벽보다 <b>조금만</b> 어둡게 —
+    // 세면 얼룩으로 보이고 약하면 그늘로 보인다.
+    static readonly Color ColWallFoot   = new Color32(0xD5, 0xCA, 0xB2, 0xFF);
+    static readonly Color ColWallLine   = new Color32(0xB2, 0xA6, 0x8E, 0xFF);
+    static readonly Color ColWallWood   = new Color32(0x7A, 0x58, 0x3E, 0xFF);
     static readonly Color ColWoodDark   = new Color32(0x6B, 0x4A, 0x33, 0xFF);
     static readonly Color ColWoodLight  = new Color32(0xA8, 0x78, 0x4C, 0xFF);
     static readonly Color ColRoofTeal   = new Color32(0x4E, 0x7A, 0x70, 0xFF);
@@ -309,7 +314,75 @@ public static class LobbySceneBuilder
         Wall(root, "WallWest",  new Vector3(-halfW - 0.25f, 0f, 0f), new Vector3(0.5f, 1f, HallDepth + 1f));
         Wall(root, "WallEast",  new Vector3( halfW + 0.25f, 0f, 0f), new Vector3(0.5f, 1f, HallDepth + 1f));
 
+        MakeWallCraft(root);
         MakeColumns(root);
+    }
+
+    /// <summary>
+    /// <b>로비 벽의 레고 느낌을 잡는다.</b> 2026-09-18 유저: *"트랙이랑 로비의 레고 느낌도."*
+    ///
+    /// 크기 분포는 이미 95% 가 작은 것이라 **개수가 원인이 아니었다.**
+    /// 캠퍼스에서 실제로 들었던 건 셋 중 <b>모서리와 굽도리</b>였고, 로비에는 그게 없었다:
+    /// 벽 넉 장이 통짜 크림색이고 네 귀퉁이가 완벽한 직각이라 방이 상자 안쪽으로 보였다.
+    ///
+    /// 전부 <c>keepCollider: false</c> — 벽 콜라이더는 이미 있고, 마감이 물리를 바꾸면 안 된다.
+    /// </summary>
+    static void MakeWallCraft(Transform parent)
+    {
+        float halfW = HallWidth * 0.5f, halfD = HallDepth * 0.5f;
+        const float foot = 0.85f;   // 굽도리 높이 — 사람 무릎께
+
+        // ---- 굽도리 : 벽 아래만 짙은 나무. 색만 바꾸면 칠한 자국이고 턱이 있어야 재료가 바뀐다
+        Trim(parent, "FootNorth", new Vector3(0f, foot * 0.5f, -halfD + 0.06f),
+             new Vector3(HallWidth, foot, 0.12f), ColWallFoot);
+        Trim(parent, "FootSouth", new Vector3(0f, foot * 0.5f, halfD - 0.06f),
+             new Vector3(HallWidth, foot, 0.12f), ColWallFoot);
+        Trim(parent, "FootWest", new Vector3(-halfW + 0.06f, foot * 0.5f, 0f),
+             new Vector3(0.12f, foot, HallDepth), ColWallFoot);
+        Trim(parent, "FootEast", new Vector3(halfW - 0.06f, foot * 0.5f, 0f),
+             new Vector3(0.12f, foot, HallDepth), ColWallFoot);
+
+        Trim(parent, "FootCapNorth", new Vector3(0f, foot, -halfD + 0.1f),
+             new Vector3(HallWidth, 0.09f, 0.2f), ColWallLine);
+        Trim(parent, "FootCapSouth", new Vector3(0f, foot, halfD - 0.1f),
+             new Vector3(HallWidth, 0.09f, 0.2f), ColWallLine);
+        Trim(parent, "FootCapWest", new Vector3(-halfW + 0.1f, foot, 0f),
+             new Vector3(0.2f, 0.09f, HallDepth), ColWallLine);
+        Trim(parent, "FootCapEast", new Vector3(halfW - 0.1f, foot, 0f),
+             new Vector3(0.2f, 0.09f, HallDepth), ColWallLine);
+
+        // ---- 모서리 기둥 : 네 귀퉁이를 세로로 덮는다 ----
+        // <b>이게 제일 크게 듣는다.</b> 상자의 날 선 모서리 넷이 레고의 정체거든 —
+        // 기둥으로 덮으면 그 선이 사라지고 면이 셋으로 갈린다(캠퍼스에서 확인한 것).
+        for (int sx = -1; sx <= 1; sx += 2)
+            for (int sz = -1; sz <= 1; sz += 2)
+            {
+                var at = new Vector3(sx * (halfW - 0.2f), 0f, sz * (halfD - 0.2f));
+
+                Trim(parent, $"CornerPost_{sx}_{sz}", at + Vector3.up * (WallHeight * 0.5f),
+                     new Vector3(0.52f, WallHeight, 0.52f), ColWallWood);
+                Trim(parent, $"CornerCap_{sx}_{sz}", at + Vector3.up * (WallHeight - 0.18f),
+                     new Vector3(0.72f, 0.24f, 0.72f), ColWallLine);
+                Trim(parent, $"CornerFoot_{sx}_{sz}", at + Vector3.up * 0.18f,
+                     new Vector3(0.74f, 0.36f, 0.74f), ColFloorStone);
+            }
+
+        // ---- 천장 쪽 돌림띠 : 벽이 천장에 그냥 닿으면 상자 뚜껑처럼 보인다 ----
+        float top = WallHeight - 0.35f;
+        Trim(parent, "RailNorth", new Vector3(0f, top, -halfD + 0.1f),
+             new Vector3(HallWidth, 0.18f, 0.2f), ColWallWood);
+        Trim(parent, "RailSouth", new Vector3(0f, top, halfD - 0.1f),
+             new Vector3(HallWidth, 0.18f, 0.2f), ColWallWood);
+        Trim(parent, "RailWest", new Vector3(-halfW + 0.1f, top, 0f),
+             new Vector3(0.2f, 0.18f, HallDepth), ColWallWood);
+        Trim(parent, "RailEast", new Vector3(halfW - 0.1f, top, 0f),
+             new Vector3(0.2f, 0.18f, HallDepth), ColWallWood);
+    }
+
+    static void Trim(Transform parent, string name, Vector3 at, Vector3 size, Color color)
+    {
+        var go = TestSceneBuilder.Cube(parent, name, at, size, color, keepCollider: false);
+        go.isStatic = true;
     }
 
     /// <summary>크림 벽 + 아래쪽 민트 패널 한 겹. 참고 그림의 벽 구성.</summary>

@@ -109,6 +109,10 @@ public class TrackBuilder : MonoBehaviour
     static readonly Color ColKerb    = new Color32(0xC4, 0x45, 0x3E, 0xFF);   // 연석 빨강
     static readonly Color ColKerbAlt = new Color32(0xEF, 0xE7, 0xD6, 0xFF);   // 연석 크림 — 번갈아
     static readonly Color ColPostCap = new Color32(0x4E, 0x7A, 0x70, 0xFF);   // 기둥 머리 청록 기와
+    // 담장 기단(2026-09-18). 두 돌색을 번갈아 — 담장을 따라 달릴 때 속도가 보인다.
+    static readonly Color ColWallBase    = new Color32(0x8E, 0x89, 0x7E, 0xFF);
+    static readonly Color ColWallBaseAlt = new Color32(0x9C, 0x96, 0x8A, 0xFF);
+    static readonly Color ColWallBaseCap = new Color32(0x6F, 0x6A, 0x60, 0xFF);
     // 악당 광고 — 기획서 §4.4 대로 박물관 팔레트와 일부러 부딪히는 금색/자홍색.
     // Cast 의 개발업자·시의원 색과 같은 값이다.
     static readonly Color ColAdGold    = new Color32(0xC9, 0xA2, 0x27, 0xFF);
@@ -314,6 +318,7 @@ public class TrackBuilder : MonoBehaviour
 
         BuildKerbs(kerbs, outer, inner, total);
         BuildWarningStripe(walls, outer, inner, total);
+        BuildWallBase(walls, outer, inner, total);
         BuildRailPosts(walls, outer, inner, zones, total);
     }
 
@@ -336,6 +341,56 @@ public class TrackBuilder : MonoBehaviour
     ///
     /// 벽 색은 구간마다 그대로 둔다 — 띠는 꼭대기에만 얹히니까 박물관 분위기는 안 깨진다.
     /// </summary>
+    /// <summary>
+    /// <b>담장 아래 돌 기단.</b> 2026-09-18 유저: *"트랙이랑 로비의 레고 느낌을 손봐 줘."*
+    ///
+    /// 트랙은 작은 조각 비율이 57% 라 <b>개수가 원인이 아니었다.</b> 담장이 위아래로
+    /// 통짜 한 색이라 <b>긴 상자 한 줄</b>로 보인 것이고, 캠퍼스 건물에서 효과를 본
+    /// 굽도리를 그대로 두른다 — 아래 0.22m 만 돌색이면 담장이 담장이 된다.
+    ///
+    /// 경고 띠와 <b>같은 방식으로 3cm 밀어낸다.</b> 벽 면과 같은 평면에 놓으면
+    /// 깊이값이 겹쳐 번쩍거린다(2026-09-16 에 이미 겪었다).
+    /// 콜라이더는 안 단다 — 띠 조각까지 세지면 "벽 2번" 이 "벽 4번" 이 된다.
+    /// </summary>
+    void BuildWallBase(Transform parent, Vector3[] outer, Vector3[] inner, int total)
+    {
+        const float baseHeight = 0.22f;
+        const float standOff = 0.032f;   // 경고 띠(0.03)보다 2mm 더 — 둘이 같은 평면이면 또 번쩍인다
+
+        var baseOuter = new Vector3[total + 1];
+        var baseInner = new Vector3[total + 1];
+        for (int k = 0; k <= total; k++)
+        {
+            Vector3 toRoad = (inner[k] - outer[k]).normalized;
+            baseOuter[k] = outer[k] + toRoad * standOff;
+            baseInner[k] = inner[k] - toRoad * standOff;
+        }
+
+        var foot = Vector3.zero;
+        var cap = Vector3.up * baseHeight;
+        var lip = Vector3.up * (baseHeight + 0.05f);
+
+        // 기단 몸통 — 한 덩어리로 두르면 또 한 색이니 <b>돌 두 색을 번갈아</b> 놓는다.
+        // 8칸마다 바뀌는데, 이게 담장을 따라 걷거나 달릴 때 <b>속도가 보이게</b> 한다.
+        const int block = 8;
+        for (int i = 0; i < total; i += block)
+        {
+            int to = Mathf.Min(i + block, total);
+            var color = (i / block) % 2 == 0 ? ColWallBase : ColWallBaseAlt;
+
+            Ribbon(parent, $"BaseOuter_{i:000}", baseOuter, baseOuter, i, to, foot, cap, color,
+                   flip: true, collider: false);
+            Ribbon(parent, $"BaseInner_{i:000}", baseInner, baseInner, i, to, cap, foot, color,
+                   flip: true, collider: false);
+        }
+
+        // 기단 윗선 — 턱이 있어야 다른 재료로 읽힌다. 색만 바뀌면 칠한 자국이다.
+        Ribbon(parent, "BaseCapOuter", baseOuter, baseOuter, 0, total, cap, lip, ColWallBaseCap,
+               flip: true, collider: false);
+        Ribbon(parent, "BaseCapInner", baseInner, baseInner, 0, total, lip, cap, ColWallBaseCap,
+               flip: true, collider: false);
+    }
+
     void BuildWarningStripe(Transform parent, Vector3[] outer, Vector3[] inner, int total)
     {
         const float bandHeight = 0.2f;
