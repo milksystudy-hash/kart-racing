@@ -57,6 +57,7 @@ public class CampusBuilder : MonoBehaviour
     static readonly Color ColPlaza    = new Color32(0xC6, 0xC0, 0xB2, 0xFF);
     static readonly Color ColPaw      = new Color32(0x9A, 0x8E, 0x80, 0xFF);
     static readonly Color ColLantern  = new Color32(0xF5, 0xC0, 0x69, 0xFF);
+    static readonly Color ColAsphalt  = new Color32(0x56, 0x54, 0x52, 0xFF);
 
     Transform built;
 
@@ -94,6 +95,8 @@ public class CampusBuilder : MonoBehaviour
         // <b>담장은 건물 다음에.</b> 건물이 어디 있는지 알아야 비켜갈 수 있다.
         BuildPerimeterWall();
 
+        BuildOuterRoad();
+
         ScatterNature();
         ScatterLanterns();
         BuildRoof();
@@ -111,6 +114,74 @@ public class CampusBuilder : MonoBehaviour
     }
 
     /// <summary>돌담 위에 기와를 얹고, 안쪽으로 나무 난간을 세운다.</summary>
+    /// <summary>
+    /// <b>담장 바깥의 길.</b> 2026-09-18 유저: *"캠퍼스 씬이면 적어도 주변 도로도 조금
+    /// 만들어 주는 게 어떨까. 물론 도로에는 상호작용 못 하게 하고."*
+    ///
+    /// 담장 밖이 허허벌판이면 캠퍼스가 <b>세상에서 잘려 나온 조각</b>으로 보인다.
+    /// 길 하나만 지나가도 "여기는 어느 동네 안" 이 된다 — 가장 싼 배경이야.
+    /// 정문 앞(북쪽)에만 깐다. 사방에 깔면 조각 수만 늘고 보이지도 않는다.
+    ///
+    /// <b>콜라이더가 전부 없다.</b> 담장이 이미 막고 있고, 길은 보라고 있는 거지
+    /// 걸어가라고 있는 게 아니다 — 유저 지시대로 상호작용이 없다.
+    /// </summary>
+    void BuildOuterRoad()
+    {
+        var root = new GameObject("OuterRoad").transform;
+        root.SetParent(transform, false);
+
+        const float z = 126f;        // 정문(z 100)에서 26m 밖 — 담장과 안 겹친다
+        const float length = 300f;
+
+        Block(root, "Asphalt", new Vector3(0f, 0.04f, z), Quaternion.identity,
+              new Vector3(length, 0.08f, 14f), ColAsphalt, noCollider: true);
+
+        // 중앙선 — 끊어진 흰 선. 이어진 한 줄은 길이 아니라 띠로 보인다
+        for (int i = -9; i <= 9; i++)
+            Block(root, $"Lane_{i + 9}", new Vector3(i * 15f, 0.09f, z), Quaternion.identity,
+                  new Vector3(7f, 0.06f, 0.35f), ColCream, noCollider: true);
+
+        // 인도 — 길과 담장 사이. 턱이 있어야 차도와 인도가 갈린다
+        Block(root, "Walk", new Vector3(0f, 0.16f, z - 8.4f), Quaternion.identity,
+              new Vector3(length, 0.3f, 2.8f), ColPlaza, noCollider: true);
+        Block(root, "Walk_N", new Vector3(0f, 0.16f, z + 8.4f), Quaternion.identity,
+              new Vector3(length, 0.3f, 2.8f), ColPlaza, noCollider: true);
+
+        // 횡단보도 — 정문 바로 앞. 여기가 입구라는 걸 길이 말해준다
+        for (int i = -4; i <= 4; i++)
+            Block(root, $"Cross_{i + 4}", new Vector3(i * 1.4f, 0.09f, z), Quaternion.identity,
+                  new Vector3(0.8f, 0.06f, 13f), ColCream, noCollider: true);
+
+        // 가로등과 가로수. 길만 있으면 바닥 무늬로 보인다 — <b>서 있는 것</b>이 있어야 길이다
+        for (int i = -4; i <= 4; i++)
+        {
+            if (i == 0) continue;
+            float x = i * 34f;
+
+            Block(root, $"Pole_{i + 4}", new Vector3(x, 2.6f, z - 9.2f), Quaternion.identity,
+                  new Vector3(0.22f, 5.2f, 0.22f), ColPlaza, noCollider: true);
+            Block(root, $"Lamp_{i + 4}", new Vector3(x, 5.1f, z - 8.4f), Quaternion.identity,
+                  new Vector3(0.8f, 0.24f, 1.8f), ColLantern, noCollider: true);
+
+            Block(root, $"StreetTrunk_{i + 4}", new Vector3(x + 17f, 1.7f, z + 9.6f), Quaternion.identity,
+                  new Vector3(0.5f, 3.4f, 0.5f), ColPineTrunk, noCollider: true);
+            Ball(root, $"StreetCrown_{i + 4}", new Vector3(x + 17f, 4.4f, z + 9.6f),
+                 new Vector3(4.6f, 3.4f, 4.6f), ColBush);
+        }
+
+        // 건너편 건물 실루엣 — 상자 몇 개면 충분하다. 안개가 절반을 먹는다
+        var random = new System.Random(77);
+        for (int i = -3; i <= 3; i++)
+        {
+            float x = i * 42f + (float)random.NextDouble() * 12f - 6f;
+            float bw = 16f + (float)random.NextDouble() * 14f;
+            float bh = 10f + (float)random.NextDouble() * 12f;
+
+            Block(root, $"TownBlock_{i + 3}", new Vector3(x, bh * 0.5f, z + 26f + (float)random.NextDouble() * 10f),
+                  Quaternion.identity, new Vector3(bw, bh, 14f), ColStoneWall, noCollider: true);
+        }
+    }
+
     void BuildPerimeterWall()
     {
         var root = new GameObject("PerimeterWall").transform;
@@ -508,6 +579,47 @@ public class CampusBuilder : MonoBehaviour
                       new Vector3(w - 4f, 1.4f, 0.1f), ColRibbon, noCollider: true);
                 break;
 
+            case "화장실":     // 2026-09-18 유저: "화장실 안에 왜 이리 빛나는 거 있어. 변기도 없고."
+                // 천장등만 있고 아무것도 없어서 <b>발광 재질만 남아 빛나는 빈 방</b>이었다.
+                // 칸막이 · 변기 · 세면대 · 거울 — 화장실을 화장실로 만드는 건 변기가 아니라 <b>칸</b>이다.
+                for (int i = 0; i < 2; i++)
+                {
+                    float cx = -w * 0.5f + 1.5f + i * 2.4f;
+
+                    // 칸막이 셋(좌·우·뒤)과 낮은 문 — 위아래가 트여 있어야 화장실 칸으로 읽힌다
+                    Block(t, $"Stall_{i}_L", new Vector3(cx - 1.1f, 1.1f, -d * 0.5f + 1.2f),
+                          Quaternion.identity, new Vector3(0.1f, 2.0f, 2.2f), ColCream, noCollider: true);
+                    Block(t, $"Stall_{i}_R", new Vector3(cx + 1.1f, 1.1f, -d * 0.5f + 1.2f),
+                          Quaternion.identity, new Vector3(0.1f, 2.0f, 2.2f), ColCream, noCollider: true);
+                    Block(t, $"Stall_{i}_Door", new Vector3(cx, 1.1f, -d * 0.5f + 2.3f),
+                          Quaternion.identity, new Vector3(2.0f, 1.7f, 0.08f), ColWood, noCollider: true);
+
+                    // 변기 — 물통 + 몸통 + 뚜껑
+                    Block(t, $"Cistern_{i}", new Vector3(cx, 0.85f, -d * 0.5f + 0.35f),
+                          Quaternion.identity, new Vector3(0.7f, 0.9f, 0.25f), ColCream, noCollider: true);
+                    Block(t, $"Bowl_{i}", new Vector3(cx, 0.28f, -d * 0.5f + 0.75f),
+                          Quaternion.identity, new Vector3(0.5f, 0.56f, 0.7f), ColCream, noCollider: true);
+                    Block(t, $"Seat_{i}", new Vector3(cx, 0.58f, -d * 0.5f + 0.78f),
+                          Quaternion.identity, new Vector3(0.56f, 0.07f, 0.74f), ColWoodRail, noCollider: true);
+                }
+
+                // 세면대 줄 — 반대쪽 벽. 거울이 있어야 화장실이지 창고가 아니다
+                for (int i = 0; i < 2; i++)
+                {
+                    float sx = w * 0.5f - 1.4f - i * 1.5f;
+                    Block(t, $"Basin_{i}", new Vector3(sx, 0.82f, d * 0.5f - 0.8f),
+                          Quaternion.identity, new Vector3(1.1f, 0.22f, 0.7f), ColCream, noCollider: true);
+                    Block(t, $"Pedestal_{i}", new Vector3(sx, 0.36f, d * 0.5f - 0.8f),
+                          Quaternion.identity, new Vector3(0.3f, 0.72f, 0.3f), ColCream, noCollider: true);
+                    Block(t, $"Mirror_{i}", new Vector3(sx, 1.85f, d * 0.5f - 0.45f),
+                          Quaternion.identity, new Vector3(0.9f, 1.1f, 0.06f), ColWindow, noCollider: true);
+                }
+
+                // 바닥 물기 조심 표지 — 작은 물건이 있어야 방 크기가 읽힌다
+                Block(t, "WetSign", new Vector3(0.6f, 0.4f, 0f), Quaternion.Euler(0f, 24f, 0f),
+                      new Vector3(0.44f, 0.8f, 0.36f), ColRibbon, noCollider: true);
+                break;
+
             default:           // 웅지관 — 행정. 카운터와 서류함
                 Block(t, "InCounter", new Vector3(0f, 0.6f, 2f), Quaternion.identity,
                       new Vector3(w - 8f, 1.2f, 1.2f), ColWoodRail, noCollider: true);
@@ -721,10 +833,13 @@ public class CampusBuilder : MonoBehaviour
                 break;
 
             case "곰생회관":  // 학생회 — 게시판과 현수막
-                Block(t, "Board", new Vector3(0f, 1.9f, front + 2.6f), Quaternion.identity,
-                      new Vector3(w * 0.7f, 3.4f, 0.24f), ColWood, noCollider: true);
-                Block(t, "BoardFace", new Vector3(0f, 1.9f, front + 2.75f), Quaternion.identity,
-                      new Vector3(w * 0.64f, 3f, 0.06f), ColCream, noCollider: true);
+                // 2026-09-18 유저: *"학생회실이 나무판자로 가려져 있네."* 판자가 아니라
+                // <b>게시판이 문 정면 2.6m 앞</b>에 폭 w×0.7 로 서 있었다 — 문을 통째로 가린다.
+                // <b>문 앞은 비운다.</b> 나무를 17m 밖으로 물린 것과 같은 규칙이야.
+                Block(t, "Board", new Vector3(-w * 0.34f, 1.9f, front + 2.6f), Quaternion.identity,
+                      new Vector3(w * 0.42f, 3.4f, 0.24f), ColWood, noCollider: true);
+                Block(t, "BoardFace", new Vector3(-w * 0.34f, 1.9f, front + 2.75f), Quaternion.identity,
+                      new Vector3(w * 0.38f, 3f, 0.06f), ColCream, noCollider: true);
                 Block(t, "Banner", new Vector3(0f, h - 1.4f, front + 0.5f), Quaternion.identity,
                       new Vector3(w * 0.86f, 1.5f, 0.08f), ColRibbon, noCollider: true);
                 break;

@@ -73,6 +73,8 @@ public static class CampusSceneBuilder
         var rig = new GameObject("GameRig");
         rig.AddComponent<SceneNavigator>();
         rig.AddComponent<CampusMood>();      // 현판 딱지와 빛이 이야기를 따라간다
+        rig.AddComponent<CampusBoarding>();  // 문에 박힌 폐쇄 판자 — 한 판에 한 동씩 걷힌다
+        rig.AddComponent<CampusFestival>();  // 여덟 개를 다 모으면 캠퍼스가 축제가 된다
         rig.AddComponent<CampusHUD>();
 
         MuseumLook.RefineMaterials();
@@ -101,19 +103,48 @@ public static class CampusSceneBuilder
         HanokDoor.Build(root, Vector3.zero, Quaternion.identity, 4f, 4.6f, FlatMaterial.Get,
                         plaque: true, buildingName: "중앙홀", department: "돌아가기");
 
-        // 문 뒤를 막는 벽 한 장. 문만 들판에 서 있으면 통과해서 뒤로 걸어가게 된다.
-        var back = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        back.name = "ReturnWall";
-        back.transform.SetParent(root, false);
-        back.transform.localPosition = new Vector3(0f, 3f, -0.4f);
-        back.transform.localScale = new Vector3(8f, 6f, 0.6f);
-        back.GetComponent<Renderer>().sharedMaterial = FlatMaterial.Get(new Color32(0xEF, 0xE7, 0xD6, 0xFF));
-        back.isStatic = true;
+        // ★ 2026-09-18 유저: *"바로 홀 뒤에 아무것도 없는데 저 판이 나오는 게 좀..."*
+        // 맞다 — 벽 한 장만 세워 두니 <b>들판에 떠 있는 판때기</b>로 보였다.
+        // 문에는 <b>들어갈 데가 있어 보여야</b> 한다. 벽을 <b>작은 문간채</b>로 바꾼다:
+        // 몸통 + 처마 + 기단 + 양옆 쪽담. 이러면 "이 건물 안으로 들어가서 중앙홀로 간다" 가 된다.
+        var cream = FlatMaterial.Get(new Color32(0xEF, 0xE7, 0xD6, 0xFF));
+        var wood = FlatMaterial.Get(new Color32(0x6B, 0x4A, 0x33, 0xFF));
+        var tile = FlatMaterial.Get(new Color32(0x4E, 0x7A, 0x70, 0xFF));
+        var stone = FlatMaterial.Get(new Color32(0xA8, 0xA4, 0x9A, 0xFF));
+
+        Slab(root, "Body", new Vector3(0f, 3.1f, -2.6f), new Vector3(11f, 6.2f, 5.2f), cream);
+        Slab(root, "Base", new Vector3(0f, 0.3f, -2.6f), new Vector3(12.4f, 0.6f, 6.6f), stone);
+        Slab(root, "Eave", new Vector3(0f, 6.5f, -2.6f), new Vector3(14f, 0.5f, 8.6f), tile);
+        Slab(root, "Ridge", new Vector3(0f, 7.1f, -2.6f), new Vector3(11.5f, 0.7f, 6.2f), tile);
+        Slab(root, "Beam", new Vector3(0f, 5.9f, -0.05f), new Vector3(11.2f, 0.45f, 0.35f), wood);
+
+        for (int s = -1; s <= 1; s += 2)
+        {
+            Slab(root, $"Post_{s}", new Vector3(s * 4.9f, 3.1f, -0.05f),
+                 new Vector3(0.5f, 6.2f, 0.5f), wood);
+            // 양옆 쪽담 — 문간채가 담장에 이어져 보이면 들판에 놓인 상자가 아니게 된다
+            Slab(root, $"Wing_{s}", new Vector3(s * 10.5f, 2.1f, -1.4f),
+                 new Vector3(10f, 4.2f, 1.1f), cream);
+            Slab(root, $"WingCap_{s}", new Vector3(s * 10.5f, 4.35f, -1.4f),
+                 new Vector3(10.6f, 0.36f, 1.9f), tile);
+        }
 
         var door = root.gameObject.AddComponent<SceneDoor>();
         door.sceneIndex = 0;          // 로비
         door.label = "중앙홀로";
         door.range = 3.6f;
+    }
+
+    /// <summary>회전 없는 상자 하나. 문간채처럼 조각이 여럿일 때 줄 수를 줄여준다.</summary>
+    static void Slab(Transform parent, string name, Vector3 at, Vector3 size, Material material)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = at;
+        go.transform.localScale = size;
+        go.GetComponent<Renderer>().sharedMaterial = material;
+        go.isStatic = true;
     }
 
     static void MakeLighting()

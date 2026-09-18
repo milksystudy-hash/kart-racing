@@ -43,7 +43,17 @@ public class HingedDoor : MonoBehaviour
 
     void Start()
     {
-        if (leaves == null) return;
+        // <b>씬을 다시 안 구워도 고쳐지게.</b> 옛날에 구운 씬에는 문짝이 안 꽂혀 있거나
+        // 이름이 달라서, 문을 열어도 아무 일이 없고 표시만 사라졌다(2026-09-18 유저:
+        // *"문열기만 나오고 끝이네, E 는 다시는 못 누르고"*).
+        if (leaves == null || leaves.Length < 2 || leaves[0] == null || leaves[1] == null)
+            leaves = new[] { transform.Find("Leaf_-1"), transform.Find("Leaf_1") };
+
+        if (leaves == null || leaves[0] == null || leaves[1] == null)
+        {
+            Debug.LogWarning($"[문] '{label}' 의 문짝을 못 찾았어. 캠퍼스 씬을 다시 구우면 붙는다.", this);
+            return;
+        }
 
         shut = new Vector3[leaves.Length];
         swung = new Vector3[leaves.Length];
@@ -55,7 +65,11 @@ public class HingedDoor : MonoBehaviour
 
             // 두 짝이 서로 반대쪽으로 미끄러진다. 같은 쪽으로 가면 한 짝이 다른 짝을 뚫는다.
             float dir = shut[i].x >= 0f ? 1f : -1f;
-            float travel = Mathf.Abs(leaves[i].localScale.x) * slideRatio;
+            float travel = Mathf.Abs(leaves[i].localScale.x) * Mathf.Max(0.5f, slideRatio);
+
+            // 옛 씬에 <c>slideRatio</c> 0 이 저장돼 있으면 문이 제자리에서 안 움직인다.
+            // 폭을 못 읽는 경우까지 대비해 바닥값을 준다 — 안 움직이는 문이 제일 나쁘다.
+            if (travel < 0.2f) travel = 1.6f;
             swung[i] = shut[i] + new Vector3(dir * travel, 0f, 0f);
         }
     }
