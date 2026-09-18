@@ -106,7 +106,7 @@ public class KartSkin : MonoBehaviour
     {
         if (skins == null || skins.Length == 0) return;
 
-        var chosen = Find(castId) ?? Find(fallbackCastId) ?? skins[0];
+        var chosen = Find(castId) ?? Borrow() ?? Find(fallbackCastId) ?? skins[0];
 
         foreach (var skin in skins)
             if (skin != null && skin.model != null)
@@ -139,6 +139,30 @@ public class KartSkin : MonoBehaviour
         if (!string.IsNullOrEmpty(castId) && chosen.castId != castId)
             Debug.LogWarning($"[카트] '{castId}' 의 카트가 아직 없어서 '{chosen.castId}' 카트로 달린다. " +
                              "FBX 를 만들면 TestSceneBuilder 의 KartModels 표에 한 줄 더하면 된다.");
+    }
+
+    /// <summary>
+    /// <b>제 카트가 없는 캐릭터가 빌려 탈 차.</b> 2026-09-18 유저: *"세진이 카트 두 대가 튀어나갔어."*
+    ///
+    /// 결승 상대인 개발업자·시의원은 FBX 가 없어서 <c>fallbackCastId</c>("세진")로 떨어졌는데,
+    /// <b>둘 다 같은 값이라 똑같은 카트가 두 대</b> 나왔다. 이름표와 김 색은 달라도
+    /// 화면에는 «세진 카트 두 대» 로 보인다 — 빌려 타는 건 괜찮지만 <b>같은 걸 빌리면 안 된다.</b>
+    ///
+    /// <c>aiSlot</c> 마다 다른 차를 빌려주고, <b>플레이어 카트는 후보에서 뺀다</b>
+    /// (내 차와 똑같은 게 옆에 서 있으면 어느 게 나인지 헷갈린다 — AI 배정과 같은 규칙).
+    /// </summary>
+    Skin Borrow()
+    {
+        string player = string.IsNullOrEmpty(GameSelection.SelectedCastId)
+                      ? fallbackCastId : GameSelection.SelectedCastId;
+
+        var pool = new System.Collections.Generic.List<Skin>();
+        foreach (var skin in skins)
+            if (skin != null && skin.model != null && skin.castId != player)
+                pool.Add(skin);
+
+        if (pool.Count == 0) return null;
+        return pool[Mathf.Max(0, aiSlot) % pool.Count];
     }
 
     Skin Find(string castId)
