@@ -39,6 +39,24 @@ public class HingedDoor : MonoBehaviour
 
     public bool Open { get; private set; }
 
+    /// <summary>
+    /// <b>못질한 판자가 박혀 있나.</b> <see cref="CampusBoarding"/> 가 문 루트에 `Boarding` 을
+    /// 붙이는데, 그게 켜져 있으면 문짝이 미끄러져도 <b>판자가 그대로 덮고 있어서</b>
+    /// 아무 일도 안 일어난 것처럼 보였다(2026-09-18 유저가 두 번 신고).
+    ///
+    /// 고치는 방향은 둘이었다 — 판자를 문짝에 붙여 같이 움직이게 하거나,
+    /// <b>판자가 박힌 문은 아예 못 열게</b> 하거나. 후자가 맞다:
+    /// 못질한 판자를 열고 들어가는 문은 판자가 아니라 커튼이야.
+    /// </summary>
+    public bool Barred
+    {
+        get
+        {
+            var boarding = transform.Find("Boarding");
+            return boarding != null && boarding.gameObject.activeSelf;
+        }
+    }
+
     [Tooltip("열려 있을 때도 표시를 띄울지. 끄면 한 번 열면 끝")]
     public bool canClose = true;
 
@@ -121,6 +139,12 @@ public class HingedDoor : MonoBehaviour
 
     public void Toggle()
     {
+        if (Barred)
+        {
+            Toast.Show($"{label} — 판자가 박혀 있다");
+            return;
+        }
+
         // 여는 중이거나 닫는 중이면 무시한다. 반쯤 열린 문에서 또 누르면
         // 문짝이 <b>제자리에서 튀어</b> 고장처럼 보인다.
         if (Time.time - movedAt < openSeconds) return;
@@ -130,7 +154,10 @@ public class HingedDoor : MonoBehaviour
     }
 
     /// <summary>화면에 띄울 말. 상태에 따라 달라야 한다 — 늘 "문 열기" 면 닫는 법을 모른다.</summary>
-    public string Action => Open ? "문 닫기" : "문 열기";
+    public string Action => Barred ? "판자가 박혀 있다" : (Open ? "문 닫기" : "문 열기");
+
+    /// <summary>눌러서 뭔가 되나. HUD 가 키를 보여줄지 결정한다.</summary>
+    public bool Actionable => !Barred;
 
     /// <summary>
     /// 문짝을 <b>옆으로 민다.</b> 한옥 장지문은 여닫이가 아니라 미닫이야
@@ -147,7 +174,10 @@ public class HingedDoor : MonoBehaviour
         // 같은 문이 두 물건처럼 보인다.
         float p = Mathf.Clamp01((Time.time - movedAt) / Mathf.Max(0.05f, openSeconds));
         float t = Open ? p : 1f - p;
-        if (movedAt < -90f) t = 0f;   // 한 번도 안 건드린 문
+
+        // <b>"한 번도 안 건드린 문" 가드는 필요 없다.</b> 처음엔 Open 이 false 라
+        // `t = 1 − p` 이고 p 가 1 이라 t 가 이미 0 이야. 가드를 두면 `Time.time` 이
+        // 작을 때 movedAt 이 −90 아래로 내려가서 <b>영영 t = 0</b> 이 된다 — 문이 안 움직인다.
 
         t = t * t * (3f - 2f * t);   // 부드럽게 — 일정한 속도로 움직이면 기계 같다
 

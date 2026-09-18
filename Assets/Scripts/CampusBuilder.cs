@@ -779,10 +779,6 @@ public class CampusBuilder : MonoBehaviour
                 break;
 
             case "곰밥마당":   // 학생식당 — 한옥 급식소
-                // 유저가 블렌더로 만든 밥그릇이 있으면 배식대에 올린다.
-                // <b>없으면 아무 일도 안 한다</b> — 없는 걸 기다리며 방을 비워 두면 안 돼.
-                MyModel(t, "Assets/My blender/Rice_bowl.fbx", "RiceBowl",
-                        new Vector3(-w * 0.5f + 2.2f, 1.02f, d * 0.5f - 2.6f), 0.22f);
 
                 BapMadang(t, w, d, h, halfW, halfD);
                 break;
@@ -1081,6 +1077,40 @@ public class CampusBuilder : MonoBehaviour
                 break;
 
             case "곰밥마당":  // 학생식당 — 가마솥과 평상
+                // ★ 지붕 위 간판 그릇. 2026-09-18 유저가 블렌더로 만들어 온 것 —
+                // *"지붕 위에 보기 좋게 배치해 줘. 오른쪽에는 국밥 그릇 넣을 거니까 왼쪽에 밥그릇."*
+                //
+                // 지붕 위에 실물 그릇을 얹는 건 <b>한국 식당 간판의 실제 문법</b>이야
+                // (통닭집 닭 모형, 국밥집 뚝배기). 급식소를 한눈에 알아보게 만드는 데
+                // 글자 간판보다 낫고, 유저가 만든 모델을 제일 잘 보이는 자리에 쓰는 거다.
+                //
+                // 받침대를 먼저 깔고 그 위에 올린다 — 지붕에 그릇만 떠 있으면 <b>얹은 게 아니라
+                // 박힌 것</b>처럼 보인다. 지붕 능선은 h + 0.55 쯤이야.
+                {
+                    float shelfY = h + 0.62f;
+                    float shelfX = -w * 0.22f;   // <b>왼쪽</b> — 오른쪽은 국밥 그릇 자리로 비워 둔다
+
+                    Block(t, "BowlShelf", new Vector3(shelfX, shelfY, front - 1.4f), Quaternion.identity,
+                          new Vector3(2.0f, 0.24f, 1.6f), ColWood, noCollider: true);
+                    Block(t, "BowlShelfLip", new Vector3(shelfX, shelfY + 0.16f, front - 1.4f),
+                          Quaternion.identity, new Vector3(2.2f, 0.1f, 1.8f), ColWoodRail, noCollider: true);
+
+                    // 지붕 위에 올리는 거라 <b>크게</b>. 1.5m 는 멀리서도 "밥그릇" 으로 읽힌다 —
+                    // 간판은 건물에 비해 과하다 싶을 만큼 커야 보인다(현판에서 배운 것).
+                    MyModel(t, "Assets/My blender/Rice_bowl.fbx", "RiceBowl",
+                            new Vector3(shelfX, shelfY + 0.22f, front - 1.4f), 1.5f);
+
+                    // 오른쪽 자리 — 국밥 그릇이 올 곳. 받침대를 <b>미리</b> 깔아 둔다:
+                    // 빈 받침대가 보이면 "여기 뭐가 올라오겠구나" 가 되고, 나중에 파일만 놓으면 된다.
+                    Block(t, "BowlShelf_R", new Vector3(-shelfX, shelfY, front - 1.4f), Quaternion.identity,
+                          new Vector3(2.0f, 0.24f, 1.6f), ColWood, noCollider: true);
+                    Block(t, "BowlShelfLip_R", new Vector3(-shelfX, shelfY + 0.16f, front - 1.4f),
+                          Quaternion.identity, new Vector3(2.2f, 0.1f, 1.8f), ColWoodRail, noCollider: true);
+
+                    // 유저가 만들면 저절로 들어온다. 없으면 아무 일도 안 한다.
+                    MyModel(t, "Assets/My blender/Soup_bowl.fbx", "SoupBowl",
+                            new Vector3(-shelfX, shelfY + 0.22f, front - 1.4f), 1.5f);
+                }
                 Disc(t, "Cauldron", new Vector3(-side + 2.6f, 0.9f, front + 3.2f),
                      new Vector3(3.2f, 0.9f, 3.2f), ColBearDark);
                 Disc(t, "CauldronLid", new Vector3(-side + 2.6f, 1.7f, front + 3.2f),
