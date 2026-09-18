@@ -120,8 +120,10 @@ public class TestHUD : MonoBehaviour
         DrawCorner(h);
         if (InKart) DrawMiniMap(h);
         if (showControls) DrawControls(w, h);
+        // ESC 를 누르면 <b>그 패널만</b> 보여준다. 실패·완주 패널이 뒤에 그대로 있으면
+        // 두 장이 겹쳐서 어느 쪽 글씨인지 알 수가 없다(2026-09-18 유저 제보).
         if (confirmQuit) DrawQuitAsk(w, h);
-        if (InKart && tracker != null && tracker.Finished) DrawFinish(w, h);
+        else if (InKart && tracker != null && tracker.Finished) DrawFinish(w, h);
         else if (InKart && mission != null && mission.Failed) DrawFailed(w, h);
 
         Hud.End();
@@ -348,6 +350,14 @@ public class TestHUD : MonoBehaviour
     void DrawToast(float w, float h)
     {
         if (!Toast.Visible) return;
+
+        // 2026-09-18 유저: *"실패 패널 뜨고 바로 위에 '세 번 실패' 패널이 겹쳐서 뜬다."*
+        // 실패 사유는 <b>가운데 큰 패널에 이미 적혀 있다.</b> 같은 말을 두 군데에 띄우면
+        // 겹칠 뿐 아니라 어느 쪽을 읽어야 할지도 모른다. 큰 패널이 뜨면 알림 줄은 접는다.
+        bool bigPanel = InKart && (confirmQuit
+                                || (tracker != null && tracker.Finished)
+                                || (mission != null && mission.Failed));
+        if (bigPanel) return;
 
         var box = new Rect(w * 0.5f - 200f, h * 0.16f, 400f, 56f);
         Hud.Panel(box);

@@ -45,7 +45,7 @@ public class RoadDebris : MonoBehaviour
     Vector3 home;
     Quaternion homeRotation;
     Rigidbody body;
-    float lastHitAt = -99f;
+    bool counted;
 
     void Awake()
     {
@@ -70,6 +70,8 @@ public class RoadDebris : MonoBehaviour
 
     void Restore()
     {
+        counted = false;   // 바퀴가 넘어가면 이 자재는 다시 셀 수 있다
+
         if (body != null)
         {
             body.linearVelocity = Vector3.zero;
@@ -78,15 +80,29 @@ public class RoadDebris : MonoBehaviour
         transform.SetPositionAndRotation(home, homeRotation);
     }
 
+    /// <summary>
+    /// <b>한 자재는 한 바퀴에 한 번만 세진다.</b> 2026-09-18 유저:
+    /// *"한 개를 밀치고 쭉 이어 나가는데 숫자가 자동으로 깎이는 게 이상한데."*
+    ///
+    /// 맞는 지적이다. 전에는 <b>0.5초마다 다시</b> 셌다 — 드럼통을 앞에 끼고 밀면서
+    /// 달리면 <b>한 번 친 실수가 세 번 네 번으로 불어났다.</b> 그건 플레이어가 한 행동이
+    /// 아니라 물리 엔진이 센 숫자야.
+    ///
+    /// 세는 기준은 <b>"몇 개를 건드렸나"</b> 여야 한다. "몇 번 닿았나" 가 아니라.
+    /// 벽 부딪힘을 0.7초 쿨다운으로 묶은 것과 같은 판단이고, 여기는 물건마다 따로 있으니
+    /// 시간이 아니라 <b>물건 한 개당 한 번</b>으로 묶는 게 더 정확하다.
+    ///
+    /// 밀려서 굴러온 게 나중에 다시 닿아도 안 세진다 — 그게 제일 억울한 경우였어.
+    /// </summary>
     void OnCollisionEnter(Collision collision)
     {
-        if (Time.time - lastHitAt < 0.5f) return;
+        if (counted) return;
 
         var kart = collision.rigidbody != null ? collision.rigidbody.GetComponent<KartController>() : null;
         if (kart == null || kart.GetComponent<PlayerKart>() == null) return;
         if (Mathf.Abs(kart.SpeedKph) < minSpeedKph) return;
 
-        lastHitAt = Time.time;
+        counted = true;
         Hits++;
     }
 }

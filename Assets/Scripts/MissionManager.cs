@@ -293,22 +293,37 @@ public class MissionManager : MonoBehaviour
     public string Progress => goal switch
     {
         Goal.발판전부 => $"{BoostPad.TakenCount()} / {padsTotal}",
-        Goal.무충돌   => Chances,
+        Goal.무충돌   => ChanceLabel,
         Goal.제한시간 => Remaining(timeLimit),
-        Goal.장애물   => $"기회 {Mathf.Max(0, allowedDebris - RoadDebris.Hits)}",
+        Goal.장애물   => $"기회 {Chances(allowedDebris, RoadDebris.Hits)}",
         Goal.무발판   => BoostPad.TakenCount() == 0 ? "아직 깨끗" : "밟았다",
         // 2026-09-17 유저: *"처음부터 0/24 를 띄우면 플레이어가 부담을 느낀다.
         // 1랩에 0/8, 2랩에도 0/8 로."* 맞다 — 지금 이 바퀴에 <b>몇 개 남았는지</b>가
         // 운전에 필요한 숫자고, 24 는 판이 끝나야 의미가 있는 숫자야.
         Goal.광고판   => $"{AdBoard.Breaks - lapBaseBreaks} / {signsTotal}",
         // 두 조건을 다 보여줘야 하는데 칸이 좁다. "남은 기회 2" 대신 "2회" 로 줄인다.
-        Goal.완벽    => $"{Mathf.Max(0, allowedHits - WallHits)}회 · {Remaining(perfectTimeLimit)}",
+        Goal.완벽    => $"{Chances(allowedHits, WallHits)}회 · {Remaining(perfectTimeLimit)}",
         _             => tracker != null ? $"{Mathf.Min(tracker.CurrentLap, tracker.totalLaps)} / {tracker.totalLaps}" : "",
     };
 
     // 칸이 54px 라 "남은 기회 2"(77px)는 넘친다. 짧게.
-    string Chances => allowedHits > 0 ? $"기회 {Mathf.Max(0, allowedHits - WallHits)}"
-                                      : (WallHits > 0 ? "0" : "깨끗");
+    string ChanceLabel => allowedHits > 0 ? $"기회 {Chances(allowedHits, WallHits)}"
+                                          : (WallHits > 0 ? "0" : "깨끗");
+
+    /// <summary>
+    /// <b>남은 기회는 봐주는 횟수 + 1 이다.</b> 2026-09-18 유저:
+    /// *"자재 3번 치면 실패라고 뜨는데 기회 2라고 적으면 안 되지 않아?
+    /// 0 됐는데 하면 플레이어가 헷갈리잖아. 기회 1이 마지막 기회로 인식돼야
+    /// 마지막에 쳤을 때 '아 실패구나' 가 된다."*
+    ///
+    /// 맞다. 판정은 <c>Hits &gt; allowed</c> 라 <b>allowed + 1 번째에 실패</b>한다.
+    /// 그런데 화면에는 `allowed − Hits` 를 띄워서 <b>0 이 뜬 채로 한 번 더 칠 수 있었다.</b>
+    /// 남은 횟수를 세는 칸이 0 인데 아직 안 죽으면 그 숫자는 거짓말이야.
+    ///
+    /// 이제 봐주는 횟수 2 → 처음에 <b>기회 3</b>, 한 번 치면 2, 두 번이면 1,
+    /// <b>세 번째에 0 과 동시에 실패</b>. 숫자와 사건이 같은 순간에 일어난다.
+    /// </summary>
+    static int Chances(int allowed, int used) => Mathf.Max(0, allowed + 1 - used);
 
     string Remaining(float limit) =>
         tracker != null ? LapTracker.FormatTime(Mathf.Max(0f, limit - tracker.TotalTime)) : "";
