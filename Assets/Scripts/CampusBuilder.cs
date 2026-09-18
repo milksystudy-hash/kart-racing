@@ -408,7 +408,10 @@ public class CampusBuilder : MonoBehaviour
         // 문짝 둘을 젖힐 수 있게. 문틀이 실제로 뚫려 있으니 열고 걸어 들어가면 된다.
         var hinge = door.AddComponent<HingedDoor>();
         hinge.label = name;
-        hinge.leaves = new[] { door.transform.Find("Leaf_-1"), door.transform.Find("Leaf_1") };
+        // ★ <b>문짝은 이제 통(`LeafRoot_s`) 안에 들어 있다.</b> 전처럼 `Find("Leaf_-1")` 을
+        // 부르면 `Transform.Find` 가 직계 자식만 보기 때문에 <b>null 이 꽂히고</b>,
+        // 씬에는 그 null 이 저장된다. 통을 직접 꽂는다.
+        hinge.leaves = new[] { door.transform.Find("LeafRoot_-1"), door.transform.Find("LeafRoot_1") };
         for (int i = -1; i <= 1; i += 2)
             Block(t, $"Window_{i}", new Vector3(i * width * 0.28f, 2.6f, front), Quaternion.identity,
                   new Vector3(2.6f, 2.2f, 0.25f), ColWindow, noCollider: true);

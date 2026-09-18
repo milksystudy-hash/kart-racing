@@ -37,6 +37,9 @@ public class HingedDoor : MonoBehaviour
     [Tooltip("걸어다니는 몸. 비워두면 카메라")]
     public Transform visitor;
 
+    [Tooltip("문이 왜 안 움직이는지 콘솔에 찍는다. 확인 끝나면 꺼")]
+    public bool doorDebug = true;
+
     public bool Open { get; private set; }
 
     /// <summary>
@@ -88,6 +91,10 @@ public class HingedDoor : MonoBehaviour
             return;
         }
 
+        if (doorDebug)
+            Debug.Log($"[문] '{label}' 문짝 [{leaves[0].name}] / [{leaves[1].name}] " +
+                      $"· 조각 {leaves[0].childCount} + {leaves[1].childCount}", this);
+
         shut = new Vector3[leaves.Length];
         swung = new Vector3[leaves.Length];
 
@@ -109,6 +116,10 @@ public class HingedDoor : MonoBehaviour
             // 폭을 못 읽는 경우까지 대비해 바닥값을 준다 — 안 움직이는 문이 제일 나쁘다.
             if (travel < 0.2f) travel = 1.6f;
             swung[i] = shut[i] + new Vector3(dir * travel, 0f, 0f);
+
+            if (doorDebug)
+                Debug.Log($"[문] '{label}' {leaves[i].name} 닫힘 x {shut[i].x:F2} → 열림 x {swung[i].x:F2} " +
+                          $"(폭 {width:F2} × 비율 {slideRatio:F2} = {travel:F2}m)", this);
         }
     }
 
@@ -141,8 +152,18 @@ public class HingedDoor : MonoBehaviour
     {
         if (Barred)
         {
+            if (doorDebug) Debug.Log($"[문] '{label}' 판자가 박혀 있어서 안 열린다", this);
             Toast.Show($"{label} — 판자가 박혀 있다");
             return;
+        }
+
+        if (shut == null)
+        {
+            // Start 가 문짝을 못 찾고 돌아간 경우. 여기서 한 번 더 시도한다 —
+            // 씬을 다시 굽지 않아도 고쳐지게.
+            if (doorDebug) Debug.LogWarning($"[문] '{label}' 문짝이 없어서 다시 찾는다", this);
+            SendMessage("Start");
+            if (shut == null) return;
         }
 
         // 여는 중이거나 닫는 중이면 무시한다. 반쯤 열린 문에서 또 누르면
@@ -151,6 +172,8 @@ public class HingedDoor : MonoBehaviour
 
         Open = canClose ? !Open : true;
         movedAt = Time.time;
+
+        if (doorDebug) Debug.Log($"[문] '{label}' {(Open ? "연다" : "닫는다")}", this);
     }
 
     /// <summary>화면에 띄울 말. 상태에 따라 달라야 한다 — 늘 "문 열기" 면 닫는 법을 모른다.</summary>
