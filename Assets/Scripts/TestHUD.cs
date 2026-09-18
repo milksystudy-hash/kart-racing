@@ -621,7 +621,12 @@ public class TestHUD : MonoBehaviour
                           && r.castId == GameSelection.SelectedCastId;
             float row = y + 20f + i * 19f;
 
-            string who = Cast.NameOf(r.castId);
+            // ★ <b>내 줄에는 캐릭터 이름을 안 쓴다</b>(2026-09-18 유저 판단).
+            // 남의 기록은 «누구의 기록인지» 가 필요하니까 이름을 쓰고, 내 줄은 «나» 다.
+            // 유저 걱정: *"이름 정해진 캐릭터로 플레이하면 걔가 된 것 같고 기분 나쁠까."*
+            // 기록표는 <b>카트를 가리키는 표</b>지 플레이어를 부르는 자리가 아니라서,
+            // 내 줄만 «나» 로 두면 비교 기능은 그대로 살고 그 껄끄러움만 사라진다.
+            string who = isMine ? "나" : Cast.NameOf(r.castId);
             string place = r.racers > 1 ? $"{r.place}위 / {r.racers}대" : "혼자";
 
             GUI.Label(new Rect(box.x + 34f, row, 26f, 18f), $"{i + 1}", isMine ? mine : line);
