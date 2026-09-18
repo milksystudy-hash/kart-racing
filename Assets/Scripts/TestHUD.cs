@@ -153,6 +153,13 @@ public class TestHUD : MonoBehaviour
                   LapTracker.FormatTime(tracker.BestLapTime), time);
     }
 
+    /// <summary>수집품 패널의 <b>오른쪽 끝</b>. 카운트다운이 이걸 피해 앉는다.</summary>
+    float CollectionRight()
+    {
+        if (!InKart || (mission != null && mission.AllDone)) return 16f;
+        return 16f + 208f;
+    }
+
     /// <summary>수집품 패널이 어디서 끝나는지. 지도가 이 아래로 간다.</summary>
     float CollectionBottom()
     {
@@ -324,7 +331,15 @@ public class TestHUD : MonoBehaviour
         style.normal.textColor = go ? Hud.Brass : Hud.Ink;
 
         // 종이 판을 깔아야 코스 위에서도 읽힌다 — 흰 글씨만 띄우면 하늘색 벽에서 묻힌다.
-        var box = new Rect(w * 0.5f - 90f, h * 0.42f - 60f, 180f, 120f);
+        //
+        // 2026-09-18 유저: *"321 출발 패널이 임무 패널이랑 겹치거나 사이가 너무 가깝다."*
+        // 수집품 패널은 왼쪽 위(x 16~224)에 있고 카운트는 화면 가운데였는데, 창이 좁으면
+        // 가운데가 224 근처까지 내려온다. **왼쪽 패널 오른쪽 끝을 피해서** 자리를 잡는다 —
+        // 좌표를 고정으로 적으면 해상도가 바뀔 때 또 겹친다(지도 자리와 같은 판단).
+        const float boxW = 180f, boxH = 120f;
+        float left = Mathf.Max(w * 0.5f - boxW * 0.5f, CollectionRight() + 28f);
+
+        var box = new Rect(left, h * 0.34f - boxH * 0.5f, boxW, boxH);
         Hud.Panel(box);
         GUI.Label(box, label, style);
     }
@@ -402,19 +417,36 @@ public class TestHUD : MonoBehaviour
     /// </summary>
     void DrawQuitAsk(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 150f, h * 0.5f - 68f, 300f, 136f);
+        // 2026-09-18 유저가 종이에 그려서 준 모양 그대로 — <b>제목 한 줄, 그 아래 고를 것 셋.</b>
+        // 전에는 셋을 한 줄에 가운뎃점으로 이어 붙였는데, 그러면 <b>고르는 화면이 아니라
+        // 안내문</b>으로 읽힌다. 줄을 나누고 키를 왼쪽에 세로로 맞추면 메뉴가 된다.
+        var box = new Rect(w * 0.5f - 170f, h * 0.5f - 92f, 340f, 184f);
         Hud.Panel(box);
 
-        GUI.Label(new Rect(box.x, box.y + 18f, box.width, 28f), "나가기",
-                  Hud.Resize(Hud.Title, 22));
-        GUI.Label(new Rect(box.x, box.y + 50f, box.width, 20f), "지금 판은 처음부터",
-                  Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter));
+        GUI.Label(new Rect(box.x, box.y + 16f, box.width, 32f), "나가기",
+                  Hud.Resize(Hud.Title, 24));
 
-        Hud.Rule(box.x + 24f, box.y + 78f, box.width - 48f);
-        GUI.Label(new Rect(box.x, box.y + 84f, box.width, 20f), "R 이 판 다시 시작",
-                  Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
-        GUI.Label(new Rect(box.x, box.y + 102f, box.width, 20f), "ESC 로비로   ·   아무 키나 계속",
-                  Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter));
+        Hud.Rule(box.x + 26f, box.y + 54f, box.width - 52f);
+
+        // 키는 왼쪽 칸, 뜻은 오른쪽 칸. 칸을 갈라 두면 글자가 길어져도 안 부딪힌다.
+        var keyStyle = Hud.Resize(Hud.Value, 17, TextAnchor.MiddleLeft);
+        var whatStyle = Hud.Resize(Hud.Text, 15, TextAnchor.MiddleLeft);
+
+        string[,] rows =
+        {
+            { "R", "이 판 다시 하기" },
+            { "ESC", "로비로" },
+            // "아무 키" 는 게임 밖 말투다. 실제로 누를 키를 적는다 —
+            // 유저: *"아무키 대신 플레이어가 알아들을 수 있는 글씨 써도 좋고."*
+            { "SPACE", "계속 달리기" },
+        };
+
+        for (int i = 0; i < 3; i++)
+        {
+            float y = box.y + 68f + i * 34f;
+            GUI.Label(new Rect(box.x + 40f, y, 64f, 24f), rows[i, 0], keyStyle);
+            GUI.Label(new Rect(box.x + 112f, y, box.width - 140f, 24f), rows[i, 1], whatStyle);
+        }
     }
     // ---- 임무 실패 (레이스 도중) ----
     /// <summary>
