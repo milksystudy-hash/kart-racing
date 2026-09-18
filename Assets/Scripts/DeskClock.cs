@@ -82,7 +82,8 @@ public class DeskClock : MonoBehaviour
     // ══════════════════════════════════════════════════ 돋보기 (E)
     //
     // 2026-09-18 유저: *"상호작용으로 돋보기 기능 넣어서 거기에 도시 입력하고 볼 수 없을까."*
-    // 시계에 다가가서 <b>E</b> 를 누르면 큰 글씨로 시간·날짜·날씨가 뜨고 도시를 적을 수 있다.
+    // 시계에 다가가서 <b>E</b> 를 누르면 큰 글씨로 시간·날짜·날씨가 뜬다. <b>읽기만 한다</b> —
+    // 도시 입력칸은 정렬이 계속 밀려서 뺐고, 도시는 인스펙터에서 한 번 적으면 되는 값이다.
     // 접수대 위 물건은 작아서 궤도 카메라로는 못 읽는데, <b>다가가서 들여다보는 동작</b>이
     // 그걸 자연스럽게 풀어준다 — 박물관에서 안내판을 들여다보는 것과 같아.
 
@@ -96,7 +97,6 @@ public class DeskClock : MonoBehaviour
 
     FirstPersonController walker;
     bool open;
-    string typed = "";
 
     /// <summary>
     /// 돋보기 창이 떠 있나. <b>로비 HUD 가 이걸 보고 제 안내를 접는다</b> —
@@ -128,103 +128,47 @@ public class DeskClock : MonoBehaviour
         var k = UnityEngine.InputSystem.Keyboard.current;
         if (k == null) return;
 
+        // <b>읽기만 하는 창이다.</b> 아무 키로나 닫힌다 — 닫는 법을 고민할 이유가 없다.
         if (open)
         {
-            // 도시를 적는 중에는 <b>E 가 글자다.</b> 닫는 건 ESC 로만 — 안 그러면
-            // "Seoul" 을 치다가 창이 닫힌다.
-            if (k.escapeKey.wasPressedThisFrame) Close();
-            else if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame) Apply();
+            if (k.escapeKey.wasPressedThisFrame || k.eKey.wasPressedThisFrame ||
+                k.enterKey.wasPressedThisFrame) Close();
         }
         else if (Nearest == this && k.eKey.wasPressedThisFrame)
         {
             open = true;
             PanelOpen = true;
-            typed = city;
-            k.onTextInput += OnChar;      // ★ 아래 설명 — IMGUI 로는 글자가 안 들어온다
         }
-
-        if (open && k.backspaceKey.wasPressedThisFrame && typed.Length > 0)
-            typed = typed.Substring(0, typed.Length - 1);
     }
 
-    /// <summary>
-    /// ★★ <b>`GUI.TextField` 는 이 프로젝트에서 글자를 못 받는다.</b> 2026-09-18 유저:
-    /// *"지금은 입력할 수 있는 키보드 입력키가 아예 없어."* 회색 막대만 뜨고 아무리 쳐도 안 들어갔다.
-    ///
-    /// 이유는 CLAUDE.md 맨 위에 적혀 있던 것과 같다 — 이 프로젝트는 <b>Input System 전용</b>
-    /// (`activeInputHandler: 1`)이고, IMGUI 의 글자 입력은 <b>옛 입력 시스템의 이벤트</b>를 타고 온다.
-    /// 그 통로가 꺼져 있으니 `GUI.TextField` 는 영영 빈 칸이야. 키 «누름» 은
-    /// `Keyboard.current` 로 읽히는데 «글자» 는 그것만으로 안 된다(한글·자판 배열·조합 때문).
-    ///
-    /// <b>`Keyboard.onTextInput` 이 정답이다.</b> 운영체제가 만들어 준 글자가 그대로 온다 —
-    /// 자판 배열도 알아서 맞고, 우리는 문자열에 붙이기만 하면 된다.
-    /// 지우기는 글자가 아니라 키라서 `backspaceKey` 로 따로 본다.
-    /// </summary>
-    void OnChar(char c)
-    {
-        if (!open) return;
-        if (c == '\b' || c == '\n' || c == '\r' || c == 27) return;   // 지우기·줄바꿈·ESC 는 키로 처리
-        if (typed.Length < 24) typed += c;
-    }
 
-    void Close()
-    {
-        open = false;
-        PanelOpen = false;
-        var k = UnityEngine.InputSystem.Keyboard.current;
-        if (k != null) k.onTextInput -= OnChar;   // 안 떼면 창을 닫고도 계속 글자가 쌓인다
-    }
-
-    void Apply()
-    {
-        city = typed.Trim();
-        weather = "";
-        if (useOnlineWeather) StartCoroutine(Fetch());
-        Close();
-    }
+    void Close() { open = false; PanelOpen = false; }
 
     void OnGUI()
     {
         if (!open) return;
 
+        // ★ <b>읽기만 한다.</b> 도시 입력칸은 뺐다(2026-09-18 유저: *"글씨가 밀렸잖아.
+        // 그냥 시계만 띄울까"*). 칸 하나 때문에 정렬이 계속 밀렸고, 그걸 맞추자고
+        // 입력 처리까지 직접 짜야 했다 — <b>얻는 것에 비해 너무 비쌌다.</b>
+        // 도시는 인스펙터에서 한 번 적으면 되는 값이지 매번 바꿀 값이 아니야.
         var screen = Hud.Begin(null);
-        var panel = new Rect(screen.width * 0.5f - 190f, screen.height * 0.5f - 96f, 380f, 192f);
+        var panel = new Rect(screen.width * 0.5f - 170f, screen.height * 0.5f - 72f, 340f, 144f);
         Hud.Panel(panel);
 
         var now = System.DateTime.Now;
         string[] days = { "일", "월", "화", "수", "목", "금", "토" };
 
-        GUI.Label(new Rect(panel.x, panel.y + 44f, panel.width, 44f),
-                  now.ToString("HH:mm"), Hud.Resize(Hud.Value, 38, TextAnchor.MiddleCenter));
-        GUI.Label(new Rect(panel.x, panel.y + 86f, panel.width, 20f),
+        GUI.Label(new Rect(panel.x, panel.y + 26f, panel.width, 48f),
+                  now.ToString("HH:mm"), Hud.Resize(Hud.Value, 40, TextAnchor.MiddleCenter));
+        GUI.Label(new Rect(panel.x, panel.y + 74f, panel.width, 22f),
                   $"{now.Year}년 {now.Month}월 {now.Day}일 ({days[(int)now.DayOfWeek]})",
                   Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
-        GUI.Label(new Rect(panel.x, panel.y + 106f, panel.width, 20f),
-                  string.IsNullOrEmpty(weather) ? "날씨 정보 없음" : weather,
+        GUI.Label(new Rect(panel.x, panel.y + 94f, panel.width, 22f),
+                  string.IsNullOrEmpty(weather) ? "—" : weather,
                   Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
 
-        // ── 도시 입력칸 ──────────────────────────────────────────────
-        // `GUI.TextField` 를 안 쓴다(위 OnChar 설명). 칸은 우리가 그리고 글자는 우리가 받는다.
-        var inner = Hud.Inner(panel);
-        float boxY = panel.y + 130f;
-        GUI.Label(new Rect(inner.x + 4f, boxY, 40f, 24f), "도시",
-                  Hud.Resize(Hud.Label, 12, TextAnchor.MiddleLeft));
-
-        var box = new Rect(inner.x + 48f, boxY, inner.width - 52f, 24f);
-        Hud.Chip(box);
-
-        // 빈 칸이면 <b>무엇을 적는 칸인지</b> 흐리게 알려준다. 회색 막대만 있으면
-        // 적는 칸인지 아닌지도 모른다 — 유저가 «회색 막대» 라고 부른 게 그거야.
-        bool empty = string.IsNullOrEmpty(typed);
-        string shown = empty ? "현재 위치 (Seoul 처럼 적으면 그 도시)" : typed;
-        var entry = Hud.Resize(empty ? Hud.Label : Hud.Text, 13, TextAnchor.MiddleLeft);
-
-        // 깜빡이는 커서 — 지금 여기에 글자가 들어간다는 유일한 신호다.
-        if (!empty && (int)(Time.unscaledTime * 2f) % 2 == 0) shown += "|";
-        GUI.Label(new Rect(box.x + 8f, box.y, box.width - 16f, box.height), shown, entry);
-
-        GUI.Label(new Rect(panel.x, panel.y + 158f, panel.width, 18f),
-                  "글자를 치면 바로 입력 · ENTER 적용 · ESC 닫기",
+        GUI.Label(new Rect(panel.x, panel.y + 118f, panel.width, 18f), "아무 키나 눌러 닫기",
                   Hud.Resize(Hud.Label, 11, TextAnchor.MiddleCenter));
 
         Hud.End();
