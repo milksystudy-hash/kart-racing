@@ -92,8 +92,12 @@ public class BuildingSign : MonoBehaviour
         for (int i = 0; i < lines.Count; i++)
         {
             float size = i == 0 ? line : line * 0.82f;
+            // 2026-09-18 유저: *"재주관 안내판에 나무판자랑 글씨가 겹쳐 보인다."*
+            // 글자를 판 앞 <b>0.24m</b> 에 띄웠는데 안내판 두께가 0.12m 라, 글자가
+            // 나무 테두리와 기둥보다 앞으로 튀어나와 <b>따로 떠 있는 것처럼</b> 보였다.
+            // 0.09m — 판 면에서 겨우 떨어질 만큼만. 붙이면 z-파이팅이고 띄우면 뜬다.
             Label(holder, $"SignLine_{i}", lines[i], font,
-                  new Vector3(0f, top - i * line, 0.24f),
+                  new Vector3(0f, top - i * line, 0.09f),
                   i == 0 ? new Color32(0xF6, 0xEC, 0xD6, 0xFF) : new Color32(0xE0, 0xCE, 0xA4, 0xFF),
                   size, TextAnchor.MiddleCenter);
         }
@@ -125,12 +129,16 @@ public class BuildingSign : MonoBehaviour
         var lines = new System.Collections.Generic.List<string>();
         if (body.Length <= per) { lines.Add(body); return lines; }
 
-        var parts = body.Split('·');
+        // 가운뎃점이 없는 문장은 <b>띄어쓰기로</b> 자른다. 한 줄 문구가 그렇다 —
+        // "재주는 곰이 넘고 돈은 딴 놈이 번다" 에는 가운뎃점이 하나도 없어서
+        // 22자가 통짜로 한 줄이 됐고, 글자 수로 억지로 자르니 <b>낱말 가운데가 끊겼다</b>.
+        char cut = body.Contains("·") ? '·' : ' ';
+        var parts = body.Split(cut);
         string current = "";
 
         foreach (var part in parts)
         {
-            string next = current.Length == 0 ? part : current + "·" + part;
+            string next = current.Length == 0 ? part : current + cut + part;
             if (next.Length <= per) { current = next; continue; }
 
             if (current.Length > 0) lines.Add(current);

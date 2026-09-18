@@ -45,6 +45,28 @@ public class LobbyHUD : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// <b>걸어다닐 수 있다는 걸 화면에 적는다.</b> 2026-09-18 유저:
+    /// *"플레이어가 조종할 수 있는 게 없다 보니 언제 곰인형들이 가까워지는지도 모르고..
+    /// 로비도 자유롭게 돌아다닐 수 있어야 하는 거 아닐까."*
+    ///
+    /// 걷기 모드(TAB)는 <b>2026-09-17 에 이미 들어가 있었다.</b> 그런데 조작법 카드(H)를
+    /// 열어야만 보여서, 안 열어본 사람에게는 <b>없는 기능</b>이었다 — 유령 모드(G) 때와
+    /// 똑같은 실수야. **키가 있어도 화면에 없으면 없는 것이다.**
+    /// </summary>
+    void DrawWalkHint(float w, float h)
+    {
+        bool walking = walk != null && walk.Walking;
+
+        var chip = new Rect(w - 214f, h - 40f, 198f, 24f);
+        Hud.Chip(chip);
+
+        var style = Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter);
+        if (walking) style.normal.textColor = Hud.Brass;
+
+        GUI.Label(chip, walking ? "TAB 둘러보기로   ·   E 말 걸기" : "TAB 걸어다니기", style);
+    }
+
     void OnGUI()
     {
         Rect screen = Hud.Begin(uiFont);
@@ -57,6 +79,7 @@ public class LobbyHUD : MonoBehaviour
         DrawPrompt(w, h);
         DrawGate(w, h);
         DrawCorner(h);
+        DrawWalkHint(w, h);
         if (showControls) DrawControls(w, h);
 
         Hud.End();

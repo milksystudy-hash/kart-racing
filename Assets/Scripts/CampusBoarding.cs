@@ -73,10 +73,16 @@ public class CampusBoarding : MonoBehaviour
     Transform MakeBoards(HingedDoor door)
     {
         // 문짝에서 문 크기를 뽑는다. 빌더가 아는 치수를 다시 받아 적으면 문을 고칠 때 또 틀린다.
-        float w = 3.4f, h = 4.2f;
+        // ★ 2026-09-18 유저: *"재주관 안내판에 나무판자랑 글씨가 겹쳐 보인다."*
+        // 판자를 문짝 폭 ×2.1 로 잡았더니 <b>문 구멍보다 넓어져</b> 옆에 선 안내판까지 덮었다.
+        // 안내판은 문 중심에서 `문폭×0.5 + 1.5m` 에 있고 판 반폭이 1.3m 라,
+        // 판자 반폭이 `문폭×0.55` 를 넘으면 그대로 부딪힌다.
+        //
+        // <b>판자는 문 구멍 안에만 있어야 한다.</b> 문을 막는 물건이지 벽을 막는 물건이 아니야.
+        float w = 3.2f, h = 4.2f;
         if (door.leaves != null && door.leaves.Length > 0 && door.leaves[0] != null)
         {
-            w = Mathf.Abs(door.leaves[0].localScale.x) * 2.1f;
+            w = Mathf.Abs(door.leaves[0].localScale.x) * 1.88f;
             h = Mathf.Abs(door.leaves[0].localScale.y);
         }
 
@@ -89,7 +95,7 @@ public class CampusBoarding : MonoBehaviour
 
         Plank(root, "Cross_A", new Vector3(0f, h * 0.5f, 0f), angle, diagonal);
         Plank(root, "Cross_B", new Vector3(0f, h * 0.5f, 0.06f), -angle, diagonal);
-        Plank(root, "Bar", new Vector3(0f, h * 0.34f, 0.12f), 0f, w * 1.04f);
+        Plank(root, "Bar", new Vector3(0f, h * 0.34f, 0.12f), 0f, w * 0.96f);
 
         return root;
     }

@@ -124,14 +124,15 @@ public static class HanokDoor
             Piece(root, "BoardFoot", new Vector3(side, 0.08f, 0.5f),
                   new Vector3(0.6f, 0.16f, 0.6f), Wood, material);
 
-            var notice = Piece(root, "Board", new Vector3(side, 1.62f, 0.5f),
-                               new Vector3(2.3f, 1.05f, 0.12f), Plaque, material);
-            Piece(root, "BoardFrame", new Vector3(side, 1.62f, 0.46f),
-                  new Vector3(2.5f, 1.25f, 0.08f), Wood, material);
+            // 한 줄 문구까지 넉넉히 담게 조금 키웠다(2026-09-18). 네 줄이 들어간다.
+            var notice = Piece(root, "Board", new Vector3(side, 1.66f, 0.5f),
+                               new Vector3(2.6f, 1.25f, 0.12f), Plaque, material);
+            Piece(root, "BoardFrame", new Vector3(side, 1.66f, 0.46f),
+                  new Vector3(2.8f, 1.45f, 0.08f), Wood, material);
 
             // 작은 지붕 한 겹 — 비 가리는 시늉. 판만 서 있으면 표지판이 아니라 널빤지다
-            Piece(root, "BoardRoof", new Vector3(side, 2.28f, 0.42f),
-                  new Vector3(2.7f, 0.1f, 0.5f), Slat, material);
+            Piece(root, "BoardRoof", new Vector3(side, 2.42f, 0.42f),
+                  new Vector3(3.0f, 0.1f, 0.5f), Slat, material);
 
             var info = notice.AddComponent<BuildingSign>();
             info.department = department;
