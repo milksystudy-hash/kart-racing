@@ -705,6 +705,15 @@ public static class LobbySceneBuilder
         TestSceneBuilder.Cube(root, "SideWingTop", new Vector3(3.1f, 1.14f, -1.5f),
                               new Vector3(1.3f, 0.12f, 3.3f), ColWoodDark, keepCollider: false);
 
+        // ★ 접수대 위 전자시계(2026-09-18 유저: *"이 책상이 아무것도 없으니 허전한데"*).
+        // <b>빈 오브젝트와 컴포넌트만 놓는다</b> — 모양은 `DeskClock` 이 실행할 때 짓는다.
+        // 로비는 구워서 저장하는 씬이라 여기서 기하까지 구우면 «두 벌» 함정(2026-09-17)에 걸린다.
+        // 그래서 <b>씬 뷰에는 안 보이고 ▶ 를 눌러야 보인다. 그게 맞는 동작이야.</b>
+        var clock = new GameObject("DeskClock");
+        clock.transform.SetParent(root, false);
+        clock.transform.localPosition = new Vector3(-1.75f, 1.20f, 0.06f);   // 상판 위 왼쪽
+        clock.AddComponent<DeskClock>();
+
         // 데스크 뒤 안내판
         TestSceneBuilder.Cube(root, "SignBoard", new Vector3(0f, 2.5f, -1.1f),
                               new Vector3(4.2f, 1.5f, 0.18f), ColWallMint, keepCollider: false);

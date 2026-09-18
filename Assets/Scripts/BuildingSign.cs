@@ -202,7 +202,12 @@ public class BuildingSign : MonoBehaviour
     static Material textMaterial;
     static Font boundFont;
 
-    static Material TextMaterial(Font font)
+    /// <summary>
+    /// 월드에 세운 글자용 재질(깊이 검사를 켠 것). <see cref="DeskClock"/> 도 같은 걸 쓴다 —
+    /// 유니티 기본 폰트 재질은 `ZTest Always` 라 <b>벽 뒤에 있어도 그려진다</b>(2026-09-17).
+    /// 그 함정을 두 군데서 따로 피하면 한쪽만 고쳐놓고 놓친다.
+    /// </summary>
+    public static Material TextMaterial(Font font)
     {
         if (textMaterial != null && boundFont == font)
         {
