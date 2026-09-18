@@ -23,6 +23,17 @@ public class RaceProgress : MonoBehaviour
     /// <summary>출발선부터 지금까지 지난 체크포인트 총 개수. 랩을 넘어가도 계속 쌓인다.</summary>
     public int CheckpointsPassed { get; private set; }
     public bool Finished { get; private set; }
+
+    /// <summary>
+    /// <b>몇 번째로 결승선을 넘었나</b>(1부터). 아직 안 끝났으면 0.
+    ///
+    /// 2026-09-18 유저: *"내가 1등이었는데 뒤에 있던 AI 가 나를 밟으니 알림판이 2등으로 바뀌었다."*
+    /// 순위를 <b>매 프레임 위치로</b> 매기니까 완주한 뒤에도 계속 흔들렸다.
+    /// 결승선을 넘은 <b>순서</b>는 그때 정해지는 값이지 나중에 바뀌는 값이 아니야.
+    /// </summary>
+    public int FinishOrder { get; private set; }
+
+    static int finishedSoFar;
     public Checkpoint LastPassed { get; private set; }
 
     public string DisplayName => string.IsNullOrEmpty(racerName) ? name : racerName;
@@ -59,12 +70,20 @@ public class RaceProgress : MonoBehaviour
         // 0번(결승선)을 제대로 밟고 지나갔다면 한 바퀴 완주
         if (index != 0) return;
 
-        if (Lap >= totalLaps) Finished = true;
+        if (Lap >= totalLaps)
+        {
+            Finished = true;
+            FinishOrder = ++finishedSoFar;   // 넘은 순서대로 1, 2, 3...
+        }
         else Lap++;
     }
 
     public void ResetRace()
     {
+        // 한 대라도 처음으로 돌아가면 순서를 다시 센다. 첫 카트가 부를 때 0 이 되고
+        // 나머지는 이미 0 이라 영향이 없다.
+        finishedSoFar = 0;
+        FinishOrder = 0;
         Lap = 1;
         NextCheckpoint = 1;
         CheckpointsPassed = 0;

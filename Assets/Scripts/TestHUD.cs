@@ -91,6 +91,8 @@ public class TestHUD : MonoBehaviour
         bool canRestart = tracker != null && (tracker.Finished || (mission != null && mission.Failed));
         if (canRestart && KartInput.RestartPressed)
         {
+            recordSent = false;
+            recordRank = 0;
             tracker.ResetRace();
             KartInput.Clear();
         }
@@ -496,8 +498,19 @@ public class TestHUD : MonoBehaviour
         // 셋을 가로로 놓으면 칸 하나가 (폭−40)/3 밖에 안 된다. 360 일 때 107px 인데
         // "1:51.17" 이 26px 로 그리면 100px 이라 옆 칸과 딱 붙는다(2026-09-17 유저 제보).
         // 패널을 넓히고 숫자를 줄였다 — 둘 다 해야 여유가 생긴다.
-        var box = new Rect(w * 0.5f - 208f, h * 0.5f - 112f, 416f, 224f);
+        var box = new Rect(w * 0.5f - 208f, h * 0.5f - 146f, 416f, 292f);
         Hud.Panel(box);
+
+        // 결승선을 넘은 <b>그 판에 한 번만</b> 기록을 낸다. OnGUI 는 매 프레임 도니까
+        // 여기서 바로 부르면 같은 기록이 수십 번 쌓인다.
+        if (!recordSent)
+        {
+            recordSent = true;
+            recordRank = RaceRecords.Submit(tracker.TotalTime, tracker.BestLapTime,
+                                            standings != null ? standings.PlayerPlace : 1,
+                                            standings != null ? standings.RacerCount : 1,
+                                            GameSelection.SelectedCastId);
+        }
 
         // 다 모았으면 걸린 임무가 없다. 판정을 그대로 돌리면 "임무 실패 — 세 바퀴 완주" 가 뜬다.
         bool freeRun = mission != null && mission.AllDone;
@@ -539,8 +552,56 @@ public class TestHUD : MonoBehaviour
                                       : $"임무 실패 — {mission.Title}", line);
         }
 
-        GUI.Label(new Rect(box.x, box.y + 182f, box.width, 22f), "ENTER 를 누르면 다시 시작",
+        DrawRecords(box);
+
+        GUI.Label(new Rect(box.x, box.y + box.height - 30f, box.width, 22f), "ENTER 를 누르면 다시 시작",
                   Hud.Resize(Hud.Label, 14, TextAnchor.MiddleCenter));
+    }
+
+    bool recordSent;
+    int recordRank;
+
+    /// <summary>
+    /// <b>잘 달린 기록 세 줄.</b> 2026-09-18 유저: *"전에 한 것보다 이번이 더 잘 나왔네?
+    /// 하고 느낄 수 있게끔."*
+    ///
+    /// 이번 판 숫자만 보여주면 <b>잘한 건지 못한 건지 알 방법이 없다.</b> 기준이 없으면
+    /// 두 번째 판을 돌 이유도 없어 — 레이싱에서 다시 달리게 만드는 건 상대가 아니라
+    /// <b>어제의 나</b>다. 이번 기록이 표에 올랐으면 그 줄을 금색으로 짚어준다.
+    /// </summary>
+    void DrawRecords(Rect box)
+    {
+        var best = RaceRecords.Best;
+        if (best.Count == 0) return;
+
+        float y = box.y + 168f;
+        Hud.Rule(box.x + 26f, y - 8f, box.width - 52f);
+
+        GUI.Label(new Rect(box.x, y, box.width, 18f),
+                  recordRank > 0 ? $"기록 경신 — {recordRank}위!" : "잘 달린 기록",
+                  Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter));
+
+        var line = Hud.Resize(Hud.Text, 13, TextAnchor.MiddleLeft);
+        var mine = Hud.Resize(Hud.Value, 13, TextAnchor.MiddleLeft);
+        mine.normal.textColor = Hud.Brass;
+
+        for (int i = 0; i < best.Count; i++)
+        {
+            var r = best[i];
+            bool isMine = recordRank == i + 1;
+            float row = y + 20f + i * 19f;
+
+            string who = Cast.NameOf(r.castId);
+            string place = r.racers > 1 ? $"{r.place}위 / {r.racers}대" : "혼자";
+
+            GUI.Label(new Rect(box.x + 34f, row, 26f, 18f), $"{i + 1}", isMine ? mine : line);
+            GUI.Label(new Rect(box.x + 60f, row, 96f, 18f),
+                      LapTracker.FormatTime(r.total), isMine ? mine : line);
+            GUI.Label(new Rect(box.x + 162f, row, 96f, 18f),
+                      $"랩 {LapTracker.FormatTime(r.bestLap)}", isMine ? mine : line);
+            GUI.Label(new Rect(box.x + 262f, row, 130f, 18f),
+                      string.IsNullOrEmpty(who) ? place : $"{who} · {place}", isMine ? mine : line);
+        }
     }
 
     // ---- 왼쪽 아래 코스 지도 ----

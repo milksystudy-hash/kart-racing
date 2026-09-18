@@ -52,9 +52,20 @@ public class RaceStandings : MonoBehaviour
         // 앞선 순서대로. 완주한 카트는 아직 달리는 카트보다 항상 앞이다.
         sorted.Sort((a, b) =>
         {
+            // 완주한 카트는 <b>들어온 순서</b>로 굳는다. 위치로 매기면 완주하고 나서도
+            // 뒤차가 밀 때마다 순위가 흔들린다(2026-09-18 유저 제보).
+            if (a.Finished && b.Finished) return a.FinishOrder.CompareTo(b.FinishOrder);
             if (a.Finished != b.Finished) return a.Finished ? -1 : 1;
             return b.RankScore.CompareTo(a.RankScore);
         });
+
+        // 내가 이미 들어왔으면 그 순위가 내 순위다. 더 계산하지 않는다.
+        if (playerRacer != null && playerRacer.Finished && playerRacer.FinishOrder > 0)
+        {
+            PlayerPlace = playerRacer.FinishOrder;
+            if (PlayerPlace == 1) PlayerFinishedFirst = true;
+            return;
+        }
 
         for (int i = 0; i < sorted.Count; i++)
         {
