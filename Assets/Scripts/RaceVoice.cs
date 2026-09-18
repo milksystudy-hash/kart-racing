@@ -84,6 +84,10 @@ public static class RaceVoice
 
     public static string Generic() => "조건 미달";
 
+    /// <summary>결승에서 졌을 때. 등수를 적어야 «얼마나 아깝게 졌는지» 가 보인다.</summary>
+    public static string LostFinal(int place) =>
+        place <= 0 ? "완주 못 함" : $"{place}위 — 저쪽이 먼저 들어왔다";
+
     // ------------------------------------------------------------------
     //  화면 아래 안내
     // ------------------------------------------------------------------

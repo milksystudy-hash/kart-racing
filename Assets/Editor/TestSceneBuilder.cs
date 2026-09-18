@@ -621,6 +621,17 @@ public static class TestSceneBuilder
 
         var instance = (GameObject)PrefabUtility.InstantiatePrefab(model);
 
+        // ★ <b>프리팹 인스턴스 안의 자식은 부모를 못 바꾼다.</b> 아래에서 바퀴를 `_Pivot` 으로
+        // 옮기는데, 그게 매번 «Setting the parent of a transform which resides in a Prefab
+        // instance is not possible» 로 <b>조용히 실패</b>하고 있었다 — 씬을 한 번 구울 때마다
+        // 카트 수 × 바퀴 4개씩 에러가 쌓여서, 2026-09-18 에 콘솔에 96개가 찍혔다.
+        //
+        // 결과는 «에러만 많고 굴러는 간다» 가 아니다: <b>앞바퀴 조향 껍데기가 비어서
+        // 핸들을 꺾어도 앞바퀴가 안 돌아간다.</b> 연결을 끊어서 평범한 오브젝트로 만든다 —
+        // 어차피 이 안의 물건을 씬에서 옮기고 있으니 프리팹 연결을 유지할 이유가 없다.
+        PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely,
+                                           InteractionMode.AutomatedAction);
+
         // 임포터가 정한 회전·스케일은 그대로 둔다. 여기서 1 로 덮으면
         // 단위 변환(100배)이 걸린 모델은 백분의 일로 쪼그라든다.
         instance.transform.SetParent(visual, false);

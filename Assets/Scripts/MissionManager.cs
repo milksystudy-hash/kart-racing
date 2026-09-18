@@ -71,10 +71,18 @@ public class MissionManager : MonoBehaviour
     public bool Failed { get; private set; }
     public bool Cleared { get; private set; }
 
-    /// <summary>결승 순위를 보려면 순위판이 필요하다. 매 프레임 찾으면 비싸서 한 번만 잡는다.</summary>
-    RaceStandings standings;
-    RaceStandings Standings =>
-        standings != null ? standings : (standings = FindFirstObjectByType<RaceStandings>());
+    /// <summary>
+    /// 플레이어가 <b>몇 번째로</b> 결승선을 넘었나. 0 이면 아직 안 들어옴.
+    /// 순위판이 아니라 카트 자신이 들고 있는 값이라 <b>Update 순서에 안 흔들린다.</b>
+    /// </summary>
+    RaceProgress playerProgress;
+
+    int PlayerFinishOrder()
+    {
+        if (playerProgress == null && kart != null)
+            playerProgress = kart.GetComponent<RaceProgress>();
+        return playerProgress != null ? playerProgress.FinishOrder : 0;
+    }
 
     /// <summary>왜 실패했는지 한 줄. 화면에 그대로 띄운다 — "실패" 만 뜨면 뭘 고쳐야 할지 모른다.</summary>
     public string FailReason { get; private set; } = "";
@@ -229,9 +237,18 @@ public class MissionManager : MonoBehaviour
             Goal.광고판   => SignQuota > 0 && AdBoard.Breaks >= SignQuota,
             Goal.완벽    => kart.WallHits <= allowedHits && tracker.TotalTime <= perfectTimeLimit,
 
-            // ★ 결승은 <b>이겨야</b> 끝난다. 완주만으로 통과시키면 여덟 판 내내 쌓아온 게
-            // 그냥 한 바퀴 더 도는 걸로 끝나. 상대는 개발업자·시의원 둘뿐이라 1위가 곧 승리야.
-            Goal.결승    => Standings != null && Standings.PlayerFinishedFirst,
+            // ★ 결승은 <b>이겨야</b> 끝난다. 상대가 개발업자·시의원 둘뿐이라 1위가 곧 승리야.
+            //
+            // ★★ <b>순위판을 보면 안 된다.</b> 처음에 `RaceStandings.PlayerFinishedFirst` 를
+            // 봤는데, 그 값은 `RaceStandings.Update` 가 채운다 — <b>같은 프레임에 누가 먼저
+            // Update 를 도느냐로 결과가 갈린다.</b> MissionManager 가 먼저 돌면 결승선을 1등으로
+            // 넘은 그 프레임에 값이 아직 false 라서 <b>이겨도 «임무 실패»</b> 가 떴다
+            // (2026-09-18 유저: *"이빨 악물고 이겼는데 왜 실패가 뜨냐"* — 미안, 내 버그였다).
+            //
+            // `RaceProgress.FinishOrder` 는 결승선을 넘는 <b>그 자리에서 Finished 와 함께</b>
+            // 정해진다. 순서에 안 흔들리는 값이야 — 이 프로젝트에서 «Start 순서가 밀리면
+            // 판단이 틀린다» 를 네 번 겪고 세운 규칙 그대로다.
+            Goal.결승    => PlayerFinishOrder() == 1,
 
             _             => true,
         };
@@ -245,6 +262,8 @@ public class MissionManager : MonoBehaviour
             Goal.전시품   => RaceVoice.MissedCargo(ExhibitCargo.Loaded, CargoQuota),
             Goal.장애물   => RaceVoice.HitDebris(RoadDebris.Hits),
             Goal.광고판   => RaceVoice.MissedSigns(AdBoard.Breaks, SignQuota),
+            // 결승에서 «조건 미달» 이 뜨면 뭘 잘못했는지 알 수가 없다 — 등수를 그대로 적는다
+            Goal.결승     => RaceVoice.LostFinal(PlayerFinishOrder()),
             _             => RaceVoice.Generic(),
         });
     }
