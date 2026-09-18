@@ -53,29 +53,43 @@ public static class HanokDoor
               new Vector3(width + 0.5f, 0.14f, 0.72f), Wood, material);
 
         // ---- 문짝 둘 ----
+        //
+        // ★ <b>문짝 하나가 여섯 조각이다</b>(판·한지·세로살 셋·가로살 둘·문고리).
+        // 전에는 이걸 전부 문 루트에 형제로 달았고, <see cref="HingedDoor"/> 는
+        // 판(`Leaf_s`) <b>하나만</b> 옮겼다 — 판만 미끄러지고 한지와 살은 제자리에 남으니
+        // 눈에는 <b>아무 일도 안 일어난 것처럼</b> 보였다(2026-09-18 유저:
+        // *"문 열고 닫기는 되는데 애니메이션이 없다"*).
+        //
+        // <b>빈 통에 묶는다.</b> `LeafRoot_s` 를 옮기면 여섯 조각이 같이 간다 —
+        // 조각을 하나씩 옮기는 코드를 쓰지 않아도 되고, 나중에 조각을 더해도 저절로 따라온다.
         float leaf = half - 0.04f;
         for (int s = -1; s <= 1; s += 2)
         {
             float cx = s * leaf * 0.5f;
 
-            Piece(root, $"Leaf_{s}", new Vector3(cx, height * 0.5f + 0.07f, 0.02f),
+            var swing = new GameObject($"LeafRoot_{s}");
+            swing.transform.SetParent(root.transform, false);
+            swing.transform.localPosition = new Vector3(cx, 0f, 0f);
+
+            // 이 아래는 <b>문짝 기준 좌표</b>라 x 가 0 이다. 통이 cx 를 들고 있으니까.
+            Piece(swing, $"Leaf_{s}", new Vector3(0f, height * 0.5f + 0.07f, 0.02f),
                   new Vector3(leaf, height - 0.14f, 0.1f), Leaf, material);
 
             // 한지 — 안에 불이 켜져 있다는 신호. 이것 하나로 "들어갈 수 있는 곳" 이 된다
-            Piece(root, $"Paper_{s}", new Vector3(cx, height * 0.55f + 0.07f, 0.075f),
+            Piece(swing, $"Paper_{s}", new Vector3(0f, height * 0.55f + 0.07f, 0.075f),
                   new Vector3(leaf - 0.22f, height * 0.62f, 0.03f), Paper, material);
 
             // 격자살 — 세로 셋, 가로 둘. 한지 앞에 얹혀야 창살로 보인다
             for (int v = -1; v <= 1; v++)
-                Piece(root, $"SlatV_{s}_{v}", new Vector3(cx + v * leaf * 0.27f, height * 0.55f + 0.07f, 0.1f),
+                Piece(swing, $"SlatV_{s}_{v}", new Vector3(v * leaf * 0.27f, height * 0.55f + 0.07f, 0.1f),
                       new Vector3(0.055f, height * 0.62f, 0.03f), Slat, material);
 
             for (int h = 0; h < 2; h++)
-                Piece(root, $"SlatH_{s}_{h}", new Vector3(cx, height * (0.4f + h * 0.3f) + 0.07f, 0.1f),
+                Piece(swing, $"SlatH_{s}_{h}", new Vector3(0f, height * (0.4f + h * 0.3f) + 0.07f, 0.1f),
                       new Vector3(leaf - 0.22f, 0.055f, 0.03f), Slat, material);
 
-            // 문고리 — 두 짝이 만나는 쪽에
-            Piece(root, $"Handle_{s}", new Vector3(-s * 0.12f, height * 0.42f, 0.12f),
+            // 문고리 — 두 짝이 만나는 쪽에. 통이 cx 를 들고 있으니 여기서 빼준다
+            Piece(swing, $"Handle_{s}", new Vector3(-s * 0.12f - cx, height * 0.42f, 0.12f),
                   new Vector3(0.1f, 0.22f, 0.06f), Handle, material);
         }
 

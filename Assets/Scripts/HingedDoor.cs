@@ -55,7 +55,13 @@ public class HingedDoor : MonoBehaviour
         // <b>씬을 다시 안 구워도 고쳐지게.</b> 옛날에 구운 씬에는 문짝이 안 꽂혀 있거나
         // 이름이 달라서, 문을 열어도 아무 일이 없고 표시만 사라졌다(2026-09-18 유저:
         // *"문열기만 나오고 끝이네, E 는 다시는 못 누르고"*).
-        if (leaves == null || leaves.Length < 2 || leaves[0] == null || leaves[1] == null)
+        // <b>통을 먼저 찾는다.</b> `LeafRoot_s` 는 문짝 여섯 조각을 다 담고 있어서
+        // 이걸 옮기면 문이 통째로 움직인다. 없으면(옛 씬) 판 하나라도 옮긴다.
+        var rootL = transform.Find("LeafRoot_-1");
+        var rootR = transform.Find("LeafRoot_1");
+
+        if (rootL != null && rootR != null) leaves = new[] { rootL, rootR };
+        else if (leaves == null || leaves.Length < 2 || leaves[0] == null || leaves[1] == null)
             leaves = new[] { transform.Find("Leaf_-1"), transform.Find("Leaf_1") };
 
         if (leaves == null || leaves[0] == null || leaves[1] == null)
@@ -73,8 +79,13 @@ public class HingedDoor : MonoBehaviour
             shut[i] = leaves[i].localPosition;
 
             // 두 짝이 서로 반대쪽으로 미끄러진다. 같은 쪽으로 가면 한 짝이 다른 짝을 뚫는다.
+            // 통은 스케일이 1 이라 폭을 제 자식(판)에서 읽어야 한다.
+            float width = Mathf.Abs(leaves[i].localScale.x);
+            if (width < 0.2f && leaves[i].childCount > 0)
+                width = Mathf.Abs(leaves[i].GetChild(0).localScale.x);
+
             float dir = shut[i].x >= 0f ? 1f : -1f;
-            float travel = Mathf.Abs(leaves[i].localScale.x) * Mathf.Max(0.5f, slideRatio);
+            float travel = width * Mathf.Max(0.5f, slideRatio);
 
             // 옛 씬에 <c>slideRatio</c> 0 이 저장돼 있으면 문이 제자리에서 안 움직인다.
             // 폭을 못 읽는 경우까지 대비해 바닥값을 준다 — 안 움직이는 문이 제일 나쁘다.

@@ -417,6 +417,53 @@ public class CampusBuilder : MonoBehaviour
     }
 
     /// <summary>
+    /// <b>유저가 만든 FBX 를 자리에 앉힌다.</b> 2026-09-18, 밥그릇이 첫 손님이야.
+    ///
+    /// <paramref name="targetWidth"/> 가 핵심이다 — 블렌더에서 몇 미터로 만들었든
+    /// <b>여기서 정한 크기로 맞춰 준다.</b> 밥그릇을 4.6m 로 만들어 왔어도 0.22m 로 앉는다.
+    /// 유저에게 "블렌더에서 크기를 다시 맞춰 오세요" 를 시키지 않으려고 이렇게 한다
+    /// (기획서 §9.3 — 유저가 손으로 해야 하는 단계를 남기지 마라).
+    ///
+    /// 파일이 없으면 <b>아무 일도 안 한다.</b> 없는 걸 기다리며 방을 비워 두면 안 되고,
+    /// 나중에 파일만 놓고 씬을 다시 구우면 저절로 들어온다.
+    /// </summary>
+    void MyModel(Transform parent, string assetPath, string name, Vector3 at, float targetWidth)
+    {
+#if UNITY_EDITOR
+        var fbx = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+        if (fbx == null) return;
+
+        var go = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(fbx);
+        go.name = name;
+        go.transform.SetParent(parent, false);
+
+        // 크기를 재서 비율을 구한다. 손으로 스케일을 적으면 모델을 새로 뽑을 때마다 또 틀린다.
+        var bounds = new Bounds(Vector3.zero, Vector3.zero);
+        bool first = true;
+        foreach (var r in go.GetComponentsInChildren<Renderer>())
+        {
+            if (first) { bounds = r.bounds; first = false; } else bounds.Encapsulate(r.bounds);
+        }
+        if (first) return;
+
+        float widest = Mathf.Max(bounds.size.x, bounds.size.z);
+        float scale = widest > 0.001f ? targetWidth / widest : 1f;
+        go.transform.localScale = Vector3.one * scale;
+
+        // <b>원점이 바닥이 아니어도 바닥에 앉힌다.</b> 블렌더에서 원점을 가운데 둔 모델이
+        // 많고, 그걸 매번 고쳐 오라고 하는 게 이 프로젝트의 방식이 아니야.
+        float bottom = (bounds.min.y - go.transform.position.y) * scale;
+        go.transform.localPosition = at - new Vector3(0f, bottom, 0f);
+
+        // 콜라이더는 안 붙인다 — 배식대 위 장식이고, 걷다가 걸리면 짐이 된다.
+        foreach (var c in go.GetComponentsInChildren<Collider>())
+        {
+            if (Application.isPlaying) Destroy(c); else DestroyImmediate(c);
+        }
+#endif
+    }
+
+    /// <summary>
     /// 미니게임 자리를 다는 세 동. 나머지 열 동은 그냥 둘러보는 방이다 —
     /// 시간이 남으면 그때 늘리면 된다(유저: *"시간 남으면 더 오픈하면 되잖아"*).
     /// </summary>
@@ -428,7 +475,10 @@ public class CampusBuilder : MonoBehaviour
         switch (name)
         {
             case "곰밥마당":
-                title = "오늘의 급식"; blurb = "배식 줄을 감당해 봐라"; ready = false; break;
+                // 유저: *"어차피 급식 게임할 거면 급식소는 여기밖에 없고 밥은 나눠줘야지,
+                // 공사라도 라고 한 줄 띡 적어 놓으면 될 듯한데."* 맞다 —
+                // 급식소가 통째로 잠겨 있으면 <b>들어갈 이유가 없는 방</b>이 된다.
+                title = "오늘의 급식"; blurb = "배식대 공사 중"; ready = false; break;
             case "곰짝박수마당":
                 title = "한마당 무대"; blurb = "박자에 맞춰 손뼉을"; ready = false; break;
             case "철곰관":
@@ -451,13 +501,15 @@ public class CampusBuilder : MonoBehaviour
               new Vector3(0.14f, 1.6f, 0.14f), ColWood, noCollider: true);
         Block(go, "SpotFoot", new Vector3(0f, 0.08f, 0f), Quaternion.identity,
               new Vector3(0.7f, 0.16f, 0.7f), ColWood, noCollider: true);
-        // ★ 판·테두리·띠의 <b>z 범위가 겹치면 지지직거린다.</b> 층을 확실히 나눈다:
-        // 테두리 0.11~0.17(뒤) · 판 0.00~0.10 · 띠 −0.06~−0.02(앞).
-        var board = Block(go, "SpotBoard", new Vector3(0f, 1.75f, 0.05f), Quaternion.identity,
+        // ★ 층을 <b>뒤에서 앞으로</b> 쌓는다. 겹치면 지지직거리고, 테두리를 글자보다
+        // 앞에 두면 <b>글자가 테두리에 묻힌다</b>(2026-09-18 유저: "글씨까지 같이 사라졌는데").
+        // 뒤 ← 테두리 −0.10~−0.04 · 판 −0.04~0.06 · 글자 0.15 · 띠 0.18~0.22 → 앞
+        var board = Block(go, "SpotBoard", new Vector3(0f, 1.75f, 0.01f), Quaternion.identity,
                           new Vector3(1.9f, 0.9f, 0.1f), ColCream, noCollider: true);
-        Block(go, "SpotFrame", new Vector3(0f, 1.75f, 0.14f), Quaternion.identity,
+        Block(go, "SpotFrame", new Vector3(0f, 1.75f, -0.07f), Quaternion.identity,
               new Vector3(2.1f, 1.1f, 0.06f), ColWood, noCollider: true);
-        Block(go, "SpotTape", new Vector3(0f, 1.4f, -0.04f), Quaternion.Euler(0f, 0f, 9f),
+        // 띠는 글자보다 앞이지만 판 아래쪽만 가로지르니 글자를 안 덮는다
+        Block(go, "SpotTape", new Vector3(0f, 1.36f, 0.2f), Quaternion.Euler(0f, 0f, 9f),
               new Vector3(2.2f, 0.14f, 0.04f), ColRibbon, noCollider: true);
 
         // <b>글자는 판에 붙인다.</b> BuildingSign 이 판의 localScale 에서 크기를 뽑기 때문에
@@ -727,6 +779,11 @@ public class CampusBuilder : MonoBehaviour
                 break;
 
             case "곰밥마당":   // 학생식당 — 한옥 급식소
+                // 유저가 블렌더로 만든 밥그릇이 있으면 배식대에 올린다.
+                // <b>없으면 아무 일도 안 한다</b> — 없는 걸 기다리며 방을 비워 두면 안 돼.
+                MyModel(t, "Assets/My blender/Rice_bowl.fbx", "RiceBowl",
+                        new Vector3(-w * 0.5f + 2.2f, 1.02f, d * 0.5f - 2.6f), 0.22f);
+
                 BapMadang(t, w, d, h, halfW, halfD);
                 break;
 
