@@ -86,9 +86,12 @@ public class KartSkin : MonoBehaviour
         // 쓸 수 있는 카트를 먼저 모은다. <b>모아 놓고 고르는 게 중요하다</b> —
         // 훑으면서 순번을 세다가 모자라면 fallbackCastId("세진")로 떨어졌고, 그러면
         // 플레이어가 세진일 때 <b>세진 카트가 두 대</b> 나왔다(2026-09-17 유저 제보).
+        // ★ <b>악당 카트는 평소 판에 절대 안 나온다.</b> 카트 FBX 가 생기면서 후보 목록에
+        // 같이 들어왔는데, 그대로 두면 자유 주행에서 개발업자가 형제들 틈에 껴서 달린다 —
+        // «마지막에만 나오게» 라는 유저 요구가 깨지고, 결승의 «드디어 저놈들이 나왔다» 도 없어진다.
         var pool = new System.Collections.Generic.List<string>();
         foreach (var skin in skins)
-            if (skin != null && skin.model != null && skin.castId != player)
+            if (skin != null && skin.model != null && skin.castId != player && !IsRival(skin.castId))
                 pool.Add(skin.castId);
 
         if (pool.Count == 0) return fallbackCastId;
@@ -158,11 +161,19 @@ public class KartSkin : MonoBehaviour
 
         var pool = new System.Collections.Generic.List<Skin>();
         foreach (var skin in skins)
-            if (skin != null && skin.model != null && skin.castId != player)
+            if (skin != null && skin.model != null && skin.castId != player && !IsRival(skin.castId))
                 pool.Add(skin);
 
         if (pool.Count == 0) return null;
         return pool[Mathf.Max(0, aiSlot) % pool.Count];
+    }
+
+    /// <summary>결승에만 나오는 악당인가. 평소 판의 후보에서도, 빌려 탈 차에서도 뺀다.</summary>
+    static bool IsRival(string castId)
+    {
+        foreach (var id in GrandFinal.Rivals)
+            if (id == castId) return true;
+        return false;
     }
 
     Skin Find(string castId)

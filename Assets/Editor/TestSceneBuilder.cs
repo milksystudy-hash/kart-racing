@@ -554,6 +554,13 @@ public static class TestSceneBuilder
         ("세운", "Assets/Cart_model/WOON_CART_FIN.fbx"),
         ("시우", "Assets/Cart_model/Siwoo_cart.fbx"),
         ("이감", "Assets/Cart_model/YI_gam_cart.fbx"),
+
+        // ★ 악당 둘 — <b>결승에서만</b> 나온다(2026-09-18 유저: *"플레이어가 로비에서
+        // 선택 못 하게 하고 마지막에만 나오게"*). 로비 쪽은 이미 막혀 있다:
+        // 5·6번 받침대가 `CharacterStand.locked` 라 `Selectable` 이 false 고 이름도 "???" 야.
+        // AI 쪽은 `KartSkin.AiCastId` 가 평소 판에서 이 둘을 후보에서 뺀다.
+        ("개발업자", "Assets/Cart_model/BOSS_DEV_GOLD.fbx"),
+        ("시의원",   "Assets/Cart_model/BOSS_COUNCIL_MAGENTA.fbx"),
     };
 
     /// <summary>
