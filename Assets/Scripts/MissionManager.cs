@@ -33,7 +33,8 @@ public class MissionManager : MonoBehaviour
         장애물,      // 길에 널린 철거 자재를 치지 않고 완주
         전시품,      // 창고에 처박힌 곰인형을 전시실로 나른다 — <b>플러스형</b>
         광고판,      // 골든베어 입간판을 전부 들이받아 부수기
-        완벽,        // 무충돌 + 제한시간 동시. 마지막 판
+        완벽,        // 무충돌 + 제한시간 동시. 여덟 판 중 마지막
+        결승,        // ★ 아홉 번째. 개발업자·시의원과 직접 겨룬다 (Scripts/GrandFinal.cs)
     }
 
     [Header("연결")]
@@ -70,13 +71,25 @@ public class MissionManager : MonoBehaviour
     public bool Failed { get; private set; }
     public bool Cleared { get; private set; }
 
+    /// <summary>결승 순위를 보려면 순위판이 필요하다. 매 프레임 찾으면 비싸서 한 번만 잡는다.</summary>
+    RaceStandings standings;
+    RaceStandings Standings =>
+        standings != null ? standings : (standings = FindFirstObjectByType<RaceStandings>());
+
     /// <summary>왜 실패했는지 한 줄. 화면에 그대로 띄운다 — "실패" 만 뜨면 뭘 고쳐야 할지 모른다.</summary>
     public string FailReason { get; private set; } = "";
 
     /// <summary>이번 판에 걸린 수집품. 다 모았으면 빈 문자열.</summary>
     public string RewardId { get; private set; } = "";
-    public string RewardName => string.IsNullOrEmpty(RewardId) ? "" : ExhibitCatalogue.NameOf(RewardId);
-    public bool AllDone => string.IsNullOrEmpty(RewardId);
+    public string RewardName =>
+        GrandFinal.Available ? "박물관"                       // 결승에 걸린 건 물건이 아니다
+        : string.IsNullOrEmpty(RewardId) ? "" : ExhibitCatalogue.NameOf(RewardId);
+
+    /// <summary>
+    /// 더 할 판이 없나. <b>결승이 남아 있으면 «다 했다» 가 아니다</b> —
+    /// HUD 가 이걸로 «자유 주행» 인지를 판단하니까 여기 한 군데만 고치면 화면이 전부 따라온다.
+    /// </summary>
+    public bool AllDone => string.IsNullOrEmpty(RewardId) && !GrandFinal.Available;
 
     /// <summary>
     /// 마지막 판인가. <b>AI 카트는 여기서만 나온다</b>(2026-09-17 유저:
@@ -91,8 +104,11 @@ public class MissionManager : MonoBehaviour
         !string.IsNullOrEmpty(NextReward()) && CurrentGoal == Goal.전시품;
 
     /// <summary>지금 판이 장애물 판인가. 자재들이 스스로 이걸 본다.</summary>
+    /// ★ <b>결승에서도 나온다</b> — 정치인이 던지는 방해물이야(2026-09-18 유저).
+    /// «실력으로 붙는다» 보다 «룰을 어기며 방해한다» 가 이 악당들답고, 기하도 이미 있다.
     public static bool WantsDebris =>
-        !string.IsNullOrEmpty(NextReward()) && CurrentGoal == Goal.장애물;
+        GrandFinal.Available ||
+        (!string.IsNullOrEmpty(NextReward()) && CurrentGoal == Goal.장애물);
 
     /// <summary>
     /// 지금 판이 광고판 판인가. 유저: *"그 이후 임무에도 골든베어가 붙어 있더라."*
@@ -153,7 +169,8 @@ public class MissionManager : MonoBehaviour
     /// 열어둔다. 새 컴포넌트에만 기대면 <b>옛날에 구운 씬에서 안 먹는다</b> —
     /// 이 프로젝트에서 네 번 겪었다(카트 중복 · 벽 부딪힘 · AI · 장애물).
     /// </summary>
-    public static Goal CurrentGoal => GoalForReward(NextReward());
+    public static Goal CurrentGoal =>
+        GrandFinal.Available ? Goal.결승 : GoalForReward(NextReward());
 
     public static Goal GoalForReward(string id)
     {
@@ -165,7 +182,9 @@ public class MissionManager : MonoBehaviour
 
     void Update()
     {
-        if (tracker == null || kart == null || AllDone) return;
+        // 여덟 개를 다 모아도 <b>결승이 남아 있으면</b> 판정은 계속 돈다.
+        // 전에는 여기서 그냥 빠져나가서, 마지막 판 뒤가 이름도 판정도 없는 자유 주행이었다.
+        if (tracker == null || kart == null || (AllDone && !GrandFinal.Available)) return;
 
         // 씬을 안 다시 굽고 카트만 바꾸면 발판 수가 0으로 남는다. 그때 조용히 통과되면 안 된다.
         if (goal == Goal.발판전부 && padsTotal == 0) padsTotal = BoostPad.CountInScene();
@@ -209,10 +228,17 @@ public class MissionManager : MonoBehaviour
             Goal.전시품   => CargoQuota > 0 && ExhibitCargo.Loaded >= CargoQuota,
             Goal.광고판   => SignQuota > 0 && AdBoard.Breaks >= SignQuota,
             Goal.완벽    => kart.WallHits <= allowedHits && tracker.TotalTime <= perfectTimeLimit,
+
+            // ★ 결승은 <b>이겨야</b> 끝난다. 완주만으로 통과시키면 여덟 판 내내 쌓아온 게
+            // 그냥 한 바퀴 더 도는 걸로 끝나. 상대는 개발업자·시의원 둘뿐이라 1위가 곧 승리야.
+            Goal.결승    => Standings != null && Standings.PlayerFinishedFirst,
+
             _             => true,
         };
 
-        if (Cleared) GiveReward();
+        // 결승은 줄 상품이 없다 — 여덟 개를 이미 다 모았으니까. 대신 «이겼다» 를 남긴다.
+        if (Cleared && goal == Goal.결승 && !GrandFinal.Cleared) GrandFinal.MarkCleared();
+        else if (Cleared) GiveReward();
         else Fail(goal switch
         {
             Goal.발판전부 => RaceVoice.MissedPads(BoostPad.TakenCount(), PadQuota),
@@ -266,7 +292,7 @@ public class MissionManager : MonoBehaviour
     public void Restart()
     {
         RewardId = NextReward();
-        goal = GoalForReward(RewardId);
+        goal = CurrentGoal;   // 결승이면 Goal.결승 — 상품은 없고 판정만 있다
 
         Failed = false;
         Cleared = false;

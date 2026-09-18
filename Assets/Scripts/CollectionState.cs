@@ -45,10 +45,16 @@ public static class CollectionState
     }
 
     /// <summary>테스트용. 전부 지운다.</summary>
+    /// <summary>
+    /// 진행 기록을 통째로 되돌린다(로비 F10 · 전시실 디버그).
+    /// <b>결승 클리어도 같이 지운다</b> — 수집품만 비우고 결승은 깬 걸로 남아 있으면
+    /// 여덟 판을 다시 돌아도 결승이 안 열려서, 그 상태를 두 번 다시 못 본다.
+    /// </summary>
     public static void ClearAll()
     {
         Loaded.Clear();
         Save();
+        GrandFinal.Reset();
     }
 
     /// <summary>테스트용. 전시실을 꽉 채워서 확인할 때.</summary>

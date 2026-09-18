@@ -36,6 +36,7 @@ public static class RaceVoice
         MissionManager.Goal.전시품   => "곰인형 싣고 완주하기",
         MissionManager.Goal.광고판   => "골든베어 간판 매 바퀴 전부 철거",
         MissionManager.Goal.완벽    => "담장 안 긁고 시간 안에 완주하기",
+        MissionManager.Goal.결승    => "개발업자·시의원보다 먼저 들어오기",
         _                           => "캠퍼스 세 바퀴 돌기",
     };
 
@@ -53,6 +54,7 @@ public static class RaceVoice
         MissionManager.Goal.전시품   => "전시할 게 없으면 박물관이 아니라 빈 건물이다",
         MissionManager.Goal.광고판   => "리조트 광고가 먼저 와서 서 있다",
         MissionManager.Goal.완벽    => "마지막 실사다",
+        MissionManager.Goal.결승    => "증거는 다 모았다. 이제 저쪽이 직접 나왔다",
         _                           => "아직 운영 중이라는 걸 보여야 한다",
     };
 

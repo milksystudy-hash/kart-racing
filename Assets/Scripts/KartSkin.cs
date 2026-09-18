@@ -66,6 +66,16 @@ public class KartSkin : MonoBehaviour
     /// </summary>
     string AiCastId(int slot)
     {
+        // ★ <b>결승에서는 상대가 형제가 아니라 악당이다.</b> 여덟 판 내내 광고판으로만
+        // 보이던 개발업자·시의원이 여기서 처음 같은 코스에 선다(2026-09-18).
+        // 카트 FBX 가 없어서 남의 차를 빌려 타지만, `Apply` 가 <b>이름표와 김 색은 제 것</b>으로
+        // 달아준다 — 뒤에서 봐도 누군지 안다.
+        //
+        // 상대가 둘뿐이라 슬롯 2번은 남는다. 셋째 AI 는 끄는 게 맞아 —
+        // 관계없는 형제가 한 대 껴 있으면 «둘과 맞붙는다» 가 «셋이 뒤섞인다» 가 된다.
+        if (GrandFinal.Available)
+            return slot < GrandFinal.Rivals.Length ? GrandFinal.Rivals[slot] : "";
+
         // <b>로비를 안 거치면 고른 캐릭터가 빈 문자열이다.</b> 그러면 플레이어 카트는
         // fallbackCastId("세진")로 떨어지는데 AI 는 아무도 안 빼서 세진이 또 뽑힌다 —
         // 트랙 씬을 바로 만들면 세진 카트가 두 대였던 게 이거다(2026-09-17 유저 제보).
@@ -104,18 +114,24 @@ public class KartSkin : MonoBehaviour
 
         CurrentCastId = chosen.castId;
 
+        // ★ <b>«누구 차를 타느냐» 와 «누구냐» 는 다르다.</b> 결승 상대인 개발업자·시의원은
+        // 카트 FBX 가 아직 없어서 남의 차를 빌려 타는데, 전에는 그러면 <b>이름표와 색까지
+        // 빌린 사람 것</b>이 돼서 악당이 그냥 형제 한 명으로 보였다.
+        // 모델은 `chosen` 에서, <b>이름과 색은 원래 castId 에서</b> 가져온다.
+        string identity = string.IsNullOrEmpty(castId) ? chosen.castId : castId;
+
         // 고른 캐릭터의 제원도 같이 얹는다. "이 카트가 누구 것이 된다" 의 일부야 —
         // 모델만 바꾸고 숫자를 안 바꾸면 네 대가 생김새만 다른 같은 차가 된다.
         KartSpec.ApplyTo(GetComponent<KartController>(), CurrentCastId);
 
         // 순위판에 뜰 이름도 같이. "이 카트가 누구 것이 된다" 에 이름도 들어간다.
         var progress = GetComponent<RaceProgress>();
-        if (progress != null) progress.racerName = Cast.NameOf(CurrentCastId);
+        if (progress != null) progress.racerName = Cast.NameOf(identity);
 
         // 뒤로 나오는 김도 이 캐릭터 색으로. 뒤에서 봐도 누군지 알아야 순위가 읽힌다.
         var exhaust = GetComponent<KartExhaust>();
         if (exhaust == null) exhaust = gameObject.AddComponent<KartExhaust>();
-        exhaust.SetColor(Cast.ColorOf(CurrentCastId));
+        exhaust.SetColor(Cast.ColorOf(identity));
 
         if (wheels != null)
             wheels.Bind(chosen.steerPivots, chosen.spinWheels, chosen.steeringWheel);
