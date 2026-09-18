@@ -90,6 +90,9 @@ public class KartAi : MonoBehaviour
 
     void Update()
     {
+        // ★ AI 도 멈춘다. 물리는 서 있어도 <b>조향·스로틀 값은 매 프레임 다시 계산</b>돼서,
+        // 그게 그림(기울임·바퀴)으로 새어나가 «다른 자동차가 꿈틀꿈틀» 거렸다(2026-09-18 유저).
+        if (RacePause.On) return;
         if (track == null) return;
 
         // 내 위치를 다시 찾는다. 앞뒤로 조금씩만 뒤져서 — 코스 전체를 매번 뒤지면 비싸고,

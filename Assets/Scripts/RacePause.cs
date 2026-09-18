@@ -10,81 +10,47 @@ using UnityEngine;
 /// <b>씬 전체</b>에 걸려서 곰 NPC·문·연출까지 다 얼어붙고, 푸는 자리를 하나라도 빠뜨리면
 /// 게임이 멈춘 채로 남는다.
 ///
-/// 그래서 <b>물리를 멈추는 대신 카트를 재운다</b>: 속도를 적어 두고 리지드바디를
-/// 키네마틱으로 바꾼다. 키네마틱은 중력도 안 받고 그 자리에 가만히 있으니
-/// <b>떨어질 수가 없고</b>, 풀 때 적어둔 속도를 그대로 돌려주니 <b>속력이 보존된다.</b>
+/// ★★ 두 번째로 <b>리지드바디를 키네마틱으로 재웠다가</b> 또 틀렸다(2026-09-18 유저:
+/// *"발판 밟아 105 였는데 풀면 65 가 돼"*). 키네마틱 전환은 속도를 지우는 데서 끝나지 않는다 —
+/// 되돌릴 때 접촉이 다시 계산되면서 <b>충돌 처리가 한 번 더 돌고, 거기서 부스트가 취소</b>된다.
+/// 부스트가 사라지면 다음 프레임에 최고 속도로 깎여서 105 → 65 가 된다.
+/// <b>속도를 적었다 돌려주는 방식은 «속도만» 돌려준다</b> — 부스트·드리프트·접촉 상태는 못 돌려준다.
 ///
-/// 이 프로젝트의 <see cref="RaceCountdown"/> 과 같은 사고방식이야 —
-/// 엔진을 세우는 게 아니라 <b>값이 들어가는 자리</b>를 막는다.
+/// 그래서 <b>아무것도 건드리지 않고 물리 시뮬레이션만 세운다</b>:
+/// <c>Physics.simulationMode = Script</c> 는 «내가 부를 때만 물리를 돌린다» 는 뜻이고,
+/// 안 부르면 한 걸음도 안 나간다. 리지드바디는 <b>속도도 부스트도 접촉도 그대로</b> 들고
+/// 그 자리에 선다. 중력도 안 걸리니 트랙 밑으로 빠지지도 않는다.
+///
+/// 남는 건 <b>그림</b>이다. `Update`·`LateUpdate` 는 계속 도니까 카트가 기우뚱거리고 바퀴가
+/// 돌았다(유저: *"다른 자동차가 꿈틀꿈틀"*). 그건 각자 <c>RacePause.On</c> 을 보고 멈춘다 —
+/// 이 프로젝트의 <see cref="RaceCountdown"/> 과 같은 사고방식이야.
 /// </summary>
 public static class RacePause
 {
     public static bool On { get; private set; }
 
-    struct Sleeping
-    {
-        public Rigidbody rb;
-        public Vector3 velocity;
-        public Vector3 spin;
-        public bool wasKinematic;
-    }
-
-    static readonly System.Collections.Generic.List<Sleeping> sleeping =
-        new System.Collections.Generic.List<Sleeping>();
+    static SimulationMode saved = SimulationMode.FixedUpdate;
 
     public static void Set(bool paused)
     {
         if (paused == On) return;
         On = paused;
 
-        if (paused) Sleep();
-        else Wake();
-    }
-
-    static void Sleep()
-    {
-        sleeping.Clear();
-
-        // <b>꺼진 카트까지 찾을 필요는 없다</b> — 안 달리는 카트는 멈출 것도 없으니까.
-        foreach (var kart in Object.FindObjectsByType<KartController>(FindObjectsSortMode.None))
+        if (paused)
         {
-            var rb = kart.GetComponent<Rigidbody>();
-            if (rb == null) continue;
-
-            sleeping.Add(new Sleeping
-            {
-                rb = rb,
-                velocity = rb.linearVelocity,
-                spin = rb.angularVelocity,
-                wasKinematic = rb.isKinematic,
-            });
-
-            // ★ <b>키네마틱으로 바꾸는 순간 유니티가 속도를 0 으로 지운다.</b> 그 전에
-            // 카트에게 «네 속도는 이거였다» 를 알려줘야 속도계가 0 으로 안 떨어진다.
-            kart.RememberVelocityForPause(rb.linearVelocity);
-            rb.isKinematic = true;
+            saved = Physics.simulationMode;
+            Physics.simulationMode = SimulationMode.Script;   // 내가 부를 때만 물리가 돈다 = 안 돈다
         }
-    }
-
-    static void Wake()
-    {
-        foreach (var s in sleeping)
+        else
         {
-            if (s.rb == null) continue;          // 그 사이에 씬이 바뀌었을 수 있다
-            s.rb.isKinematic = s.wasKinematic;
-            if (!s.wasKinematic)
-            {
-                s.rb.linearVelocity = s.velocity;
-                s.rb.angularVelocity = s.spin;
-            }
+            Physics.simulationMode = saved;
         }
-        sleeping.Clear();
     }
 
     /// <summary>씬을 옮길 때 안전망. 멈춘 채로 넘어가면 다음 씬이 얼어 있다.</summary>
     public static void Clear()
     {
+        if (On) Physics.simulationMode = saved;
         On = false;
-        sleeping.Clear();
     }
 }

@@ -65,19 +65,13 @@ public class KartController : MonoBehaviour
 
     // --- HUD 와 다른 스크립트가 읽어가는 값들 ---
     /// <summary>
-    /// ★ <b>멈춰 있는 동안의 속도.</b> <see cref="RacePause"/> 가 리지드바디를 키네마틱으로
-    /// 재우는데, 유니티는 그 순간 <b>속도를 0 으로 지운다.</b> 그래서 ESC 를 누르면
-    /// 속도계가 0 으로 떨어져 보였다(2026-09-18 유저). 실제 속도는 안 잃었고
-    /// 풀면 그대로 돌아오는데, <b>화면만 거짓말</b>을 한 거야.
-    /// 재우기 직전 값을 적어 두고 멈춘 동안에는 그걸 보여준다.
+    /// 속도를 읽는 곳은 전부 여기를 거친다 — 속도계·김·화면효과·카메라가 다 같은 값을 본다.
+    ///
+    /// <see cref="RacePause"/> 가 <b>물리 시뮬레이션만</b> 세우는 방식이라 멈춘 동안에도
+    /// 리지드바디가 속도를 그대로 들고 있다. 한때 키네마틱으로 재웠더니 속도가 지워져서
+    /// 여기에 «멈춘 동안의 속도» 를 따로 들고 있어야 했는데, 그 방식을 버리면서 같이 없앴다.
     /// </summary>
-    Vector3 pausedVelocity;
-
-    public void RememberVelocityForPause(Vector3 v) => pausedVelocity = v;
-
-    /// <summary>속도를 읽는 곳은 전부 여기를 거친다 — 속도계·김·화면효과·카메라가 다 같은 값을 본다.</summary>
-    public Vector3 CurrentVelocity =>
-        RacePause.On ? pausedVelocity : (rb != null ? rb.linearVelocity : Vector3.zero);
+    public Vector3 CurrentVelocity => rb != null ? rb.linearVelocity : Vector3.zero;
 
     public float SpeedKph => Vector3.Dot(CurrentVelocity, transform.forward) * 3.6f;
     /// <summary>-1(좌) ~ +1(우). 바퀴와 운전대를 돌릴 때 KartWheels 가 읽는다.</summary>
@@ -322,6 +316,10 @@ public class KartController : MonoBehaviour
 
     void Update()
     {
+        // 멈춘 동안에는 입력도 안 읽고 기울임도 안 준다. 물리는 이미 서 있는데
+        // <b>그림만 계속 움직이면</b> 카트가 제자리에서 꿈틀거린다(2026-09-18 유저 제보).
+        if (RacePause.On) return;
+
         if (acceptPlayerInput)
         {
             // Update 에서 입력을 읽고, FixedUpdate 에서 물리에 적용한다.

@@ -75,6 +75,7 @@ public class KartWheels : MonoBehaviour
 
     void LateUpdate()
     {
+        if (RacePause.On) return;   // 멈췄는데 바퀴가 돌면 일시정지로 안 읽힌다
         if (kart == null) return;
 
         float dt = Time.deltaTime;

@@ -69,6 +69,7 @@ public class SpeedRush : MonoBehaviour
 
     void LateUpdate()
     {
+        if (RacePause.On) return;   // 화면 효과도 멈춘 그대로 고정
         if (kart == null || volume == null) return;
 
         float speed01 = Mathf.Clamp01(Mathf.Abs(kart.SpeedKph) / Mathf.Max(1f, kart.maxSpeed * 3.6f));

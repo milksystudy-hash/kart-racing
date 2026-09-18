@@ -111,6 +111,7 @@ public class KartExhaust : MonoBehaviour
 
     void LateUpdate()
     {
+        if (RacePause.On) return;   // 멈춘 동안 김이 계속 뿜어져 나오면 안 된다
         if (kart == null || puff == null) return;
 
         float speed = Mathf.Abs(kart.SpeedKph);
