@@ -21,6 +21,16 @@ using UnityEngine.Networking;
 /// </summary>
 public class DeskClock : MonoBehaviour
 {
+    [Header("크기")]
+    // 2026-09-18 유저: *"시계 크기도 너무 작아."* 접수대가 5.2m 라 0.44m 짜리는 점으로 보인다.
+    // 치수를 하나하나 고치지 않고 <b>통째로 키운다</b> — 비례가 안 깨지고 되돌리기도 쉽다.
+    [Tooltip("1 이면 가로 0.44m. 접수대에 놓고 궤도 카메라에서 읽히려면 2 이상")]
+    public float scale = 2.4f;
+
+    [Header("돋보기")]
+    [Tooltip("걷기 모드로 이만큼 다가가면 E 로 열 수 있다")]
+    public float range = 3.2f;
+
     [Header("날씨")]
     [Tooltip("끄면 날짜만 뜬다. 켜면 인터넷에서 날씨를 한 번 받아온다")]
     public bool useOnlineWeather = true;
@@ -42,8 +52,12 @@ public class DeskClock : MonoBehaviour
     // ── 치수 ──────────────────────────────────────────────────────────
     const float BarLong = 0.052f, BarThin = 0.014f, BarDeep = 0.008f;
     const float DigitW = 0.070f;     // 숫자 하나가 차지하는 가로
-    const float PanelZ = -0.082f;    // 한지 창 앞면
-    const float GlyphZ = PanelZ - 0.006f;
+    // ★ <b>정면은 +Z 다.</b> 처음에 −0.082 로 붙였다가 숫자판이 <b>케이스 뒤쪽</b>에 달렸고,
+    // 보는 사람은 그 뒤통수를 통해 본 꼴이라 <b>시각이 거울상</b>으로 나왔다
+    // (2026-09-18 유저: *"시계가 망가졌나봐"* — 17:13 이 뒤집혀 보였다).
+    // 케이스가 z −0.075~+0.075 니까 0.082 면 그 앞에 1mm 띄워 붙는다.
+    const float PanelZ = 0.082f;     // 한지 창 앞면
+    const float GlyphZ = PanelZ + 0.006f;
 
     GameObject[,] segments;          // [자리 4][획 7]
     GameObject[] colonDots;
@@ -60,8 +74,108 @@ public class DeskClock : MonoBehaviour
 
     void Update()
     {
-        // 분이 바뀔 때만 갱신한다. 매 프레임 SetActive 를 24번씩 부를 이유가 없다.
+        // 분이 바뀔 때만 갱신한다. 매 프레임 재질을 28번씩 갈 이유가 없다.
         if (System.DateTime.Now.Minute != shownMinute) Refresh(force: false);
+
+        TickInteraction();
+    }
+
+    // ══════════════════════════════════════════════════ 돋보기 (E)
+    //
+    // 2026-09-18 유저: *"상호작용으로 돋보기 기능 넣어서 거기에 도시 입력하고 볼 수 없을까."*
+    // 시계에 다가가서 <b>E</b> 를 누르면 큰 글씨로 시간·날짜·날씨가 뜨고 도시를 적을 수 있다.
+    // 접수대 위 물건은 작아서 궤도 카메라로는 못 읽는데, <b>다가가서 들여다보는 동작</b>이
+    // 그걸 자연스럽게 풀어준다 — 박물관에서 안내판을 들여다보는 것과 같아.
+
+    /// <summary>제일 가까운 시계 하나에만 표시가 뜬다 — 곰·문과 같은 방식.</summary>
+    public static DeskClock Nearest { get; private set; }
+
+    static int frameStamp = -1;
+    static float nearestDistance;
+
+    public string Action => "시계 보기";
+
+    FirstPersonController walker;
+    bool open;
+    string typed = "";
+
+    void TickInteraction()
+    {
+        if (frameStamp != Time.frameCount)
+        {
+            frameStamp = Time.frameCount;
+            nearestDistance = float.MaxValue;
+            Nearest = null;
+        }
+
+        // <b>걷는 몸이 있을 때만 잡힌다.</b> 둘러보기(궤도 카메라)에서는 다가간다는 게
+        // 없으니 문·곰과 같은 규칙으로 둔다 — 걸어가서 들여다보는 물건이야.
+        if (walker == null) walker = FindFirstObjectByType<FirstPersonController>();
+        if (walker != null && walker.gameObject.activeInHierarchy)
+        {
+            float d = Vector3.Distance(walker.transform.position, transform.position);
+            if (d <= range && d < nearestDistance) { nearestDistance = d; Nearest = this; }
+        }
+
+        var k = UnityEngine.InputSystem.Keyboard.current;
+        if (k == null) return;
+
+        if (open)
+        {
+            // 도시를 적는 중에는 <b>E 가 글자다.</b> 닫는 건 ESC 로만 — 안 그러면
+            // "Seoul" 을 치다가 창이 닫힌다.
+            if (k.escapeKey.wasPressedThisFrame) Close();
+            else if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame) Apply();
+        }
+        else if (Nearest == this && k.eKey.wasPressedThisFrame)
+        {
+            open = true;
+            typed = city;
+            GUI.FocusControl(null);
+        }
+    }
+
+    void Close() => open = false;
+
+    void Apply()
+    {
+        city = typed.Trim();
+        weather = "";
+        if (useOnlineWeather) StartCoroutine(Fetch());
+        open = false;
+    }
+
+    void OnGUI()
+    {
+        if (!open) return;
+
+        var screen = Hud.Begin(null);
+        var panel = new Rect(screen.width * 0.5f - 190f, screen.height * 0.5f - 96f, 380f, 192f);
+        Hud.Panel(panel);
+
+        var now = System.DateTime.Now;
+        string[] days = { "일", "월", "화", "수", "목", "금", "토" };
+
+        GUI.Label(new Rect(panel.x, panel.y + 44f, panel.width, 44f),
+                  now.ToString("HH:mm"), Hud.Resize(Hud.Value, 38, TextAnchor.MiddleCenter));
+        GUI.Label(new Rect(panel.x, panel.y + 86f, panel.width, 20f),
+                  $"{now.Year}년 {now.Month}월 {now.Day}일 ({days[(int)now.DayOfWeek]})",
+                  Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
+        GUI.Label(new Rect(panel.x, panel.y + 106f, panel.width, 20f),
+                  string.IsNullOrEmpty(weather) ? "날씨 정보 없음" : weather,
+                  Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
+
+        var inner = Hud.Inner(panel);
+        GUI.Label(new Rect(inner.x, panel.y + 132f, 52f, 22f), "도시",
+                  Hud.Resize(Hud.Label, 12, TextAnchor.MiddleLeft));
+        typed = GUI.TextField(new Rect(inner.x + 54f, panel.y + 132f, inner.width - 54f, 22f),
+                              typed ?? "", 24);
+
+        GUI.Label(new Rect(panel.x, panel.y + 158f, panel.width, 18f),
+                  "ENTER 적용 · ESC 닫기 · 비우면 현재 위치",
+                  Hud.Resize(Hud.Label, 11, TextAnchor.MiddleCenter));
+
+        Hud.End();
     }
 
     // ══════════════════════════════════════════════════════════ 모양
@@ -69,6 +183,7 @@ public class DeskClock : MonoBehaviour
     {
         // 갑 — 뒤로 살짝 기울여 세운다. 접수대에 놓인 탁상시계는 정면으로 안 서 있다.
         transform.localRotation *= Quaternion.Euler(-8f, 0f, 0f);
+        transform.localScale = Vector3.one * Mathf.Max(0.2f, scale);
 
         Box("Case",     new Vector3(0f, 0.095f, 0f),      new Vector3(0.44f, 0.19f, 0.15f), Wood);
         Box("Base",     new Vector3(0f, 0.012f, 0.012f),  new Vector3(0.50f, 0.024f, 0.19f), Trim);
@@ -77,13 +192,14 @@ public class DeskClock : MonoBehaviour
 
         // 창틀 — 한지 창은 살이 있어야 창으로 읽힌다(로비 살창과 같은 이유)
         for (int s = -1; s <= 1; s += 2)
-            Box($"Mullion_{s}", new Vector3(s * 0.185f, 0.105f, PanelZ - 0.002f),
+            Box($"Mullion_{s}", new Vector3(s * 0.185f, 0.105f, PanelZ + 0.002f),
                 new Vector3(0.016f, 0.135f, 0.016f), Trim);
 
-        // 작은 처마 — 이게 있어야 «디지털 시계» 가 아니라 «한옥 물건» 이 된다
-        Box("Eave",     new Vector3(0f, 0.198f, -0.012f), new Vector3(0.52f, 0.018f, 0.20f), Tile);
-        Box("EaveLip",  new Vector3(0f, 0.208f, -0.104f), new Vector3(0.52f, 0.030f, 0.022f), Tile);
-        Box("Ridge",    new Vector3(0f, 0.216f, 0.010f),  new Vector3(0.30f, 0.016f, 0.05f), Tile);
+        // 작은 처마 — 이게 있어야 «디지털 시계» 가 아니라 «한옥 물건» 이 된다.
+        // 처마는 <b>정면(+Z)으로</b> 나와야 창을 덮는다.
+        Box("Eave",     new Vector3(0f, 0.198f, 0.012f),  new Vector3(0.52f, 0.018f, 0.20f), Tile);
+        Box("EaveLip",  new Vector3(0f, 0.208f, 0.104f),  new Vector3(0.52f, 0.030f, 0.022f), Tile);
+        Box("Ridge",    new Vector3(0f, 0.216f, -0.010f), new Vector3(0.30f, 0.016f, 0.05f), Tile);
 
         // ── 숫자 네 자리 ──────────────────────────────────────────────
         // ★ <b>−X 가 보는 사람의 오른쪽</b>이다. 시계는 +Z 로 서 있고 보는 사람은 +Z 쪽에 있어서,
@@ -101,8 +217,9 @@ public class DeskClock : MonoBehaviour
                                new Vector3(0.014f, 0.014f, BarDeep), Glow, Finish.발광);
 
         // ── 종이 띠 : 날짜·요일·날씨 ─────────────────────────────────
-        Box("Strip", new Vector3(0f, 0.032f, PanelZ + 0.002f),
-            new Vector3(0.40f, 0.042f, 0.010f), Paper);
+        // 한지 창 바닥이 y 0.0475 라 그보다 아래에 둔다 — 겹치면 같은 평면에서 지지직거린다.
+        Box("Strip", new Vector3(0f, 0.026f, PanelZ + 0.003f),
+            new Vector3(0.40f, 0.036f, 0.010f), Paper);
         strip = MakeLabel();
     }
 
@@ -152,7 +269,7 @@ public class DeskClock : MonoBehaviour
         go.transform.SetParent(transform, false);
         // TextMesh 는 자기 +Z 쪽에서 읽히게 생겼는데 시계 정면은 −Z 쪽이라 180도 돌린다
         // (현판 글씨가 거울상으로 나왔던 것과 같은 이유 — 2026-09-17).
-        go.transform.localPosition = new Vector3(0f, 0.032f, PanelZ - 0.006f);
+        go.transform.localPosition = new Vector3(0f, 0.026f, PanelZ + 0.012f);
         go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
         var font = Resources.Load<Font>("HudFont");

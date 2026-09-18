@@ -65,6 +65,17 @@ public class LobbyHUD : MonoBehaviour
         if (walking) style.normal.textColor = Hud.Brass;
 
         GUI.Label(chip, walking ? "TAB 둘러보기로   ·   E 말 걸기" : "TAB 걸어다니기", style);
+
+        // ★ 접수대 시계 앞에 서면 그 자리에서 알려준다.
+        // <b>키가 있어도 화면에 없으면 없는 것이다</b> — 이 프로젝트에서 세 번째야(G, TAB, 이번).
+        if (walking && DeskClock.Nearest != null)
+        {
+            var hint = new Rect(w * 0.5f - 110f, h - 92f, 220f, 26f);
+            Hud.Chip(hint);
+            var big = Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter);
+            big.normal.textColor = Hud.Brass;
+            GUI.Label(hint, $"E   {DeskClock.Nearest.Action}", big);
+        }
     }
 
     void OnGUI()
