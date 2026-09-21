@@ -174,10 +174,27 @@ public class LobbyHUD : MonoBehaviour
     {
         if (!Toast.Visible) return;
 
-        var box = new Rect(w * 0.5f - 210f, h * 0.14f, 420f, 52f);
+        // ★ 2026-09-21 유저: *"배관공 곰들 대사 너무 긴 거 있으면 글자가 빠져나온다."*
+        // 칸이 420 × 52 에 <b>줄바꿈이 꺼져 있어서</b> 한 줄 25자가 한계였는데 대사가 40자까지 간다.
+        //
+        // 고치는 방향 둘 — 대사를 자르거나, 칸이 대사에 맞추거나. <b>후자가 맞다:</b>
+        // 대사는 유저가 쓰는 거라 길이를 내가 정할 수 없고, 나중에 더 긴 게 들어와도 안 터져야 한다.
+        const float wide = 440f;
+        var text = Hud.Resize(Hud.Title, 16, TextAnchor.MiddleCenter);
+        text.wordWrap = true;
+
+        // 실제로 몇 줄이 되는지 재서 칸 높이를 잡는다. 눈으로 어림하면 또 넘친다.
+        float inner = wide - 14f;                       // Hud.Inner 가 좌우로 7 씩 먹는다
+        float need = text.CalcHeight(new GUIContent(Toast.Message), inner - 12f);
+        float tall = Mathf.Clamp(need + 26f, 52f, 108f);   // 세 줄까지. 그 이상은 대사가 잘못된 것
+
+        var box = new Rect(w * 0.5f - wide * 0.5f, h * 0.14f, wide, tall);
         Hud.Panel(box);
         GUI.DrawTexture(new Rect(box.x + 7f, box.y + 7f, 6f, box.height - 16f), Hud.RibbonTex);
-        GUI.Label(box, Toast.Message, Hud.Resize(Hud.Title, 16));
+
+        // ★ <b>Hud.Inner 밖으로 안 그린다.</b> 나무 테두리를 넘어가면 글자가 잘려 보인다.
+        Rect area = Hud.Inner(box);
+        GUI.Label(new Rect(area.x + 12f, area.y, area.width - 16f, area.height), Toast.Message, text);
     }
 
     // ---- 말 걸기 버튼 ★임시 ----

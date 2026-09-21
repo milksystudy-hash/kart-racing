@@ -61,6 +61,15 @@ public class TestHUD : MonoBehaviour
         var k = Keyboard.current;
         if (k == null) return;
 
+        // ★ 브리핑 카드가 떠 있으면 <b>그 카드만</b> 듣는다. 다른 키가 같이 먹으면
+        // 카드를 닫으려다 이펙트가 꺼지거나 조작법이 열린다 —
+        // "큰 패널은 한 번에 한 장" 을 입력 쪽에도 적용한 것(2026-09-18).
+        if (RaceBriefing.Open)
+        {
+            if (k.anyKey.wasPressedThisFrame) RaceBriefing.Dismiss();
+            return;
+        }
+
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
 
         // TAB 으로 내려서 걷기. <b>개발용이다</b> — 플레이어가 걸어다니는 건 캠퍼스 씬(F4)이고,
@@ -149,11 +158,82 @@ public class TestHUD : MonoBehaviour
         if (showControls) DrawControls(w, h);
         // ESC 를 누르면 <b>그 패널만</b> 보여준다. 실패·완주 패널이 뒤에 그대로 있으면
         // 두 장이 겹쳐서 어느 쪽 글씨인지 알 수가 없다(2026-09-18 유저 제보).
-        if (confirmQuit) DrawQuitAsk(w, h);
+        // 브리핑이 제일 앞이다 — 이게 떠 있는 동안은 아직 아무 판도 시작 안 했다.
+        if (RaceBriefing.Open) DrawBriefing(w, h);
+        else if (confirmQuit) DrawQuitAsk(w, h);
         else if (InKart && tracker != null && tracker.Finished) DrawFinish(w, h);
         else if (InKart && mission != null && mission.Failed) DrawFailed(w, h);
 
         Hud.End();
+    }
+
+    /// <summary>
+    /// <b>출발 전 브리핑.</b> 이 판이 몇 번째이고, 무엇을 하고, <b>왜</b> 하는지.
+    ///
+    /// 레이스 중 HUD 에서 "왜" 를 빼 놓은 이유가 있다 — 힐끗 보는 계기판에 설명이 끼면
+    /// 읽는 데 시간이 걸린다(2026-09-17). 그 문장들이 사라진 게 아니라 <b>여기가 제자리</b>야:
+    /// <b>달리는 중에는 계기판, 출발 전에는 이야기.</b>
+    ///
+    /// 유저가 <see cref="StoryScript"/> 에 대사를 쓰면 아래 한 줄이 저절로 붙는다.
+    /// 지금은 비어 있고, <b>비어 있으면 그 줄을 아예 안 그린다</b> — 빈칸이 남으면
+    /// 카드가 미완성으로 보인다.
+    /// </summary>
+    void DrawBriefing(float w, float h)
+    {
+        var card = new Rect(w * 0.5f - 270f, h * 0.5f - 160f, 540f, 320f);
+        Hud.Panel(card);
+        Rect inner = Hud.Inner(card);
+
+        // 몇 번째 판인가. <b>끝이 있는 여정</b>으로 읽혀야 다음 판을 돌 이유가 생긴다.
+        GUI.Label(new Rect(inner.x + 10f, inner.y + 4f, 200f, 24f),
+                  RaceBriefing.Stage, Hud.Resize(Hud.Title, 17, TextAnchor.MiddleLeft));
+        GUI.Label(new Rect(inner.xMax - 210f, inner.y + 6f, 200f, 22f),
+                  RaceBriefing.Progress, Hud.Resize(Hud.Label, 13, TextAnchor.MiddleRight));
+
+        Hud.Rule(inner.x + 10f, inner.y + 32f, inner.width - 20f);
+
+        // 임무 이름 — 두 줄까지 접힌다. "담장 안 긁고 시간 안에 완주하기" 가 제일 길다.
+        var title = Hud.Resize(Hud.Title, 26, TextAnchor.UpperCenter);
+        title.wordWrap = true;
+        GUI.Label(new Rect(inner.x + 14f, inner.y + 46f, inner.width - 28f, 70f),
+                  RaceBriefing.TitleFor(mission), title);
+
+        // 왜 하는가. 이 한 줄이 아홉 판을 아홉 장면으로 만든다.
+        var why = Hud.Resize(Hud.Text, 16, TextAnchor.UpperCenter);
+        why.wordWrap = true;
+        why.normal.textColor = Hud.InkSoft;
+        GUI.Label(new Rect(inner.x + 20f, inner.y + 118f, inner.width - 40f, 46f),
+                  RaceBriefing.Why, why);
+
+        Hud.Rule(inner.x + 10f, inner.y + 166f, inner.width - 20f);
+
+        // 상품(결승은 «걸린 것»). 값은 라벨 <b>아래 줄 통째로</b> — 이름이 길어져도 안 부딪힌다.
+        string stake = RaceBriefing.Stake;
+        if (!string.IsNullOrEmpty(stake))
+        {
+            GUI.Label(new Rect(inner.x + 14f, inner.y + 178f, 200f, 20f),
+                      RaceBriefing.StakeLabel, Hud.Resize(Hud.Label, 13, TextAnchor.UpperLeft));
+
+            var value = Hud.Resize(Hud.Text, 17, TextAnchor.UpperLeft);
+            value.normal.textColor = Hud.Ink;
+            GUI.Label(new Rect(inner.x + 14f, inner.y + 197f, inner.width - 28f, 24f), stake, value);
+        }
+
+        // 대사가 들어오면 여기. 없으면 아무 것도 안 그린다.
+        string line = RaceBriefing.Line;
+        if (!string.IsNullOrEmpty(line))
+        {
+            var say = Hud.Resize(Hud.Text, 15, TextAnchor.UpperLeft);
+            say.wordWrap = true;
+            say.normal.textColor = Hud.InkSoft;
+            GUI.Label(new Rect(inner.x + 14f, inner.y + 228f, inner.width - 28f, 44f), line, say);
+        }
+
+        // ★ "아무 키" 는 게임 밖 말투다 — 실제로 누를 키를 적는다(2026-09-18).
+        // 동작은 그대로 아무 키나 먹고, <b>적어 두는 것만</b> 하나로 골랐다.
+        var go = Hud.Resize(Hud.Text, 15, TextAnchor.MiddleCenter);
+        go.normal.textColor = Hud.InkSoft;
+        GUI.Label(new Rect(inner.x, inner.yMax - 30f, inner.width, 24f), "SPACE   출발", go);
     }
 
     // ---- 랩과 시간 ----

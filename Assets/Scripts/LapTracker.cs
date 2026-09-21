@@ -51,7 +51,9 @@ public class LapTracker : MonoBehaviour
         progress.totalLaps = totalLaps;
         watchedLap = progress.Lap;
 
-        RaceCountdown.Begin();   // 씬에 들어올 때도 카운트부터
+        // 씬에 들어올 때는 <b>브리핑부터</b>. 처음 보는 임무면 카드를 띄우고, 이미 본 임무면
+        // 그대로 카운트다운으로 넘어간다 (RaceBriefing 이 알아서 고른다).
+        RaceBriefing.Begin();
     }
 
     void Update()
@@ -120,7 +122,10 @@ public class LapTracker : MonoBehaviour
         if (standings != null) standings.ResetRace();
 
         // 3 · 2 · 1 · 출발! 되돌려 놓은 카트가 바닥에 내려앉을 시간이기도 하다.
-        RaceCountdown.Begin();
+        //
+        // ENTER 로 <b>같은 판을 다시</b> 하는 경우라 브리핑은 대개 안 뜬다 — 방금 읽은 카드가
+        // 또 나오면 안내가 아니라 장애물이다. 상품을 받아서 임무가 바뀌었을 때만 뜬다.
+        RaceBriefing.Begin();
     }
 
     public static string FormatTime(float seconds)

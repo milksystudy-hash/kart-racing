@@ -46,8 +46,10 @@ public class StoryStage : MonoBehaviour
 
         if (!playUnseenOnEnter) return;
 
-        string sceneId = StoryScript.SceneForChapter(StoryProgress.CurrentChapter);
-        if (!StoryProgress.HasSeen(sceneId)) Enter(sceneId);
+        // ★ 장 번호만 보면 결말이 어긋난다(2026-09-21) — 결승 장면이 영영 안 나오고,
+        // 에필로그가 7판 뒤에 떴다. CurrentScene 이 «결승을 깼는가» 까지 보고 고른다.
+        string sceneId = StoryScript.CurrentScene();
+        if (!string.IsNullOrEmpty(sceneId) && !StoryProgress.HasSeen(sceneId)) Enter(sceneId);
     }
 
     void Update()
@@ -57,9 +59,12 @@ public class StoryStage : MonoBehaviour
         var k = Keyboard.current;
         if (k == null) return;
 
-        // T — 이번 장 이야기 다시 보기
+        // T — 이번 장 이야기 다시 보기. 틀 게 없으면(7판 자리) 아무 일도 안 한다.
         if (k.tKey.wasPressedThisFrame)
-            Enter(StoryScript.SceneForChapter(StoryProgress.CurrentChapter));
+        {
+            string again = StoryScript.CurrentScene();
+            if (!string.IsNullOrEmpty(again)) Enter(again);
+        }
     }
 
     /// <summary>이야기를 튼다. 임무 판정이 붙으면 "필수 임무 성공 → 여기" 로 이어진다.</summary>

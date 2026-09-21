@@ -31,6 +31,9 @@ public class CampusHUD : MonoBehaviour
             // 이미 열고 들어온 문을 또 여는 것보다 안에 있는 걸 집는 게 맞다.
             if (SceneDoor.Nearest != null) SceneDoor.Nearest.Enter();
             else if (MinigameSpot.Nearest != null) MinigameSpot.Nearest.Enter();
+            // 수도꼭지가 문보다 앞이다 — 세면대 앞에 서면 출입문 모서리가 3.4m 안에 들어와서
+            // 문이 이기고, 그러면 물을 영영 못 튼다.
+            else if (Faucet.Nearest != null) Faucet.Nearest.Toggle();
             else if (HingedDoor.Nearest != null) HingedDoor.Nearest.Toggle();
             else if (BearNpc.Nearest != null) BearNpc.Nearest.Talk();
         }
@@ -59,17 +62,20 @@ public class CampusHUD : MonoBehaviour
     {
         string key = "E", what = null;
 
-        // 미니게임 자리가 제일 먼저. 잠겼거나 준비 중이면 <b>그 이유</b>가 한 줄로 뜬다 —
-        // "안 된다" 만 뜨면 플레이어는 왜 안 되는지 모른다.
-        if (MinigameSpot.Nearest != null)
+        // ★ <b>순서가 `Update` 와 글자 하나까지 같아야 한다</b>(2026-09-21).
+        // 안내에 뜨는 것과 E 가 집는 것이 다르면 «눌러도 안 되는 안내» 가 된다 —
+        // 화장실 칸 문에서 이미 한 번 그렇게 헤맸다.
+        if (SceneDoor.Nearest != null)
+            what = string.IsNullOrEmpty(SceneDoor.Nearest.label)
+                 ? "들어가기" : $"{SceneDoor.Nearest.label} 들어가기";
+        else if (MinigameSpot.Nearest != null)
         {
             what = MinigameSpot.Nearest.Line;
             // 눌러도 아무 일이 안 되는데 키를 보여주면 <b>고장으로 읽힌다.</b>
             if (!MinigameSpot.Nearest.Actionable) key = "";
         }
-        else if (SceneDoor.Nearest != null)
-            what = string.IsNullOrEmpty(SceneDoor.Nearest.label)
-                 ? "들어가기" : $"{SceneDoor.Nearest.label} 들어가기";
+        else if (Faucet.Nearest != null)
+            what = Faucet.Nearest.Action;
         else if (HingedDoor.Nearest != null)
         {
             // 상태에 맞는 말이 떠야 한다 — 열린 문에 "문 열기" 가 뜨면 닫는 법을 모른다.
@@ -98,10 +104,21 @@ public class CampusHUD : MonoBehaviour
     {
         if (!Toast.Visible) return;
 
-        var box = new Rect(w * 0.5f - 230f, h - 172f, 460f, 38f);
+        // 로비와 같은 병이 여기도 있었다(2026-09-21) — 줄바꿈이 꺼져 있어서 긴 문구가 칸 밖으로 샌다.
+        // 미니게임 «준비 중» 문구가 이미 30자를 넘는다.
+        const float wide = 460f;
+        var text = Hud.Resize(Hud.Title, 17, TextAnchor.MiddleCenter);
+        text.wordWrap = true;
+
+        float need = text.CalcHeight(new GUIContent(Toast.Message), wide - 26f);
+        float tall = Mathf.Clamp(need + 24f, 38f, 96f);
+
+        var box = new Rect(w * 0.5f - wide * 0.5f, h - 134f - tall, wide, tall);
         Hud.Panel(box);
         GUI.DrawTexture(new Rect(box.x + 7f, box.y + 7f, 6f, box.height - 14f), Hud.RibbonTex);
-        GUI.Label(box, Toast.Message, Hud.Resize(Hud.Title, 17));
+
+        Rect area = Hud.Inner(box);
+        GUI.Label(new Rect(area.x + 12f, area.y, area.width - 16f, area.height), Toast.Message, text);
     }
 
     public FirstPersonController player;

@@ -564,8 +564,11 @@ public static class TestSceneBuilder
         // 선택 못 하게 하고 마지막에만 나오게"*). 로비 쪽은 이미 막혀 있다:
         // 5·6번 받침대가 `CharacterStand.locked` 라 `Selectable` 이 false 고 이름도 "???" 야.
         // AI 쪽은 `KartSkin.AiCastId` 가 평소 판에서 이 둘을 후보에서 뺀다.
-        ("개발업자", "Assets/Cart_model/BOSS_DEV_GOLD.fbx"),
-        ("시의원",   "Assets/Cart_model/BOSS_COUNCIL_MAGENTA.fbx"),
+        // ★ 2026-09-21 <b>둘을 맞바꿨다.</b> 캐릭터 설정이 정해지면서 «실소유주는 시의원» 이
+        // 됐고, 금색 카트는 골든베어를 실제로 가진 쪽이 타야 한다(Cast.cs 참고).
+        // <b>파일 이름이 이제 거꾸로다</b> — 에셋을 바꾸면 .meta GUID 가 흔들려서 그냥 뒀다.
+        ("시의원",   "Assets/Cart_model/BOSS_DEV_GOLD.fbx"),       // 권대호 — 금색
+        ("개발업자", "Assets/Cart_model/BOSS_COUNCIL_MAGENTA.fbx"), // 유진택 — 자홍
     };
 
     /// <summary>

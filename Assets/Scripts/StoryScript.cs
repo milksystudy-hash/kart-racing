@@ -201,4 +201,70 @@ public static class StoryScript
         3 => "ch3",
         _ => "epilogue",
     };
+
+    /// <summary>
+    /// ★★ <b>지금 틀어야 할 장면.</b> 장 번호만으로는 결말이 어긋난다 — 2026-09-21 에
+    /// 구멍 둘을 찾아서 여기로 모았다.
+    ///
+    /// <b>구멍 1 — 결승 장면이 영영 안 나왔다.</b> <c>final_before</c>/<c>final_after</c> 가
+    /// 표에는 있는데 <see cref="SceneForChapter"/> 에 없어서 <b>아무 데서도 안 불렸다.</b>
+    ///
+    /// <b>구멍 2 — 에필로그가 7판 뒤에 떴다.</b> 수집품 <c>recorder</c>(7판 상품)가
+    /// <b>4장의 유일한 수집품</b>이라, 받는 순간 «4장을 다 모았다» 가 되어 장이 4로 넘어가고
+    /// <c>SceneForChapter(4) == "epilogue"</c> 였다. <b>결승도 안 했는데 결말이 나온다.</b>
+    ///
+    /// 고치는 기준은 장 번호가 아니라 <b>결승을 깼는가</b>다 — 그건
+    /// <see cref="GrandFinal"/> 가 수집 기록과 PlayerPrefs 로만 판단하니 순서에 안 흔들린다.
+    ///
+    /// <code>
+    /// 1~2판 → ch1 · 3~4판 → ch2 · 5~6판 → ch3
+    /// 7판   → (없음)            ← 에필로그를 여기서 막는다
+    /// 8판   → final_before      ← 증거 여덟 개를 들이민다
+    /// 결승 승 → final_after → (다음 방문) epilogue
+    /// </code>
+    /// </summary>
+    public static string CurrentScene()
+    {
+        // 결승을 깼으면 뒷이야기 → 그 다음 방문에 에필로그.
+        if (GrandFinal.Cleared)
+            return StoryProgress.HasSeen("final_after") ? "epilogue" : "final_after";
+
+        // 여덟 개를 다 모았고 아직 결승 전이면 «증거를 들이미는» 장면.
+        if (GrandFinal.Available) return "final_before";
+
+        string byChapter = SceneForChapter(StoryProgress.CurrentChapter);
+
+        // ★ 결승을 안 깼으면 에필로그는 아직이다. 7판에서 장이 4로 넘어가도 결말이 먼저 나오면 안 된다.
+        return byChapter == "epilogue" ? "" : byChapter;
+    }
+
+    /// <summary>
+    /// ★ <b>출발 전 브리핑 한 줄.</b> 판마다 카드가 뜨는데, 그 아래 한 줄이 여기서 온다.
+    /// <b>따옴표 안만 채우면 화면에 바로 뜬다</b> — 다른 건 아무것도 안 해도 돼.
+    ///
+    /// ── 쓸 때 ──────────────────────────────────────────────────────────
+    /// · <b>비워 두면 그 줄을 아예 안 그린다.</b> 아홉 개를 한꺼번에 채울 필요 없어.
+    /// · 한 줄, <b>40자 안쪽</b>. 카드 폭이 500px 이라 그 이상이면 두 줄로 접힌다.
+    /// · 이건 <b>출발 직전</b>이라 «지금 왜 달리는가» 가 들어갈 자리야.
+    ///   임무 설명은 카드가 이미 하고 있으니 되풀이하지 말 것.
+    ///
+    /// ── ★ 악당 대사 규칙 ───────────────────────────────────────────────
+    /// <b>개발업자와 시의원을 희화화하지 마라.</b> 우스운 악당은 안 무섭고, 안 무서우면
+    /// 이겨도 안 시원하다. <b>웃기는 건 주인공 몫</b>이고 악당은 정색해야 다크코미디가 된다.
+    /// · 시의원 권대호 — 짧고 행정적. "절차대로" 가 입버릇.
+    /// · 개발업자 유진택 — 말이 매끄럽고 길다. 나쁜 말을 한 번도 안 한다.
+    /// </summary>
+    public static string Briefing(MissionManager.Goal goal) => goal switch
+    {
+        MissionManager.Goal.완주     => "",   // 1판 — 뭘 하는 게임인지 배우는 자리
+        MissionManager.Goal.발판전부 => "",   // 2판 — 가속 발판
+        MissionManager.Goal.무충돌   => "",   // 3판 — 담장
+        MissionManager.Goal.전시품   => "",   // 4판 — 곰인형 싣기
+        MissionManager.Goal.제한시간 => "",   // 5판 — 시간
+        MissionManager.Goal.광고판   => "",   // 6판 — 골든베어 간판 부수기
+        MissionManager.Goal.장애물   => "",   // 7판 — 철거 자재
+        MissionManager.Goal.완벽     => "",   // 8판 — 마지막 실사
+        MissionManager.Goal.결승     => "",   // 9판 — 권대호·유진택과 직접
+        _                            => "",
+    };
 }

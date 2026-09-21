@@ -65,8 +65,9 @@ public class Canteen : MonoBehaviour
         if (Active != null) return Active;
 
         var go = new GameObject("Canteen");
-        var game = go.AddComponent<Canteen>();
-        go.AddComponent<CanteenHUD>();
+        var game = go.AddComponent<Canteen>();   // 규칙
+        go.AddComponent<CanteenStage>();         // 방 — 카메라와 곰 손님
+        go.AddComponent<CanteenHUD>();           // 화면
         return game;
     }
 

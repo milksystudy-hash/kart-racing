@@ -330,6 +330,12 @@ public class BearNpc : MonoBehaviour
     static float nearestDistance;
     static int nearestFrame = -1;
 
+    // ★★ <b>«제일 가까운 것» 을 스크립트 실행 순서에 기대면 안 된다</b> (2026-09-21).
+    // HUD 가 겨루기 <b>중간에</b> 끼면 반쪽 결과를 읽는다. 화장실 칸 문에서 이 함정에 걸렸다.
+    // <b>한 프레임 늦게 공개한다</b> — 겨루기는 `pending` 에 쌓고, 프레임이 바뀌는 순간
+    // 다 끝난 지난 프레임 결과를 내보낸다. 한 프레임 차이는 눈에 안 보인다.
+    static BearNpc pending;
+
     /// <summary>매 프레임 "내가 제일 가까운가" 를 겨룬다. 제일 가까운 놈만 표시를 얻는다.</summary>
     /// <summary>
     /// 말 걸 상대 고르기.
@@ -345,8 +351,9 @@ public class BearNpc : MonoBehaviour
         if (nearestFrame != Time.frameCount)
         {
             nearestFrame = Time.frameCount;
+            Nearest = pending;      // ← 지난 프레임에 <b>다 끝난</b> 결과를 이제 공개한다
+            pending = null;
             nearestDistance = float.MaxValue;
-            Nearest = null;
         }
 
         if (target == null) return;
@@ -370,13 +377,39 @@ public class BearNpc : MonoBehaviour
         distance = score;
 
         nearestDistance = distance;
-        Nearest = this;
+        pending = this;
+    }
+
+    int role = -1;
+
+    /// <summary>
+    /// 이 곰이 맡은 역할(정비 · 학생 · 오래된 곰). <b>이름 순으로 정한다</b> —
+    /// 인스펙터 값을 쓰면 옛 씬에서 전부 0 이 되고, 만든 순서를 쓰면 켤 때마다 달라진다.
+    /// 이름 순은 <b>씬을 안 구워도 되고 매번 같다</b>(폐과 딱지를 이름 순으로 떨어뜨린 것과 같은 이유).
+    /// </summary>
+    int Role
+    {
+        get
+        {
+            if (role >= 0) return role;
+
+            var all = FindObjectsByType<BearNpc>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            System.Array.Sort(all, (a, b) => string.CompareOrdinal(a.name, b.name));
+
+            role = 0;
+            for (int i = 0; i < all.Length; i++)
+                if (all[i] == this) { role = i % BearLines.Roles; break; }
+
+            return role;
+        }
     }
 
     /// <summary>말을 건다. 대사 한 줄을 뱉고, 말한 쪽을 쳐다보며 손을 든다.</summary>
     public void Talk()
     {
-        LastLine = BearLines.Random();
+        // ★ 곰마다 다른 풀에서 뽑는다. 셋이 같은 걸 말하면 <b>세 마리가 있을 이유가 없다</b> —
+        // AI 실력 · 나무 · 급식 손님에서 계속 걸렸던 그 문제야.
+        LastLine = BearLines.Random(Role);
         Toast.Show(LastLine);
         waveUntil = Time.time + waveHold;
 

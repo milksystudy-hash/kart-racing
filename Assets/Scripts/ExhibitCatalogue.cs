@@ -35,7 +35,11 @@ public static class ExhibitCatalogue
         new Entry { id = "signature", name = "관장의 서명", chapter = "제3장 · 관장의 서명", chapterIndex = 3, shape = Shape.종이,
             description = "조건부 매각 문서에 남은 서명. 비리를 계획하지는 않았지만, 사실을 숨긴 대가가 여기 남았다." },
         new Entry { id = "contract", name = "비밀 계약서", chapter = "제3장 · 관장의 서명", chapterIndex = 3, shape = Shape.종이,
-            description = "시의원과 개발업자 사이의 이면 계약. 선거 지원과 이권이 항목으로 적혀 있다." },
+            // 2026-09-21 설정이 정해지면서 고쳤다. 전에는 «시의원과 개발업자 사이의 계약» 이었는데,
+            // 둘이 <b>실소유주와 바지사장</b> 관계가 되면서 이 문서가 훨씬 강한 증거가 됐다 —
+            // 회사의 주인이 누구인지가 여기 적혀 있으니까.
+            description = "GBD 대표 자리에 이름만 올린 사람과, 실제로 돈을 가져가는 사람 사이의 계약. "
+                        + "회사의 주인이 시의원이라는 게 이 종이 한 장에 적혀 있다." },
         new Entry { id = "recorder", name = "중계 기록 장치", chapter = "마지막 장 · 철거 전야", chapterIndex = 4, shape = Shape.상자,
             description = "어두워진 트랙을 가로질러 결승선까지 옮긴 장치. 이것으로 전말이 시 전역에 생중계됐다." },
         new Entry { id = "blueprint", name = "골든베어 조감도", chapter = "프롤로그 · 철거 통지서", chapterIndex = 0, shape = Shape.종이,

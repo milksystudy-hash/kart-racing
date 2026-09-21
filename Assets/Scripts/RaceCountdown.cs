@@ -31,8 +31,15 @@ public static class RaceCountdown
 
     static float Elapsed => Time.time - startedAt;
 
-    /// <summary>아직 못 움직이나.</summary>
-    public static bool Blocked => Elapsed < Seconds;
+    /// <summary>
+    /// 아직 못 움직이나.
+    ///
+    /// ★ <b>브리핑 카드가 떠 있는 동안도 묶는다.</b> 여기 한 줄로 막아야
+    /// 이미 이걸 보고 있는 <b>네 군데</b>(플레이어 입력 · AI 의 Drive · 랩 시계 · 카트 물리)가
+    /// 한꺼번에 따라온다 — 막는 곳을 따로 늘리면 반드시 한 군데를 빠뜨린다
+    /// (<c>MissionManager.AllDone</c> 에 결승 조건을 넣었더니 HUD 네 군데가 같이 따라온 것과 같다).
+    /// </summary>
+    public static bool Blocked => RaceBriefing.Open || Elapsed < Seconds;
 
     /// <summary>화면 가운데에 띄울 글자. 띄울 게 없으면 빈 문자열.</summary>
     public static string Label

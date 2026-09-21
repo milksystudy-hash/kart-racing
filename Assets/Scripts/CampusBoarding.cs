@@ -80,10 +80,11 @@ public class CampusBoarding : MonoBehaviour
         //
         // <b>판자는 문 구멍 안에만 있어야 한다.</b> 문을 막는 물건이지 벽을 막는 물건이 아니야.
         float w = 3.2f, h = 4.2f;
-        if (door.leaves != null && door.leaves.Length > 0 && door.leaves[0] != null)
+        Transform leaf = LeafOf(door);
+        if (leaf != null)
         {
-            w = Mathf.Abs(door.leaves[0].localScale.x) * 1.88f;
-            h = Mathf.Abs(door.leaves[0].localScale.y);
+            w = Mathf.Abs(leaf.localScale.x) * 1.88f;
+            h = Mathf.Abs(leaf.localScale.y);
         }
 
         var root = new GameObject("Boarding").transform;
@@ -98,6 +99,35 @@ public class CampusBoarding : MonoBehaviour
         Plank(root, "Bar", new Vector3(0f, h * 0.34f, 0.12f), 0f, w * 0.96f);
 
         return root;
+    }
+
+    /// <summary>
+    /// ★ <b>통(<c>LeafRoot_s</c>)의 스케일은 1 이다. 크기는 그 안의 문짝(<c>Leaf_s</c>)에 있다.</b>
+    ///
+    /// 통에서 읽으면 판자가 <b>1.88 × 1.0</b> 으로 나온다 — 실제 문짝은 2.06 × 4.46 이라,
+    /// 문 구멍(3.9 × 4.5)을 막기는커녕 <b>무릎 높이(y 0.5)에 작은 X 자</b>가 떠 있게 된다.
+    /// <see cref="HingedDoor"/> 는 2026-09-18 에 같은 함정을 고쳤는데 여기는 안 고쳐져 있었다.
+    ///
+    /// <b>계층을 한 겹 넣으면 그 크기를 읽던 코드를 전부 훑어라</b> — 컴파일도 되고
+    /// 예외도 안 나고 조용히 엉뚱한 숫자가 나온다.
+    /// </summary>
+    static Transform LeafOf(HingedDoor door)
+    {
+        if (door.leaves == null) return null;
+
+        // 통 안의 문짝이 먼저. 통은 늘 스케일 1 이라 못 믿는다.
+        foreach (var root in door.leaves)
+        {
+            if (root == null) continue;
+            for (int c = 0; c < root.childCount; c++)
+                if (root.GetChild(c).name.StartsWith("Leaf_")) return root.GetChild(c);
+        }
+
+        // 통을 도입하기 전에 구운 씬 — 문짝이 바로 꽂혀 있다.
+        foreach (var root in door.leaves)
+            if (root != null && root.childCount == 0) return root;
+
+        return null;   // 못 찾으면 기본값(3.2 × 4.2)을 쓴다. 틀린 숫자보다 낫다.
     }
 
     void Plank(Transform parent, string name, Vector3 at, float tilt, float length)

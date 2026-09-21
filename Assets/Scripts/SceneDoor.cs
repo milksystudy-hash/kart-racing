@@ -29,8 +29,22 @@ public class SceneDoor : MonoBehaviour
 
     public static SceneDoor Nearest { get; private set; }
 
+    // ★★ <b>«제일 가까운 것» 을 스크립트 실행 순서에 기대면 안 된다</b> (2026-09-21).
+    //
+    // 여태 각 오브젝트가 자기 Update 에서 «내가 제일 가까운가» 를 겨루고, HUD 가 그 값을
+    // 곧바로 읽었다. 그런데 <b>유니티는 같은 우선순위 스크립트의 Update 순서를 정해 주지 않는다.</b>
+    // HUD 가 <b>중간에</b> 끼면 아직 안 겨룬 것들이 빠진 <b>반쪽 결과</b>를 읽는다.
+    //
+    // 화장실 칸 문이 그랬다 — 문은 멀쩡히 젖혀지는데(측정: 회전 −78°, 문짝 1.259m) E 가
+    // 그 문을 못 집었다. 칸 문은 건물 문보다 <b>나중에 만들어져서</b> HUD 뒤에 섰고,
+    // 그래서 <b>안내는 «문 열기» 인데 눌러도 아무 일이 없었다.</b>
+    //
+    // 고치는 법: <b>한 프레임 늦게 공개한다.</b> 겨루기는 `pending` 에 쌓고, 프레임이 바뀌는
+    // 순간 <b>다 끝난 지난 프레임 결과</b>를 `Nearest` 로 내보낸다. 한 프레임 차이는 눈에
+    // 안 보이고, 순서에 대한 의존이 <b>완전히</b> 사라진다.
     static int frameStamp = -1;
     static float nearestDistance;
+    static SceneDoor pending;
 
     void Update()
     {
@@ -38,8 +52,9 @@ public class SceneDoor : MonoBehaviour
         if (frameStamp != Time.frameCount)
         {
             frameStamp = Time.frameCount;
+            Nearest = pending;      // ← 지난 프레임에 <b>다 끝난</b> 결과를 이제 공개한다
+            pending = null;
             nearestDistance = float.MaxValue;
-            Nearest = null;
         }
 
         Transform who = visitor != null ? visitor
@@ -53,7 +68,7 @@ public class SceneDoor : MonoBehaviour
         if (d > range || d >= nearestDistance) return;
 
         nearestDistance = d;
-        Nearest = this;
+        pending = this;
     }
 
     public void Enter()

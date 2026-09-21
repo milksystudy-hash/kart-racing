@@ -125,21 +125,11 @@ public class KartExhaust : MonoBehaviour
         emission.rateOverTime = rate;
     }
 
-    // 알갱이 하나짜리 재질. URP 의 기본 파티클 셰이더를 쓰고, 없으면 조용히 포기한다.
-    static Material shared;
-
-    static Material PuffMaterial()
-    {
-        if (shared != null) return shared;
-
-        var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-        if (shader == null) shader = Shader.Find("Sprites/Default");
-        if (shader == null) return null;
-
-        shared = new Material(shader) { name = "KartPuff", hideFlags = HideFlags.HideAndDontSave };
-        shared.SetFloat("_Surface", 1f);            // Transparent
-        shared.SetFloat("_Blend", 0f);              // Alpha
-        shared.renderQueue = 3000;
-        return shared;
-    }
+    /// <summary>
+    /// ★ 2026-09-21 <see cref="SmokePuff"/> 로 옮겼다. 여기 있던 판은 <b>텍스처가 없고
+    /// 투명도 안 켜져 있어서</b> 알갱이가 <b>흰 정사각형</b>으로 그려지고 있었다 —
+    /// <c>SetFloat("_Surface", 1)</c> 은 속성만 바꾸고 URP 는 셰이더 키워드를 본다.
+    /// 곰밥마당 김에서 같은 증상을 잡다가 여기도 같은 코드인 걸 발견했다.
+    /// </summary>
+    static Material PuffMaterial() => SmokePuff.Material();
 }

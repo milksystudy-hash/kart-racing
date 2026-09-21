@@ -193,12 +193,55 @@ public class MissionManager : MonoBehaviour
     public static Goal CurrentGoal =>
         GrandFinal.Available ? Goal.결승 : GoalForReward(NextReward());
 
+    /// <summary>
+    /// ★ <b>판 순서.</b> 수집품 순서(=이야기 순서)와 <b>따로 둔다</b> —
+    /// 전에는 <c>(Goal)Min(i, 7)</c> 라 enum 순서가 곧 판 순서였고, 그래서
+    /// <b>감점제가 세 판 연속</b>으로 붙어 있었다(담장 · 시간 · 자재).
+    ///
+    /// 2026-09-21 자가진단: 여덟 판 중 감점형이 다섯인데 그게 앞쪽에 몰려서
+    /// 3·4·5 판이 «혼나기만 하는 구간» 이 됐다. 이야기 순서는 못 바꾸니까
+    /// (수집품은 1장→2장→3장 순으로 나와야 한다) <b>매핑을 바꾼다.</b>
+    ///
+    /// 규칙 하나: <b>힘든 판 다음에는 신나는 판.</b> 감점형이 연속으로 오지 않게 끼워 넣는다.
+    /// </summary>
+    static readonly Goal[] Order =
+    {
+        Goal.완주,       // 1  조건 없음 — 뭘 하는 게임인지 배우는 판
+        Goal.발판전부,   // 2  목표치형 (n개 이상)
+        Goal.무충돌,     // 3  감점형
+        Goal.전시품,     // 4  ★ 플러스형 — 숨 돌리는 자리
+        Goal.제한시간,   // 5  감점형
+        Goal.광고판,     // 6  ★ 플러스형 — 제일 신나는 판
+        Goal.장애물,     // 7  감점형
+        Goal.완벽,       // 8  마지막. 앞의 조건 둘을 동시에
+    };
+
     public static Goal GoalForReward(string id)
     {
-        // 목록 순서 그대로 임무 순서다. 첫 판은 완주 — 처음부터 조건을 걸면 뭘 하는 게임인지 모른다.
+        // 첫 판은 완주 — 처음부터 조건을 걸면 뭘 하는 게임인지 모른다.
         for (int i = 0; i < ExhibitCatalogue.All.Length; i++)
-            if (ExhibitCatalogue.All[i].id == id) return (Goal)Mathf.Min(i, 7);
+            if (ExhibitCatalogue.All[i].id == id) return Order[Mathf.Min(i, Order.Length - 1)];
         return Goal.완주;
+    }
+
+    /// <summary>그 임무가 몇 번째 판인가(0부터). 못 찾으면 −1.</summary>
+    public static int IndexOf(Goal g)
+    {
+        for (int i = 0; i < Order.Length; i++)
+            if (Order[i] == g) return i;
+        return -1;
+    }
+
+    /// <summary>
+    /// 그 임무를 이미 깼나. <b>그 판의 상품이 들어와 있으면 깬 것</b>이라 따로 저장할 게 없다.
+    ///
+    /// ★ 번호를 손으로 박아 쓰지 마라. <c>TrackBuilder</c> 에 <c>const int adMission = 6</c>
+    /// 이 박혀 있었는데, 위의 순서를 바꾸는 순간 조용히 <b>다른 판</b>을 가리키게 된다.
+    /// </summary>
+    public static bool AlreadyCleared(Goal g)
+    {
+        int i = IndexOf(g);
+        return i >= 0 && ExhibitCatalogue.Count > i && CollectionState.Has(ExhibitCatalogue.All[i].id);
     }
 
     void Update()

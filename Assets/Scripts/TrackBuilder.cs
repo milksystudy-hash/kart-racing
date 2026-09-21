@@ -433,16 +433,14 @@ public class TrackBuilder : MonoBehaviour
             Ribbon(parent, $"StripeInner_{i:000}", bandInner, bandInner, i, to, top, low, color, flip: true, collider: false);
         }
     }
-    /// <summary>광고판 임무를 이미 깼나. 그 판의 상품이 들어와 있으면 깬 것이다.</summary>
-    public static bool AdSignsCleared
-    {
-        get
-        {
-            const int adMission = 6;   // MissionManager.Goal.광고판 의 목록 순번
-            return ExhibitCatalogue.Count > adMission
-                && CollectionState.Has(ExhibitCatalogue.All[adMission].id);
-        }
-    }
+    /// <summary>
+    /// 광고판 임무를 이미 깼나. 그 판의 상품이 들어와 있으면 깬 것이다.
+    ///
+    /// ★ 전에는 <c>const int adMission = 6</c> 이 여기 박혀 있었다. 판 순서를 바꾸는 순간
+    /// 조용히 <b>다른 판</b>을 가리켜서, 광고판이 엉뚱한 판에 사라진다.
+    /// 번호는 <see cref="MissionManager"/> 가 순서표에서 직접 찾는다.
+    /// </summary>
+    public static bool AdSignsCleared => MissionManager.AlreadyCleared(MissionManager.Goal.광고판);
 
     void BuildRailPosts(Transform parent, Vector3[] outer, Vector3[] inner, int[] zones, int total)
     {
