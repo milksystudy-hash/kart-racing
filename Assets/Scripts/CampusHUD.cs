@@ -16,6 +16,11 @@ public class CampusHUD : MonoBehaviour
         var k = Keyboard.current;
         if (k == null) return;
 
+        // 배식 중에는 캠퍼스 조작을 안 받는다. 큰 패널이 떠 있으면 그 패널만 듣는다 —
+        // 안 막으면 ESC 한 번에 급식도 끝나고 조작법 카드도 같이 열린다
+        // (레이스 ESC 패널에서 세운 «큰 패널은 한 번에 한 장» 규칙과 같다).
+        if (Canteen.Open) return;
+
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
 
         if (k.eKey.wasPressedThisFrame)
@@ -35,6 +40,9 @@ public class CampusHUD : MonoBehaviour
 
     void OnGUI()
     {
+        // 급식 화면이 떠 있으면 캠퍼스 안내는 한 장도 안 그린다.
+        if (Canteen.Open) return;
+
         Rect screen = Hud.Begin(uiFont);
         float w = screen.width, h = screen.height;
 

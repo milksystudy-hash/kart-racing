@@ -54,7 +54,18 @@ public class MinigameSpot : MonoBehaviour
 
     public enum State { 잠김, 준비중, 열림 }
 
-    public State Now => !Unlocked ? State.잠김 : (ready ? State.열림 : State.준비중);
+    /// <summary>실제로 만들어 둔 게임의 제목. 늘어나면 여기에 한 줄 더.</summary>
+    public const string CanteenTitle = "오늘의 급식";
+
+    /// <summary>
+    /// ★ <b>코드가 판단한다, 씬이 아니라.</b> <see cref="ready"/> 는 씬에 구워진 값이라
+    /// 옛 씬에서는 «준비 중」인 채로 남는다 — 이 프로젝트에서 «새 컴포넌트/새 값으로 고치면
+    /// 씬을 다시 구워야만 고쳐진다」 를 네 번 겪었다. 제목만 보고 스스로 알게 만든다.
+    /// </summary>
+    static bool Made(string title) => title == CanteenTitle;
+
+    public State Now => !Unlocked ? State.잠김
+                      : (ready || Made(title)) ? State.열림 : State.준비중;
 
     /// <summary>
     /// 화면에 띄울 한 줄. <b>세 상태가 전부 다른 말을 해야 한다</b> —
@@ -93,7 +104,7 @@ public class MinigameSpot : MonoBehaviour
         Nearest = this;
     }
 
-    /// <summary>E 를 눌렀을 때. 아직 만든 게임이 없어서 알림만 띄운다.</summary>
+    /// <summary>E 를 눌렀을 때.</summary>
     public void Enter()
     {
         if (Now != State.열림)
@@ -101,6 +112,11 @@ public class MinigameSpot : MonoBehaviour
             Toast.Show(Line);
             return;
         }
+
+        // 씬을 갈아타지 않는다 — 곰밥마당은 이미 지어져 있고, 방을 두 벌 만들면 어긋난다
+        // (이야기 장면을 로비 안에서 돌리는 것과 같은 이유).
+        if (title == CanteenTitle) { Canteen.Begin(); return; }
+
         Toast.Show($"{title} — 곧 들어갑니다");
     }
 }

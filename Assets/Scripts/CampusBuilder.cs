@@ -548,7 +548,9 @@ public class CampusBuilder : MonoBehaviour
                 // 유저: *"어차피 급식 게임할 거면 급식소는 여기밖에 없고 밥은 나눠줘야지,
                 // 공사라도 라고 한 줄 띡 적어 놓으면 될 듯한데."* 맞다 —
                 // 급식소가 통째로 잠겨 있으면 <b>들어갈 이유가 없는 방</b>이 된다.
-                title = "오늘의 급식"; blurb = "배식대 공사 중"; ready = false; break;
+                // 2026-09-21 만들었다. ready 는 씬에 굽히는 값이라 옛 씬에서는 false 로 남는데,
+                // MinigameSpot 이 제목을 보고 스스로 «만들어진 게임» 을 안다 — 여긴 표시용.
+                title = "오늘의 급식"; blurb = "한 판 90초 · 점수만"; ready = true; break;
             case "곰짝박수마당":
                 title = "한마당 무대"; blurb = "박자에 맞춰 손뼉을"; ready = false; break;
             case "철곰관":
