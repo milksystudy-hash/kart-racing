@@ -154,7 +154,7 @@ public class TestHUD : MonoBehaviour
         if (InKart) DrawCountdown(w, h);
         DrawToast(w, h);
         DrawCorner(h);
-        if (InKart) DrawMiniMap(h);
+        if (InKart) DrawMiniMap(w, h);
         if (showControls) DrawControls(w, h);
         // ESC 를 누르면 <b>그 패널만</b> 보여준다. 실패·완주 패널이 뒤에 그대로 있으면
         // 두 장이 겹쳐서 어느 쪽 글씨인지 알 수가 없다(2026-09-18 유저 제보).
@@ -725,18 +725,26 @@ public class TestHUD : MonoBehaviour
     /// 백미러를 그리는 것보다 지도가 싸고 잘 읽힌다 — 코스 모양까지 같이 외워지니까.
     /// 코스 선은 <see cref="MiniMap"/> 이 텍스처로 한 번만 구워 둔다.
     /// </summary>
-    void DrawMiniMap(float h)
+    void DrawMiniMap(float w, float h)
     {
         if (map == null || map.Texture == null || standings == null) return;
 
-        // 지도 자리는 <b>계산해서</b> 잡는다. 고정으로 두면 창이 납작할 때(에디터 게임 뷰가
-        // 대개 그렇다) 위의 수집품 패널과 겹친다 — 유저 제보 2026-09-17.
-        // 위로는 패널 아래, 아래로는 조작법 칩 위. 남는 만큼만 쓰고, 너무 좁으면 안 그린다.
-        float top = CollectionBottom() + 10f;
-        float side = Mathf.Min(132f, h - 62f - top);
+        // ★★ 2026-09-22 유저: *"개발업자랑 정치인이랑 대결하고 끝나서 승리 확인 이후에
+        // 지도가 작게 표시된다. 이럴 거면 처음부터 넣든가."* <b>맞는 지적이고 내 버그다.</b>
+        //
+        // 지도를 <b>왼쪽 열</b>에 두고 «수집품 패널 아래부터 남는 만큼» 으로 잡았는데,
+        // 그 패널이 세로로 길어서 남는 자리가 늘 70px 미만이었다 — 그래서 <b>임무 판 내내
+        // 접혀 있었다.</b> 결승을 이기면 수집품 패널이 사라지니까(«자유 주행에는 안 띄운다»)
+        // 그때야 자리가 생겨 나타난 것이다.
+        //
+        // <b>오른쪽 열은 통째로 비어 있다</b> — 위에 순위판(y 16~104), 아래에 속도계
+        // (y h−124~h−16), 그 사이가 전부 빈칸이다. 거기로 옮기면 수집품 패널과 <b>영영
+        // 안 만난다.</b> 자리를 다투게 두지 말고 <b>다른 열로 보내는 것</b>이 답이었다.
+        float top = (standings.RacerCount > 1 ? 104f : 16f) + 10f;
+        float side = Mathf.Min(132f, h - 134f - top);
         if (side < 70f) return;
 
-        var box = new Rect(16f, top, side, side);
+        var box = new Rect(w - 16f - side, top, side, side);
         Hud.Panel(box);
 
         var inner = Hud.Inner(box);

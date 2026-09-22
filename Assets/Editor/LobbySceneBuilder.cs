@@ -87,11 +87,22 @@ public static class LobbySceneBuilder
         MakeBearStatue(new Vector3(0f, 0f, -11.5f));
         MakeReceptionDesk(new Vector3(11.5f, 0f, 4f));
         MakeBroadcastScreen(new Vector3(-17.4f, 3.6f, -2f));
+        MakeBearSpeaker();
+        MakeLanternStrings();
 
         var stands = MakeStands();
         var gate = MakeGate(new Vector3(0f, 0f, 10.5f));
+
+        // 유저가 만든 소품 다섯. <b>곰보다 먼저</b> 놓아야 곰이 알아서 비켜선다.
+        MakeLobbyProps();
+
+        // ★ 붙박이 발자국은 <b>걷어냈다</b>(2026-09-22 유저: *"너무 더러워 보인다"*).
+        // 안 사라지는 발자국은 «누가 지나갔다» 가 아니라 <b>바닥 얼룩</b>으로 읽힌다 —
+        // 이제 <see cref="PawPrints"/> 가 <b>곰이 걸을 때</b> 남기고 2초 만에 지운다.
         // 곰은 제일 마지막에. 앞에서 세우면 받침대·출발문이 아직 없어서 그 자리를 비었다고 본다.
         MakeBears();
+        AddPawPrints();
+        AddSpeakerBounce(gate);
 
         var orbit = MakeOrbitCamera();
         var cam = orbit.GetComponent<Camera>();
@@ -283,14 +294,27 @@ public static class LobbySceneBuilder
         // 남쪽 — 밖으로. 문의 +Z 가 바깥쪽이라 홀 안을 보게 180도 돌린다.
         var south = new Vector3(0f, 0f, HallDepth * 0.5f - 0.25f);
         doorSpots.Add(south);
+        // ★ 2026-09-22 유저: *"«오늘의 실사» 간판 없애고, «경기장» 글자가 나무 목재판에
+        // 가려져서 안 보이니까 조정해."*
+        //
+        // 가린 것은 <b>출발문(StartGate)</b>이다 — 문은 z 14.75, 출발문은 z 10.5 라
+        // 카메라에서 보면 출발문이 <b>앞에</b> 선다.
+        //
+        // ★★ 2차(같은 날): 현판을 6.15 로 올려도 여전히 가렸다. <b>재 보니 자리가 아예 없다</b> —
+        // 낮으면 출발문 지붕·보, 높으면 한옥 들보, 어느 각도에서도 기둥(Col_S2)이 걸린다.
+        // 그래서 <b>현판을 출발문으로 옮겼다</b>(<see cref="MakeGate"/>). 여기서는 뺀다 —
+        // 문패가 둘이면 어느 쪽이 지도인지 모른다.
+        //
+        // > <b>«더 올린다» 로 두 번 실패하면 자리를 옮겨라.</b> 가리는 물건이 하나가 아니면
+        // > 피할 높이가 없다 — 이 홀에는 셋이 겹쳐 있었다.
         HanokDoor.Build(root, south, Quaternion.Euler(0f, 180f, 0f), 4.2f, 4.6f, mat,
-                        plaque: true, buildingName: "경기장", department: "오늘의 실사");
+                        plaque: false);
 
         // 동쪽 — 전시실로. 접수대(x 11.5, z 4)를 피해 z -6 에.
         var east = new Vector3(HallWidth * 0.5f - 0.25f, 0f, -6f);
         doorSpots.Add(east);
         HanokDoor.Build(root, east, Quaternion.Euler(0f, 270f, 0f), 3.6f, 4.4f, mat,
-                        plaque: true, buildingName: "전시실", department: "모은 것");
+                        plaque: true, buildingName: "전시실", department: "");
 
         // 서쪽 — 캠퍼스로. 2026-09-17 에 진짜로 열렸다(F4 캠퍼스 씬).
         var west = new Vector3(-HallWidth * 0.5f + 0.25f, 0f, 8f);
@@ -714,11 +738,268 @@ public static class LobbySceneBuilder
         clock.transform.localPosition = new Vector3(-1.75f, 1.20f, 0.06f);   // 상판 위 왼쪽
         clock.AddComponent<DeskClock>();
 
+        // ★ 유저가 만든 안내데스크 소품(2026-09-22). 다섯을 <b>미리 배치한 세트</b> 하나로 넣는다 —
+        // 개별 FBX 다섯과 면 수가 같은데(612쿼드) 간격이 이미 맞춰져 있어서 내가 자리를 안 잡아도 된다.
+        //
+        // <b>접수대의 자식</b>으로 넣는다. 접수대가 yaw −28° 로 돌아가 있어서 월드 좌표로 적으면
+        // 옮길 때마다 다시 계산해야 하고, 자식이면 상판 기준으로 «오른쪽 앞» 이라고 쓸 수 있다.
+        // 상판 윗면이 <c>1.14 + 0.12/2 = 1.20</c> — 시계와 같은 높이다.
+        var set = CampusBuilder.MyModel(root, "Assets/My blender/Museum_Reception_Set.fbx",
+                                        "ReceptionProps", new Vector3(0.82f, 1.20f, 0.06f), 3.300f);
+        if (set != null)
+        {
+            // ★★ <b>입장권 트레이는 뺀다.</b> 유저: *"입장권도 만들긴 했는데 우리는 입장권이
+            // 코인 아니였나?"* — 확인해 보니 <b>이 게임에는 입장권도 코인도 없다.</b>
+            // 기획서의 «코인 수집» 은 2026-09-16 에 «한 판 = 임무 하나 = 수집품 하나» 로 바뀌었고,
+            // 지금 모으는 여덟 개는 <b>철거를 막을 증거</b>지 입장에 쓰는 표가 아니다.
+            //
+            // 접수대에 입장권이 놓여 있으면 «저걸 받아야 하나» 로 읽혀서 <b>없는 시스템을
+            // 있는 것처럼</b> 보이게 한다 — 「준비 중」 미니게임을 셋으로 묶은 것과 같은 판단이야.
+            // 유저가 지적한 «곰 박물관» 인쇄 글씨도 이걸 빼면 같이 사라진다.
+            var tray = set.Find("Museum_Ticket_Tray");
+            if (tray != null) Object.DestroyImmediate(tray.gameObject);
+        }
+
         // 데스크 뒤 안내판
         TestSceneBuilder.Cube(root, "SignBoard", new Vector3(0f, 2.5f, -1.1f),
                               new Vector3(4.2f, 1.5f, 0.18f), ColWallMint, keepCollider: false);
         TestSceneBuilder.Cube(root, "SignFrame", new Vector3(0f, 2.5f, -1.2f),
                               new Vector3(4.5f, 1.75f, 0.12f), ColWoodDark, keepCollider: false);
+    }
+
+    /// <summary>
+    /// <b>와플곰 스피커</b> — 유저가 블렌더로 만들어 온 모델(2026-09-22).
+    /// <c>Assets/My blender/Bear_speaker.fbx</c>(956 tris · 404 쿼드 · 텍스처 0).
+    /// 색은 유저가 준 기획 이미지의 <b>④ 민트 초크</b> — 세이지 민트 몸통 · 크림 와플 그릴 ·
+    /// 밀크 초코 곰. <b>그릴은 스피커 망이 아니라 와플</b>이라 크림색이어야 한다.
+    ///
+    /// ★★ <b>경기장 문 양옆</b>(3차, 2026-09-22). 유저: *"경기장 양옆에 크게 씌워 놓으면
+    /// 안 될까. FNF 식으로 하니까 잘 안 보이고. 각도도 플레이어가 보는 각도로 뒤집혀 있어야 돼."*
+    ///
+    /// 2차에서는 <b>서쪽 벽 방송 화면 양옆</b>에 뒀는데, 로비 궤도 카메라는 홀 가운데를
+    /// 돌기 때문에 <b>옆벽은 거의 안 보인다.</b> 플레이어가 늘 보는 것은 <b>출발문</b>이다 —
+    /// 거기 양옆에 세워야 «무대 장치» 가 된다.
+    ///
+    /// ★★★ <b>이 FBX 의 기준 앞면은 −Z 다.</b> 배치모드로 곰 얼굴이 향하는 방향을 재서 알았다
+    /// (yaw 78° 일 때 얼굴이 (−0.99, −0.17) = 벽 쪽). 2차에서 «+Z 일 것» 이라 믿고 yaw 90 을
+    /// 줬다가 <b>정확히 뒤통수를 보여 줬다.</b>
+    ///
+    /// > **앞면이 어디인지는 짐작하지 말고 재라.** 블렌더에서 180° 돌려 내보내도
+    /// > FBX 축 변환이 한 번 더 걸려서 결과가 뒤집힌다 — <b>씬에서 나온 값</b>만 믿을 것.
+    /// > 재는 법: 앞면에만 있는 조각(곰 얼굴)의 중심 − 몸통 중심.
+    /// </summary>
+    static void MakeBearSpeaker()
+    {
+        const string Fbx = "Assets/My blender/Bear_speaker.fbx";
+
+        // 원본 비율 2.659(폭) × 4.461(키). MyModel 은 max(폭, 깊이) = 2.659 를 기준으로 줄이니
+        // <b>원하는 키에서 targetWidth 를 거꾸로 구한다</b> — 손으로 적으면 모델을 새로 뽑을 때
+        // 또 틀린다(밥그릇에서 배운 것).
+        float Width(float height) => 2.659f / 4.461f * height;
+
+        // 출발문은 (0, 0, 10.5) 에 기둥이 x ±3.0(폭 0.62) · 키 4.2m.
+        // 기둥 바깥 끝이 ±3.31 이라 큰 통(반폭 0.83)을 ±4.4 에 두면 10cm 뜬다.
+        const float gateZ = 10.1f;
+        const float bigH = 2.8f, topH = 1.7f;
+
+        for (int s = -1; s <= 1; s += 2)
+        {
+            // 문 전체(보까지) 가 x ±4.30 이라 큰 통(반폭 0.95)을 4.4 에 두면 <b>보에 물린다</b>
+            // — 측정으로 잡았다. 5.5 면 바깥 끝이 4.55 라 25cm 뜬다.
+            float x = s * 5.5f;
+
+            // 앞면이 −Z 라 <b>yaw 0 이면 홀 안쪽</b>(플레이어 쪽)을 본다.
+            // 거기에 ±14° 만 틀어 홀 가운데를 겨눈다 — 벽과 평행하면 «벽지» 고,
+            // 살짝 틀면 «무대» 다.
+            float yaw = s * 14f;
+
+            Stack($"BearSpeaker_{(s < 0 ? "L" : "R")}_Big", new Vector3(x, 0f, gateZ), Width(bigH), yaw);
+            // 위 칸은 <b>2cm 묻어서</b> 얹는다. 딱 맞추면 두 면이 같은 평면이라 지지직거린다.
+            Stack($"BearSpeaker_{(s < 0 ? "L" : "R")}_Top", new Vector3(x, bigH - 0.02f, gateZ),
+                  Width(topH), yaw);
+        }
+
+        void Stack(string name, Vector3 at, float targetWidth, float yaw)
+        {
+            var spk = CampusBuilder.MyModel(null, Fbx, name, at, targetWidth);
+            if (spk == null) return;
+
+            // ★ <b>덮어쓰지 않고 곱한다</b> — 임포트 축 회전을 지우면 모델이 눕는다(2026-09-21 곰).
+            spk.localRotation = Quaternion.Euler(0f, yaw, 0f) * spk.localRotation;
+        }
+    }
+
+    /// <summary>
+    /// <b>유저가 만든 로비 소품 다섯</b>(2026-09-22): 기념품 매대 · 화분 · 벤치 · 신발장 · 우산꽂이.
+    ///
+    /// 받은 그대로 쓴다. 잰 값이 이미 실물 크기고 <b>바닥 y = 0</b> 이라 손댈 게 없었다 —
+    /// 밥그릇(4.63m)·솥뚜껑(32,320쿼드) 때와 달리 고칠 것이 하나도 없는 첫 모델들이야.
+    /// 합쳐서 <b>6,898 tris</b> 라 §7.6 예산(150~250k)에 티도 안 난다.
+    ///
+    /// <b>크기를 안 키운다.</b> 로비가 36 × 30m 라 실물 크기 가구가 작아 보일 수 있지만,
+    /// <b>작아 보이는 게 맞다</b> — 벤치·신발장처럼 사람이 쓰는 물건은 크기가 고정돼 있어서
+    /// 보는 사람이 <b>방 크기를 가늠하는 자</b>가 된다(전시실에서 배운 것). 키우면 그 자가 망가진다.
+    ///
+    /// 자리는 <b>동선</b>으로 잡았다. 로비는 한국 박물관 중앙홀이고, 문 셋이 각각 다른 데로 간다:
+    /// <list type="bullet">
+    /// <item><b>서문(캠퍼스)</b> = 밖으로 나가는 현관 → <b>신발장 · 우산꽂이</b>를 그 옆에</item>
+    /// <item><b>동문(전시실)</b> 쪽 = 접수대가 있는 카운터 구역 → <b>기념품 매대</b></item>
+    /// <item>홀 좌우 벽 = 받침대를 마주 보는 자리 → <b>벤치 둘</b></item>
+    /// <item>문 옆 빈 벽 → <b>화분 셋</b></item>
+    /// </list>
+    /// 물건을 흩뿌리지 않고 <b>하는 일끼리 묶는다</b> — 급식소의 «식판 → 배식대 → 자리 → 반납대»
+    /// 와 같은 생각이야. 묶여 있으면 설명이 필요 없다.
+    /// </summary>
+    static void MakeLobbyProps()
+    {
+        const string Dir = "Assets/My blender/";
+        var root = new GameObject("LobbyProps").transform;
+
+        // ★ 이 FBX 들의 기준 앞면은 <b>−Z</b> 다(곰 스피커와 같은 블렌더 익스포트).
+        // 그래서 <c>yaw 0</c> 이면 홀 남쪽을 본다. 벽에 등을 붙이려면 벽 반대쪽으로 돌린다.
+        // <b>짐작하지 말고 재라</b>던 그 규칙대로, 배치 뒤 검사에서 앞면을 다시 확인한다.
+        void Put(string file, string name, Vector3 at, float width, float yaw)
+        {
+            var t = CampusBuilder.MyModel(root, Dir + file, name, at, width);
+            if (t == null) return;
+            // 덮어쓰지 않고 곱한다 — 임포트 축 회전을 지우면 모델이 눕는다(2026-09-21 곰).
+            t.localRotation = Quaternion.Euler(0f, yaw, 0f) * t.localRotation;
+        }
+
+        // ── 서문(캠퍼스) 옆: 현관 ──  문이 z 6.2~9.8 를 쓰니 그 위로 비켜 세운다.
+        Put("Museum_Shoe_Cabinet.fbx", "ShoeCabinet", new Vector3(-16.9f, 0f, 11.4f), 1.670f, 90f);
+        Put("Museum_Umbrella_Stand.fbx", "UmbrellaStand", new Vector3(-16.9f, 0f, 12.9f), 0.486f, 270f);
+
+        // ── 동벽: 접수대(11.5, 4) 와 한 줄로 서는 카운터 구역 ──
+        // 2026-09-22 유저: *"기념품 크기가 너무 작아."* 맞다 — 이건 «사람이 쓰는 물건» 이 아니라
+        // <b>간판에 가까운 시설물</b>이라 방 크기에 맞춰 커야 눈에 든다(현판에서 배운 것).
+        // 폭 2.22 → <b>3.4m</b>(높이 3.77m). 천장이 7m 라 아직 여유가 있고, 벽에서 0.55m 뜬다.
+        Put("Museum_Paw_Stand.fbx", "SouvenirStand", new Vector3(16.0f, 0f, 8.6f), 3.400f, 270f);
+
+        // ── 좌우 벽: 받침대 원호(z −4 ~ −8.5)를 마주 보고 쉬는 자리 ──
+        // 석등이 (±13, ±7~8) 이라 그 사이 빈 구간에 놓는다.
+        Put("Museum_Bench.fbx", "Bench_W", new Vector3(-15.6f, 0f, 1.6f), 1.800f, 90f);
+        Put("Museum_Bench.fbx", "Bench_E", new Vector3(15.6f, 0f, -1.8f), 1.800f, 270f);
+
+        // ── 화분 셋: 문 옆 빈 벽 ──  남문 양옆은 스피커(x ±5.5)를 피해 바깥으로.
+        // 2026-09-22 유저: *"화분에 곰 무늬가 안 보여, 각도가 돌아가 있어서."*
+        // 화분은 <b>한 면에만 곰 얼굴</b>이 있는데 그 면이 벽을 보고 있었다 —
+        // 카메라는 홀 안쪽(−Z 편)에 있으니 <b>무늬 면이 −Z 를 봐야</b> 한다.
+        Put("Museum_Planter.fbx", "Planter_S1", new Vector3(-9.2f, 0f, 13.4f), 1.100f, 180f);
+        Put("Museum_Planter.fbx", "Planter_S2", new Vector3(9.2f, 0f, 13.4f), 1.100f, 180f);
+        Put("Museum_Planter.fbx", "Planter_E", new Vector3(16.2f, 0f, -3.4f), 1.100f, 270f);
+    }
+
+    /// <summary>
+    /// 로비 곰 셋에게 <b>걸으면 남는 발자국</b>을 달아 준다.
+    /// <see cref="MakeBears"/> 뒤에 부른다 — 곰이 아직 없으면 붙일 데가 없다.
+    /// </summary>
+    static void AddPawPrints()
+    {
+        foreach (var bear in Object.FindObjectsByType<BearNpc>(FindObjectsInactive.Include,
+                                                               FindObjectsSortMode.None))
+        {
+            if (bear.GetComponent<PawPrints>() != null) continue;
+            var paws = bear.gameObject.AddComponent<PawPrints>();
+            paws.tint = ColPaw;
+            paws.pool = 4;      // 두세 발자국만 보이게 — 길게 남으면 다시 «얼룩» 이 된다
+            paws.life = 1.9f;
+        }
+    }
+
+    /// <summary>
+    /// 스피커 귀에 <b>출발 신호 때 한 번 튕기는</b> 동작을 달아 준다. 귀는 FBX 안에서
+    /// <b>따로 떨어진 오브젝트</b>(`EarL` · `EarR`)라 본도 클립도 필요 없다.
+    ///
+    /// 2026-09-22 고침: 전에는 <b>늘</b> 박자에 맞춰 흔들렸고 귀 둘이 반 박자씩 어긋나서
+    /// 두더지 게임처럼 보였다. 이제 <see cref="StartGate.CountingDown"/> 이 켜지는
+    /// 순간에만, <b>두 귀가 똑같이</b> 한 번 튕긴다.
+    /// </summary>
+    static void AddSpeakerBounce(StartGate gate)
+    {
+        foreach (var tr in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include,
+                                                               FindObjectsSortMode.None))
+        {
+            if (!tr.name.StartsWith("BearSpeaker") || tr.parent != null) continue;
+
+            var ears = new System.Collections.Generic.List<Transform>();
+            foreach (var kid in tr.GetComponentsInChildren<Transform>(true))
+                if (kid.name.StartsWith("EarL") || kid.name.StartsWith("EarR")) ears.Add(kid);
+            if (ears.Count == 0) continue;
+
+            // ★ 움직일 물건이라 정적 배칭에 들어가면 안 된다 — 트랜스폼은 움직이는데
+            // 그려지는 자리가 안 바뀐다(2026-09-18 캠퍼스 문에서 여섯 번 헤맨 그것).
+            foreach (var e in ears) e.gameObject.isStatic = false;
+
+            var b = tr.gameObject.AddComponent<SpeakerBounce>();
+            b.ears = ears.ToArray();
+            b.gate = gate;
+        }
+    }
+
+    /// <summary>
+    /// <b>천장에서 내려오는 청사초롱 줄.</b> 캠퍼스 축제(<see cref="CampusFestival"/>)가
+    /// 쓰는 것과 <b>같은 문법</b>이라 한 번 배우면 두 곳에 다 통한다.
+    ///
+    /// 로비가 허전했던 이유는 <b>눈높이 위가 통째로 비어 있어서</b>다 — 벽과 천장 사이
+    /// 3~6m 구간에 아무것도 없으면 방이 «천장 높은 빈 방» 으로 읽힌다.
+    /// 등을 <b>줄로</b> 매달면 그 빈 칸이 채워지고, 색도 들어온다.
+    /// </summary>
+    static void MakeLanternStrings()
+    {
+        var root = new GameObject("LanternStrings").transform;
+        // 두 줄을 홀을 가로질러 건다. 한 줄이면 «빨랫줄» 이고, 둘이면 «매달아 꾸몄다» 가 된다.
+        for (int line = 0; line < 2; line++)
+        {
+            float z = line == 0 ? -4.5f : 6.5f;
+            const float top = 5.9f, sag = 0.8f;
+            const int span = 9;
+
+            for (int i = 0; i <= span; i++)
+            {
+                float t = i / (float)span;
+                float x = Mathf.Lerp(-HallWidth * 0.5f + 1.2f, HallWidth * 0.5f - 1.2f, t);
+                // 줄은 가운데가 처진다 — 곧은 막대는 줄로 안 보인다(전시실 벨벳 로프와 같은 규칙).
+                float y = top - Mathf.Sin(t * Mathf.PI) * sag;
+
+                if (i < span)
+                {
+                    float t2 = (i + 1) / (float)span;
+                    float x2 = Mathf.Lerp(-HallWidth * 0.5f + 1.2f, HallWidth * 0.5f - 1.2f, t2);
+                    float y2 = top - Mathf.Sin(t2 * Mathf.PI) * sag;
+                    var a = new Vector3(x, y, z);
+                    var b = new Vector3(x2, y2, z);
+                    var seg = TestSceneBuilder.Cube(root, $"Rope_{line}_{i}", (a + b) * 0.5f,
+                                                    new Vector3((b - a).magnitude, 0.045f, 0.045f),
+                                                    ColWoodDark, keepCollider: false);
+                    seg.transform.rotation = Quaternion.LookRotation(Vector3.forward,
+                                                                    Vector3.Cross(Vector3.forward, (b - a).normalized));
+                    seg.transform.rotation = Quaternion.FromToRotation(Vector3.right, (b - a).normalized);
+                }
+
+                // 등은 한 칸 걸러 — 다 달면 줄이 안 보이고 «등 벽» 이 된다.
+                if (i % 2 != 0 || i == 0 || i == span) continue;
+
+                var lamp = new GameObject($"Lantern_{line}_{i}").transform;
+                lamp.SetParent(root, false);
+                lamp.position = new Vector3(x, y - 0.55f, z);
+
+                TestSceneBuilder.Cube(lamp, "Cord", new Vector3(0f, 0.34f, 0f),
+                                      new Vector3(0.03f, 0.4f, 0.03f), ColWoodDark, keepCollider: false);
+                TestSceneBuilder.Cube(lamp, "CapTop", new Vector3(0f, 0.17f, 0f),
+                                      new Vector3(0.30f, 0.06f, 0.30f), ColRoofTeal, keepCollider: false);
+                // 등알은 <b>발광</b>으로. (#F5C069)이 석등 색이라 표에서 발광으로 잡힌다 —
+                // 여기서는 그게 맞는 쓰임이다(화장실 바가지에 쓴 게 틀렸던 것).
+                var body = Disc(lamp, "Body", Vector3.zero, new Vector3(0.36f, 0.16f, 0.36f),
+                                ColLanternLit, false);
+                body.GetComponent<Renderer>().sharedMaterial =
+                    TestSceneBuilder.MaterialAsset(ColLanternLit, Finish.발광);
+                TestSceneBuilder.Cube(lamp, "CapBot", new Vector3(0f, -0.17f, 0f),
+                                      new Vector3(0.30f, 0.06f, 0.30f), ColRoofTeal, keepCollider: false);
+                TestSceneBuilder.Cube(lamp, "Tassel", new Vector3(0f, -0.30f, 0f),
+                                      new Vector3(0.06f, 0.22f, 0.06f), ColRibbon, keepCollider: false);
+            }
+        }
     }
 
     static void MakeBroadcastScreen(Vector3 position)
@@ -777,7 +1058,10 @@ public static class LobbySceneBuilder
 
         // 여기 3f 는 <b>처음 세울 자리를 고를 때 필요한 여유</b>지 순찰 반경이 아니다.
         // 순찰은 아래에서 11m 로 따로 준다 — 출발점만 널널하면 된다.
-        var spots = FindOpenSpots(3, patrolRadius: 3f);
+        // ★ 2026-09-22 — 스피커 넷이 출발문 앞자리를 먹으면서 <b>세 번째 곰이 설 데가 없어졌다</b>
+        // (측정: 3마리 → 2마리). 홀에 물건을 더할 때마다 이 숫자를 다시 봐야 한다 —
+        // 여유를 3.0 → 2.6 으로 줄이면 셋이 다시 들어간다. 순찰 반경(11m)과는 다른 값이야.
+        var spots = FindOpenSpots(3, patrolRadius: 2.6f);
         if (spots.Count == 0)
         {
             Debug.LogWarning("[로비] 곰을 세울 빈자리를 못 찾았어. 홀이 꽉 찼나?");
@@ -1058,20 +1342,39 @@ public static class LobbySceneBuilder
                                   new Vector3(1.0f, 0.4f, 1.0f), ColStone, keepCollider: false);
         }
 
+        // ★ 2026-09-22 유저: *"이거 경기장 문이야? 글씨도 가려져 있고 나무 막대도 더 커졌어.
+        // 나무 막대를 아예 지워버리든가 조정을 하든가 해야지 아예 막아버리면 어떡해."*
+        //
+        // <b>보를 얇게 하고 용마루를 뺐다.</b> 벽 현판을 가리던 것이 이 셋이었고, 셋 다
+        // 문간을 답답하게 만들고 있었다.
         TestSceneBuilder.Cube(go.transform, "Lintel", new Vector3(0f, 4.4f, 0f),
-                              new Vector3(7.4f, 0.55f, 0.8f), ColWoodDark, keepCollider: false);
+                              new Vector3(7.4f, 0.38f, 0.55f), ColWoodDark, keepCollider: false);
 
-        // 청록 기와 지붕
-        var roof = TestSceneBuilder.Cube(go.transform, "Roof", new Vector3(0f, 4.95f, 0f),
-                                         new Vector3(8.6f, 0.5f, 2.2f), ColRoofTeal,
-                                         keepCollider: false);
-        TestSceneBuilder.Cube(go.transform, "RoofRidge", new Vector3(0f, 5.28f, 0f),
-                              new Vector3(7.2f, 0.28f, 1.5f), ColRoofTeal, keepCollider: false);
+        // 청록 기와 지붕 — 한 겹만. 두 겹으로 얹으니 뒤의 «경기장» 현판이 통째로 가렸다.
+        TestSceneBuilder.Cube(go.transform, "Roof", new Vector3(0f, 4.82f, 0f),
+                              new Vector3(8.0f, 0.34f, 1.7f), ColRoofTeal, keepCollider: false);
 
-        // 현판
-        var plaque = TestSceneBuilder.Cube(go.transform, "Plaque", new Vector3(0f, 3.75f, 0.42f),
-                                           new Vector3(3.0f, 0.8f, 0.14f), ColWallMint,
+        // ★★ <b>현판은 출발문에 단다.</b> 전에는 4m 뒤 벽 문에 달려 있었는데, 측정해 보니
+        // <b>모든 카메라 자리에서 가려졌다</b>(출발문 지붕 · 기둥 · 들보). 현판을 더 올리면
+        // 이번엔 한옥 지붕 들보에 걸린다 — 자리가 아예 없다.
+        //
+        // 누르는 물건에 이름을 붙이는 게 맞다: <b>클릭하는 것이 곧 «경기장»</b> 이고,
+        // 그 앞에는 아무것도 없다. 벽 문에서는 현판을 뺐다(`plaque: false`) — 문패가 둘이면
+        // 어느 쪽이 지도인지 모른다.
+        //
+        // ★ 방향: 로비 카메라는 <b>−Z 쪽</b>에 있다. 다른 현판들의 forward 가 전부
+        // (0,0,−1) 인 것이 그 증거다. 게이트는 회전이 없어 제 +Z 가 <b>뒤쪽</b>이라,
+        // 판을 180° 돌린 통에 담아야 글자가 앞을 본다.
+        var mount = new GameObject("PlaqueMount").transform;
+        mount.SetParent(go.transform, false);
+        mount.localRotation = Quaternion.Euler(0f, 180f, 0f);
+
+        var plaque = TestSceneBuilder.Cube(mount, "Plaque", new Vector3(0f, 3.75f, 0.42f),
+                                           new Vector3(3.6f, 0.95f, 0.14f), ColWallMint,
                                            keepCollider: false);
+
+        var sign = plaque.AddComponent<BuildingSign>();
+        sign.buildingName = "경기장";
 
         // 클릭 판정 — 문간 전체
         var pick = go.AddComponent<BoxCollider>();

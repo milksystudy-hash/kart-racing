@@ -38,7 +38,8 @@ public class CampusBoarding : MonoBehaviour
         // 안 그러면 다시 켤 때마다 다른 건물이 열려서 "내가 저길 열었다" 가 안 남는다.
         var doors = new List<HingedDoor>();
         foreach (var door in FindObjectsByType<HingedDoor>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-            if (!string.IsNullOrEmpty(door.label) && door.label != neverClosed) doors.Add(door);
+            if (door.boardable && !string.IsNullOrEmpty(door.label) && door.label != neverClosed)
+                doors.Add(door);
 
         doors.Sort((a, b) => string.CompareOrdinal(a.label, b.label));
 

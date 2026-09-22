@@ -25,18 +25,52 @@ public class CampusHUD : MonoBehaviour
 
         if (k.eKey.wasPressedThisFrame)
         {
-            // 문이 먼저다. 문 앞에 곰이 서 있을 때 말을 걸다가 못 들어가면 답답하다.
-            // 순서: 씬 문 → 미니게임 자리 → 건물 문 → 곰.
-            // 미니게임 자리는 <b>건물 안</b>에 있어서 문보다 먼저 잡혀야 안 헷갈린다 —
-            // 이미 열고 들어온 문을 또 여는 것보다 안에 있는 걸 집는 게 맞다.
-            if (SceneDoor.Nearest != null) SceneDoor.Nearest.Enter();
-            else if (MinigameSpot.Nearest != null) MinigameSpot.Nearest.Enter();
-            // 수도꼭지가 문보다 앞이다 — 세면대 앞에 서면 출입문 모서리가 3.4m 안에 들어와서
-            // 문이 이기고, 그러면 물을 영영 못 튼다.
-            else if (Faucet.Nearest != null) Faucet.Nearest.Toggle();
-            else if (HingedDoor.Nearest != null) HingedDoor.Nearest.Toggle();
-            else if (BearNpc.Nearest != null) BearNpc.Nearest.Talk();
+            switch (Pick())
+            {
+                case Target.씬문:     SceneDoor.Nearest.Enter();    break;
+                case Target.미니게임: MinigameSpot.Nearest.Enter(); break;
+                case Target.수도:     Faucet.Nearest.Toggle();      break;
+                case Target.건물문:   HingedDoor.Nearest.Toggle();  break;
+                case Target.곰:       BearNpc.Nearest.Talk();       break;
+            }
         }
+    }
+
+    enum Target { 없음, 씬문, 미니게임, 수도, 건물문, 곰 }
+
+    /// <summary>
+    /// ★ <b>«무엇을 집을지» 는 종류 순서가 아니라 점수로 고른다</b>(2026-09-22).
+    ///
+    /// 전에는 «씬 문 → 미니게임 → 수도꼭지 → 건물 문 → 곰» 순서를 코드에 박아 놨다.
+    /// 그래서 유저가 이렇게 말했다: *"화장실 칸막이 문 열 때에도 계속 세면대에 물 끄기만
+    /// 보인다. 문 열고 싶은데 자꾸 물 끄기 버튼밖에 없고."* — 맞는 말이다.
+    /// 8 × 7m 짜리 방에서는 넷이 전부 사정권이라 <b>순서가 곧 답</b>이 돼 버린다.
+    ///
+    /// <see cref="Reach"/> 가 <b>거리 × 각도 벌점</b>으로 채점하니 종류가 달라도 비교된다.
+    /// 세면대를 보고 서면 수도꼭지가, 칸 문을 보고 서면 그 문이 이긴다.
+    ///
+    /// 곰만 <b>맨 뒤</b>다 — 로비의 궤도 카메라를 위해 «화면 가운데에 가까운 각도» 라는
+    /// 다른 잣대를 쓰고 있어서 점수를 같이 줄 세울 수가 없다.
+    /// </summary>
+    static Target Pick()
+    {
+        Target best = Target.없음;
+        float bestScore = float.MaxValue;
+
+        void Try(Target t, bool has, float score)
+        {
+            if (!has || score >= bestScore) return;
+            bestScore = score;
+            best = t;
+        }
+
+        Try(Target.씬문,     SceneDoor.Nearest != null,    SceneDoor.NearestScore);
+        Try(Target.미니게임, MinigameSpot.Nearest != null, MinigameSpot.NearestScore);
+        Try(Target.수도,     Faucet.Nearest != null,       Faucet.NearestScore);
+        Try(Target.건물문,   HingedDoor.Nearest != null,   HingedDoor.NearestScore);
+
+        if (best == Target.없음 && BearNpc.Nearest != null) best = Target.곰;
+        return best;
     }
 
     bool showControls;
@@ -62,31 +96,38 @@ public class CampusHUD : MonoBehaviour
     {
         string key = "E", what = null;
 
-        // ★ <b>순서가 `Update` 와 글자 하나까지 같아야 한다</b>(2026-09-21).
-        // 안내에 뜨는 것과 E 가 집는 것이 다르면 «눌러도 안 되는 안내» 가 된다 —
-        // 화장실 칸 문에서 이미 한 번 그렇게 헤맸다.
-        if (SceneDoor.Nearest != null)
-            what = string.IsNullOrEmpty(SceneDoor.Nearest.label)
-                 ? "들어가기" : $"{SceneDoor.Nearest.label} 들어가기";
-        else if (MinigameSpot.Nearest != null)
+        // ★ <b>안내와 E 는 같은 함수가 고른다</b>(2026-09-21 → 22).
+        // 뜨는 것과 집히는 것이 다르면 «눌러도 안 되는 안내» 가 된다 —
+        // 화장실 칸 문에서 이미 한 번 그렇게 헤맸다. 이제 `Pick()` 하나뿐이라 어긋날 수가 없다.
+        switch (Pick())
         {
-            what = MinigameSpot.Nearest.Line;
-            // 눌러도 아무 일이 안 되는데 키를 보여주면 <b>고장으로 읽힌다.</b>
-            if (!MinigameSpot.Nearest.Actionable) key = "";
-        }
-        else if (Faucet.Nearest != null)
-            what = Faucet.Nearest.Action;
-        else if (HingedDoor.Nearest != null)
-        {
-            // 상태에 맞는 말이 떠야 한다 — 열린 문에 "문 열기" 가 뜨면 닫는 법을 모른다.
-            what = string.IsNullOrEmpty(HingedDoor.Nearest.label)
-                 ? HingedDoor.Nearest.Action
-                 : $"{HingedDoor.Nearest.label} {HingedDoor.Nearest.Action}";
+            case Target.씬문:
+                what = string.IsNullOrEmpty(SceneDoor.Nearest.label)
+                     ? "들어가기" : $"{SceneDoor.Nearest.label} 들어가기";
+                break;
 
-            if (!HingedDoor.Nearest.Actionable) key = "";
+            case Target.미니게임:
+                what = MinigameSpot.Nearest.Line;
+                // 눌러도 아무 일이 안 되는데 키를 보여주면 <b>고장으로 읽힌다.</b>
+                if (!MinigameSpot.Nearest.Actionable) key = "";
+                break;
+
+            case Target.수도:
+                what = Faucet.Nearest.Action;
+                break;
+
+            case Target.건물문:
+                // 상태에 맞는 말이 떠야 한다 — 열린 문에 "문 열기" 가 뜨면 닫는 법을 모른다.
+                what = string.IsNullOrEmpty(HingedDoor.Nearest.label)
+                     ? HingedDoor.Nearest.Action
+                     : $"{HingedDoor.Nearest.label} {HingedDoor.Nearest.Action}";
+                if (!HingedDoor.Nearest.Actionable) key = "";
+                break;
+
+            case Target.곰:
+                what = "말 걸기";
+                break;
         }
-        else if (BearNpc.Nearest != null)
-            what = "말 걸기";
 
         if (what == null) return;
 

@@ -418,6 +418,14 @@ public class CampusBuilder : MonoBehaviour
         // 문짝 둘을 젖힐 수 있게. 문틀이 실제로 뚫려 있으니 열고 걸어 들어가면 된다.
         var hinge = door.AddComponent<HingedDoor>();
         hinge.label = name;
+
+        // ★★ <b>미니게임이 있는 동에는 폐쇄 판자를 안 박는다</b>(2026-09-22).
+        // 유저: *"전시실 아이템 다 모으는 중인데 곰밥마당이 리본과 간판으로 막고 있다."*
+        // 판자는 «수집품 하나에 한 동씩 걷힌다» 는 연출인데(2026-09-18), 하필 <b>유일하게
+        // 돌아가는 미니게임</b>이 그 뒤에 잠겨 버렸다. 급식은 <b>레이스와 레이스 사이</b>에
+        // 쉬어가라고 만든 것이라, 여덟 판을 다 깨야 열리면 <b>있으나 마나</b>가 된다.
+        // 남은 열 동으로도 «하나씩 걷힌다» 는 충분히 읽힌다.
+        if (t.GetComponentInChildren<MinigameSpot>(true) != null) hinge.boardable = false;
         // ★ <b>문짝은 이제 통(`LeafRoot_s`) 안에 들어 있다.</b> 전처럼 `Find("Leaf_-1")` 을
         // 부르면 `Transform.Find` 가 직계 자식만 보기 때문에 <b>null 이 꽂히고</b>,
         // 씬에는 그 null 이 저장된다. 통을 직접 꽂는다.
@@ -462,7 +470,11 @@ public class CampusBuilder : MonoBehaviour
     /// 파일이 없으면 <b>아무 일도 안 한다.</b> 없는 걸 기다리며 방을 비워 두면 안 되고,
     /// 나중에 파일만 놓고 씬을 다시 구우면 저절로 들어온다.
     /// </summary>
-    Transform MyModel(Transform parent, string assetPath, string name, Vector3 at, float targetWidth,
+    /// <summary>
+    /// <b>static 이다</b> — 로비 빌더도 같은 규칙으로 유저 모델을 앉혀야 한다(2026-09-22 곰 스피커).
+    /// 인스턴스 상태를 하나도 안 쓰니 옮길 것도 없었다.
+    /// </summary>
+    public static Transform MyModel(Transform parent, string assetPath, string name, Vector3 at, float targetWidth,
                       float maxHeight = 0f)
     {
 #if UNITY_EDITOR
@@ -493,9 +505,22 @@ public class CampusBuilder : MonoBehaviour
             if (!UnityEditor.AssetDatabase.IsValidFolder(texFolder))
                 UnityEditor.AssetDatabase.CreateFolder(home, "Textures");
 
-            // 이미 꺼내 놨으면 다시 안 한다 — 매번 꺼내면 씬 구울 때마다 리임포트가 돈다.
-            var already = UnityEditor.AssetDatabase.FindAssets("t:Texture2D", new[] { texFolder });
-            if (already.Length == 0 && importer.ExtractTextures(texFolder))
+            // ★★ <b>«폴더가 비었나» 로 판단하면 안 된다</b>(2026-09-22).
+            // 여러 모델이 <b>같은 Textures 폴더를 나눠 쓰면</b>, 첫 모델이 한 장 꺼낸 순간
+            // 폴더가 안 비게 되어 <b>두 번째 모델부터는 영영 안 꺼낸다.</b> 유저 소품 넷이
+            // `_BaseMap` 이 빈 채로 들어왔고, 그건 화면에서 <b>새하얀 가구</b>가 된다
+            // (카트·곰에서 이미 두 번 겪은 그 증상).
+            //
+            // <b>이 모델의 재질에 텍스처가 붙었나</b>를 본다 — 그게 우리가 실제로 원하는 조건이다.
+            bool needsTextures = false;
+            var probe = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            if (probe != null)
+                foreach (var r in probe.GetComponentsInChildren<Renderer>(true))
+                    foreach (var m in r.sharedMaterials)
+                        if (m != null && m.HasProperty("_BaseMap") && m.GetTexture("_BaseMap") == null)
+                            needsTextures = true;
+
+            if (needsTextures && importer.ExtractTextures(texFolder))
             {
                 UnityEditor.AssetDatabase.Refresh();
 
@@ -538,6 +563,21 @@ public class CampusBuilder : MonoBehaviour
         }
 
         var go = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(fbx);
+
+        // ★★ <b>바로 언팩한다</b>(2026-09-22). 프리팹 인스턴스로 두면 이름·위치·스케일이
+        // 전부 «오버라이드» 로만 저장되는데, <b>나중에 다른 모델이 리임포트를 돌리면
+        // 그 오버라이드가 통째로 되돌아간다.</b>
+        //
+        // 실제로 그랬다: 곰 스피커 넷을 놓은 뒤 소품이 텍스처를 꺼내며
+        // <c>AssetDatabase.Refresh()</c> 를 불렀고, 스피커 <b>셋이 이름은 `Bear_speaker`,
+        // 위치는 (0,0,0)</b> 으로 돌아가 홀 한가운데에 겹쳐 섰다. 이름이 바뀌었으니
+        // <see cref="SpeakerBounce"/> 를 붙이는 쪽도 그것들을 못 찾아 <b>귀도 안 튀었다.</b>
+        //
+        // 언팩하면 연결이 끊겨 리임포트가 씬을 못 건드린다. 어차피 씬을 다시 구워서 쓰는
+        // 방식이라 잃을 게 없다 — 카트에서 이미 같은 결정을 했다(2026-09-18).
+        UnityEditor.PrefabUtility.UnpackPrefabInstance(
+            go, UnityEditor.PrefabUnpackMode.Completely, UnityEditor.InteractionMode.AutomatedAction);
+
         go.name = name;
         go.transform.SetParent(parent, false);
 
@@ -559,7 +599,15 @@ public class CampusBuilder : MonoBehaviour
         if (maxHeight > 0.01f && bounds.size.y * scale > maxHeight)
             scale = maxHeight / bounds.size.y;
 
-        go.transform.localScale = Vector3.one * scale;
+        // ★★ <b>대입이 아니라 곱한다</b>(2026-09-22). 블렌더 기본 익스포트는 모델 루트에
+        // <c>Lcl Scaling = 100</c> 을 싣고 오는 경우가 있고, 그걸 <c>= one * scale</c> 로
+        // 덮으면 <b>그 100 이 통째로 사라진다.</b> 위에서 잰 <c>bounds</c> 는 100 이 반영된
+        // 월드 크기라 <c>scale</c> 이 1/100 로 나오는데, 거기서 100 까지 잃으니 결과가
+        // <b>1만 분의 1</b> 이 된다 — 유저 소품 넷이 전부 1cm 로 나왔다.
+        //
+        // <b>회전과 같은 함정이다</b>(2026-09-21 곰: «localRotation 을 덮어쓰지 마라»).
+        // 임포트한 FBX 의 트랜스폼은 <b>덮어쓰지 말고 곱해라</b> — 회전도, 스케일도.
+        go.transform.localScale = Vector3.Scale(go.transform.localScale, Vector3.one * scale);
 
         // <b>원점이 바닥이 아니어도 바닥에 앉힌다.</b> 블렌더에서 원점을 가운데 둔 모델이
         // 많고, 그걸 매번 고쳐 오라고 하는 게 이 프로젝트의 방식이 아니야.
@@ -1030,14 +1078,34 @@ public class CampusBuilder : MonoBehaviour
                     }
                     var knob = Block(hingePivot, $"Stall_{i}_Knob", new Vector3(1.78f, 0f, -0.07f),
                                      Quaternion.identity, new Vector3(0.09f, 0.09f, 0.08f),
-                                     ColLantern, noCollider: true);
+                                     ColMapleGold, noCollider: true);   // ★ ColLantern 은 발광이다
                     knob.isStatic = false;
+
+                    // ★ 왼쪽 칸(푸세식)은 <b>막혀서 수리 중</b>이다 — 정비 곰 대사의 그 칸.
+                    // 오른쪽 칸만 «사용 중» 표시가 있으면 왼쪽은 아무 말도 안 하는 칸이 된다.
+                    if (i == 1)
+                    {
+                        Block(hingePivot, "SignFixing", new Vector3(1.0f, 0.5f, -0.07f),
+                              Quaternion.Euler(0f, 0f, -6f), new Vector3(0.52f, 0.22f, 0.02f),
+                              ColMapleGold, noCollider: true).isStatic = false;   // ★ 발광 아님
+                        Block(hingePivot, "SignFixingBar", new Vector3(1.0f, 0.5f, -0.085f),
+                              Quaternion.Euler(0f, 0f, -6f), new Vector3(0.44f, 0.05f, 0.01f),
+                              ColBearDark, noCollider: true).isStatic = false;
+                    }
 
                     var stall = hingePivot.gameObject.AddComponent<HingedDoor>();
                     stall.leaves = new[] { hingePivot };
-                    // ★ 라벨을 비워 둔다. CampusBoarding 이 «라벨 있는 문» 에 폐쇄 판자를 박는데,
-                    // 화장실 칸에 판자가 박히면 말이 안 된다. 비면 안내가 그냥 «문 열기» 로 뜬다.
-                    stall.label = "";
+                    // ★ 2026-09-22 <b>칸마다 이름을 준다.</b> 유저: *"오른쪽 칸막이 문 열고 싶은데
+                    // 왼쪽 칸막이 문이 나와."* 둘 다 «문 열기» 로만 뜨면 어느 쪽이 잡혔는지 모른다.
+                    // 판자를 막는 건 `boardable` 이 따로 맡는다 — 전에는 라벨을 비워서 막았다.
+                    // ★★ <b>좌우가 반대였다</b>(2026-09-22 유저 지적).
+                    // 들어오는 사람은 <b>−Z 를 보고</b> 걷는데, 유니티는 왼손 좌표계라
+                    // −Z 를 볼 때 <b>오른손은 −X</b> 쪽이다(right = cross(up, forward)).
+                    // 그래서 x 가 <b>작은</b> i = 0(곰이 앉은 칸)이 플레이어의 <b>오른쪽</b>이다.
+                    // 좌표의 «왼쪽» 과 보는 사람의 «왼쪽» 은 다르다 —
+                    // 이 프로젝트에서 좌우가 뒤집힌 게 네 번째다(현판 · 진열장 숫자 · 시계 · 이번).
+                    stall.label = i == 0 ? "오른쪽 칸" : "왼쪽 칸";
+                    stall.boardable = false;
                     stall.swingDegrees = -78f;   // 안쪽으로 젖혀진다
                     stall.openSeconds = 0.38f;
                     if (i == 0) bearStallDoor = stall;
@@ -1089,25 +1157,152 @@ public class CampusBuilder : MonoBehaviour
                     else
                     {
                         // ── 푸세식(쪼그려 앉는 것) ──
-                        // <b>앞이 솟아 있어야</b> 푸세식이다 — 납작한 구멍만 있으면 배수구로 보인다.
-                        Block(t, $"SquatPan_{i}", new Vector3(cx, 0.05f, inZb + 0.95f),
-                              Quaternion.identity, new Vector3(0.48f, 0.10f, 1.05f), ColCream, noCollider: true);
-                        Block(t, $"SquatHole_{i}", new Vector3(cx, 0.08f, inZb + 0.95f),
-                              Quaternion.identity, new Vector3(0.26f, 0.06f, 0.74f), ColBearDark, noCollider: true);
-                        Block(t, $"SquatHood_{i}", new Vector3(cx, 0.16f, inZb + 0.48f),
-                              Quaternion.identity, new Vector3(0.40f, 0.24f, 0.26f), ColCream, noCollider: true);
-                        for (int s = -1; s <= 1; s += 2)
-                            Block(t, $"SquatStep_{i}_{s}", new Vector3(cx + s * 0.29f, 0.06f, inZb + 1.0f),
-                                  Quaternion.identity, new Vector3(0.16f, 0.12f, 0.62f), ColCream, noCollider: true);
+                        //
+                        // ★★ 2026-09-22 (2차) 유저: *"푸세식 화장실이 너무 세련돼서 푸세식인 줄
+                        // 모르겠다."* 맞다 — 1차는 <b>반듯한 타일 단 위에 하얀 도기</b>라
+                        // 세면대나 족욕탕으로 보인다. 푸세식을 푸세식으로 만드는 건 도기가 아니라
+                        // <b>바닥에 길게 뚫린 검은 홈</b>이다. 그게 전체 길이의 4분의 3을 먹어야 한다.
+                        //
+                        // 고친 것 넷: <b>구멍을 길고 넓게</b>(0.26×0.74 → 0.34×0.98, 도기의 82%) ·
+                        // <b>뒤가 둥글게 솟은 덮개</b>(네모 상자가 아니라 돔) ·
+                        // <b>낡은 색</b>(하얀 도기 → 누런 도기 + 얼룩) · <b>물 흐르는 홈</b>.
+                        float dz = inZb + 0.95f;
+                        const float dais = 0.13f;
+                        float daisTop = dais - 0.01f;
 
-                        // 물통과 바가지 — 푸세식은 이게 있어야 쓸 수 있는 물건으로 보인다
-                        Block(t, $"WaterBin_{i}", new Vector3(cx + 0.72f, 0.24f, inZb + 0.55f),
-                              Quaternion.identity, new Vector3(0.42f, 0.48f, 0.42f), ColMint, noCollider: true);
-                        Block(t, $"Dipper_{i}", new Vector3(cx + 0.72f, 0.54f, inZb + 0.55f),
-                              Quaternion.identity, new Vector3(0.22f, 0.12f, 0.22f), ColLantern, noCollider: true);
+                        // 단은 바닥에 1cm 묻는다 — 밑면을 바닥 윗면과 딱 맞추면 같은 평면이다.
+                        Block(t, $"SquatDais_{i}", new Vector3(cx, dais * 0.5f - 0.01f, dz),
+                              Quaternion.identity, new Vector3(1.9f, dais, 1.72f), ColStoneWall, noCollider: true);
+                        Block(t, $"SquatDaisLip_{i}", new Vector3(cx, daisTop, dz + 0.86f),
+                              Quaternion.identity, new Vector3(1.9f, 0.04f, 0.08f), ColWallTile, noCollider: true);
+                        // 단 줄눈 — 통짜 한 색이면 «올려둔 상자» 로 보인다.
+                        // ★ 얹는 물건은 <b>얹히는 면의 좌표</b>에서 계산해라(1차에 11mm 떠 있었다).
+                        for (int g = -2; g <= 2; g++)
+                            Block(t, $"SquatDaisSeam_{i}_{g}", new Vector3(cx + g * 0.42f, daisTop - 0.002f, dz),
+                                  Quaternion.identity, new Vector3(0.025f, 0.012f, 1.68f), ColWallTile, noCollider: true);
+                        // 물때 얼룩 — <b>낡아 보여야</b> 푸세식이다. 반듯하고 깨끗하면 신상 세면대야.
+                        for (int g = 0; g < 3; g++)
+                            Block(t, $"SquatStain_{i}_{g}",
+                                  new Vector3(cx - 0.5f + g * 0.5f, daisTop - 0.001f, dz + 0.4f + g * 0.12f),
+                                  Quaternion.Euler(0f, g * 17f, 0f), new Vector3(0.26f, 0.01f, 0.5f),
+                                  ColWallTile, noCollider: true);
+
+                        // 도기 — <b>길고 좁다.</b> 정사각형에 가까우면 배수구로 보인다.
+                        Block(t, $"SquatPan_{i}", new Vector3(cx, 0.145f, dz),
+                              Quaternion.identity, new Vector3(0.52f, 0.11f, 1.20f), ColCream, noCollider: true);
+                        Block(t, $"SquatRim_{i}", new Vector3(cx, 0.197f, dz),
+                              Quaternion.identity, new Vector3(0.58f, 0.03f, 1.28f), ColCream, noCollider: true);
+                        // ★ <b>구멍이 주인공이다.</b> 도기 길이의 82% 를 먹는 검은 홈.
+                        Block(t, $"SquatHole_{i}", new Vector3(cx, 0.176f, dz + 0.04f),
+                              Quaternion.identity, new Vector3(0.34f, 0.03f, 0.98f), ColBearDark, noCollider: true);
+                        // 홈 안쪽 턱 — 구멍이 <b>깊어 보여야</b> 구멍이다. 검은 판 하나면 칠한 자국이야.
+                        for (int sx = -1; sx <= 1; sx += 2)
+                            Block(t, $"SquatHoleWall_{i}_{sx}",
+                                  new Vector3(cx + sx * 0.175f, 0.168f, dz + 0.04f),
+                                  Quaternion.identity, new Vector3(0.03f, 0.05f, 0.98f), ColWoodRail, noCollider: true);
+
+                        // 뒤가 솟은 덮개 — <b>둥글어야</b> 한다. 네모 상자면 «앞에 놓인 벽돌» 이다.
+                        // ★ 돔 중심은 <b>반지름만큼 올려야</b> 단 위에 얹힌다 —
+                        // 0.19 에 두니 바닥(y 0) 아래로 4cm 뚫고 내려갔다.
+                        Ball(t, $"SquatHood_{i}", new Vector3(cx, 0.26f, dz - 0.60f),
+                             new Vector3(0.50f, 0.46f, 0.44f), ColCream);
+                        Block(t, $"SquatHoodSkirt_{i}", new Vector3(cx, 0.20f, dz - 0.60f),
+                              Quaternion.identity, new Vector3(0.54f, 0.12f, 0.40f), ColCream, noCollider: true);
+                        // 물 나오는 홈 — 덮개에서 구멍 쪽으로. 물길이 보이면 «변기» 가 된다.
+                        Block(t, $"SquatChannel_{i}", new Vector3(cx, 0.192f, dz - 0.38f),
+                              Quaternion.identity, new Vector3(0.18f, 0.02f, 0.3f), ColWoodRail, noCollider: true);
+
+                        // 발판 — 도기 <b>양옆에 딱 붙여</b> 세운다. 떨어져 있으면 그냥 턱이다.
+                        for (int s = -1; s <= 1; s += 2)
+                        {
+                            Block(t, $"SquatStep_{i}_{s}", new Vector3(cx + s * 0.35f, 0.18f, dz + 0.10f),
+                                  Quaternion.identity, new Vector3(0.20f, 0.08f, 0.76f), ColCream, noCollider: true);
+                            for (int g = 0; g < 5; g++)
+                                Block(t, $"SquatGrip_{i}_{s}_{g}",
+                                      new Vector3(cx + s * 0.35f, 0.225f, dz - 0.22f + g * 0.15f),
+                                      Quaternion.identity, new Vector3(0.18f, 0.012f, 0.035f),
+                                      ColStoneWall, noCollider: true);
+                        }
+
+                        // 물내림 — 벽에서 내려오는 관 + 손잡이. 물이 어디서 오는지가 보여야 한다
+                        Block(t, $"SquatPipe_{i}", new Vector3(cx, 1.05f, inZb + 0.12f),
+                              Quaternion.identity, new Vector3(0.07f, 1.7f, 0.07f), ColStoneWall, noCollider: true);
+                        Block(t, $"SquatElbow_{i}", new Vector3(cx, 0.24f, inZb + 0.22f),
+                              Quaternion.identity, new Vector3(0.07f, 0.07f, 0.26f), ColStoneWall, noCollider: true);
+                        // ★ 손잡이도 발광이었다 — 금속색으로.
+                        Block(t, $"SquatLever_{i}", new Vector3(cx + 0.14f, 1.32f, inZb + 0.14f),
+                              Quaternion.Euler(0f, 0f, -22f), new Vector3(0.2f, 0.04f, 0.04f),
+                              ColStoneWall, noCollider: true);
+
+                        // 손잡이 봉 — 쪼그려 앉는 칸에는 잡을 데가 있어야 한다
+                        Block(t, $"SquatBar_{i}", new Vector3(cx - 0.88f, 0.72f, dz),
+                              Quaternion.identity, new Vector3(0.05f, 0.05f, 0.8f), ColStoneWall, noCollider: true);
+                        for (int s = -1; s <= 1; s += 2)
+                            Block(t, $"SquatBarFoot_{i}_{s}", new Vector3(cx - 0.94f, 0.72f, dz + s * 0.4f),
+                                  Quaternion.identity, new Vector3(0.09f, 0.09f, 0.05f), ColStoneWall, noCollider: true);
+
+                        // ── 물통과 바가지 ──
+                        // ★★ 2026-09-22 (3차) 유저: *"저 빛나는 막대랑 부속품은 뭔데."*
+                        // <b>바가지가 빛나고 있었다.</b> `ColLantern`(#F5C069)은 석등 색이라
+                        // <see cref="Surfaces"/> 표에서 <b>발광</b>으로 잡힌다 — 소품에 쓰면
+                        // 화장실 구석에서 <b>전구처럼 빛난다.</b>
+                        //
+                        // > **팔레트에서 색을 고를 때 마감(Finish)까지 같이 고르는 것이다.**
+                        // > 발광인 색은 넷뿐인데(창문 · 석등 · 발판 화살표 · 천창) 그 중 하나를
+                        // > 플라스틱 바가지에 썼다. 노란 소품은 `ColMapleGold`(#C9933E)로.
+                        //
+                        // 자리도 정리했다 — 셋이 칸 한가운데에 흩어져 있어서 «부속품» 으로 보였다.
+                        // <b>물통을 구석에 놓고, 바가지를 그 안에 담고, 뚫어뻥을 뒤에 기대 세운다.</b>
+                        // 한 덩어리로 모으면 «청소 도구가 놓인 구석» 이라는 한 장면이 된다.
+                        float wx = cx + 0.78f, wz = inZb + 0.52f;
+                        Disc(t, $"WaterBinFoot_{i}", new Vector3(wx, 0.02f, wz),
+                             new Vector3(0.44f, 0.02f, 0.44f), ColStoneWall);
+                        Disc(t, $"WaterBin_{i}", new Vector3(wx, 0.26f, wz),
+                             new Vector3(0.52f, 0.24f, 0.52f), ColMint);
+                        Disc(t, $"WaterBinRim_{i}", new Vector3(wx, 0.505f, wz),
+                             new Vector3(0.56f, 0.025f, 0.56f), ColStoneWall);
+                        Disc(t, $"WaterBinFill_{i}", new Vector3(wx, 0.47f, wz),
+                             new Vector3(0.46f, 0.012f, 0.46f), ColWater);
+                        // 손잡이 — 반원은 못 만드니 기둥 둘 + 가로대로 접는다(양동이와 같은 방식)
+                        for (int sx = -1; sx <= 1; sx += 2)
+                            Block(t, $"WaterBinEar_{i}_{sx}", new Vector3(wx + sx * 0.27f, 0.60f, wz),
+                                  Quaternion.Euler(0f, 0f, sx * 13f), new Vector3(0.025f, 0.2f, 0.025f),
+                                  ColStoneWall, noCollider: true);
+                        Block(t, $"WaterBinBail_{i}", new Vector3(wx, 0.695f, wz), Quaternion.identity,
+                              new Vector3(0.52f, 0.025f, 0.025f), ColStoneWall, noCollider: true);
+
+                        // 바가지 — <b>반구 + 긴 자루.</b> 물통 테에 걸쳐 놓는다.
+                        // 바가지 — <b>물통 안에 담겨 있고 자루만 테 밖으로</b> 나온다.
+                        // 공중에 떠 있으면 «빛나는 막대» 가 되고, 담겨 있으면 «바가지» 가 된다.
+                        Ball(t, $"Dipper_{i}", new Vector3(wx - 0.08f, 0.44f, wz + 0.06f),
+                             new Vector3(0.30f, 0.18f, 0.30f), ColMapleGold);
+                        Ball(t, $"DipperHollow_{i}", new Vector3(wx - 0.08f, 0.50f, wz + 0.06f),
+                             new Vector3(0.24f, 0.10f, 0.24f), ColWoodRail);
+                        Block(t, $"DipperGrip_{i}", new Vector3(wx - 0.08f, 0.52f, wz + 0.40f),
+                              Quaternion.Euler(16f, 0f, 0f), new Vector3(0.05f, 0.05f, 0.40f),
+                              ColMapleGold, noCollider: true);
+
                         // 수도꼭지
                         Block(t, $"Tap_{i}", new Vector3(cx + 0.72f, 0.95f, inZb + 0.2f),
                               Quaternion.identity, new Vector3(0.06f, 0.06f, 0.3f), ColStoneWall, noCollider: true);
+
+                        // ★ <b>이 칸에도 사연을 준다</b>(유저: *"왼쪽 칸막이는 연출이 덜 된 것 같다"*).
+                        // 정비 곰이 «화장실이 막혔다» 고 하는데 정작 <b>막힌 칸이 없었다</b> —
+                        // 여기가 그 칸이다. 뚫어뻥과 슬리퍼, 문에는 «수리 중» 팻말(아래 연출 블록).
+                        // 뚫어뻥 — <b>구석 벽에 기대</b> 세운다. 칸 한가운데에 비스듬히 두면
+                        // 화면을 가로질러서 «정체 모를 막대» 가 된다.
+                        Block(t, $"Plunger_{i}", new Vector3(cx + 0.88f, 0.60f, inZb + 0.30f),
+                              Quaternion.Euler(13f, 0f, 9f), new Vector3(0.045f, 1.0f, 0.045f),
+                              ColWood, noCollider: true);
+                        // 컵은 <b>납작한 돔 + 목</b>. 공 하나면 «빨간 구슬» 이고, 눌린 돔이라야 고무 컵이다.
+                        Ball(t, $"PlungerCup_{i}", new Vector3(cx + 0.78f, 0.13f, inZb + 0.20f),
+                             new Vector3(0.30f, 0.17f, 0.30f), ColRibbon);
+                        Disc(t, $"PlungerNeck_{i}", new Vector3(cx + 0.79f, 0.22f, inZb + 0.22f),
+                             new Vector3(0.11f, 0.04f, 0.11f), ColRibbon);
+                        for (int s = -1; s <= 1; s += 2)
+                            Block(t, $"Slipper_{i}_{s}", new Vector3(cx + s * 0.17f, 0.04f, dz + 1.02f),
+                                  Quaternion.Euler(0f, s * 9f, 0f), new Vector3(0.14f, 0.07f, 0.3f),
+                                  ColMint, noCollider: true);
                     }
 
                     // 휴지걸이 — 칸마다. 작은 물건이 있어야 칸이 «쓰는 곳» 이 된다
@@ -1183,8 +1378,11 @@ public class CampusBuilder : MonoBehaviour
                         // (타일 앞면 inX−0.06 · 테두리 −0.095 · 유리 −0.145, 겹치는 데 없음)
                         Block(t, $"MirrorFrame_{i}", new Vector3(inX - 0.095f, 1.85f, bz),
                               Quaternion.identity, new Vector3(0.05f, 1.2f, 1.0f), ColWood, noCollider: true);
+                        // ★ 거울에 `ColWindow`(#F0C070)를 쓰면 <b>거울이 스스로 빛난다</b> —
+                        // 그 색은 한지 창 색이라 팔레트에서 발광으로 잡힌다.
+                        // 거울은 <b>광택</b>이어야 주변을 비추는 것처럼 보인다(`ColWater` = 연못 색).
                         Block(t, $"Mirror_{i}", new Vector3(inX - 0.145f, 1.85f, bz),
-                              Quaternion.identity, new Vector3(0.04f, 1.1f, 0.9f), ColWindow, noCollider: true);
+                              Quaternion.identity, new Vector3(0.04f, 1.1f, 0.9f), ColWater, noCollider: true);
                         // 거울 위 조명 — 화장실을 화장실로 만드는 건 천장등이 아니라 <b>거울등</b>이다
                         Block(t, $"MirrorLamp_{i}", new Vector3(inX - 0.20f, 2.52f, bz),
                               Quaternion.identity, new Vector3(0.14f, 0.07f, 0.9f), ColLantern, noCollider: true);
@@ -1206,6 +1404,11 @@ public class CampusBuilder : MonoBehaviour
                                        new Vector3(0.024f, 0.173f, 0.024f), ColWater);
                         var pool = Disc(t, $"WaterPool_{i}", new Vector3(inX - 0.32f, 0.722f, bz),
                                         new Vector3(0.30f, 0.006f, 0.38f), ColWater);
+                        // ★ <b>거울 김을 걷어냈다</b>(2026-09-22 유저: *"물을 켜면 왜 유리가
+                        // 불투명해지는지 무슨 원리인지도 모르겠어."*). 맞는 반응이고 내 잘못이다 —
+                        // 김을 <b>불투명한 크림색 판</b>으로 만들어 거울 앞에 세웠으니 «김» 이 아니라
+                        // <b>거울이 판때기로 바뀐 것</b>으로 보인다. 게다가 <b>찬물은 거울을 안 흐린다</b>
+                        // — 물리적으로도 틀렸다. 물 연출은 물줄기 · 웅덩이 · 배수구 자국으로 충분하다.
                         jet.isStatic = false; pool.isStatic = false;
                         jet.SetActive(false); pool.SetActive(false);
                         waterBits.Add(jet); waterBits.Add(pool);
@@ -1229,6 +1432,14 @@ public class CampusBuilder : MonoBehaviour
                               Quaternion.Euler(0f, 0f, k == 0 ? 1.5f : -2f),
                               new Vector3(0.05f, 0.56f, 0.24f),
                               k == 0 ? ColMint : ColRibbon, noCollider: true);
+
+                    // 배수구로 흘러가는 물자국 — 물이 «어디로 가는지» 가 보여야 물이 된다
+                    var stream = Block(t, "WaterTrail", new Vector3(inX - 1.6f, 0.014f, -0.05f),
+                                       Quaternion.Euler(0f, 14f, 0f), new Vector3(2.4f, 0.006f, 0.34f),
+                                       ColWater, noCollider: true);
+                    stream.isStatic = false;
+                    stream.SetActive(false);
+                    waterBits.Add(stream);
 
                     // 수도꼭지 — 다가가서 E. 물줄기를 <b>직접 들고 있어서</b> 찾을 일이 없다
                     // (`FindObjectsByType` 가 꺼진 것을 못 찾는 함정을 아예 안 만든다).
@@ -1313,11 +1524,93 @@ public class CampusBuilder : MonoBehaviour
                     Block(t, $"VentSlat_{i}", new Vector3(1.9f, 2.54f + i * 0.11f, inZb + 0.09f),
                           Quaternion.identity, new Vector3(0.52f, 0.04f, 0.04f), ColBearDark, noCollider: true);
 
-                // 청소도구 구석 — 사람이 관리한다는 신호. 정비 곰 대사와도 이어진다
-                Block(t, "MopBucket", new Vector3(-inX + 0.5f, 0.2f, inZf - 0.6f),
-                      Quaternion.identity, new Vector3(0.36f, 0.4f, 0.36f), ColMint, noCollider: true);
-                Block(t, "MopStick", new Vector3(-inX + 0.5f, 0.85f, inZf - 0.75f),
-                      Quaternion.Euler(12f, 0f, 6f), new Vector3(0.05f, 1.4f, 0.05f), ColWood, noCollider: true);
+                // ── 청소도구 구석 ──  사람이 관리한다는 신호. 정비 곰 대사와도 이어진다.
+                // ★ 2026-09-22 유저: *"청소도구함이랑 밀대 같은 게 레고처럼 조잡해 보인다."*
+                // 맞다 — <b>상자 둘</b>이었다. 물건이 물건으로 보이려면 «덩어리 하나」가 아니라
+                // <b>덩어리 + 손잡이 + 이음매 + 작은 것</b>이 있어야 한다(레고 규칙 그대로).
+                {
+                    float cx0 = -inX + 0.62f;
+                    float cz0 = inZf - 0.75f;
+
+                    // 청소도구함 — 세로로 긴 철제 사물함. 몸통 하나면 냉장고로 보인다.
+                    Block(t, "LockerBody", new Vector3(cx0, 0.94f, cz0),
+                          Quaternion.identity, new Vector3(0.62f, 1.72f, 0.42f), ColWallTile, noCollider: true);
+                    Block(t, "LockerTop", new Vector3(cx0, 1.82f, cz0),
+                          Quaternion.identity, new Vector3(0.66f, 0.05f, 0.46f), ColStoneWall, noCollider: true);
+                    // 다리 — 바닥에 <b>딱 붙은 상자</b>는 바닥에 그린 무늬로 보인다
+                    for (int sx = -1; sx <= 1; sx += 2)
+                        for (int sz = -1; sz <= 1; sz += 2)
+                            Block(t, $"LockerFoot_{sx}{sz}",
+                                  new Vector3(cx0 + sx * 0.25f, 0.05f, cz0 + sz * 0.15f),
+                                  Quaternion.identity, new Vector3(0.07f, 0.1f, 0.07f), ColBearDark, noCollider: true);
+                    // 문짝 둘 + 손잡이 + 통풍 살 — 이 셋이 «사물함» 을 만든다
+                    for (int d2 = -1; d2 <= 1; d2 += 2)
+                    {
+                        Block(t, $"LockerDoor_{d2}", new Vector3(cx0 + d2 * 0.155f, 0.98f, cz0 - 0.215f),
+                              Quaternion.identity, new Vector3(0.29f, 1.52f, 0.03f), ColMint, noCollider: true);
+                        Block(t, $"LockerHandle_{d2}", new Vector3(cx0 + d2 * 0.035f, 0.98f, cz0 - 0.245f),
+                              Quaternion.identity, new Vector3(0.025f, 0.22f, 0.025f), ColStoneWall, noCollider: true);
+                        for (int v = 0; v < 4; v++)
+                            Block(t, $"LockerVent_{d2}_{v}",
+                                  new Vector3(cx0 + d2 * 0.155f, 1.58f - v * 0.07f, cz0 - 0.232f),
+                                  Quaternion.identity, new Vector3(0.2f, 0.018f, 0.012f), ColBearDark, noCollider: true);
+                    }
+                    // 이름표 — 30cm 미만이 있어야 눈이 크기를 잰다
+                    Block(t, "LockerLabel", new Vector3(cx0, 1.66f, cz0 - 0.235f),
+                          Quaternion.identity, new Vector3(0.24f, 0.09f, 0.012f), ColCream, noCollider: true);
+
+                    // 양동이 — <b>위가 넓고 아래가 좁아야</b> 양동이다. 정육면체는 상자야.
+                    float bx = cx0 + 0.72f, bz = cz0 + 0.06f;
+                    Disc(t, "PailBase", new Vector3(bx, 0.03f, bz), new Vector3(0.24f, 0.03f, 0.24f), ColMint);
+                    Disc(t, "PailBody", new Vector3(bx, 0.17f, bz), new Vector3(0.30f, 0.14f, 0.30f), ColMint);
+                    Disc(t, "PailRim",  new Vector3(bx, 0.315f, bz), new Vector3(0.33f, 0.02f, 0.33f), ColStoneWall);
+                    Disc(t, "PailWater", new Vector3(bx, 0.27f, bz), new Vector3(0.27f, 0.01f, 0.27f), ColWater);
+                    // 손잡이 — 반원을 못 만드니 <b>기둥 둘 + 가로대</b>로 접는다
+                    for (int sx = -1; sx <= 1; sx += 2)
+                        Block(t, $"PailEar_{sx}", new Vector3(bx + sx * 0.155f, 0.38f, bz),
+                              Quaternion.Euler(0f, 0f, sx * 12f), new Vector3(0.02f, 0.16f, 0.02f),
+                              ColStoneWall, noCollider: true);
+                    Block(t, "PailBail", new Vector3(bx, 0.455f, bz), Quaternion.identity,
+                          new Vector3(0.30f, 0.02f, 0.02f), ColStoneWall, noCollider: true);
+                    // 짜는 망 — 한국 청소도구함에 반드시 있다
+                    Block(t, "PailWringer", new Vector3(bx - 0.20f, 0.40f, bz), Quaternion.Euler(0f, 0f, 16f),
+                          new Vector3(0.1f, 0.26f, 0.22f), ColStoneWall, noCollider: true);
+
+                    // 밀대 — 자루 · 그립 · 목 · 머리 · 실. <b>막대 하나는 막대로 보인다.</b>
+                    float mx = cx0 + 0.44f, mz = cz0 - 0.30f;
+                    var lean = Quaternion.Euler(13f, 0f, -7f);
+                    Block(t, "MopPole", new Vector3(mx, 0.78f, mz), lean,
+                          new Vector3(0.035f, 1.5f, 0.035f), ColStoneWall, noCollider: true);
+                    Block(t, "MopGrip", new Vector3(mx + 0.06f, 1.44f, mz - 0.14f), lean,
+                          new Vector3(0.05f, 0.2f, 0.05f), ColBearDark, noCollider: true);
+                    Block(t, "MopNeck", new Vector3(mx - 0.09f, 0.14f, mz + 0.21f), lean,
+                          new Vector3(0.06f, 0.16f, 0.06f), ColBearDark, noCollider: true);
+                    Block(t, "MopHead", new Vector3(mx - 0.10f, 0.05f, mz + 0.24f), Quaternion.Euler(0f, 9f, 0f),
+                          new Vector3(0.34f, 0.07f, 0.16f), ColStoneWall, noCollider: true);
+                    for (int f = 0; f < 5; f++)
+                        Block(t, $"MopYarn_{f}", new Vector3(mx - 0.23f + f * 0.065f, 0.025f, mz + 0.26f),
+                              Quaternion.Euler(0f, 9f, 0f), new Vector3(0.05f, 0.04f, 0.2f),
+                              ColCream, noCollider: true);
+
+                    // 빗자루 — 둘이 나란히 서 있어야 «도구함» 으로 읽힌다
+                    float sx2 = cx0 - 0.44f, sz2 = cz0 - 0.26f;
+                    var lean2 = Quaternion.Euler(10f, 0f, 9f);
+                    Block(t, "BroomPole", new Vector3(sx2, 0.76f, sz2), lean2,
+                          new Vector3(0.03f, 1.4f, 0.03f), ColWood, noCollider: true);
+                    Block(t, "BroomHead", new Vector3(sx2 + 0.12f, 0.08f, sz2 + 0.16f), Quaternion.Euler(0f, -8f, 0f),
+                          new Vector3(0.3f, 0.16f, 0.07f), ColWoodRail, noCollider: true);
+
+                    // 작은 것들 — 세제통과 고무장갑. 30cm 미만이 크기의 자다
+                    Block(t, "Detergent", new Vector3(cx0 - 0.15f, 1.95f, cz0), Quaternion.Euler(0f, 18f, 0f),
+                          new Vector3(0.12f, 0.24f, 0.12f), ColRibbon, noCollider: true);
+                    Block(t, "DetergentCap", new Vector3(cx0 - 0.15f, 2.09f, cz0), Quaternion.Euler(0f, 18f, 0f),
+                          new Vector3(0.06f, 0.05f, 0.06f), ColCream, noCollider: true);
+                    // ★ 고무장갑도 발광이었다 — 청소도구함 위에서 전구처럼 빛났다.
+                    for (int g = 0; g < 2; g++)
+                        Block(t, $"Glove_{g}", new Vector3(cx0 + 0.14f + g * 0.1f, 1.90f, cz0 - 0.1f),
+                              Quaternion.Euler(0f, 0f, g == 0 ? 6f : -8f),
+                              new Vector3(0.07f, 0.2f, 0.05f), ColMapleGold, noCollider: true);
+                }
 
                 // 바닥 물기 조심 표지 — 문 앞 한가운데를 피해 세면대 앞에 세운다
                 Block(t, "WetSign", new Vector3(2.4f, 0.4f, 1.3f), Quaternion.Euler(0f, 24f, 0f),
@@ -1346,6 +1639,61 @@ public class CampusBuilder : MonoBehaviour
                 tl.color = new Color(1f, 0.94f, 0.84f);
                 tl.shadows = LightShadows.None;
                 toiletLight.isStatic = true;
+
+                // ── 연출 ──  2026-09-22 유저: *"화장실 연출도 뭐 없을까. 게임처럼."*
+                // 가만히 있는 것만 잘 지어 놓으면 «방» 이지 «지금 뭔가 일어나는 곳» 이 아니다.
+                // <b>도는 것 · 깜빡이는 것 · 반응하는 것</b> 셋을 더한다.
+                {
+                    // 환풍기 날개 — 벽에 붙은 살은 그대로 두고 <b>그 뒤에서</b> 돈다.
+                    // 돌아가는 물건이 하나 있으면 방 전체가 «작동 중» 으로 읽힌다.
+                    var fan = new GameObject("VentFan").transform;
+                    fan.SetParent(t, false);
+                    fan.localPosition = new Vector3(1.9f, 2.7f, inZb + 0.16f);
+                    fan.gameObject.isStatic = false;
+                    for (int b2 = 0; b2 < 3; b2++)
+                    {
+                        var blade = Block(fan, $"Blade_{b2}", Vector3.zero,
+                                          Quaternion.Euler(0f, 0f, b2 * 60f),
+                                          new Vector3(0.44f, 0.05f, 0.02f), ColBearDark, noCollider: true);
+                        blade.isStatic = false;
+                    }
+
+                    // 바닥 웅덩이 — 배수구 둘레. 물색이라 «젖어 있다» 가 된다
+                    Disc(t, "FloorPuddle", new Vector3(-0.6f, 0.016f, -0.2f),
+                         new Vector3(1.05f, 0.004f, 0.9f), ColWater);
+                    Disc(t, "FloorPuddle2", new Vector3(0.35f, 0.016f, 0.55f),
+                         new Vector3(0.6f, 0.004f, 0.48f), ColWater);
+
+                    // 젖은 발자국 — 칸에서 세면대 쪽으로. <b>누가 다녀갔다</b>가 방에 남는다
+                    for (int f = 0; f < 6; f++)
+                        Disc(t, $"PawPrint_{f}",
+                             new Vector3(-1.5f + f * 0.62f, 0.015f, -0.9f + (f % 2 == 0 ? 0.16f : -0.16f)),
+                             new Vector3(0.17f, 0.003f, 0.22f), ColWallTile);
+
+                    // 칸 문에 붙는 «사용 중 / 비었음». 곰이 든 칸에만 단다 —
+                    // 문을 여닫는 것이 <b>화면에 남는 결과</b>가 되어야 여는 맛이 생긴다.
+                    GameObject busy = null, free = null;
+                    if (bearStallDoor != null)
+                    {
+                        var hingeT = bearStallDoor.transform;
+                        busy = Block(hingeT, "SignBusy", new Vector3(1.78f, 0.42f, -0.06f),
+                                     Quaternion.identity, new Vector3(0.2f, 0.09f, 0.02f),
+                                     ColRibbon, noCollider: true);
+                        free = Block(hingeT, "SignFree", new Vector3(1.78f, 0.42f, -0.06f),
+                                     Quaternion.identity, new Vector3(0.2f, 0.09f, 0.02f),
+                                     ColMint, noCollider: true);
+                        busy.isStatic = false; free.isStatic = false;
+                        free.SetActive(false);
+                    }
+
+                    var mood = t.gameObject.AddComponent<ToiletMood>();
+                    mood.flickerLamp = t.Find("InLamp_-1");
+                    mood.roomLight = tl;
+                    mood.fanBlades = fan;
+                    mood.bearStall = bearStallDoor;
+                    mood.busyMark = busy;
+                    mood.freeMark = free;
+                }
 
                 // ★ 2026-09-21 — 유저가 받아온 곰을 <b>왼쪽 칸</b>에 앉힌다.
                 // 원본은 50만 삼각형에 4096² 텍스처(67.8MB)였고, 게임용으로 줄여서 넣었다.

@@ -37,6 +37,61 @@ public class Canteen : MonoBehaviour
     /// <summary>지금 식판에 담긴 것. 비트마스크.</summary>
     public int Tray { get; private set; }
 
+    /// <summary>방금 내보낸 식판. <see cref="CanteenStage"/> 가 손님 손에 그대로 올린다.</summary>
+    public int LastServedTray { get; private set; }
+
+    /// <summary>
+    /// ★ <b>맨 앞 손님이 자리에 섰나.</b> <see cref="CanteenStage"/> 가 매 프레임 알려준다.
+    ///
+    /// 2026-09-22 유저: *"곰돌이들이 떠나고 새 곰돌이들 오는 동안에도 ENTER 를 누르면
+    /// 점수가 1점씩 올라간다."* 맞다 — 규칙 쪽은 <see cref="Serve"/> 가 끝나는 <b>그 프레임에</b>
+    /// 줄을 당겨 버려서, 화면에서 곰이 걸어오는 동안 이미 «다음 손님» 이 서 있는 셈이었다.
+    /// 그래서 ENTER 연타로 줄을 통째로 흘려보낼 수 있었다.
+    ///
+    /// <b>화면에 보이는 것이 규칙이어야 한다.</b> 곰이 도착해야 받는다.
+    /// </summary>
+    public bool FrontArrived { get; private set; } = true;
+
+    /// <summary>자리에 서고 이만큼은 지나야 받는다. 도착하자마자 연타하는 것도 막는다.</summary>
+    const float SettleSeconds = 0.25f;
+
+    CanteenStage stage;
+
+    /// <summary>
+    /// ★ <b>늦게 찾는다.</b> <see cref="Begin"/> 이 `AddComponent&lt;Canteen&gt;()` 를 먼저 하는데
+    /// <b>`AddComponent` 는 그 자리에서 `Awake` 를 돌린다</b> — 그 시점엔 스테이지가 아직 없어서
+    /// `Awake` 에서 찾으면 영영 null 이고, 그러면 도착 판정이 <b>통째로 꺼진다</b>
+    /// (`stage == null` 이 «스테이지 없음」으로 읽혀서 항상 통과). 같은 함정에 이미
+    /// `CanteenDressing` 에서 한 번 걸렸다(2026-09-21).
+    /// </summary>
+    CanteenStage Stage => stage != null ? stage : (stage = GetComponent<CanteenStage>());
+
+    /// <summary>지금 내보낼 수 있나. 화면(<see cref="CanteenHUD"/>)도 이 값으로 안내를 바꾼다.</summary>
+    public bool CanServe => Now == Phase.진행 && queue.Count > 0
+                         && (Stage == null || FrontReady)
+                         && Time.time - queue[0].ArrivedAt >= SettleSeconds;
+
+    /// <summary>
+    /// 스테이지가 알려준다. <b>«안 섬 → 섬» 으로 넘어가는 순간에 빠른 보너스 시계를 다시 박는다</b> —
+    /// 걸어온 시간까지 치면 3초 보너스가 영영 안 나온다.
+    /// </summary>
+    public void SetFrontArrived(bool arrived)
+    {
+        if (arrived && !FrontArrived) StampFront();
+        if (!arrived && FrontArrived) blockedAt = Time.time;
+        FrontArrived = arrived;
+    }
+
+    /// <summary>
+    /// ⚠ <b>안전장치.</b> 무슨 이유로든 도착 신호가 안 오면 이만큼 뒤에 풀어준다.
+    /// <b>못 받는 게 제일 나쁘다</b> — 문에 미끄러질 거리 바닥값을 준 것,
+    /// 브리핑 카드에 25초를 둔 것과 같은 판단이다.
+    /// </summary>
+    const float BlockedGiveUp = 4f;
+    float blockedAt = -99f;
+
+    bool FrontReady => FrontArrived || Time.time - blockedAt > BlockedGiveUp;
+
     public int Best { get; private set; }
     public bool NewBest { get; private set; }
 
@@ -104,6 +159,8 @@ public class Canteen : MonoBehaviour
         Score = 0;
         Served = 0;
         Tray = 0;
+        LastServedTray = 0;
+        FrontArrived = true;
         NewBest = false;
         Verdict = "";
         VerdictAt = -99f;
@@ -155,7 +212,8 @@ public class Canteen : MonoBehaviour
 
     void Serve()
     {
-        if (queue.Count == 0) return;
+        // ★ 걸어오는 중에는 못 받는다. 이게 ENTER 연타 구멍을 막는 자리야.
+        if (!CanServe) return;
 
         var order = queue[0];
         float held = Time.time - order.ArrivedAt;
@@ -165,8 +223,13 @@ public class Canteen : MonoBehaviour
         VerdictAt = Time.time;
         Served++;
 
+        LastServedTray = Tray;
         Tray = 0;
         queue.RemoveAt(0);
+
+        // 다음 손님은 <b>걸어와야</b> 받을 수 있다. 스테이지가 도착을 알려줄 때까지 잠근다.
+        FrontArrived = false;
+        blockedAt = Time.time;
 
         Refill();
         StampFront();

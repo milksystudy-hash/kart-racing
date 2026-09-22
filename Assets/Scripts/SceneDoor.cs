@@ -28,6 +28,7 @@ public class SceneDoor : MonoBehaviour
     public Transform visitor;
 
     public static SceneDoor Nearest { get; private set; }
+    public static float NearestScore { get; private set; } = float.MaxValue;
 
     // ★★ <b>«제일 가까운 것» 을 스크립트 실행 순서에 기대면 안 된다</b> (2026-09-21).
     //
@@ -45,6 +46,7 @@ public class SceneDoor : MonoBehaviour
     static int frameStamp = -1;
     static float nearestDistance;
     static SceneDoor pending;
+    static float pendingScore = float.MaxValue;
 
     void Update()
     {
@@ -53,7 +55,9 @@ public class SceneDoor : MonoBehaviour
         {
             frameStamp = Time.frameCount;
             Nearest = pending;      // ← 지난 프레임에 <b>다 끝난</b> 결과를 이제 공개한다
+            NearestScore = pending != null ? pendingScore : float.MaxValue;
             pending = null;
+            pendingScore = float.MaxValue;
             nearestDistance = float.MaxValue;
         }
 
@@ -64,10 +68,11 @@ public class SceneDoor : MonoBehaviour
         // 몸이 꺼져 있으면(둘러보기 모드) 문도 안 잡힌다 — 걸어가서 여는 문이니까.
         if (visitor != null && !visitor.gameObject.activeInHierarchy) return;
 
-        float d = Vector3.Distance(who.position, transform.position);
-        if (d > range || d >= nearestDistance) return;
+        if (!Reach.Score(who, transform.position, range, out float d)) return;
+        if (d >= nearestDistance) return;
 
         nearestDistance = d;
+        pendingScore = d;
         pending = this;
     }
 

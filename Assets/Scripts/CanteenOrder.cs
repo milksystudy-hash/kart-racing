@@ -87,11 +87,26 @@ public readonly struct CanteenOrder
     public static int Mistakes(int wanted, int served) => Count(wanted ^ served);
 
     /// <summary>
-    /// 점수. <b>감점은 없다</b> — 틀려도 최소 1점이 들어온다.
-    /// 레이싱에서 이미 여덟 번 실패했으니 여기는 쉬어가는 자리여야 한다(기획서 §3).
+    /// 점수. <b>감점은 없다</b>(음수가 없다) — 레이싱에서 이미 여덟 번 실패했으니
+    /// 여기는 쉬어가는 자리여야 한다(기획서 §3). 하지만 <b>«아무거나 줘도 점수» 는 아니다.</b>
+    ///
+    /// ★★ 2026-09-22 유저가 구멍 둘을 짚었다:
+    /// *"메뉴 아무렇게나 줘도 점수가 올라"* · *"아무것도 선택 안 하고 ENTER 만 눌러도 점수가 올라."*
+    /// 맞다 — 전에는 «어긋남» 에도 1점을 줬다. 그러면 <b>빈 식판으로 ENTER 를 연타하는 것</b>이
+    /// 초당 몇 점씩 버는 최적 전략이 되고, 주문표를 읽을 이유가 통째로 사라진다.
+    ///
+    /// <b>실패가 없는 게임에서는 «제일 게으른 행동」이 정답인지 반드시 계산해야 한다</b> —
+    /// 빠른 보너스를 «딱 맞았을 때만» 으로 묶을 때 이미 배운 것인데 한 자리를 빠뜨렸다.
     /// </summary>
     public static int Points(int wanted, int served, float held, out string verdict)
     {
+        // <b>빈 식판은 «내보낸 것」이 아니다.</b> 0점이고, 손님도 빈손으로 나간다.
+        if (served == 0)
+        {
+            verdict = "빈 식판";
+            return 0;
+        }
+
         int diff = Mistakes(wanted, served);
 
         if (diff == 0)
@@ -115,7 +130,9 @@ public readonly struct CanteenOrder
             return 4;
         }
 
+        // 둘 이상 어긋나면 <b>0점</b>. 감점이 아니라 «못 받은 것」이다 —
+        // 여기에 1점이라도 붙는 순간 아무거나 담고 내보내는 게 이득이 된다.
         verdict = "어긋남";
-        return 1;
+        return 0;
     }
 }

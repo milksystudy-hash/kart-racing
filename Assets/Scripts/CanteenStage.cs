@@ -67,6 +67,12 @@ public class CanteenStage : MonoBehaviour
         public float hopAt = -99f;
         public float hopPower = 1f; // 딱 맞췄을 때 더 크게 뛴다
         public float build = 1f;    // 체격 - 다섯이 똑같으면 «복사본 다섯» 으로 보인다
+
+        // ★ 2026-09-22 — 받은 것과 표정.
+        public Transform[] food = new Transform[CanteenOrder.Slots];  // 식판 칸마다 하나
+        public Transform[] brow = new Transform[2];                   // 눈썹 - 슬플 때만 켠다
+        public Transform[] eye  = new Transform[2];
+        public bool sad;            // 빈 식판으로 나가는 중
     }
 
     /// <summary>
@@ -497,10 +503,62 @@ public class CanteenStage : MonoBehaviour
         BounceBowls();
         Walk();
         MoveBubble();
+        ReportArrival();
     }
+
+    /// <summary>
+    /// ★ <b>맨 앞 손님이 자리에 섰는지 규칙 쪽에 알려준다</b>(2026-09-22).
+    /// 유저: *"곰돌이들이 떠나고 새 곰돌이들 오는 동안에도 ENTER 를 누르면 점수가 올라간다."*
+    /// 화면에서 걸어오고 있는데 규칙만 먼저 다음 손님을 세워 두면 그런 일이 생긴다 —
+    /// <b>보이는 것이 규칙이어야 한다.</b> 말풍선이 쓰는 잣대(0.45m)를 그대로 쓴다.
+    /// </summary>
+    void ReportArrival()
+    {
+        if (game == null) return;
+
+        Customer front = null;
+        foreach (var c in customers)
+            if (c.slot == 0) { front = c; break; }
+
+        bool arrived = front != null && front.body != null
+                    && Vector3.Distance(front.body.position, SlotAt(0)) < 0.45f;
+        game.SetFrontArrived(arrived);
+    }
+
+    /// <summary>
+    /// ★★ <b>줄을 앞으로 당긴다</b>(2026-09-22).
+    ///
+    /// 유저: *"급식실 게임에 «다른 손님이 오는 중» 하고 곰인형들이 아예 오다가 멈춘다."*
+    /// <b>교착이었다.</b> <see cref="Advance"/> 는 «받을 때마다» 슬롯을 하나씩 당기는데,
+    /// 빨리 다섯 번 내보내면 <b>다섯이 전부 나가는 중(slot −1)</b>이 돼서 0번이 빈다.
+    /// 그러면 «맨 앞 손님이 도착했나» 가 영영 false 고, 도착을 못 하니 받을 수도 없다 —
+    /// 슬롯을 당기는 게 «받기» 뿐이라 <b>스스로 못 빠져나온다.</b>
+    ///
+    /// 그래서 <b>매 프레임 줄을 정리한다.</b> 서 있는 손님을 0, 1, 2… 로 다시 매기면
+    /// 하나라도 줄에 있는 한 0번이 반드시 채워진다. 걷는 것은 `MoveTowards` 가 알아서 한다.
+    ///
+    /// <b>«받기» 에만 걸려 있던 일을 매 프레임 도는 곳으로 옮기는 것</b>이 이 프로젝트가
+    /// 교착을 푸는 방식이다(문에 바닥값을 준 것 · 브리핑 카드의 25초 안전장치와 같다).
+    /// </summary>
+    void Compact()
+    {
+        inLine.Clear();
+        foreach (var c in customers) if (c.slot >= 0) inLine.Add(c);
+        inLine.Sort((a, b) => a.slot.CompareTo(b.slot));
+
+        for (int i = 0; i < inLine.Count; i++)
+        {
+            if (inLine[i].slot == i) continue;
+            inLine[i].slot = i;
+            inLine[i].target = SlotAt(i);
+        }
+    }
+
+    readonly List<Customer> inLine = new List<Customer>();
 
     void Walk()
     {
+        Compact();
         float step = WalkSpeed * Time.deltaTime;
 
         foreach (var c in customers)
@@ -518,8 +576,9 @@ public class CanteenStage : MonoBehaviour
                 c.target = SlotAt(Slots);
                 FaceCounter(c.body);
 
-                // 다시 줄을 서는 거니 식판은 내려놓은 셈이다.
+                // 다시 줄을 서는 거니 식판은 내려놓은 셈이고, 표정도 돌아온다.
                 if (c.tray != null) c.tray.gameObject.SetActive(false);
+                SetSad(c, false);
             }
 
             Breathe(c);
@@ -548,8 +607,13 @@ public class CanteenStage : MonoBehaviour
         if (since >= 0f && since < 0.5f)
             hop = Mathf.Sin(since / 0.5f * Mathf.PI) * 0.16f * c.hopPower;
 
+        // ★ 슬프면 <b>어깨가 처진다.</b> 표정만 바꾸면 멀리서 안 보이는데,
+        // 몸이 조금 내려앉고 앞으로 숙으면 실루엣으로도 읽힌다.
+        float slump = c.sad ? -0.05f : 0f;
+        c.rig.localRotation = Quaternion.Euler(c.sad ? 9f : 0f, 0f, 0f);
+
         // 체격은 곰마다 다르다. 숨쉬기 배율에 곱해서 넣어야 둘이 안 싸운다.
-        c.rig.localPosition = new Vector3(0f, hop, 0f);
+        c.rig.localPosition = new Vector3(0f, hop + slump, 0f);
         c.rig.localScale = new Vector3(puff, 2f - puff, puff) * c.build;   // 부풀면 살짝 눌린다
     }
 
@@ -563,6 +627,7 @@ public class CanteenStage : MonoBehaviour
             c.target = SlotAt(i);
             c.hopAt = -99f;
             if (c.tray != null) c.tray.gameObject.SetActive(false);
+            SetSad(c, false);
             if (c.body == null) continue;
             c.body.position = c.target;
             FaceCounter(c.body);
@@ -583,10 +648,23 @@ public class CanteenStage : MonoBehaviour
 
                 // 판정을 몸으로 옮긴다. 딱 맞으면 껑충, 어긋나면 시늉만.
                 bool perfect = game != null && game.Verdict != null && game.Verdict.StartsWith("딱 맞음");
-                c.hopPower = perfect ? 1.9f : 0.6f;
+
+                // ★★ <b>받은 것만 식판에 올린다</b>(2026-09-22).
+                // 유저: *"밥과 김치만 원하는 곰돌이들이라도 채워질 때는 잔반 5개 꽉 채워진 것 같이
+                // 보인다."* 맞다 — 전에는 다섯 개를 통째로 켜고 껐다. 그러면 <b>무엇을 줬든
+                // 화면은 같은 그림</b>이라, 잘 담았는지 틀렸는지가 눈에 안 보인다.
+                int got = game != null ? game.LastServedTray : 0;
+                for (int i = 0; i < CanteenOrder.Slots; i++)
+                    if (c.food[i] != null) c.food[i].gameObject.SetActive((got & (1 << i)) != 0);
+
+                // ★ <b>빈 식판이면 슬픈 표정으로 나간다</b>(유저 요청).
+                // 아무것도 못 받았는데 똑같이 깡충 뛰며 나가면 «그래도 됐구나» 로 읽힌다.
+                SetSad(c, got == 0);
+                c.hopPower = got == 0 ? 0f : (perfect ? 1.9f : 0.6f);
 
                 // ★ <b>받은 게 눈에 남아야 한다.</b> 손님이 그냥 걸어가면 «내보냈다» 가
                 // 화면에 안 보이고 점수만 오른다 - 식판을 들려 보내면 그 한 번이 결과가 된다.
+                // 빈 식판도 <b>들려 보낸다</b> — 빈 판을 들고 가는 게 제일 또렷한 «못 받았다» 야.
                 if (c.tray != null) c.tray.gameObject.SetActive(true);
             }
             else if (c.slot > 0)
@@ -594,6 +672,27 @@ public class CanteenStage : MonoBehaviour
                 c.slot--;
                 c.target = SlotAt(c.slot);
             }
+        }
+    }
+
+    /// <summary>
+    /// <b>표정.</b> 눈썹을 켜고 눈을 가늘게 눌러서 «시무룩» 을 만든다.
+    /// 조각을 더 만들지 않고 <b>이미 있는 것의 크기와 각도</b>만 바꾼다 —
+    /// 손님이 다섯이라 새 조각을 얹으면 그대로 다섯 배다.
+    /// </summary>
+    static void SetSad(Customer c, bool sad)
+    {
+        if (c == null) return;
+        c.sad = sad;
+
+        for (int i = 0; i < 2; i++)
+        {
+            if (c.brow[i] != null) c.brow[i].gameObject.SetActive(sad);
+
+            // 눈은 <b>납작하게</b>. 동그란 눈에 눈썹만 얹으면 화난 얼굴이 된다.
+            if (c.eye[i] != null)
+                c.eye[i].localScale = sad ? new Vector3(0.055f, 0.028f, 0.04f)
+                                          : new Vector3(0.055f, 0.06f, 0.04f);
         }
     }
 
@@ -661,11 +760,24 @@ public class CanteenStage : MonoBehaviour
         Ball(rig, "Snout", new Vector3(0f, 0.775f, 0.165f), new Vector3(0.21f, 0.16f, 0.17f), snout);
         Ball(rig, "Nose", new Vector3(0f, 0.80f, 0.245f), new Vector3(0.08f, 0.06f, 0.05f), dark);
 
+        var eyes = new Transform[2];
+        var brows = new Transform[2];
+
         for (int s = -1; s <= 1; s += 2)
         {
+            int e = (s + 1) / 2;   // −1 → 0, +1 → 1
+
             Ball(rig, $"Ear_{s}", new Vector3(s * 0.155f, 1.00f, 0.00f), new Vector3(0.17f, 0.17f, 0.11f), coat);
             Ball(rig, $"EarIn_{s}", new Vector3(s * 0.155f, 1.00f, -0.03f), new Vector3(0.09f, 0.09f, 0.08f), snout);
-            Ball(rig, $"Eye_{s}", new Vector3(s * 0.095f, 0.865f, 0.175f), new Vector3(0.055f, 0.06f, 0.04f), dark);
+            eyes[e] = Ball(rig, $"Eye_{s}", new Vector3(s * 0.095f, 0.865f, 0.175f), new Vector3(0.055f, 0.06f, 0.04f), dark);
+
+            // ★ 눈썹 — <b>평소에는 꺼져 있다.</b> 슬플 때만 켜서 바깥쪽이 내려간
+            // «╲ ╱» 모양을 만든다. 표정을 바꾸는 제일 싼 방법이고, 입은 구로는 못 그린다
+            // (곡선이 안 나온다) — 눈썹 각도가 훨씬 또렷하다.
+            brows[e] = Slab(rig, $"Brow_{s}", new Vector3(s * 0.10f, 0.925f, 0.165f),
+                            new Vector3(0.085f, 0.016f, 0.03f), dark);
+            brows[e].localRotation = Quaternion.Euler(0f, 0f, s * 20f);
+            brows[e].gameObject.SetActive(false);
 
             // 팔은 살짝 앞으로 - 식판을 받으려고 내민 자세
             Limb(rig, $"Arm_{s}", new Vector3(s * 0.27f, 0.47f, 0.05f),
@@ -687,10 +799,16 @@ public class CanteenStage : MonoBehaviour
         Slab(tray, "TrayRib", new Vector3(0f, 0.02f, 0f), new Vector3(0.40f, 0.02f, 0.02f),
              new Color32(0x9A, 0x7E, 0x48, 0xFF), Finish.금속);
 
-        // 담긴 것 - 다섯 색을 조금씩 올려두면 «채워진 식판» 이 된다.
+        // 담긴 것 — <b>칸마다 하나씩, 받은 것만 켠다.</b> 자리는 고정이라
+        // «밥 · 김치» 를 받으면 1번과 3번 칸에만 올라간다. 다섯을 통째로 켜고 끄면
+        // 무엇을 줬든 같은 그림이 되고, 그건 «잔반 꽉 찬 식판» 으로 읽힌다(유저 지적).
+        var food = new Transform[CanteenOrder.Slots];
         for (int i = 0; i < CanteenOrder.Slots; i++)
-            Ball(tray, $"TrayFood_{i}", new Vector3(-0.15f + i * 0.075f, 0.04f, 0.05f),
-                 new Vector3(0.09f, 0.05f, 0.09f), DishColors[i]);
+        {
+            food[i] = Ball(tray, $"TrayFood_{i}", new Vector3(-0.15f + i * 0.075f, 0.04f, 0.05f),
+                           new Vector3(0.09f, 0.05f, 0.09f), DishColors[i]);
+            food[i].gameObject.SetActive(false);
+        }
 
         tray.gameObject.SetActive(false);
 
@@ -699,6 +817,9 @@ public class CanteenStage : MonoBehaviour
             body = root,
             rig = rig,
             tray = tray,
+            food = food,
+            brow = brows,
+            eye = eyes,
             slot = index,
             phase = index * 1.7f,   // 다섯이 같이 숨 쉬면 기계처럼 보인다
             // ★ 체격도 어긋나게. 털색과 목도리만 다르면 <b>같은 곰을 다섯 번 칠한 것</b>으로 보인다 —

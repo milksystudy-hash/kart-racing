@@ -29,10 +29,12 @@ public class Faucet : MonoBehaviour
     public string Action => On ? "물 잠그기" : "물 틀기";
 
     public static Faucet Nearest { get; private set; }
+    public static float NearestScore { get; private set; } = float.MaxValue;
 
     static int frameStamp = -1;
     static float nearestDistance;
     static Faucet pending;
+    static float pendingScore = float.MaxValue;
 
     void Start() { Apply(); }
 
@@ -54,7 +56,9 @@ public class Faucet : MonoBehaviour
         {
             frameStamp = Time.frameCount;
             Nearest = pending;      // ← 지난 프레임에 다 끝난 결과를 이제 공개한다
+            NearestScore = pending != null ? pendingScore : float.MaxValue;
             pending = null;
+            pendingScore = float.MaxValue;
             nearestDistance = float.MaxValue;
         }
 
@@ -63,10 +67,11 @@ public class Faucet : MonoBehaviour
         if (who == null) return;
         if (visitor != null && !visitor.gameObject.activeInHierarchy) return;
 
-        float d = Vector3.Distance(who.position, transform.position);
-        if (d > range || d >= nearestDistance) return;
+        if (!Reach.Score(who, transform.position, range, out float d)) return;
+        if (d >= nearestDistance) return;
 
         nearestDistance = d;
+        pendingScore = d;
         pending = this;
     }
 }

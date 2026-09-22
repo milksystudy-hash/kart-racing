@@ -34,6 +34,17 @@ public class HingedDoor : MonoBehaviour
     [Tooltip("이 문이 달린 곳 이름. 화면에 뜬다")]
     public string label = "";
 
+    /// <summary>
+    /// <see cref="CampusBoarding"/> 가 폐쇄 판자를 박아도 되는 문인가.
+    ///
+    /// 전에는 <b>«라벨이 비었으면 안 박는다»</b> 로 걸렀는데, 그러면 화장실 칸 문에
+    /// 이름을 못 붙인다 — 유저: *"오른쪽 칸막이 문 열고 싶은데 왼쪽 칸막이 문이 나와."*
+    /// 둘 다 «문 열기» 라고만 뜨면 어느 쪽인지 알 수가 없다.
+    /// <b>이름과 «판자를 박느냐» 는 다른 이야기</b>라 필드를 갈랐다.
+    /// </summary>
+    [Tooltip("폐쇄 판자를 박아도 되는 문인가. 화장실 칸 같은 실내 문은 끈다")]
+    public bool boardable = true;
+
     [Tooltip("걸어다니는 몸. 비워두면 카메라")]
     public Transform visitor;
 
@@ -67,6 +78,9 @@ public class HingedDoor : MonoBehaviour
 
     public static HingedDoor Nearest { get; private set; }
 
+    /// <summary>그 문의 점수(작을수록 앞). <see cref="CampusHUD"/> 가 종류끼리 비교한다.</summary>
+    public static float NearestScore { get; private set; } = float.MaxValue;
+
     // ★★ <b>«제일 가까운 것» 을 스크립트 실행 순서에 기대면 안 된다</b> (2026-09-21).
     //
     // 여태 각 오브젝트가 자기 Update 에서 «내가 제일 가까운가» 를 겨루고, HUD 가 그 값을
@@ -83,6 +97,7 @@ public class HingedDoor : MonoBehaviour
     static int frameStamp = -1;
     static float nearestDistance;
     static HingedDoor pending;
+    static float pendingScore = float.MaxValue;
 
     float movedAt = -99f;
     Vector3[] shut, swung;
@@ -205,7 +220,9 @@ public class HingedDoor : MonoBehaviour
         {
             frameStamp = Time.frameCount;
             Nearest = pending;      // ← 지난 프레임에 <b>다 끝난</b> 결과를 이제 공개한다
+            NearestScore = pending != null ? pendingScore : float.MaxValue;
             pending = null;
+            pendingScore = float.MaxValue;
             nearestDistance = float.MaxValue;
         }
         // 열린 문도 표시를 띄운다 — <b>닫을 수 있어야</b> 여닫이다.
@@ -216,12 +233,15 @@ public class HingedDoor : MonoBehaviour
         if (who == null) return;
         if (visitor != null && !visitor.gameObject.activeInHierarchy) return;
 
-        float d = hasReach
-                ? Vector3.Distance(who.position, reach.ClosestPoint(who.position))
-                : Vector3.Distance(who.position, transform.position);
-        if (d > range || d >= nearestDistance) return;
+        // 거리는 <b>문짝 면</b>에서, 각도는 <b>문 한가운데</b>에서 — 둘을 같은 점으로 재면
+        // 넓은 문의 모서리를 가리키게 돼서 정면으로 서 있어도 «옆» 으로 잡힌다.
+        Vector3 near = hasReach ? reach.ClosestPoint(who.position) : transform.position;
+        Vector3 mid  = hasReach ? reach.center : transform.position;
+        if (!Reach.Score(who, near, mid, range, out float d)) return;
+        if (d >= nearestDistance) return;
 
         nearestDistance = d;
+        pendingScore = d;
         pending = this;
     }
 

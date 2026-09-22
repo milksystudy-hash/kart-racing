@@ -27,10 +27,11 @@ public class BearNpc : MonoBehaviour
     public float breathSpeed = 1.5f;
 
     [Header("고개 갸웃")]
-    // 2026-09-17 유저: "곰들의 볼이 찌그러지게 움직여서 신경이 쓰인다."
-    // 머리 본 하나에 볼까지 물려 있어서 많이 돌리면 얼굴이 눌린다. 자동 웨이트의 한계라
-    // 스키닝을 다시 칠하지 않는 한 <b>덜 돌리는 것</b>이 답이다 — 15도는 인형에 과했다.
-    public float tiltDegrees = 7f;
+    // 2026-09-22 (네 번째). 볼은 이제 완전 강체다(측정 0.00%) — 남은 변형은 <b>목 띠</b>다.
+    // 3등신 곰이라 머리가 크고 목이 짧아서, 목 본 하나로 34° 를 비틀면 그 좁은 띠에
+    // 비틀림이 전부 몰린다(측정 210%). <b>머리는 조금만 돌리고 몸통째로 돌아본다</b> —
+    // 인형이 몸으로 돌아보는 건 자연스럽고 변형이 <b>구조적으로 0</b> 이다.
+    public float tiltDegrees = 5f;
     [Tooltip("갸웃하는 간격(초) 최소·최대")]
     public Vector2 tiltEvery = new Vector2(5f, 11f);
     public float tiltHold = 1.6f;
@@ -47,9 +48,13 @@ public class BearNpc : MonoBehaviour
     public Transform lookTarget;
     [Tooltip("이 거리 안에 들어오면 쳐다보고, 처음 들어온 순간 손을 흔든다")]
     public float noticeRange = 5f;
-    [Tooltip("고개를 좌우로 최대 몇 도까지 돌릴지")]
-    public float maxTurn = 34f;
+    [Tooltip("고개를 좌우로 최대 몇 도까지 돌릴지. 목이 짧아서 크게 주면 목 띠가 비틀린다")]
+    public float maxTurn = 12f;
     public float turnSpeed = 4f;
+
+    [Tooltip("서 있을 때 몸통째로 돌아보는 최대 각도. 여기는 변형이 0 이라 크게 줘도 된다")]
+    public float bodyTurn = 55f;
+    public float bodyTurnSpeed = 2.2f;
 
     Quaternion bodyRest, headRest, armLeftRest, armRightRest;
     Vector3 bodyRestPosition;
@@ -169,11 +174,13 @@ public class BearNpc : MonoBehaviour
 
     Vector3 home, walkTarget, lastPlace;
     float restUntil, blockedFor;
+    float homeYaw;
     bool walking;
 
     void StartPatrol()
     {
         home = transform.position;
+        homeYaw = transform.eulerAngles.y;
         walkTarget = home;
         lastPlace = home;
         restUntil = Time.time + Random.Range(restEvery.x, restEvery.y);
@@ -425,9 +432,31 @@ public class BearNpc : MonoBehaviour
         body.localPosition = bodyRestPosition + Vector3.up * (t * 0.5f + 0.5f) * breathHeight;
     }
 
-    /// <summary>가까이 오면 고개를 그쪽으로 돌린다. 몸은 안 돌린다 — 인형이 발을 떼면 무섭다.</summary>
+    /// <summary>
+    /// 가까이 오면 그쪽을 본다.
+    ///
+    /// 2026-09-22: <b>몸통째로 돌아본다.</b> 전에는 머리 본 하나로 34° 를 꺾었는데,
+    /// 3등신 곰은 목이 짧아서 그 좁은 띠에 비틀림이 전부 몰린다(측정 210%) —
+    /// 바깥에서는 «볼이 우글거린다» 로 보인다. 몸을 돌리면 <b>변형이 0</b> 이고,
+    /// 인형이 몸으로 돌아보는 건 오히려 인형다운 움직임이다.
+    /// <b>걷는 중에는 안 돌린다</b> — 걸어가는 방향과 싸운다.
+    /// </summary>
     void Look(Transform target, bool near)
     {
+        if (!walking && near && target != null)
+        {
+            Vector3 flat = target.position - transform.position;
+            flat.y = 0f;
+            if (flat.sqrMagnitude > 0.04f)
+            {
+                float want = Quaternion.LookRotation(flat).eulerAngles.y;
+                want = homeYaw + Mathf.Clamp(Mathf.DeltaAngle(homeYaw, want), -bodyTurn, bodyTurn);
+                transform.rotation = Quaternion.Slerp(transform.rotation,
+                                                      Quaternion.Euler(0f, want, 0f),
+                                                      1f - Mathf.Exp(-bodyTurnSpeed * Time.deltaTime));
+            }
+        }
+
         if (head == null) return;
 
         float wanted = 0f;

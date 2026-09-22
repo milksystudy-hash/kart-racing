@@ -31,15 +31,33 @@ using UnityEngine;
 /// </summary>
 public class BobMotion : MonoBehaviour
 {
+    /// <summary>
+    /// ★★ 2026-09-22 유저: *"모션이 두 개밖에 없는 것 같다. 느릿한 움직임과 완전 빠른
+    /// 움직임인데 <b>무슨 동작인지 구분이 안 되어 있다.</b>"* 맞는 지적이다.
+    ///
+    /// 전에는 셋이 <b>속도와 폭만</b> 달랐다. 그러면 «빠름/느림» 두 가지로만 읽히고
+    /// «지금 뭘 하는 중인가» 는 안 보인다 — 진동을 늘 켜두면 그게 진동이 아니라
+    /// 화면 상태가 되는 것과 같은 문제야.
+    ///
+    /// 그래서 <b>축을 갈랐다.</b> 셋이 서로 다른 방향으로 움직인다:
+    ///
+    /// | | 주로 쓰는 축 | 실루엣 |
+    /// |---|---|---|
+    /// | 힘주기 | <b>앞뒤 숙임</b> + 잘고 빠른 떨림 | 웅크린 채 부들부들, 가끔 크게 한 번 |
+    /// | 한숨 | <b>위아래</b> 크고 느리게 + 뒤로 젖힘 | 천천히 부풀었다 꺼진다 |
+    /// | 두리번 | <b>좌우 회전</b> | 몸은 가만, 고개만 왔다갔다. 가끔 흠칫 |
+    ///
+    /// 세 축(앞뒤 · 위아래 · 좌우)이 다르면 <b>한 프레임만 봐도</b> 어느 동작인지 갈린다.
+    /// </summary>
     public enum Mood
     {
-        편안 = 0,   // 느리고 크게 둥실 — 다 끝난 사람
-        힘주기 = 1, // 앞으로 숙이고 잘게 떤다. 가끔 크게 한 번
-        참는중 = 2, // 거의 안 움직이다가 이따금 움찔
+        한숨 = 0,   // 다 끝난 사람 — 크게 숨을 돌린다
+        힘주기 = 1, // 웅크리고 부들부들. 가끔 크게 한 번
+        두리번 = 2, // 몸은 가만, 좌우로 살핀다. 가끔 흠칫
     }
 
-    [Tooltip("지금 기분. 문이 열릴 때마다 다시 뽑는다")]
-    public Mood mood = Mood.편안;
+    [Tooltip("지금 동작. 문이 열릴 때마다 다시 뽑는다")]
+    public Mood mood = Mood.한숨;
 
     [Tooltip("이 문이 «열림» 으로 바뀔 때마다 기분을 다시 뽑는다. 비우면 안 바뀐다")]
     public HingedDoor watchDoor;
@@ -112,24 +130,36 @@ public class BobMotion : MonoBehaviour
             doorWasOpen = watchDoor.Open;
         }
 
-        // 기분마다 박자 · 폭 · 기울기 · 떨림이 다르다. 숫자는 여기 한 군데에만 둔다.
-        float per, amp, sq, lean, tremble, surgeGap, surgeSize;
+        // 동작마다 <b>쓰는 축이 다르다.</b> 숫자는 여기 한 군데에만 둔다.
+        //   per      한 번 도는 데 걸리는 시간
+        //   amp      위아래 폭(m)
+        //   pitch    앞뒤 숙임(도). +가 앞으로
+        //   yaw      좌우 회전 폭(도)
+        //   yawPer   좌우 회전 주기
+        //   tremble  잘게 떠는 폭(m)
+        float per, amp, sq, pitch, yaw, yawPer, tremble, surgeGap, surgeSize;
         switch (mood)
         {
             case Mood.힘주기:
-                // 잘고 빠르게 떨다가 가끔 크게 한 번. 앞으로 숙인다.
-                per = period * 0.42f; amp = rise * 0.45f; sq = squash * 1.6f;
-                lean = 7f; tremble = 0.006f; surgeGap = 2.6f; surgeSize = 2.2f;
+                // <b>앞으로 깊게 숙인 채</b> 잘고 빠르게 떤다. 좌우로는 안 움직인다 —
+                // 힘주는 사람은 한 자세로 굳어 있지 둘러보지 않는다.
+                per = period * 0.38f; amp = rise * 0.35f; sq = squash * 1.8f;
+                pitch = 15f; yaw = 0f; yawPer = 1f; tremble = 0.007f;
+                surgeGap = 2.4f; surgeSize = 2.4f;
                 break;
-            case Mood.참는중:
-                // 거의 멈춰 있다가 이따금 움찔. <b>안 움직이는 시간</b>이 긴장을 만든다.
-                per = period * 1.9f; amp = rise * 0.3f; sq = squash * 0.6f;
-                lean = 3f; tremble = 0.002f; surgeGap = 4.2f; surgeSize = 3.4f;
+
+            case Mood.두리번:
+                // <b>몸은 거의 가만있고 좌우로만</b> 돈다. 위아래를 죽여야 «두리번» 으로 읽힌다.
+                per = period * 2.4f; amp = rise * 0.12f; sq = squash * 0.35f;
+                pitch = 0f; yaw = 26f; yawPer = 2.3f; tremble = 0f;
+                surgeGap = 3.6f; surgeSize = 2.8f;   // 가끔 흠칫
                 break;
+
             default:
-                // 느리고 크게 둥실. 다 끝난 사람.
-                per = period * 1.35f; amp = rise * 1.15f; sq = squash;
-                lean = -3f; tremble = 0f; surgeGap = 6.5f; surgeSize = 1.2f;
+                // <b>위아래로 크게</b> 부풀었다 꺼진다. 뒤로 살짝 젖히고 아주 느리게 갸웃.
+                per = period * 1.6f; amp = rise * 1.4f; sq = squash * 1.2f;
+                pitch = -5f; yaw = 6f; yawPer = 5.5f; tremble = 0f;
+                surgeGap = 7f; surgeSize = 0.9f;
                 break;
         }
 
@@ -160,9 +190,15 @@ public class BobMotion : MonoBehaviour
 
         transform.localPosition = baseLocalPos + offset;
 
-        // 기울임은 <b>원래 회전에 곱한다.</b> 덮어쓰면 FBX 축 회전이 날아가서 곰이 눕는다.
-        if (Mathf.Abs(lean) > 0.01f)
-            transform.localRotation = baseLocalRot * Quaternion.Euler(lean * (0.6f + 0.4f * lift), 0f, 0f);
+        // ★★ <b>회전은 «부모 기준» 으로 앞에 곱한다.</b>
+        // 뒤에 곱하면(`base * tilt`) 모델의 <b>제 축</b>으로 도는데, 이 FBX 는 축 변환(−90° X)을
+        // 달고 와서 로컬 Y 가 위가 아니다 — 좌우로 돌리려던 게 옆으로 넘어간다.
+        // 앞에 곱하면 X = 앞뒤 숙임 · Y = 좌우 · Z = 갸웃으로 <b>보이는 그대로</b>다.
+        float nod  = pitch * (0.55f + 0.45f * lift);
+        float turn = yaw > 0.01f
+                   ? Mathf.Sin(Time.time / yawPer * Mathf.PI * 2f + phase * 0.7f) * yaw
+                   : 0f;
+        transform.localRotation = Quaternion.Euler(nod, turn, 0f) * baseLocalRot;
 
         if (sq > 0.0001f)
         {

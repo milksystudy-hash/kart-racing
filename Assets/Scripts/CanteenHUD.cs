@@ -144,9 +144,16 @@ public class CanteenHUD : MonoBehaviour
         Hud.Panel(box);
         Rect inner = Hud.Inner(box);
 
-        GUI.Label(new Rect(inner.x + 8f, inner.y, 300f, inner.height),
-                  "ENTER  내보내기      ESC  그만두기",
-                  Hud.Resize(Hud.Text, 14, TextAnchor.MiddleLeft));
+        // ★ 손님이 걸어오는 동안에는 ENTER 가 안 먹는다(2026-09-22). <b>안 먹는 이유를 적어 준다</b> —
+        // 눌러도 아무 일이 없는데 «ENTER 내보내기» 가 그대로 떠 있으면 고장으로 읽힌다.
+        bool ready = game.CanServe;
+        var hint = Hud.Resize(Hud.Text, 14, TextAnchor.MiddleLeft);
+        if (!ready) hint.normal.textColor = Hud.InkSoft;
+
+        GUI.Label(new Rect(inner.x + 8f, inner.y, 320f, inner.height),
+                  ready ? "ENTER  내보내기      ESC  그만두기"
+                        : "다음 손님이 오는 중      ESC  그만두기",
+                  hint);
 
         GUI.Label(new Rect(inner.xMax - 230f, inner.y, 222f, inner.height),
                   $"{game.Served}명   {game.Score}점",

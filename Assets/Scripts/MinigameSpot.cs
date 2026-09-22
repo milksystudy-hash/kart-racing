@@ -44,6 +44,7 @@ public class MinigameSpot : MonoBehaviour
 
     /// <summary>지금 제일 가까운 자리. <see cref="CampusHUD"/> 가 읽는다.</summary>
     public static MinigameSpot Nearest { get; private set; }
+    public static float NearestScore { get; private set; } = float.MaxValue;
 
     // ★★ <b>«제일 가까운 것» 을 스크립트 실행 순서에 기대면 안 된다</b> (2026-09-21).
     //
@@ -60,6 +61,7 @@ public class MinigameSpot : MonoBehaviour
     // 안 보이고, 순서에 대한 의존이 <b>완전히</b> 사라진다.
     static int frameStamp = -1;
     static float nearestDistance;
+    static float pendingScore = float.MaxValue;
     static MinigameSpot pending;
 
     /// <summary>여덟 판을 다 깼나. 안 깼으면 어느 자리도 안 열린다.</summary>
@@ -103,7 +105,9 @@ public class MinigameSpot : MonoBehaviour
         {
             frameStamp = Time.frameCount;
             Nearest = pending;      // ← 지난 프레임에 <b>다 끝난</b> 결과를 이제 공개한다
+            NearestScore = pending != null ? pendingScore : float.MaxValue;
             pending = null;
+            pendingScore = float.MaxValue;
             nearestDistance = float.MaxValue;
         }
 
@@ -112,10 +116,11 @@ public class MinigameSpot : MonoBehaviour
         if (who == null) return;
         if (visitor != null && !visitor.gameObject.activeInHierarchy) return;
 
-        float d = Vector3.Distance(who.position, transform.position);
-        if (d > range || d >= nearestDistance) return;
+        if (!Reach.Score(who, transform.position, range, out float d)) return;
+        if (d >= nearestDistance) return;
 
         nearestDistance = d;
+        pendingScore = d;
         pending = this;
     }
 
