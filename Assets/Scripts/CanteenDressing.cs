@@ -293,14 +293,31 @@ public class CanteenDressing : MonoBehaviour
     /// </summary>
     void Steam()
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 5; i++)
         {
             var pot = building != null ? building.Find($"InPot_{i}") : null;
             if (pot == null) continue;
 
-            float top = pot.position.y + Mathf.Abs(pot.lossyScale.y) * 0.5f;
-            Puff($"Steam_{i}", new Vector3(pot.position.x, top + 0.05f, pot.position.z),
-                 Mathf.Abs(pot.lossyScale.x) * 0.3f);
+            // ★ 2026-09-23 <b>`lossyScale` 로 재면 안 된다.</b> 전에는 팬이 `Disc` 라
+            // 스케일이 곧 크기였는데, 유저 FBX 로 바뀌면서 스케일은 <b>배율</b>(≈1.4)이 됐다 —
+            // 그대로 쓰면 김이 팬에서 0.7m 떠올라 허공에 뜬다.
+            // <b>Renderer 바운즈</b>는 무엇이 들어오든 실제 크기라 이런 교체에 안 흔들린다.
+            var rs = pot.GetComponentsInChildren<Renderer>();
+            float top, spread;
+            if (rs.Length > 0)
+            {
+                var b = rs[0].bounds;
+                for (int k = 1; k < rs.Length; k++) b.Encapsulate(rs[k].bounds);
+                top = b.max.y;
+                spread = b.size.x * 0.3f;
+            }
+            else
+            {
+                top = pot.position.y + Mathf.Abs(pot.lossyScale.y) * 0.5f;
+                spread = Mathf.Abs(pot.lossyScale.x) * 0.3f;
+            }
+
+            Puff($"Steam_{i}", new Vector3(pot.position.x, top + 0.05f, pot.position.z), spread);
         }
     }
 
@@ -465,20 +482,10 @@ public class CanteenDressing : MonoBehaviour
             spoon.position = At(5.5f + off, 0.15f, CounterTop + 0.24f);
         }
 
-        // 국자 둘 - 국통에 꽂혀 있다. 자루가 비스듬해야 "쓰던 것" 으로 보인다.
-        for (int i = 1; i <= 2; i++)
-        {
-            var pot = building != null ? building.Find($"InPot_{i}") : null;
-            if (pot == null) continue;
-
-            var ladle = new GameObject($"Ladle_{i}").transform;
-            ladle.SetParent(transform, false);
-            ladle.position = pot.position + Vector3.up * 0.2f;
-            ladle.rotation = Quaternion.LookRotation(ToRoom, Vector3.up) * Quaternion.Euler(0f, 0f, 24f);
-
-            Rod(ladle, "Handle", Vector3.up * 0.26f, 0.028f, 0.52f, wood);
-            Ball(ladle, "Cup", Vector3.zero, new Vector3(0.14f, 0.09f, 0.14f), steel, Finish.금속);
-        }
+        // ★ 2026-09-23 <b>코드로 만든 국자를 걷어냈다.</b> 유저 급식 팬에는 주걱·국자·집게가
+        // <b>모델 안에 이미 들어 있다</b>(`Utensil` 오브젝트). 그 위에 내 국자를 또 꽂으면
+        // 팬 하나에 도구가 둘이라 «두 개가 겹쳐 보인다».
+        // <b>유저 모델이 들고 온 것은 내가 다시 만들지 않는다.</b>
     }
 
     /// <summary>

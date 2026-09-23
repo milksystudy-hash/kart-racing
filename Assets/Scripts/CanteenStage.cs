@@ -120,6 +120,72 @@ public class CanteenStage : MonoBehaviour
 
     // ---- 살고 죽기 ---------------------------------------------------------
 
+    /// <summary>
+    /// 식판 칸에 <b>배식대에 놓인 그 음식</b>을 담는다.
+    ///
+    /// 2026-09-23 유저: *"급식 게임 때 곰돌이들 잔반이 내가 넣은 FBX 대로 안 되어 있다.
+    /// 밥과 국만 받았다고 예시로 쳤을 때 <b>예전에 받아둔 거로만</b> 되어 있고 내가 만든
+    /// FBX 에 밥과 국이 안 되어 있다."*
+    ///
+    /// 맞다 — 식판 음식은 <see cref="Ball"/> 로 만든 <b>색 구슬 다섯</b>이었다. 배식대는
+    /// 유저 FBX 로 바꿔 놓고 식판만 옛날 것이라 <b>같은 밥이 두 가지로 보인다.</b>
+    ///
+    /// <b>새로 만들지 않고 배식대 팬을 복제한다.</b> 유저 FBX 는 안이
+    /// `Container` / `Food` / `Utensil` 로 <b>이미 갈라져 있어서</b>, 통째로 복제한 뒤
+    /// 통과 도구만 지우면 «담긴 음식» 만 남는다. 이러면:
+    /// <list type="bullet">
+    /// <item>배식대의 밥과 식판의 밥이 <b>같은 메시·같은 재질</b>이라 어긋날 수가 없다</item>
+    /// <item>FBX 축 회전이 <b>통째로 따라온다</b> — 손으로 맞추면 또 눕는다(2026-09-21 곰)</item>
+    /// <item>유저가 팬을 새로 만들어 넣으면 <b>식판도 저절로 바뀐다</b></item>
+    /// </list>
+    ///
+    /// 못 찾으면 <c>null</c> 을 돌려주고 부르는 쪽이 옛 구슬로 떨어진다 — 팬이 없는
+    /// 옛 씬에서도 게임은 돌아가야 한다.
+    /// </summary>
+    static Transform RealFood(Transform tray, int slot, Vector3 at)
+    {
+        var pot = GameObject.Find($"InPot_{slot}");
+        if (pot == null) return null;
+
+        var copy = Instantiate(pot, tray).transform;
+        copy.name = $"TrayFood_{slot}";
+
+        // 통과 도구를 걷어낸다 — 식판에 냄비째 올라가면 안 되니까
+        foreach (var kid in copy.GetComponentsInChildren<Transform>(true))
+        {
+            if (kid == copy) continue;
+            if (kid.name.StartsWith("Container") || kid.name.StartsWith("Utensil")
+                || kid.name.StartsWith("Tong") || kid.name.StartsWith("Rolled")
+                || kid.name.StartsWith("Deep_ladle"))
+                DestroyImmediate(kid.gameObject);
+        }
+
+        var rs = copy.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) { DestroyImmediate(copy.gameObject); return null; }
+
+        // 식판 칸 하나가 0.075 폭이다. <b>바운즈로 재서</b> 거기 맞춘다 —
+        // 팬 크기를 바꿔도 식판이 따라오게 하려면 숫자를 손으로 적으면 안 된다.
+        var b = rs[0].bounds;
+        for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+        float widest = Mathf.Max(b.size.x, b.size.z);
+        if (widest > 0.0001f)
+        {
+            float k = 0.066f / widest;
+            copy.localScale = Vector3.Scale(copy.localScale, Vector3.one * k);
+        }
+
+        // 다시 재서 <b>바닥을 식판 면에</b> 앉힌다. 스케일을 준 뒤라야 맞는 값이 나온다.
+        copy.localPosition = at;
+        rs = copy.GetComponentsInChildren<Renderer>();
+        b = rs[0].bounds;
+        for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+        float lift = tray.position.y + 0.015f - b.min.y;
+        copy.position += Vector3.up * lift;
+
+        foreach (var c in copy.GetComponentsInChildren<Collider>(true)) DestroyImmediate(c);
+        return copy;
+    }
+
     void Awake()
     {
         game = GetComponent<Canteen>();
@@ -805,8 +871,11 @@ public class CanteenStage : MonoBehaviour
         var food = new Transform[CanteenOrder.Slots];
         for (int i = 0; i < CanteenOrder.Slots; i++)
         {
-            food[i] = Ball(tray, $"TrayFood_{i}", new Vector3(-0.15f + i * 0.075f, 0.04f, 0.05f),
+            Vector3 at = new Vector3(-0.15f + i * 0.075f, 0.035f, 0.05f);
+            food[i] = RealFood(tray, i, at) ??
+                      Ball(tray, $"TrayFood_{i}", at + Vector3.up * 0.005f,
                            new Vector3(0.09f, 0.05f, 0.09f), DishColors[i]);
+            food[i].name = $"TrayFood_{i}";
             food[i].gameObject.SetActive(false);
         }
 

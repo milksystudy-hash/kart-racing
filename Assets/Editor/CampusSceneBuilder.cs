@@ -36,6 +36,13 @@ public static class CampusSceneBuilder
     [MenuItem("Racing/캠퍼스 씬 만들기", false, 4)]
     public static void BuildCampus()
     {
+        // ★ 2026-09-23 <b>유저가 손으로 놓은 것을 먼저 기억한다.</b> 여태는 빌더를 돌리는
+        // 순간 통째로 날아가서, 소품 배치를 전부 나한테 시켜야 했다 — 유저 말대로
+        // «배치하는 데만 크레딧을 너무 많이 쓰는» 구조였어.
+        // 이제 유저는 FBX 를 드래그해서 놓고 Ctrl+S 만 하면 되고, 내가 씬을 몇 번을
+        // 다시 지어도 그 자리에 그대로 있는다.
+        var mine = MyProps.Collect(CampusPath);
+
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         MakeLighting();
@@ -79,6 +86,9 @@ public static class CampusSceneBuilder
 
         MuseumLook.RefineMaterials();
         MuseumLook.ApplyToOpenScene();
+
+        // 건물이 다시 선 뒤에 되돌린다 — 유저가 건물 <b>안에</b> 놓았으면 그 부모를 찾아야 하니까
+        MyProps.Restore(mine);
 
         EditorSceneManager.SaveScene(scene, CampusPath);
         LobbySceneBuilder.RegisterScenes();

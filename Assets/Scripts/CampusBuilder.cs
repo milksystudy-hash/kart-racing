@@ -325,7 +325,17 @@ public class CampusBuilder : MonoBehaviour
         var halls = new (string name, string dept, float x, float z, float yaw,
                          float w, float d, float h, string motto)[]
         {
-            ("곰손관",   "조리·제빵·공예·봉제",      -99f, -23f,  75f, 22f, 14f, 9f, "손재주는 타고나는 게 아니랍니다"),
+            // ★ 2026-09-23 유저: *"곰솥관이랑 곰손관이랑 사실상 차이가 없는 것 같은데.
+            // 팻말도 둘이 똑같아."* <b>맞다 — 팻말이 진짜로 겹쳐 있었다.</b>
+            // 곰손관이 「조리·제빵·공예·봉제」였고 곰솥관이 「조리실습·제과제빵」이라
+            // <b>앞 두 낱말이 같은 말</b>이다. 2026-09-18 에 곰밥마당에서 «조리실습» 을 떼어
+            // 곰솥관을 지어 줬는데, <b>곰손관에서는 안 뗐다.</b>
+            //
+            // 건물을 지울 일이 아니다 — <b>내부는 이미 봉제실</b>이고(작업대·재봉틀·널린 천)
+            // 조리 도구가 하나도 없다. 팻말만 몸에 안 맞는 옷을 입고 있었던 거야.
+            // 그리고 <b>곰인형 박물관에서 인형을 만드는 학과는 여기 하나뿐</b>이다 —
+            // 이 세계에서 제일 중요한 과가 이름을 못 갖고 있었다.
+            ("곰손관",   "인형제작·공예·봉제",       -99f, -23f,  75f, 22f, 14f, 9f, "여기서 다들 태어났습니다"),
             ("곰머리관", "인문·교육·연구·심리",      -90f,  42f,  95f, 18f, 12f, 8f, ""),
             ("곰누리관", "관광·외국어·박물관·국제문화", 74f,  80f, 205f, 20f, 13f, 9f, ""),
             ("재주관",   "미술·음악·영상·공연",       96f, -12f, 275f, 21f, 13f, 9f, "재주는 곰이 넘고 돈은 딴 놈이 번다"),
@@ -852,15 +862,151 @@ public class CampusBuilder : MonoBehaviour
 
         switch (name)
         {
-            case "곰손관":     // 조리·제빵·공예·봉제 — 작업대와 재봉틀
-                for (int i = -1; i <= 1; i++)
-                    Block(t, $"InBench_{i}", new Vector3(i * 3.4f, 0.45f, halfD - 2.5f), Quaternion.identity,
-                          new Vector3(2.4f, 0.9f, 1.1f), ColWoodRail, noCollider: true);
-                Block(t, "InMachine", new Vector3(-halfW + 1.5f, 1.15f, 0f), Quaternion.identity,
-                      new Vector3(1.1f, 0.5f, 0.6f), ColBearDark, noCollider: true);
-                Block(t, "InCloth", new Vector3(halfW - 1.2f, 1.6f, 1f), Quaternion.identity,
-                      new Vector3(0.5f, 2.4f, 1.6f), ColRibbon, noCollider: true);
+            // ★ 2026-09-23 <b>수예부로 다시 지었다.</b> 전에는 다섯 조각(작업대 3 · 재봉틀 1 ·
+            // 천 1)뿐이라 22 × 14m 방이 거의 비어 있었고, 그래서 곰솥관과 «사실상 차이가 없는»
+            // 것처럼 보였다.
+            //
+            // <b>이 방이 곰인형 박물관에서 제일 중요한 방이다</b> — 여기서 곰들이 만들어진다.
+            // 그래서 재봉실에 있을 법한 물건만 늘어놓는 게 아니라 <b>만들어지는 중인 곰</b>을
+            // 놓는다. 팻말의 「여기서 다들 태어났습니다」가 그 한 장면으로 설명된다.
+            case "곰손관":     // 인형제작·공예·봉제 — 수예부
+            {
+                float sX = w * 0.5f - 0.6f;      // 옆벽 안쪽 (Hollow 벽 두께 0.6)
+                float sZb = -d * 0.5f + 0.6f;    // 뒷벽 안쪽
+
+                // ── 재봉 작업대 넷 ── 각 대에 재봉틀·천 뭉치·실패
+                // 한 대만 있으면 «누군가의 책상» 이고, 줄지어 있으면 <b>실습실</b>이 된다.
+                for (int i = -1; i <= 2; i++)
+                {
+                    float bx = i * 4.4f - 2.2f;
+                    Vector3 at = new Vector3(bx, 0f, halfD - 3.2f);
+
+                    Block(t, $"InBench_{i}", at + Vector3.up * 0.42f, Quaternion.identity,
+                          new Vector3(3.4f, 0.84f, 1.5f), ColWoodRail, noCollider: true);
+                    Block(t, $"InBenchTop_{i}", at + Vector3.up * 0.88f, Quaternion.identity,
+                          new Vector3(3.6f, 0.08f, 1.7f), ColWood, noCollider: true);
+
+                    // 재봉틀 — 몸통 + 팔 + 바늘대. 상자 하나는 «기계» 로 안 읽힌다
+                    Block(t, $"InMachine_{i}", at + new Vector3(-0.7f, 1.12f, 0f), Quaternion.identity,
+                          new Vector3(0.9f, 0.4f, 0.45f), ColBearDark, noCollider: true);
+                    Block(t, $"InMachineArm_{i}", at + new Vector3(-0.7f, 1.46f, 0f), Quaternion.identity,
+                          new Vector3(0.75f, 0.28f, 0.3f), ColBearDark, noCollider: true);
+                    Block(t, $"InMachineNeedle_{i}", at + new Vector3(-1.02f, 1.22f, 0f),
+                          Quaternion.identity, new Vector3(0.05f, 0.22f, 0.05f),
+                          ColStoneWall, noCollider: true);
+
+                    // 천 뭉치와 실패 — 작업 중인 흔적
+                    Block(t, $"InFabric_{i}", at + new Vector3(0.7f, 0.99f, 0.1f),
+                          Quaternion.Euler(0f, 18f, 0f), new Vector3(1.0f, 0.14f, 0.7f),
+                          i % 2 == 0 ? ColMint : ColRibbon, noCollider: true);
+                    Disc(t, $"InSpool_{i}", at + new Vector3(1.3f, 1.0f, -0.4f),
+                         new Vector3(0.12f, 0.16f, 0.12f), ColCream);
+
+                    // 의자
+                    Block(t, $"InStool_{i}", at + new Vector3(0f, 0.25f, 1.5f), Quaternion.identity,
+                          new Vector3(0.5f, 0.5f, 0.5f), ColWood, noCollider: true);
+                }
+
+                // ── 실 벽 ── 수예부의 얼굴. 색 실패가 격자로 꽂힌 판
+                // <b>색이 많은 것이 이 방의 정체다</b> — 나머지 방은 다 나무·크림·돌색이야.
+                Block(t, "InThreadBoard", new Vector3(-sX + 0.25f, 2.2f, 1.5f), Quaternion.identity,
+                      new Vector3(0.12f, 2.2f, 6.0f), ColWood, noCollider: true);
+                var threads = new[] { ColRibbon, ColMint, ColLantern, ColMapleGold, ColWater, ColCream };
+                for (int r = 0; r < 5; r++)
+                    for (int c = 0; c < 9; c++)
+                        Disc(t, $"InThread_{r}_{c}",
+                             new Vector3(-sX + 0.45f, 1.35f + r * 0.42f, -1.2f + c * 0.68f),
+                             new Vector3(0.16f, 0.2f, 0.16f), threads[(r * 9 + c) % threads.Length]);
+
+                // ── 원단 두루마리 ── 옆벽에 기대 세운다. 비스듬해야 «세워 둔 것» 이다
+                for (int i = 0; i < 6; i++)
+                    Block(t, $"InBolt_{i}", new Vector3(sX - 0.5f, 1.1f, -4.5f + i * 0.55f),
+                          Quaternion.Euler(9f, 0f, 6f), new Vector3(0.3f, 2.2f, 0.3f),
+                          i % 3 == 0 ? ColRibbon : i % 3 == 1 ? ColMint : ColCream, noCollider: true);
+
+                // ── 솜 자루 ── 곰인형 박물관이라 <b>솜이 없으면 안 된다</b>
+                for (int i = 0; i < 3; i++)
+                    Block(t, $"InStuffing_{i}", new Vector3(sX - 1.6f - i * 0.1f, 0.55f, 2.4f + i * 1.1f),
+                          Quaternion.Euler(0f, i * 14f, 0f), new Vector3(1.1f, 1.1f, 1.1f),
+                          ColCream, noCollider: true);
+                Block(t, "InStuffingOpen", new Vector3(sX - 1.6f, 1.15f, 2.4f), Quaternion.identity,
+                      new Vector3(0.7f, 0.3f, 0.7f), ColWallTile, noCollider: true);
+
+                // ── 만들다 만 곰 ── 이 방의 주인공. 몸통은 작업대에, 팔다리는 옆에 따로.
+                // <b>완성품을 놓으면 «전시» 고, 조각을 놓으면 «작업 중» 이다.</b>
+                Vector3 wip = new Vector3(2.2f, 0f, halfD - 3.2f);
+                Block(t, "InBearBody", wip + new Vector3(0.2f, 1.22f, 0.2f),
+                      Quaternion.Euler(0f, 20f, 8f), new Vector3(0.5f, 0.6f, 0.4f),
+                      ColMapleGold, noCollider: true);
+                for (int i = 0; i < 4; i++)
+                    Block(t, $"InBearLimb_{i}", wip + new Vector3(0.9f + (i % 2) * 0.26f, 0.96f,
+                                                                  -0.1f - (i / 2) * 0.24f),
+                          Quaternion.Euler(0f, 30f + i * 25f, 78f), new Vector3(0.16f, 0.42f, 0.16f),
+                          ColMapleGold, noCollider: true);
+                for (int i = 0; i < 2; i++)
+                    Disc(t, $"InBearEar_{i}", wip + new Vector3(0.05f + i * 0.3f, 0.95f, 0.55f),
+                         new Vector3(0.2f, 0.06f, 0.2f), ColMapleGold);
+
+                // 눈 단추 상자 — 칸마다 까만 단추. 작아서 «세밀한 일» 로 읽힌다
+                Block(t, "InButtonBox", wip + new Vector3(-0.1f, 0.96f, -0.55f), Quaternion.identity,
+                      new Vector3(0.44f, 0.09f, 0.3f), ColWood, noCollider: true);
+                for (int i = 0; i < 6; i++)
+                    Disc(t, $"InEyeButton_{i}", wip + new Vector3(-0.26f + (i % 3) * 0.16f, 1.02f,
+                                                                  -0.62f + (i / 3) * 0.14f),
+                         new Vector3(0.07f, 0.02f, 0.07f), ColBearDark);
+
+                // ── 완성품 선반 ── 뒷벽. 다 만든 곰들이 앉아 있다
+                Block(t, "InShelfDone", new Vector3(0f, 1.9f, sZb + 0.35f), Quaternion.identity,
+                      new Vector3(w - 5f, 0.12f, 0.6f), ColWood, noCollider: true);
+                for (int i = -3; i <= 3; i++)
+                {
+                    Block(t, $"InDoneBear_{i + 3}", new Vector3(i * 2.1f, 2.22f, sZb + 0.35f),
+                          Quaternion.Euler(0f, i * 11f, 0f), new Vector3(0.42f, 0.52f, 0.34f),
+                          i % 2 == 0 ? ColMapleGold : ColWoodRail, noCollider: true);
+                    for (int e = 0; e < 2; e++)
+                        Disc(t, $"InDoneEar_{i + 3}_{e}",
+                             new Vector3(i * 2.1f - 0.13f + e * 0.26f, 2.5f, sZb + 0.35f),
+                             new Vector3(0.17f, 0.05f, 0.17f),
+                             i % 2 == 0 ? ColMapleGold : ColWoodRail);
+                }
+
+                // ── 패턴 종이 ── 벽에 핀으로 붙인 도면. 종이가 있어야 «공방» 이다
+                for (int i = 0; i < 5; i++)
+                    Block(t, $"InPattern_{i}", new Vector3(-4f + i * 2.0f, 3.1f, sZb + 0.08f),
+                          Quaternion.Euler(0f, 0f, -4f + i * 2f), new Vector3(0.8f, 1.0f, 0.03f),
+                          ColCream, noCollider: true);
+
+                // ── 다리미대 ── 좁고 긴 것 하나가 방의 리듬을 깬다
+                Block(t, "InIronBoard", new Vector3(-6.2f, 0.85f, -2.2f), Quaternion.Euler(0f, 24f, 0f),
+                      new Vector3(1.6f, 0.08f, 0.55f), ColCream, noCollider: true);
+                for (int i = -1; i <= 1; i += 2)
+                    Block(t, $"InIronLeg_{i}", new Vector3(-6.2f + i * 0.5f, 0.42f, -2.2f),
+                          Quaternion.Euler(0f, 24f, i * 12f), new Vector3(0.08f, 0.84f, 0.08f),
+                          ColStoneWall, noCollider: true);
+                Block(t, "InIron", new Vector3(-5.8f, 0.96f, -2.3f), Quaternion.Euler(0f, 24f, 0f),
+                      new Vector3(0.34f, 0.16f, 0.2f), ColStoneWall, noCollider: true);
+
+                // ── 마네킹 둘 ── 사람 키를 알려주는 물건(전시실 벤치와 같은 역할)
+                for (int i = 0; i < 2; i++)
+                {
+                    Vector3 mAt = new Vector3(6.6f + i * 1.8f, 0f, -3.4f);
+                    Block(t, $"InFormPost_{i}", mAt + Vector3.up * 0.5f, Quaternion.identity,
+                          new Vector3(0.09f, 1.0f, 0.09f), ColStoneWall, noCollider: true);
+                    Disc(t, $"InFormFoot_{i}", mAt + Vector3.up * 0.04f,
+                         new Vector3(0.5f, 0.08f, 0.5f), ColBearDark);
+                    Block(t, $"InFormBody_{i}", mAt + Vector3.up * 1.32f,
+                          Quaternion.Euler(0f, i * 26f, 0f), new Vector3(0.52f, 0.72f, 0.36f),
+                          i == 0 ? ColCream : ColMint, noCollider: true);
+                }
+
+                // ── 바닥에 떨어진 천 조각 ── 작은 것이 있어야 레고로 안 보인다(2026-09-17)
+                for (int i = 0; i < 9; i++)
+                    Block(t, $"InScrap_{i}",
+                          new Vector3(-7f + i * 1.7f, 0.012f, -0.4f + (i % 3) * 1.1f),
+                          Quaternion.Euler(0f, i * 37f, 0f), new Vector3(0.28f, 0.012f, 0.2f),
+                          i % 3 == 0 ? ColRibbon : i % 3 == 1 ? ColMint : ColCream, noCollider: true);
                 break;
+            }
 
             case "곰머리관":   // 인문·연구 — 서가
                 for (int i = -1; i <= 1; i += 2)
@@ -1779,14 +1925,33 @@ public class CampusBuilder : MonoBehaviour
             Block(t, $"InTray_{i}", new Vector3(lineX, 0.94f + i * 0.055f, halfD - 2.2f), Quaternion.identity,
                   new Vector3(1.2f, 0.05f, 1f), ColLantern, noCollider: true);
 
-        // 배식대 — 스테인리스 상판에 국통 넷
+        // 배식대 — 스테인리스 상판에 급식 팬 다섯
         Block(t, "InServe", new Vector3(lineX, 0.5f, 0f), Quaternion.identity,
               new Vector3(1.9f, 1f, d - 8f), ColStoneWall, noCollider: true);
         Block(t, "InServeTop", new Vector3(lineX, 1.03f, 0f), Quaternion.identity,
               new Vector3(2.1f, 0.08f, d - 7.6f), ColWallTile, noCollider: true);
-        for (int i = -2; i <= 1; i++)
-            Disc(t, $"InPot_{i + 2}", new Vector3(lineX, 1.2f, i * 2.2f + 1.1f),
-                 new Vector3(1.2f, 0.28f, 1.2f), ColBearDark);
+
+        // ★ 2026-09-23 유저 FBX 로 교체. 전에는 <see cref="Disc"/> 넷(지름 1.2 · 높이 0.28)이라
+        // «납작한 원반» 이었고, 무엇보다 <b>메뉴는 다섯인데 통이 넷</b>이라 하나가 비었다.
+        // 이제 밥·국·김치·반찬·후식이 <b>각자 제 팬</b>에 담겨 있다.
+        //
+        // <b>이름은 `InPot_0..4` 를 그대로 쓴다.</b> `CanteenDressing` 이 김과 국자를
+        // 이 이름으로 찾는다 — 이름을 바꾸면 <b>수증기가 통째로 사라진다</b>(유저: "수증기는 그대로").
+        //
+        // 줄은 식판대(z +7.3)에서 반납대(z −7.5) 쪽으로 걷는다. 그래서 <b>밥이 맨 앞</b>이고
+        // 후식이 맨 뒤 — 실제 급식 줄의 순서다.
+        string[] pans =
+        {
+            "01_Rice_Pan.fbx", "02_Soup_Pan.fbx", "03_Kimchi_Pan.fbx",
+            "04_Omelette_Pan.fbx", "05_Apple_Pan.fbx",
+        };
+        for (int i = 0; i < pans.Length; i++)
+        {
+            // 상판 윗면은 `1.03 + 0.08/2` = 1.07. `MyModel` 이 바운즈 최저점을 읽어 앉히니
+            // 팬 원점이 바닥이 아니어도(이 모델들은 +0.015) 정확히 얹힌다.
+            MyModel(t, "Assets/My blender/" + pans[i], $"InPot_{i}",
+                    new Vector3(lineX, 1.07f, 4.4f - i * 2.2f), 1.0f);
+        }
 
         // 위생 가림막 — 급식소에 반드시 있는 것
         Block(t, "InGuard", new Vector3(lineX + 1.1f, 1.75f, 0f), Quaternion.Euler(-18f, 0f, 0f),
@@ -1795,8 +1960,15 @@ public class CampusBuilder : MonoBehaviour
         // 메뉴판 — 배식대 위 벽에
         Block(t, "InMenuBoard", new Vector3(-halfW - 0.05f, 2.9f, 0f), Quaternion.identity,
               new Vector3(0.12f, 1.6f, d - 8f), ColBearDark, noCollider: true);
+        // ★ 2026-09-23 유저: *"밥·국·김치·반찬·후식 순서로 패널이 되어 있는데 <b>실제 급식
+        // 순서가 각각 다르게</b> 되어 있다."* 맞다 — <b>메뉴판이 거꾸로 걸려 있었다.</b>
+        //
+        // 줄은 식판대(z +7.3)에서 반납대(z −7.5) 쪽으로 걷는다. 그런데 슬립은 `i * 1.5` 라
+        // <b>0번(밥)이 z −3</b>, 즉 <b>줄의 끝</b>에 붙어 있었다. 걸어가면서 「후식 → 반찬 →
+        // 김치 → 국 → 밥」 을 읽게 되니 팬 순서와 정반대다.
+        // 이제 `−i * 1.5` — 밥이 z +3 으로 <b>줄의 시작</b>에 온다.
         for (int i = -2; i <= 2; i++)
-            Block(t, $"InMenuSlip_{i + 2}", new Vector3(-halfW + 0.05f, 3.3f - 0f, i * 1.5f),
+            Block(t, $"InMenuSlip_{i + 2}", new Vector3(-halfW + 0.05f, 3.3f, -i * 1.5f),
                   Quaternion.identity, new Vector3(0.04f, 0.5f, 1.1f), ColCream, noCollider: true);
 
         // 반납대 — 줄의 끝. 문 가까이 둬야 나가면서 놓고 간다
@@ -1909,27 +2081,37 @@ public class CampusBuilder : MonoBehaviour
         }
 
         // ── 뒷벽 전시 줄 ──  왼쪽 반납대(x −12.9까지)를 피해 x −11 부터, 평상(x 10.6~)까지.
-        // 폭 합계 11.57m 를 24m 에 고르게 편다.
-        Wall("L01_Onggi_Terrace.fbx",      "ExOnggiTerrace", -7.6f, 1.511f, 2.650f);
-        Wall("L02_Meju_Drying_Rack.fbx",   "ExMejuRack",     -2.9f, 0.620f, 2.530f);
-        Wall("L03_Grain_Dwiju.fbx",        "ExGrainDwiju",    1.4f, 1.019f, 1.980f);
-        Wall("L04_Giant_Tool_Exhibit.fbx", "ExToolWall",      5.6f, 0.660f, 2.250f);
-        Wall("L05_Mill_Mortar_Exhibit.fbx","ExMillMortar",    9.8f, 0.980f, 2.160f);
+        // 2026-09-23 유저: *"전반적으로 에셋 크기를 조금씩 키워 달라."* <b>×1.15</b> —
+        // 방이 30 × 19 × 9m 라 실물 크기는 작게 읽힌다. 폭 합계 11.57 → 13.33m 인데
+        // 가용 24m 라 간격이 1.78m 씩 남는다. 제일 높은 도구 전시벽이 3.25m(서까래 8.25).
+        Wall("L01_Onggi_Terrace.fbx",      "ExOnggiTerrace", -7.7f, 1.738f, 3.050f);
+        Wall("L02_Meju_Drying_Rack.fbx",   "ExMejuRack",     -2.9f, 0.711f, 2.900f);
+        Wall("L03_Grain_Dwiju.fbx",        "ExGrainDwiju",    1.4f, 1.174f, 2.280f);
+        Wall("L04_Giant_Tool_Exhibit.fbx", "ExToolWall",      5.6f, 0.763f, 2.600f);
+        Wall("L05_Mill_Mortar_Exhibit.fbx","ExMillMortar",   10.0f, 1.134f, 2.500f);
 
         // ── 반납대 옆: 먹고 난 뒤에 하는 일 ──  잔반을 재고, 다 먹었으면 도장을 찍는다.
-        Put("M01_Leftover_Scale.fbx",    "ExLeftoverScale", new Vector3(-11.3f, 0f, -7.95f), 0.760f, 90f);
-        Put("M03_Clean_Plate_Stamp.fbx", "ExCleanStamp",    new Vector3(-11.3f, 0f, -5.4f), 0.680f, 90f);
+        Put("M01_Leftover_Scale.fbx",    "ExLeftoverScale", new Vector3(-11.2f, 0f, -7.9f), 1.000f, 90f);
+        Put("M03_Clean_Plate_Stamp.fbx", "ExCleanStamp",    new Vector3(-11.2f, 0f, -5.3f), 0.900f, 90f);
 
         // ── 줄 머리: 받기 전에 하는 일 ──  오늘 배식 당번을 뽑는다.
-        Put("M02_Duty_Lottery.fbx", "ExDutyLottery", new Vector3(-11.4f, 0f, 7.4f), 0.965f, 90f);
+        // ★ 2026-09-23 유저: *"배식 당번 뽑기통이 나무상자에 가려 안 보인다."*
+        // 재 보니 <b>방향이 아니라 자리</b>였다 — z 7.4 는 문(z 8.9)에서 들어와 서는 자리보다
+        // <b>뒤</b>라서 등 뒤에 있었고, 식판대(나무 상자, x −13.8 z 7.3)와 같은 줄이라 묻혔다.
+        // <b>통로 쪽으로 당긴다</b>: 들어오면서 왼쪽을 보면 바로 걸린다. 크기도 ×1.4.
+        Put("M02_Duty_Lottery.fbx", "ExDutyLottery", new Vector3(-10.8f, 0f, 5.6f), 1.350f, 90f);
 
-        // ── 오른쪽 벽: 곰이 뭘 먹는지 ──  낮은 상자라 자리를 안 먹는다.
+        // ── 오른쪽 벽: 곰이 뭘 먹는지 ──
+        // ★ 유저: *"대나무 들어 있는 에셋의 방향이 반대."* 맞다 — 이 열 점 중
+        // <b>이것만 블렌더 기준 앞면이 +Y</b> 고 나머지 아홉은 −Y 다(측정).
+        // 같은 묶음이라고 같은 방향일 거라 믿고 같은 yaw 를 준 게 잘못이야. 180° 돌린다.
+        // 크기도 ×1.5 — 열린 앞면에 내용물이 있는 전시물이라 작으면 안이 안 보인다.
         Put("M04_Bear_Diet_Case.fbx", "ExDietCase",
-            new Vector3(halfW - 0.6f - 0.23f, 0f, 0f), 1.060f, 90f);
+            new Vector3(halfW - 0.6f - 0.35f, 0f, 0f), 1.600f, 270f);
 
         // ── 평상 둘 사이에 매단 풍경 ──  y 를 주면 <b>바닥이 그 높이</b>에 온다.
-        // 2.35 + 1.07 = 3.42m 라 서까래(8.25)에는 안 닿고 앉은 사람 머리 위로 지나간다.
-        Put("M05_Bear_Fish_Windchime.fbx", "ExWindchime", new Vector3(12.4f, 2.35f, 0f), 0.315f);
+        // 2.35 + 1.53 = 3.88m 라 서까래(8.25)에는 안 닿고 앉은 사람 머리 위로 지나간다.
+        Put("M05_Bear_Fish_Windchime.fbx", "ExWindchime", new Vector3(12.4f, 2.35f, 0f), 0.450f);
     }
 
     /// <summary>
