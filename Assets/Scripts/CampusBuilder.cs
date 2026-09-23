@@ -1868,6 +1868,68 @@ public class CampusBuilder : MonoBehaviour
         for (int i = -4; i <= 4; i++)
             Block(t, $"InRafter_{i + 4}", new Vector3(i * (w * 0.1f), h - 0.75f, 0f), Quaternion.identity,
                   new Vector3(0.22f, 0.26f, d - 2f), ColWood, noCollider: true);
+
+        BapMadangExhibits(t, halfW, halfD);
+    }
+
+    /// <summary>
+    /// <b>유저가 만든 곰밥마당 전시 소품 열 점</b>(2026-09-23). 합쳐서 5,488쿼드(10,976 tris) ·
+    /// 전부 100% 쿼드 · 공용 아틀라스 하나 — §7.6 예산(150~250k)에 티도 안 난다.
+    ///
+    /// <b>자리는 «뒷벽 한 줄» 로 잡았다.</b> 큰 것 다섯을 흩뿌리면 급식실이 창고가 되는데,
+    /// 한 줄로 세우면 <b>전시 동선</b>이 생긴다 — 밥 받는 줄(왼쪽 벽)과 자리(가운데·오른쪽)는
+    /// 이미 있고, 뒷벽만 통째로 비어 있었다. 걸어 들어와 왼쪽으로 돌면 배식, 안쪽으로
+    /// 들어가면 전시. <b>한 방에 두 동선이 겹치지 않는다.</b>
+    ///
+    /// 중간 소품 넷은 <b>제 일이 있는 자리</b>에 붙인다 — 잔반 저울과 완식 도장대는 반납대 옆,
+    /// 당번 뽑기통은 식판 쌓아둔 줄 머리, 먹거리 표본은 오른쪽 벽. 전시물을 동선과 상관없는
+    /// 데 놓으면 «장식» 이 되고, 쓰는 자리에 놓으면 «설비» 가 된다.
+    ///
+    /// ★ <b>풍경만 매단다.</b> `M05` 는 바닥이 y +0.08 이라 다른 아홉과 달리 원점이 바닥이
+    /// 아니다 — 원래 <b>매다는 물건</b>이라 그게 맞다. 좌식 평상 둘 사이 눈높이 위에 건다.
+    /// </summary>
+    void BapMadangExhibits(Transform t, float halfW, float halfD)
+    {
+        const string Dir = "Assets/My blender/";
+
+        // 뒷벽 안쪽 면. <see cref="Hollow"/> 의 벽은 0.6m 두께다(2026-09-21 화장실에서 배운 것) —
+        // `halfD` 로 잡으면 소품이 벽 속에 절반 묻힌다.
+        float back = -halfD + 0.6f;
+
+        // 소품마다 깊이가 달라서 <b>제 깊이의 절반만큼</b> 앞으로 내야 벽에 딱 붙는다.
+        void Wall(string file, string name, float x, float depth, float width)
+            => Put(file, name, new Vector3(x, 0f, back + depth * 0.5f), width);
+
+        void Put(string file, string name, Vector3 at, float width, float yaw = 0f)
+        {
+            var m = MyModel(t, Dir + file, name, at, width);
+            if (m == null) return;
+            // 덮어쓰지 않고 곱한다 — 임포트 축 회전을 지우면 모델이 눕는다(2026-09-21 곰).
+            if (Mathf.Abs(yaw) > 0.01f) m.localRotation = Quaternion.Euler(0f, yaw, 0f) * m.localRotation;
+        }
+
+        // ── 뒷벽 전시 줄 ──  왼쪽 반납대(x −12.9까지)를 피해 x −11 부터, 평상(x 10.6~)까지.
+        // 폭 합계 11.57m 를 24m 에 고르게 편다.
+        Wall("L01_Onggi_Terrace.fbx",      "ExOnggiTerrace", -7.6f, 1.511f, 2.650f);
+        Wall("L02_Meju_Drying_Rack.fbx",   "ExMejuRack",     -2.9f, 0.620f, 2.530f);
+        Wall("L03_Grain_Dwiju.fbx",        "ExGrainDwiju",    1.4f, 1.019f, 1.980f);
+        Wall("L04_Giant_Tool_Exhibit.fbx", "ExToolWall",      5.6f, 0.660f, 2.250f);
+        Wall("L05_Mill_Mortar_Exhibit.fbx","ExMillMortar",    9.8f, 0.980f, 2.160f);
+
+        // ── 반납대 옆: 먹고 난 뒤에 하는 일 ──  잔반을 재고, 다 먹었으면 도장을 찍는다.
+        Put("M01_Leftover_Scale.fbx",    "ExLeftoverScale", new Vector3(-11.3f, 0f, -7.95f), 0.760f, 90f);
+        Put("M03_Clean_Plate_Stamp.fbx", "ExCleanStamp",    new Vector3(-11.3f, 0f, -5.4f), 0.680f, 90f);
+
+        // ── 줄 머리: 받기 전에 하는 일 ──  오늘 배식 당번을 뽑는다.
+        Put("M02_Duty_Lottery.fbx", "ExDutyLottery", new Vector3(-11.4f, 0f, 7.4f), 0.965f, 90f);
+
+        // ── 오른쪽 벽: 곰이 뭘 먹는지 ──  낮은 상자라 자리를 안 먹는다.
+        Put("M04_Bear_Diet_Case.fbx", "ExDietCase",
+            new Vector3(halfW - 0.6f - 0.23f, 0f, 0f), 1.060f, 90f);
+
+        // ── 평상 둘 사이에 매단 풍경 ──  y 를 주면 <b>바닥이 그 높이</b>에 온다.
+        // 2.35 + 1.07 = 3.42m 라 서까래(8.25)에는 안 닿고 앉은 사람 머리 위로 지나간다.
+        Put("M05_Bear_Fish_Windchime.fbx", "ExWindchime", new Vector3(12.4f, 2.35f, 0f), 0.315f);
     }
 
     /// <summary>

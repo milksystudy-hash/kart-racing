@@ -39,8 +39,11 @@ public class LobbyHUD : MonoBehaviour
         if (k.eKey.wasPressedThisFrame)
         {
             // 문이 먼저다. 문 앞에 곰이 서 있을 때 말만 걸리고 못 들어가면 답답하다.
+            // ★ 시계가 잡혀 있으면 곰은 건너뛴다 — `DeskClock` 이 제 E 를 따로 듣기 때문에,
+            // 여기서 곰까지 말하게 두면 <b>한 번 누르고 둘이 동시에 반응한다.</b>
             if (SceneDoor.Nearest != null) SceneDoor.Nearest.Enter();
             else if (HingedDoor.Nearest != null) HingedDoor.Nearest.Toggle();
+            else if (DeskClock.Nearest != null) { /* 시계가 직접 연다 */ }
             else if (BearNpc.Nearest != null) BearNpc.Nearest.Talk();
         }
     }
@@ -69,7 +72,11 @@ public class LobbyHUD : MonoBehaviour
         var style = Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter);
         if (walking) style.normal.textColor = Hud.Brass;
 
-        GUI.Label(chip, walking ? "TAB 둘러보기로   ·   E 말 걸기" : "TAB 걸어다니기", style);
+        // 시계 앞에서는 «E 말 걸기» 가 거짓말이 된다 — 그 자리의 E 는 시계가 먹는다.
+        string chipText = !walking ? "TAB 걸어다니기"
+                        : DeskClock.Nearest != null ? "TAB 둘러보기로"
+                        : "TAB 둘러보기로   ·   E 말 걸기";
+        GUI.Label(chip, chipText, style);
 
         // ★ 접수대 시계 앞에 서면 그 자리에서 알려준다.
         // <b>키가 있어도 화면에 없으면 없는 것이다</b> — 이 프로젝트에서 세 번째야(G, TAB, 이번).
@@ -202,6 +209,17 @@ public class LobbyHUD : MonoBehaviour
     void DrawTalkPrompt(float w, float h)
     {
         if (BearNpc.Nearest == null) return;
+
+        // ★★ <b>시계가 잡혔으면 곰은 양보한다</b>(2026-09-22 유저: *"시계 패널 뜰 때 곰인형이
+        // 지나가는데 동시에 E 를 누르면 시계가 열리고 곰 대사는 안 뜬다"*).
+        //
+        // E 를 <b>두 군데서 따로 듣고 있었다</b> — <see cref="DeskClock"/> 가 제 E 를 직접 받고
+        // 여기서는 문·곰을 받는다. 그래서 <b>안내는 둘 다 뜨는데 실제로는 시계만 먹었다.</b>
+        // 안내가 둘이면 어느 쪽이 먹는지 알 수가 없고, 그건 «눌렀는데 아무 일이 없다» 로 읽힌다.
+        //
+        // 곰이 지나가는 건 <b>내가 못 정하는 일</b>이라(순찰한다) 시계 쪽을 이기게 두면
+        // 같은 자리에서 결과가 매번 달라진다. <b>고정된 물건이 이긴다.</b>
+        if (DeskClock.Nearest != null) return;
 
         var chip = new Rect(w * 0.5f - 62f, h * 0.72f, 124f, 28f);
         Hud.Chip(chip);
