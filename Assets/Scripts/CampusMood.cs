@@ -56,7 +56,7 @@ public class CampusMood : MonoBehaviour
 
         shown = Saved;
         ApplyLight(shown);
-        ApplyStickers(shown);
+        ApplyStickers(shown, animate: false);
     }
 
     void Update()
@@ -67,7 +67,7 @@ public class CampusMood : MonoBehaviour
         if (lastCount != CollectionState.Count)
         {
             lastCount = CollectionState.Count;
-            ApplyStickers(goal);
+            ApplyStickers(goal, animate: true);
         }
 
         if (Mathf.Approximately(shown, goal)) return;
@@ -97,10 +97,15 @@ public class CampusMood : MonoBehaviour
     /// 수집품 8개에 건물 12동이라 한 판에 한 동 넘게 살아나는데, 그게 맞아 —
     /// 여덟 번 달려서 열두 동을 되살리는 게 여덟 동만 되살리는 것보다 이긴 느낌이 크다.
     /// </summary>
-    void ApplyStickers(float t)
+    void ApplyStickers(float t, bool animate)
     {
         int alive = Mathf.RoundToInt(signs.Count * t);
         for (int i = 0; i < signs.Count; i++)
-            signs[i].SetClosed(i >= alive);
+        {
+            // <b>경계에서부터 퍼져 나가게</b> 순서를 준다 — 방금 살아난 건물이 먼저 떨어지고
+            // 멀리 있는 것이 나중이라, 눈이 «어디서 시작됐는지» 를 따라갈 수 있다.
+            float delay = animate ? Mathf.Abs(i - alive) * Reveal.Step : -1f;
+            signs[i].SetClosed(i >= alive, delay);
+        }
     }
 }

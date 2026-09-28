@@ -142,6 +142,20 @@ public class CanteenStage : MonoBehaviour
     /// 못 찾으면 <c>null</c> 을 돌려주고 부르는 쪽이 옛 구슬로 떨어진다 — 팬이 없는
     /// 옛 씬에서도 게임은 돌아가야 한다.
     /// </summary>
+    /// <summary>
+    /// 식판에 담기는 음식의 폭. ★ 2026-09-28 유저: *"식판에 담겨진 반찬들이 너무 작게
+    /// 나오는데 큼지막하게 나오게 해 줘."* 0.066 → <b>0.094 (1.42배)</b>.
+    ///
+    /// <b>음식만 키우면 옆 칸을 침범한다</b> — 식판과 칸 간격을 같이 키워야 한다.
+    /// 셋이 한 묶음이라 여기 모아 뒀다: 칸 간격 0.100 · 음식 0.094(칸의 94%) ·
+    /// 다섯 칸이 먹는 폭 0.40 + 양옆 여유 0.07 → 식판 0.54.
+    /// 곰 엉덩이 폭이 0.52 라 이게 <b>«받쳐 든 식판»</b> 으로 보이는 상한이다.
+    /// </summary>
+    public const float TrayFoodWidth = 0.094f;
+    public const float TraySlotStep  = 0.100f;
+    public const float TrayWidth     = 0.54f;
+    public const float TrayDepth     = 0.34f;
+
     static Transform RealFood(Transform tray, int slot, Vector3 at)
     {
         var pot = GameObject.Find($"InPot_{slot}");
@@ -170,7 +184,7 @@ public class CanteenStage : MonoBehaviour
         float widest = Mathf.Max(b.size.x, b.size.z);
         if (widest > 0.0001f)
         {
-            float k = 0.066f / widest;
+            float k = TrayFoodWidth / widest;
             copy.localScale = Vector3.Scale(copy.localScale, Vector3.one * k);
         }
 
@@ -859,10 +873,10 @@ public class CanteenStage : MonoBehaviour
         tray.SetParent(rig, false);
         tray.localPosition = new Vector3(0f, 0.42f, 0.30f);
 
-        Slab(tray, "TrayPlate", Vector3.zero, new Vector3(0.40f, 0.03f, 0.28f),
+        Slab(tray, "TrayPlate", Vector3.zero, new Vector3(TrayWidth, 0.03f, TrayDepth),
              new Color32(0xB9, 0x9A, 0x5E, 0xFF), Finish.금속);
         // 칸막이 한 줄 - 판때기 한 장은 식판으로 안 보인다
-        Slab(tray, "TrayRib", new Vector3(0f, 0.02f, 0f), new Vector3(0.40f, 0.02f, 0.02f),
+        Slab(tray, "TrayRib", new Vector3(0f, 0.02f, 0f), new Vector3(TrayWidth, 0.02f, 0.02f),
              new Color32(0x9A, 0x7E, 0x48, 0xFF), Finish.금속);
 
         // 담긴 것 — <b>칸마다 하나씩, 받은 것만 켠다.</b> 자리는 고정이라
@@ -871,10 +885,10 @@ public class CanteenStage : MonoBehaviour
         var food = new Transform[CanteenOrder.Slots];
         for (int i = 0; i < CanteenOrder.Slots; i++)
         {
-            Vector3 at = new Vector3(-0.15f + i * 0.075f, 0.035f, 0.05f);
+            Vector3 at = new Vector3((i - 2) * TraySlotStep, 0.035f, 0.04f);
             food[i] = RealFood(tray, i, at) ??
                       Ball(tray, $"TrayFood_{i}", at + Vector3.up * 0.005f,
-                           new Vector3(0.09f, 0.05f, 0.09f), DishColors[i]);
+                           new Vector3(0.128f, 0.072f, 0.128f), DishColors[i]);
             food[i].name = $"TrayFood_{i}";
             food[i].gameObject.SetActive(false);
         }

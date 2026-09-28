@@ -87,6 +87,59 @@ public class DialogueHUD : MonoBehaviour
 
     void Fill(Rect r, Color c) => GUI.DrawTexture(r, Tex(c));
 
+    /// <summary>
+    /// 화면 전체를 위에서 아래로 점점 진하게 덮는다 — 이야기가 흐르는 동안만.
+    ///
+    /// <b>띠를 겹쳐 그리지, 그라데이션 텍스처를 굽지 않는다.</b> 텍스처는 픽셀 y 0 이
+    /// 아래인데 화면 y 0 은 위라, 이 프로젝트에서 위아래·좌우가 뒤집힌 게 <b>네 번</b>이다
+    /// (현판 글씨 · 진열장 숫자 · 접수대 시계 · 화장실 칸 이름). 띠는 좌표가 곧 화면
+    /// 좌표라 틀릴 수가 없고, 16장이면 IMGUI 드로우콜 16개라 값도 싸다.
+    /// </summary>
+    void DimBackdrop(float w, float h, float topA = 0.16f, float bottomA = 0.52f, int bands = 16)
+    {
+        float bh = h / bands;
+        for (int i = 0; i < bands; i++)
+        {
+            float t = (i + 0.5f) / bands;                 // 0 화면 위 → 1 화면 아래
+            float a = Mathf.Lerp(topA, bottomA, t * t);   // 아래로 갈수록 빠르게 — 대화창 쪽이 제일 어둡다
+            Fill(new Rect(0f, i * bh, w, bh + 1f), new Color(0.04f, 0.05f, 0.09f, a));
+        }
+    }
+
+    /// <summary>
+    /// 바깥에서 안으로 좁혀 가며 <b>같은 옅은 색을 겹친다</b> — 가운데가 저절로 진해진다.
+    /// 테두리가 없어서 «판을 깔았다» 가 아니라 «저기 사람이 서 있다» 로 읽힌다.
+    /// </summary>
+    void SoftColumn(Rect r, Color c, int layers = 9)
+    {
+        for (int i = 0; i < layers; i++)
+        {
+            float t = i / (float)layers;
+            float ix = r.width * 0.46f * t;
+            float iy = r.height * 0.55f * t;
+            Fill(new Rect(r.x + ix, r.y + iy, r.width - ix * 2f, r.height - iy), c);
+        }
+    }
+
+    /// <summary>
+    /// 초상화가 설 자리. <b>초상화와 이름표가 같은 값을 봐야</b> 이름표가 안 겹친다 —
+    /// 같은 숫자를 두 군데서 계산하면 반드시 어긋난다.
+    ///
+    /// 화면이 납작하면(에디터 Game 뷰가 대개 그렇다) 머리가 <b>화면 천장에 붙는다.</b>
+    /// 측정: 1180 × 420 에서 초상화 위 여백이 <b>2px</b> 이었다. 대사창 위에 남은
+    /// 높이 안으로 묶어서, 어떤 창 크기에서도 머리 위가 14px 은 비게 한다.
+    /// </summary>
+    Rect PortraitRect(Rect box, float w)
+    {
+        float pw = Mathf.Clamp(w * 0.17f, 132f, 224f);
+        float ph = pw * 1.22f;
+
+        float room = box.y - 4f;      // r.y = box.y - ph + 10 이 14 밑으로 안 내려가게
+        if (ph > room) { ph = Mathf.Max(96f, room); pw = ph / 1.22f; }
+
+        return new Rect(box.x + 26f, box.y - ph + 10f, pw, ph);
+    }
+
     /// <summary>테두리만 있는 네모. 안쪽은 안 칠한다.</summary>
     void Outline(Rect r, Color c, float thickness = 2f)
     {
@@ -132,10 +185,20 @@ public class DialogueHUD : MonoBehaviour
 
         float w = Screen.width, h = Screen.height;
 
-        DrawSceneTitle(w);
-
         var line = runner.Current;
-        if (string.IsNullOrEmpty(line.text)) return;
+        bool hasLine = !string.IsNullOrEmpty(line.text);
+
+        // ★ 배경을 눌러야 인물이 보인다(2026-09-28). 유저: *"세진이 뒤에 무슨 네모칸 배경이나
+        // 뭐 필요하지 않아? 비어 보이는데."* — <b>네모칸은 정답이 아니다.</b> 인물 뒤에 판을
+        // 깔면 «배경 위에 붙인 스티커» 가 되고, 3D 로비를 배경으로 쓰는 이유(§3.6)가 사라진다.
+        //
+        // 비어 보인 진짜 원인은 <b>배경과 인물이 같은 밝기</b>인 것이다 — 크림색 홀 앞에
+        // 크림색 인물이 서 있으니 서로 묻힌다. 비주얼 노벨이 쓰는 방법은 판을 까는 게 아니라
+        // <b>배경을 어둡게 누르는 것</b>이고, 그러면 같은 그림이 앞으로 걸어 나온다.
+        if (hasLine) DimBackdrop(w, h);
+
+        DrawSceneTitle(w);
+        if (!hasLine) return;
 
         float margin = Mathf.Max(24f, w * 0.045f);
         float boxH = Mathf.Clamp(h * 0.25f, 146f, 200f);
@@ -157,18 +220,48 @@ public class DialogueHUD : MonoBehaviour
         string title = runner.SceneTitle;
         if (string.IsNullOrEmpty(title)) return;
 
-        var r = new Rect(20, 18, Mathf.Min(360f, w * 0.4f), 30);
+        // ★ 2026-09-28 <b>오른쪽 위로 옮겼다.</b> 유저: *"세진이가 이렇게 들어가면 뒤에
+        // 철거 뭐시기 글자가 가려지는데."* 초상화는 언제나 <b>왼쪽</b>에 서니까, 겹치지 않는
+        // 자리는 반대쪽 모서리 하나뿐이다. 판을 깔아 가리는 게 아니라 <b>비켜 놓는 것</b>이
+        // 답이야 — 게임이 인물과 UI 를 같은 모서리에 두지 않는 게 그래서다.
+        //
+        // 칸 폭도 <b>글자 길이에서</b> 뽑는다. 360 고정이면 짧은 제목 옆에 빈 판이 붙어서
+        // 그 자체가 «뭔가 가려진 자리» 로 보인다.
+        float tw = Mathf.Min(w * 0.44f, titleStyle.CalcSize(new GUIContent(title)).x + 36f);
+        var r = new Rect(w - tw - 20f, 18f, tw, 30f);
         Fill(r, TitleColor);
-        GUI.Label(new Rect(r.x + 14, r.y, r.width - 20, r.height),
-                  title, new GUIStyle(titleStyle) { alignment = TextAnchor.MiddleLeft });
+        GUI.Label(r, title, new GUIStyle(titleStyle) { alignment = TextAnchor.MiddleCenter });
     }
 
     /// <summary>초상화. 그림이 있으면 그리고, 없으면 그 사람 색의 자리표시 네모.</summary>
+    string portraitKey = "";
+    float portraitAt = -99f;
+
     void DrawPortrait(Rect box, DialogueLine line, float w)
     {
-        float pw = Mathf.Clamp(w * 0.17f, 132f, 224f);
-        float ph = pw * 1.22f;
-        var r = new Rect(box.x + 26f, box.y - ph + 10f, pw, ph);
+        var r = PortraitRect(box, w);
+
+        // ★ <b>아래에서 올라오며 스며든다</b>(2026-09-28). 유저: *"네모칸 말고 자연스럽게
+        // 보이면서 하는, 보통의 게임사들이 이런 일러스트 띄울 때 하는 방법."*
+        //
+        // 그 방법은 판을 까는 게 아니라 <b>등장을 보여주는 것</b>이다. 한 프레임에 «툭»
+        // 나타난 그림은 화면에 붙인 스티커지만, 0.2초 동안 <b>올라오면서 진해지면</b>
+        // 그 자리에 선 사람이 된다. 말하는 사람이 바뀔 때마다 다시 논다 —
+        // 그래서 «누가 말하는지» 가 이름표를 안 읽어도 눈에 들어온다.
+        string key = line.speakerId + "|" + line.mood;
+        if (key != portraitKey) { portraitKey = key; portraitAt = Time.unscaledTime; }
+
+        float rise = Mathf.Clamp01((Time.unscaledTime - portraitAt) / 0.2f);
+        rise = 1f - (1f - rise) * (1f - rise);      // 끝에서 부드럽게 멎는다
+        r.y += (1f - rise) * 24f;
+
+        var keepColor = GUI.color;
+        GUI.color = new Color(1f, 1f, 1f, rise);
+
+        // 인물 뒤 — 테두리 없이 좌우·위로 스며 나가는 옅은 어둠. 배경이 밝은 벽이든
+        // 어두운 구석이든 인물의 윤곽이 일정하게 떨어진다.
+        SoftColumn(new Rect(r.x - r.width * 0.20f, r.y - 10f, r.width * 1.40f, r.height + 10f),
+                   new Color(0.03f, 0.04f, 0.07f, 0.035f));
 
         var tex = Cast.Portrait(line.speakerId, line.mood);
         if (tex != null)
@@ -177,18 +270,21 @@ public class DialogueHUD : MonoBehaviour
             float scale = Mathf.Min(r.width / tex.width, r.height / tex.height);
             float dw = tex.width * scale, dh = tex.height * scale;
             GUI.DrawTexture(new Rect(r.center.x - dw * 0.5f, r.yMax - dh, dw, dh), tex);
-            return;
+        }
+        else
+        {
+            var c = Cast.ColorOf(line.speakerId);
+            Fill(r, new Color(c.r, c.g, c.b, 0.20f));
+            Outline(r, new Color(c.r, c.g, c.b, 0.85f));
+
+            var s = new GUIStyle(slotStyle);
+            s.normal.textColor = new Color(1f, 1f, 1f, 0.82f);
+            // 꺾쇠(< >)는 쓰지 않는다 — 리치 텍스트 태그로 먹혀서 글자가 사라질 수 있다
+            GUI.Label(new Rect(r.x + 8, r.center.y - 34, r.width - 16, 68),
+                      $"{Cast.NameOf(line.speakerId)}\n{line.mood} 표정\n\n초상화 자리", s);
         }
 
-        var c = Cast.ColorOf(line.speakerId);
-        Fill(r, new Color(c.r, c.g, c.b, 0.20f));
-        Outline(r, new Color(c.r, c.g, c.b, 0.85f));
-
-        var s = new GUIStyle(slotStyle);
-        s.normal.textColor = new Color(1f, 1f, 1f, 0.82f);
-        // 꺾쇠(< >)는 쓰지 않는다 — 리치 텍스트 태그로 먹혀서 글자가 사라질 수 있다
-        GUI.Label(new Rect(r.x + 8, r.center.y - 34, r.width - 16, 68),
-                  $"{Cast.NameOf(line.speakerId)}\n{line.mood} 표정\n\n초상화 자리", s);
+        GUI.color = keepColor;
     }
 
     void DrawNamePlate(Rect box, DialogueLine line, float w)
@@ -196,7 +292,8 @@ public class DialogueHUD : MonoBehaviour
         string name = Cast.NameOf(line.speakerId);
         if (string.IsNullOrEmpty(name)) return;
 
-        float pw = Mathf.Clamp(w * 0.17f, 132f, 224f);
+        // 초상화 폭을 여기서 다시 계산하면 좁아진 화면에서 이름표가 인물 위로 겹친다.
+        float pw = PortraitRect(box, w).width;
         float plateW = Mathf.Max(104f, nameStyle.CalcSize(new GUIContent(name)).x + 36f);
         var plate = new Rect(box.x + 26f + pw + 14f, box.y - 34f, plateW, 34f);
 

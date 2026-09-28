@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 /// <summary>
 /// 환웅박물관 야외 캠퍼스를 코드로 세운다 — 담장, 정문, 본관, 전시동, 연못, 중앙 광장.
@@ -98,6 +99,9 @@ public class CampusBuilder : MonoBehaviour
         BuildTicketBooth(new Vector3(-26f, 0f, -88f), 150f);
 
         BuildCampusHalls();
+
+        // 지붕 상징물은 <b>전부 올려놓고 한 번에</b> 돌린다 — 아래 설명 참고
+        OrientRoofEmblems();
 
         // <b>담장은 건물 다음에.</b> 건물이 어디 있는지 알아야 비켜갈 수 있다.
         BuildPerimeterWall();
@@ -398,6 +402,7 @@ public class CampusBuilder : MonoBehaviour
                       Quaternion.identity, new Vector3(0.7f, height, 0.7f), ColWood, noCollider: true);
 
         Flavour(t, name, width, depth, height);
+        RoofEmblem(t, name, width, height);
 
         // 정면 문과 창 — +Z 쪽이 앞이다
         float front = depth * 0.5f + 0.1f;
@@ -448,6 +453,100 @@ public class CampusBuilder : MonoBehaviour
     }
 
     /// <summary>
+    const string RoofFolder = "Assets/My blender/RoofObjects/";
+
+    /// <summary>
+    /// 건물 이름 → 지붕에 올릴 상징물(2026-09-28, 유저가 만든 열 점 · 7,304쿼드 · 100% 쿼드).
+    ///
+    /// <b>글자 없는 조형물</b>이라 멀리서도 «저 건물이 뭐 하는 데인지» 가 읽힌다 —
+    /// 현판은 가까이 가야 읽히고, 지붕 위 물건은 <b>코스를 달리면서도 보인다.</b>
+    /// 곰밥마당 지붕에 밥그릇·솥뚜껑을 올린 것과 같은 문법이고(2026-09-18),
+    /// 그래서 곰밥마당은 이 표에 없다 — 이미 둘이 올라가 있다.
+    /// </summary>
+    static readonly (string hall, string file)[] RoofEmblems =
+    {
+        ("곰솥관",       "01_Gomsot_Baking"),              // 반죽 볼 + 밀대 + 밀 이삭
+        ("웅지관",       "02_Leadership_Stamp"),           // 결재 도장 + 서류 + 동전
+        ("화장실",       "03_Restroom_Toilet"),            // 곰 귀 변기 + 두루마리 휴지
+        ("곰짝박수마당", "04_Applause_Paws"),              // 곰발 + 행사 북
+        ("곰테크관",     "05_Tech_Gear"),                  // 기어 + 카트 바퀴 + 스패너
+        ("대충기념관",   "06_Memorial_Bust"),              // 곰 흉상 + 역사책
+        ("재주관",       "07_Arts_Palette"),               // 팔레트 + 붓 + 음표
+        ("참잘했어요관", "08_Awards_Trophy"),              // 곰발 트로피 + 시상대
+        ("곰누리관",     "09_International_Globe"),        // 지구본 + 여행 가방 + 비행기
+        ("곰생회관",     "10_Student_Council_Megaphone"),  // 확성기 + 말풍선
+    };
+
+    /// <summary>
+    /// <b>앞면에만 있는 부품.</b> ★ 뒤쪽 부품을 넣으면 열 개가 통째로 거꾸로 선다 —
+    /// 변기 <c>Lid</c>(+0.63)는 물탱크 쪽이고 팔레트 <c>Brush</c>(+0.15)는 뒤에 꽂혀 있다.
+    /// 여기 넣은 넷은 전부 <b>앞에 놓인 것</b>이다: 비행기 · 역사책 · 스패너 · 휴지.
+    /// </summary>
+    static readonly string[] RoofFrontMarks = { "Airplane", "History_Book", "Spanner", "Paper_Roll" };
+
+    readonly List<Transform> roofEmblems = new List<Transform>();
+
+    /// <summary>
+    /// 지붕 능선 한가운데에 상징물 하나. <b>크기는 건물에서 뽑는다</b> —
+    /// 폭 <c>w × 0.33</c> · 키 상한 <c>h × 0.80</c>. 손으로 열 개를 적으면
+    /// 모델을 새로 뽑을 때 또 틀린다(밥그릇에서 배운 것).
+    ///
+    /// 유저 기준은 <b>«멀리서 봐도 뭐 하는 건물인지 아는 것»</b>(2026-09-18)이라
+    /// 크기가 먼저다 — 곰밥마당 그릇이 30m 건물에 폭 10m · 키 8.5m 니 같은 결이야.
+    ///
+    /// 높이는 <see cref="RoofTopLocal"/> 로 <b>읽는다.</b> <c>h + 0.9</c> 같은 어림값을 쓰면
+    /// 처마·기와·능선이 층층이 쌓인 만큼 <b>지붕에 묻힌다</b>(2026-09-18에 0.8m 묻혔다).
+    /// </summary>
+    void RoofEmblem(Transform t, string name, float w, float h)
+    {
+        string file = null;
+        foreach (var e in RoofEmblems)
+            if (e.hall == name) { file = e.file; break; }
+        if (file == null) return;
+
+        var m = MyModel(t, RoofFolder + file + ".fbx", "RoofEmblem",
+                        new Vector3(0f, RoofTopLocal(t, h) - 0.06f, 0f),
+                        w * 0.33f, h * 0.80f);
+        if (m != null) roofEmblems.Add(m);
+    }
+
+    /// <summary>
+    /// 열 개의 <b>앞면을 한 번에</b> 정한다.
+    ///
+    /// ★ 하나씩 물어보면 안 된다. 열 점 중 <b>앞쪽 부품이 있는 건 넷뿐</b>이고
+    /// (비행기 · 역사책 · 스패너 · 휴지) 나머지 여섯은 신호가 0 이라 안 돌아간다 —
+    /// 그러면 <b>여섯 개가 등을 돌리고 선다.</b> 게다가 건물을 짓는 순서에 따라
+    /// 먼저 걸리는 모델이 달라져서 <b>돌릴 때마다 결과가 바뀐다.</b>
+    ///
+    /// 한 블렌드 파일에서 같은 설정으로 나왔으니 <b>방향은 열 개가 같다.</b>
+    /// 전부 올려놓고 <b>제일 뚜렷한 신호 하나</b>로 정해서 열 개에 같이 적용한다 —
+    /// 철곰관·웅지관 묶음과 같은 방식이고, «블렌더에서 이랬으니 유니티도 이럴 것» 은
+    /// 이 프로젝트에서 <b>두 번 틀렸다</b>(곰이 누움 · 스피커가 뒤돎).
+    /// </summary>
+    void OrientRoofEmblems()
+    {
+        float best = 0f;
+        foreach (var m in roofEmblems)
+        {
+            if (m == null) continue;
+            float e = FrontEvidence(m, RoofFrontMarks);
+            if (Mathf.Abs(e) > Mathf.Abs(best)) best = e;
+        }
+
+        // 신호가 음수면 모델의 −Z 가 앞이다 → 180 도 돌려 <b>문 쪽(+Z)</b>을 보게 한다
+        if (best < 0f)
+            foreach (var m in roofEmblems)
+                if (m != null)
+                    m.localRotation = Quaternion.Euler(0f, 180f, 0f) * m.localRotation;
+
+        if (Mathf.Abs(best) < 0.01f)
+            Debug.LogWarning("[지붕] 상징물 앞면을 못 쟀다 — 부품 이름(Airplane·History_Book…)이 " +
+                             "바뀌었는지 확인해라. 일단 안 돌리고 세운다.");
+        else
+            Debug.Log($"[지붕] 상징물 {roofEmblems.Count}/10 · 앞면 신호 {best:+0.000;-0.000}m → " +
+                      $"{(best < 0f ? "180도 돌려" : "그대로")} 세웠다");
+    }
+
     /// <b>이 건물 지붕의 제일 높은 점</b>(월드 y). 지붕 위에 뭘 올릴 때 쓴다.
     ///
     /// 눈으로 어림하면 틀린다 — 곰밥마당은 높이 9 인데 기와까지 쌓이면 <b>10.95</b> 다.
@@ -657,7 +756,9 @@ public class CampusBuilder : MonoBehaviour
             case "곰짝박수마당":
                 title = "한마당 무대"; blurb = "박자에 맞춰 손뼉을"; ready = false; break;
             case "철곰관":
-                title = "곰 씨름판"; blurb = "밀어서 넘기면 이긴다"; ready = false; break;
+                // 방이 씨름판에서 <b>안전 체험 훈련장</b>으로 바뀌었다(2026-09-28).
+                // <b>간판과 방이 다른 말을 하면</b> 「준비 중」이 아니라 「고장」으로 읽힌다.
+                title = "안전 점검 훈련"; blurb = "철거 사유를 하나씩 지운다"; ready = false; break;
             default:
                 return;   // 나머지는 자리를 안 둔다
         }
@@ -848,6 +949,321 @@ public class CampusBuilder : MonoBehaviour
     /// 천장등은 <b>전부 발광 재질</b>이라 조명을 안 쓴다. 방 열셋에 실시간 조명을 달면
     /// 기획서 §7.6 의 "실시간 그림자는 주요 조명 하나만" 이 무너진다.
     /// </summary>
+    const string CheolgomFolder = "Assets/My blender/Cheolgom/";
+
+    /// <summary>
+    /// 철곰관 소품 — 파일 · 오브젝트 이름 · 자리(x, z) · <b>앞면이 향할 방향</b> · 실제 폭(m).
+    ///
+    /// 방향은 방 기준이다: <b>0 = 문 쪽(+Z) · 180 = 뒷벽 · 90 = +X · 270 = −X.</b>
+    /// 폭은 재 온 실측값이라 그대로 넘기면 배율이 1.0 이 된다 —
+    /// 숫자를 적어 두는 게 <c>Lcl Scaling = 100</c> 함정에도 안전하다(2026-09-22).
+    /// </summary>
+    static readonly (string file, string label, float x, float z, float yaw, float width)[]
+        CheolgomLayout =
+    {
+        // 앞벽 — 들어오자마자 보이는 «관제·장비» 줄. 문 앞(|x| < 2.2)은 비운다
+        ("01_Security_Console",        "관제콘솔",   -5.5f,  5.35f, 180f, 2.88f),
+        ("02_Protective_Gear_Rack",    "보호장비",    5.4f,  5.40f, 180f, 2.37f),
+        // 왼쪽 벽 — 훈련 설비
+        ("04_Reaction_Training_Wall",  "반응훈련벽", -8.3f,  4.10f,  90f, 2.73f),
+        ("06_Rescue_Equipment_Station","구조장비",   -8.4f,  0.60f,  90f, 2.61f),
+        ("10_Crash_Mat_Trolley",       "매트운반대", -8.2f, -2.90f,  90f, 2.36f),
+        // 오른쪽 벽
+        ("05_Mobile_Safety_Barrier",   "안전펜스",    8.4f,  3.60f, 270f, 3.30f),
+        ("07_Rope_Rescue_Frame",       "로프구조",    8.0f,  0.00f, 270f, 2.61f),
+        // 가운데 — 체험 동선은 균형대 → 대피터널 순서다. 그 뒤가 더미
+        ("08_Balance_Walkway",         "균형보행",   -3.2f, -3.40f,   0f, 3.11f),
+        ("09_Low_Crawl_Course",        "대피터널",    0.9f, -3.40f,   0f, 1.48f),
+        ("03_Bear_Training_Dummies",   "훈련더미",    5.0f, -4.60f,   0f, 2.31f),
+    };
+
+    /// <summary>
+    /// 철곰관 — 경호·체육·안전. 유저가 만든 대형 소품 열 점(<b>7,175쿼드 · 100% 쿼드 ·
+    /// 바닥 원점 · 실물 크기</b>)이 방의 뼈대고, 코드는 <b>바닥 선과 마감만</b> 얹는다.
+    ///
+    /// 자리는 세 줄이다 — <b>앞벽(관제·장비) · 양옆 벽(훈련 설비) · 가운데(체험 동선)</b>.
+    /// 큰 것을 흩뿌리면 체육관이 창고가 되는데, 벽에 붙이고 가운데를 비우면
+    /// <b>지나가는 길</b>이 생긴다(곰밥마당 배식 줄과 같은 판단).
+    /// 문 앞(|x| &lt; 2.2 · z &gt; 4.4)과 미니게임 입간판 자리(0, 2.5)는 비운다.
+    /// </summary>
+    void Cheolgom(Transform t, float w, float d, float h)
+    {
+        float inX = w * 0.5f - 0.6f, inZ = d * 0.5f - 0.6f;   // Hollow 벽은 0.6m 두께다
+
+        // ---- 유저 소품 열 점 ----
+        var placed = new Transform[CheolgomLayout.Length];
+        int made = 0;
+        for (int i = 0; i < CheolgomLayout.Length; i++)
+        {
+            var p = CheolgomLayout[i];
+            placed[i] = MyModel(t, CheolgomFolder + p.file + ".fbx", "In_" + p.label,
+                                new Vector3(p.x, 0f, p.z), p.width);
+            if (placed[i] != null) made++;
+        }
+
+        // ★★ <b>앞면은 짐작하지 않고 씬에서 잰다.</b> 블렌더 기준 앞면이 −Y 인 건 헤드리스로
+        // 확인했지만(Target·Equipment·Cabinet_Door 여섯 점의 부품 자리), <b>블렌더 축이
+        // 유니티에서 어느 쪽이 되는지는 이 프로젝트에서 두 번 틀렸다</b> —
+        // 곰이 누웠고(2026-09-21) 스피커가 뒤돌아 섰다(2026-09-22).
+        //
+        // 열 점이 한 블렌드 파일에서 같은 설정으로 나왔으니 <b>방향은 열 개가 같다.</b>
+        // 그래서 <b>제일 뚜렷한 신호 하나</b>로 정하고 열 개에 같이 적용한다 —
+        // 신호가 약한 모델(반응벽 타겟은 벽 두께의 절반밖에 안 튀어나온다)에 각자
+        // 물어보면 그 하나만 거꾸로 설 수 있다.
+        float best = 0f;
+        foreach (var m in placed)
+        {
+            if (m == null) continue;
+            float e = FrontEvidence(m);
+            if (Mathf.Abs(e) > Mathf.Abs(best)) best = e;
+        }
+        float extra = best >= 0f ? 0f : 180f;
+
+        for (int i = 0; i < placed.Length; i++)
+            if (placed[i] != null)
+                placed[i].localRotation =
+                    Quaternion.Euler(0f, CheolgomLayout[i].yaw + extra, 0f) * placed[i].localRotation;
+
+        if (Mathf.Abs(best) < 0.01f)
+            Debug.LogWarning("[철곰관] 소품 앞면을 못 쟀다 — 부품 이름(Target·Cabinet_Door…)이 " +
+                             "바뀌었는지 확인해라. 일단 안 돌리고 세운다.");
+        else
+            Debug.Log($"[철곰관] 소품 {made}/10 · 앞면 신호 {best:+0.000;-0.000}m → " +
+                      $"{(extra > 0f ? "180도 돌려" : "그대로")} 세웠다");
+
+        // ---- 바닥 체험 동선 ----
+        // 코스가 바닥에 그려져 있어야 «지나가는 길» 이 된다. 선이 없으면 큰 물건 열 개가
+        // 그냥 놓여 있는 방이야. 바닥 윗면이 y 0 이라 <b>2mm 띄워서</b> 깐다(지지직 방지).
+        Block(t, "InLaneMain", new Vector3(-1.0f, 0.012f, -3.4f), Quaternion.identity,
+              new Vector3(11.0f, 0.02f, 0.16f), ColMapleGold, noCollider: true);
+        for (int i = 0; i < 10; i++)
+            Block(t, $"InLaneDash_{i}", new Vector3(-6.4f + i * 1.45f, 0.012f, 1.4f),
+                  Quaternion.identity, new Vector3(0.85f, 0.02f, 0.12f), ColCream, noCollider: true);
+
+        // 삼각콘 — 「안전 체험」을 한 물건으로 말해 준다. 코스 양 끝에만 둔다
+        float[] coneX = { -5.6f, -0.9f, 2.4f, 6.4f };
+        for (int i = 0; i < coneX.Length; i++)
+        {
+            Block(t, $"InConeFoot_{i}", new Vector3(coneX[i], 0.04f, -1.5f), Quaternion.identity,
+                  new Vector3(0.36f, 0.08f, 0.36f), ColMapleGold, noCollider: true);
+            Block(t, $"InConeBody_{i}", new Vector3(coneX[i], 0.3f, -1.5f), Quaternion.identity,
+                  new Vector3(0.16f, 0.52f, 0.16f), ColMapleGold, noCollider: true);
+            Block(t, $"InConeBand_{i}", new Vector3(coneX[i], 0.38f, -1.5f), Quaternion.identity,
+                  new Vector3(0.19f, 0.10f, 0.19f), ColCream, noCollider: true);
+        }
+
+        // ---- 뒷벽 — 안전 수칙과 기록판 ----
+        // 더미가 x 3.8~6.2 를 쓰니 그 왼쪽에 건다.
+        Block(t, "InRuleFrame", new Vector3(-5.0f, 2.30f, -inZ + 0.10f), Quaternion.identity,
+              new Vector3(3.4f, 2.0f, 0.06f), ColWood, noCollider: true);
+        Block(t, "InRuleBoard", new Vector3(-5.0f, 2.30f, -inZ + 0.16f), Quaternion.identity,
+              new Vector3(3.1f, 1.7f, 0.05f), ColCream, noCollider: true);
+        for (int i = 0; i < 4; i++)
+            Block(t, $"InRuleLine_{i}", new Vector3(-5.0f, 2.85f - i * 0.36f, -inZ + 0.20f),
+                  Quaternion.identity, new Vector3(2.5f, 0.11f, 0.03f),
+                  i == 0 ? ColRibbon : ColTrimDark, noCollider: true);
+
+        Block(t, "InRecordFrame", new Vector3(-0.2f, 2.30f, -inZ + 0.10f), Quaternion.identity,
+              new Vector3(2.6f, 1.6f, 0.06f), ColWood, noCollider: true);
+        Block(t, "InRecordBoard", new Vector3(-0.2f, 2.30f, -inZ + 0.16f), Quaternion.identity,
+              new Vector3(2.3f, 1.3f, 0.05f), ColBearDark, noCollider: true);
+        for (int i = -1; i <= 1; i += 2)
+            Block(t, $"InRecordSlot_{i}", new Vector3(-0.2f + i * 0.55f, 2.25f, -inZ + 0.20f),
+                  Quaternion.identity, new Vector3(0.9f, 0.8f, 0.03f), ColCream, noCollider: true);
+
+        // ---- 마감 — 레고 느낌을 빼는 셋 중 둘(모서리 기둥 · 굽도리) ----
+        // 8m 짜리 체육관은 <b>천장을 안 내린다</b> — 체육관은 원래 높고, 여기서 반자를
+        // 내리면 대형 소품이 갇혀 보인다(곰손관과 반대 판단).
+        for (int sx = -1; sx <= 1; sx += 2)
+            for (int sz = -1; sz <= 1; sz += 2)
+                Block(t, $"InCorner_{sx}_{sz}",
+                      new Vector3(sx * (inX - 0.13f), h * 0.5f, sz * (inZ - 0.13f)),
+                      Quaternion.identity, new Vector3(0.26f, h, 0.26f), ColTrimDark, noCollider: true);
+
+        for (int sx = -1; sx <= 1; sx += 2)
+            Block(t, $"InSkirt_{sx}", new Vector3(sx * (inX - 0.05f), 0.45f, 0f),
+                  Quaternion.identity, new Vector3(0.10f, 0.90f, d - 1.8f), ColWallFoot, noCollider: true);
+        Block(t, "InSkirtBack", new Vector3(0f, 0.45f, -inZ + 0.05f), Quaternion.identity,
+              new Vector3(w - 1.8f, 0.90f, 0.10f), ColWallFoot, noCollider: true);
+
+        // 천장 트러스 — 8m 민짜 천장은 «아직 안 지은 방» 으로 보인다
+        for (int i = 0; i < 7; i++)
+            Block(t, $"InTruss_{i}", new Vector3(0f, h - 0.30f, -4.5f + i * 1.5f), Quaternion.identity,
+                  new Vector3(w - 1.6f, 0.20f, 0.16f), ColWood, noCollider: true);
+        for (int sx = -1; sx <= 1; sx += 2)
+            Block(t, $"InTrussBeam_{sx}", new Vector3(sx * 4.2f, h - 0.52f, 0f), Quaternion.identity,
+                  new Vector3(0.28f, 0.26f, d - 1.6f), ColWoodRail, noCollider: true);
+    }
+
+    const string LeadershipFolder = "Assets/My blender/Leadership/";
+
+    /// <summary>
+    /// 웅지관 소품 — 파일 · 이름 · 자리(x, z) · <b>앞면이 향할 방향</b> · 실제 폭(m) ·
+    /// <paramref name="flip"/>(이 모델만 앞뒤가 반대일 때).
+    ///
+    /// ★ <b>접수대만 `flip` 이다.</b> 이 묶음에서 «앞면에만 있는 부품» 을 재 보면
+    /// 기록장 문 −0.38 · 투표함 −0.56 · 예산 막대 −0.16 으로 <b>−Y 가 앞면</b>인데,
+    /// 접수대의 창구(`Window_1~3`)만 <b>+0.11 로 반대쪽</b>에 있다. 창구 구멍은
+    /// 정의상 <b>손님 쪽</b>이라 그게 이 모델의 앞면이다 —
+    /// 곰밥마당 표본상자 하나만 방향이 달랐던 것과 같은 경우야(2026-09-23).
+    /// 혹시 접수대가 등을 돌리고 서 있으면 <b>이 `true` 하나만 지우면 된다.</b>
+    /// </summary>
+    static readonly (string file, string label, float x, float z, float yaw, float width, bool flip)[]
+        LeadershipLayout =
+    {
+        // 입구 — 들어오면 왼쪽에 행정 창구. 손님 쪽(문)을 본다
+        ("03_Administration_Counter",  "행정접수대", -9.5f,  8.4f,   0f, 5.85f, true),
+        // 왼쪽 벽 — 의사결정
+        ("01_Council_Dais",            "의회단상",  -15.8f, -5.5f,  90f, 6.10f, false),
+        ("10_Leadership_Speech_Stage", "연설무대",  -16.1f,  3.0f,  90f, 4.62f, false),
+        // 오른쪽 벽 — 경제와 기록
+        ("04_Budget_Planning_Wall",    "예산현황판", 16.7f,  4.0f, 270f, 4.91f, false),
+        ("06_Economy_Abacus",          "경제주판",   16.75f,-2.0f, 270f, 4.24f, false),
+        ("05_Grand_Records_Wall",      "문서보관벽", 16.85f,-7.6f, 270f, 5.22f, false),
+        // 뒷벽 — 집무와 실습
+        ("09_Executive_Desk",          "집무책상",   -6.0f, -8.8f,   0f, 4.14f, false),
+        ("08_Election_Practice_Station","모의선거",   6.0f, -9.0f,   0f, 4.92f, false),
+        // 가운데 — 회의와 정책 모형
+        ("02_Conference_Table_Set",    "협의탁자",   -4.5f,  1.0f,   0f, 4.70f, false),
+        ("07_Campus_Policy_Model",     "정책모형대",  5.5f,  1.5f,   0f, 4.55f, false),
+    };
+
+    /// <summary>앞면에만 있는 부품. <b>의자와 칸막이 뒤판은 빼야 한다</b> — 그건 뒷면 표식이다.</summary>
+    static readonly string[] LeadershipMarks = { "Ballot_Chest", "Archive_Door", "Budget_Bar", "Window" };
+
+    /// <summary>
+    /// 웅지관(본관) — 리더십·경영·행정. 시우가 공부하는 방이다.
+    /// 유저가 만든 대형 소품 열 점(<b>7,195쿼드 · 100% 쿼드 · 전부 바닥 원점 · 실물 크기</b>).
+    ///
+    /// 36 × 22m 는 이 캠퍼스에서 제일 큰 방이라 <b>벽에 붙이는 것만으로는 가운데가 빈다.</b>
+    /// 그래서 네 구역으로 나눴다 — <b>입구(창구) · 왼쪽 벽(의사결정) · 오른쪽 벽(경제·기록) ·
+    /// 뒷벽(집무·실습)</b>, 그리고 <b>가운데에 회의 탁자와 정책 모형대</b>.
+    /// 가운데에 두 개를 놓는 게 핵심이야: 벽에만 붙이면 «복도» 가 되고,
+    /// 가운데에 앉을 자리가 있으면 <b>«회의하는 방»</b> 이 된다.
+    ///
+    /// 문 앞(|x| &lt; 4.0 · z &gt; 7.0)은 비운다 — 본관 문은 6.4m 로 제일 넓다.
+    /// </summary>
+    void Leadership(Transform t, float w, float d, float h)
+    {
+        float inX = w * 0.5f - 0.6f, inZ = d * 0.5f - 0.6f;   // Hollow 벽은 0.6m 두께다
+
+        // ---- 유저 소품 열 점 ----
+        var placed = new Transform[LeadershipLayout.Length];
+        int made = 0;
+        for (int i = 0; i < LeadershipLayout.Length; i++)
+        {
+            var p = LeadershipLayout[i];
+            placed[i] = MyModel(t, LeadershipFolder + p.file + ".fbx", "In_" + p.label,
+                                new Vector3(p.x, 0f, p.z), p.width);
+            if (placed[i] != null) made++;
+        }
+
+        // ★ 앞면은 <b>씬에서 잰다.</b> 블렌더 축이 유니티에서 어느 쪽이 되는지는
+        // 이 프로젝트에서 두 번 틀렸다(곰이 누움 · 스피커가 뒤돎). 철곰관과 같은 방식으로,
+        // <b>제일 뚜렷한 신호 하나</b>로 묶음 전체의 방향을 정한다.
+        float best = 0f;
+        foreach (var m in placed)
+        {
+            if (m == null) continue;
+            float e = FrontEvidence(m, LeadershipMarks);
+            if (Mathf.Abs(e) > Mathf.Abs(best)) best = e;
+        }
+        float extra = best >= 0f ? 0f : 180f;
+
+        for (int i = 0; i < placed.Length; i++)
+            if (placed[i] != null)
+                placed[i].localRotation =
+                    Quaternion.Euler(0f, LeadershipLayout[i].yaw + extra
+                                       + (LeadershipLayout[i].flip ? 180f : 0f), 0f)
+                    * placed[i].localRotation;
+
+        if (Mathf.Abs(best) < 0.01f)
+            Debug.LogWarning("[웅지관] 소품 앞면을 못 쟀다 — 부품 이름(Ballot_Chest·Archive_Door…)이 " +
+                             "바뀌었는지 확인해라. 일단 안 돌리고 세운다.");
+        else
+            Debug.Log($"[웅지관] 소품 {made}/10 · 앞면 신호 {best:+0.000;-0.000}m → " +
+                      $"{(extra > 0f ? "180도 돌려" : "그대로")} 세웠다");
+
+        // ---- 바닥 — 가운데를 «회의 구역» 으로 묶는다 ----
+        // 큰 방에서 가운데 가구 둘이 그냥 놓여 있으면 «치우다 만 것» 으로 보인다.
+        // 바닥에 테두리를 그려 주면 <b>그 자리가 하나의 구역</b>이 된다(실제 관청이 그렇게 한다).
+        for (int s = -1; s <= 1; s += 2)
+        {
+            Block(t, $"InZoneX_{s}", new Vector3(s * 8.5f, 0.012f, 1.2f), Quaternion.identity,
+                  new Vector3(0.14f, 0.02f, 8.4f), ColTrimDark, noCollider: true);
+            Block(t, $"InZoneZ_{s}", new Vector3(0f, 0.012f, 1.2f + s * 4.2f), Quaternion.identity,
+                  new Vector3(17.0f, 0.02f, 0.14f), ColTrimDark, noCollider: true);
+        }
+
+        // 입구에서 창구까지 이어지는 안내선 — 처음 온 사람이 어디로 갈지 글자 없이 안다
+        for (int i = 0; i < 7; i++)
+            Block(t, $"InGuide_{i}", new Vector3(-1.2f - i * 1.4f, 0.012f, 9.4f - i * 0.12f),
+                  Quaternion.identity, new Vector3(0.9f, 0.02f, 0.12f), ColMapleGold, noCollider: true);
+
+        // ---- 벽 마감 — 모서리 기둥과 굽도리 ----
+        // 13m 짜리 통짜 크림색 벽 넉 장은 레고 상자의 정체 그대로다.
+        for (int sx = -1; sx <= 1; sx += 2)
+            for (int sz = -1; sz <= 1; sz += 2)
+                Block(t, $"InCorner_{sx}_{sz}",
+                      new Vector3(sx * (inX - 0.15f), h * 0.5f, sz * (inZ - 0.15f)),
+                      Quaternion.identity, new Vector3(0.30f, h, 0.30f), ColTrimDark, noCollider: true);
+
+        for (int sx = -1; sx <= 1; sx += 2)
+            Block(t, $"InSkirt_{sx}", new Vector3(sx * (inX - 0.05f), 0.48f, 0f),
+                  Quaternion.identity, new Vector3(0.10f, 0.96f, d - 1.8f), ColWallFoot, noCollider: true);
+        Block(t, "InSkirtBack", new Vector3(0f, 0.48f, -inZ + 0.05f), Quaternion.identity,
+              new Vector3(w - 1.8f, 0.96f, 0.10f), ColWallFoot, noCollider: true);
+
+        // ---- 천장 — 대들보와 서까래 ----
+        // 본관은 <b>원래 높다</b>(대강당). 철곰관과 같은 판단으로 반자를 안 내리고,
+        // 대신 층을 얹어 «아직 안 지은 방» 으로 안 보이게 한다.
+        for (int s = -1; s <= 1; s += 2)
+            Block(t, $"InGirder_{s}", new Vector3(s * 8.4f, h - 0.70f, 0f), Quaternion.identity,
+                  new Vector3(0.44f, 0.44f, d - 1.6f), ColWoodRail, noCollider: true);
+        for (int i = 0; i < 11; i++)
+            Block(t, $"InRafter_{i}", new Vector3(0f, h - 0.32f, -8.5f + i * 1.7f), Quaternion.identity,
+                  new Vector3(w - 1.6f, 0.22f, 0.18f), ColWood, noCollider: true);
+
+        // 주련 — 행정동이라도 한옥이다. 기둥에 세로 글판이 없으면 사무실로 보인다
+        for (int s = -1; s <= 1; s += 2)
+            Block(t, $"InPillarSlip_{s}", new Vector3(s * (inX - 0.32f), 4.2f, -inZ + 2.6f),
+                  Quaternion.identity, new Vector3(0.06f, 3.4f, 0.46f), ColCream, noCollider: true);
+    }
+
+    /// <summary>
+    /// 앞에만 있는 부품이 <b>몸통 중심의 어느 쪽</b>에 있는지 — 부호가 곧 앞면이고
+    /// (양수면 모델의 +Z 가 앞), 절댓값이 <b>신호의 세기</b>다. 신호가 없으면 0.
+    ///
+    /// 부모(건물) 기준으로 내려서 잰다 — 건물이 yaw 로 돌아가 있어서
+    /// <b>월드 좌표로 재면 거짓말한다</b>(이 프로젝트에서 네 번 걸린 함정).
+    /// </summary>
+    static readonly string[] CheolgomMarks =
+        { "Cabinet", "Stretcher", "Winch", "Load", "Target", "Equipment", "Dummy" };
+
+    static float FrontEvidence(Transform m) => FrontEvidence(m, CheolgomMarks);
+
+    static float FrontEvidence(Transform m, string[] marks)
+    {
+        Bounds whole = default, front = default;
+        bool anyAll = false, anyFront = false;
+
+        foreach (var r in m.GetComponentsInChildren<Renderer>())
+        {
+            if (!anyAll) { whole = r.bounds; anyAll = true; } else whole.Encapsulate(r.bounds);
+
+            bool marked = false;
+            foreach (var k in marks)
+                if (r.transform.name.StartsWith(k)) { marked = true; break; }
+            if (!marked) continue;
+
+            if (!anyFront) { front = r.bounds; anyFront = true; } else front.Encapsulate(r.bounds);
+        }
+        if (!anyAll || !anyFront || m.parent == null) return 0f;
+
+        return m.parent.InverseTransformPoint(front.center).z
+             - m.parent.InverseTransformPoint(whole.center).z;
+    }
+
     void Interior(Transform t, string name, float w, float d, float h)
     {
         float halfW = w * 0.5f - 0.9f, halfD = d * 0.5f - 0.9f;
@@ -1312,71 +1728,17 @@ public class CampusBuilder : MonoBehaviour
                       new Vector3(3f, 0.8f, 1.4f), ColWoodRail, noCollider: true);
                 break;
 
-            // 경호·체육. ★ 2026-09-21 유저: *"철곰관도 일단 임시로 인테리어 해놓자."*
-            // 여기 미니게임 자리가 «곰 씨름판» 이라고 적혀 있는데 방에는 매트 한 장과
-            // 모래주머니 둘뿐이었다 — <b>입간판이 약속한 걸 방이 안 보여주면</b>
-            // «준비 중» 이 아니라 «아무것도 없다» 로 읽힌다.
+            // ★★ 2026-09-28 <b>유저가 만든 경호·안전 대형 소품 열 점으로 다시 지었다.</b>
+            // 학과 팻말은 「경호·체육·안전」인데 방은 씨름판이었다 — 이제 <b>안전 체험
+            // 훈련장</b>이고, 팻말·소품·미니게임 자리가 처음으로 같은 말을 한다.
+            //
+            // <b>씨름판은 걷어냈다.</b> 지름 8m 짜리 모래판과 양옆 관중석이 벽을 다 먹어서
+            // 2.3~3.3m 짜리 열 점이 들어갈 자리가 없었다. 되살리고 싶으면 말해 줘 —
+            // 이 case 하나만 되돌리면 된다.
             case "철곰관":
-            {
-                // ---- 씨름판 ----
-                // 모래판은 <b>둥글어야</b> 씨름판이다. 네모난 매트는 체육관 바닥이지 씨름판이 아니야.
-                // Disc 는 콜라이더를 늘 떼고 noCollider 인자를 안 받는다 — 그대로 부르면 된다.
-                Disc(t, "InRing", new Vector3(0f, 0.07f, 0f),
-                     new Vector3(7.4f, 0.14f, 7.4f), ColSandRing);
-                Disc(t, "InRingEdge", new Vector3(0f, 0.05f, 0f),
-                     new Vector3(8.0f, 0.10f, 8.0f), ColWoodRail);
-                // 바깥 낙법 매트 — 판에서 밀려나는 경기니까 밖이 푹신해야 말이 된다
-                Block(t, "InFallMat", new Vector3(0f, 0.03f, 0f), Quaternion.identity,
-                      new Vector3(w - 3f, 0.06f, d - 3f), ColBush, noCollider: true);
-
-                // ---- 관중석 ----
-                // 씨름은 <b>보는 경기</b>다. 앉을 데가 없으면 연습실로 보인다.
-                for (int s = -1; s <= 1; s += 2)
-                    for (int tier = 0; tier < 2; tier++)
-                    {
-                        float x = s * (halfW - 1.2f - tier * 0.9f);
-                        float y = 0.28f + tier * 0.42f;
-                        Block(t, $"InBench_{s}_{tier}", new Vector3(x, y, 0f), Quaternion.identity,
-                              new Vector3(0.9f, 0.16f, d - 5f), ColWoodRail, noCollider: true);
-                        Block(t, $"InBenchLeg_{s}_{tier}", new Vector3(x, y * 0.5f, 0f), Quaternion.identity,
-                              new Vector3(0.7f, y, d - 5.4f), ColWood, noCollider: true);
-                    }
-
-                // ---- 벽 쪽 ----
-                // 모래주머니는 남긴다(원래 있던 것). 자리만 구석으로 물려서 판을 안 가린다.
-                for (int i = -1; i <= 1; i += 2)
-                    Block(t, $"InBag_{i}", new Vector3(i * 1.8f, 1.5f, -halfD + 1.3f), Quaternion.identity,
-                          new Vector3(0.6f, 2.4f, 0.6f), ColWoodRail, noCollider: true);
-
-                // 샅바 걸이 — 이 한 가지가 «씨름» 을 확정한다. 역기만 있으면 헬스장이야.
-                Block(t, "InBeltRail", new Vector3(-halfW + 0.5f, 2.0f, 1.5f), Quaternion.identity,
-                      new Vector3(0.08f, 0.08f, 3.2f), ColWood, noCollider: true);
-                for (int i = 0; i < 4; i++)
-                    Block(t, $"InBelt_{i}", new Vector3(-halfW + 0.5f, 1.55f, 0.2f + i * 0.85f),
-                          Quaternion.identity, new Vector3(0.06f, 0.82f, 0.26f),
-                          i % 2 == 0 ? ColRibbon : ColMint, noCollider: true);
-
-                // 역기 — 체육관다움은 이걸로 충분하다
-                Block(t, "InBarBar", new Vector3(halfW - 1.6f, 0.5f, -halfD + 2.2f),
-                      Quaternion.Euler(0f, 90f, 0f), new Vector3(0.09f, 0.09f, 2.2f),
-                      ColStoneWall, noCollider: true);
-                for (int i = -1; i <= 1; i += 2)
-                    Disc(t, $"InPlate_{i}", new Vector3(halfW - 1.6f + i * 0.95f, 0.5f, -halfD + 2.2f),
-                         new Vector3(0.9f, 0.14f, 0.9f), ColBearDark,
-                         Quaternion.Euler(0f, 0f, 90f));   // 원판은 세워야 역기다
-
-                // 점수판과 우승기 — 대회가 열리는 곳이라는 신호
-                Block(t, "InScoreBoard", new Vector3(0f, 2.6f, halfD - 0.4f), Quaternion.identity,
-                      new Vector3(3.2f, 1.4f, 0.14f), ColBearDark, noCollider: true);
-                for (int i = -1; i <= 1; i += 2)
-                    Block(t, $"InScoreSlot_{i}", new Vector3(i * 0.8f, 2.6f, halfD - 0.5f),
-                          Quaternion.identity, new Vector3(1.1f, 0.9f, 0.06f), ColCream, noCollider: true);
-                for (int i = 0; i < 3; i++)
-                    Block(t, $"InFlag_{i}", new Vector3(-2.4f + i * 2.4f, 3.1f, -halfD + 0.4f),
-                          Quaternion.identity, new Vector3(0.7f, 1.1f, 0.05f),
-                          i == 1 ? ColLantern : ColRibbon, noCollider: true);
+                Cheolgom(t, w, d, h);
                 break;
-            }
+
 
             case "재주관":     // 미술·음악 — 이젤과 무대
                 for (int i = -1; i <= 1; i++)
@@ -2186,12 +2548,10 @@ public class CampusBuilder : MonoBehaviour
                 break;
             }
 
-            default:           // 웅지관 — 행정. 카운터와 서류함
-                Block(t, "InCounter", new Vector3(0f, 0.6f, 2f), Quaternion.identity,
-                      new Vector3(w - 8f, 1.2f, 1.2f), ColWoodRail, noCollider: true);
-                for (int i = -2; i <= 2; i++)
-                    Block(t, $"InCabinet_{i}", new Vector3(i * 2.6f, 1.1f, -halfD + 0.8f),
-                          Quaternion.identity, new Vector3(1.8f, 2.2f, 0.7f), ColStoneWall, noCollider: true);
+            // ★ 2026-09-28 <b>유저가 만든 리더십·경제·행정 대형 소품 열 점으로 지었다.</b>
+            // 전에는 카운터 하나 + 서류함 다섯이라 36 × 22m 짜리 본관이 거의 비어 있었다.
+            default:
+                Leadership(t, w, d, h);
                 break;
         }
     }

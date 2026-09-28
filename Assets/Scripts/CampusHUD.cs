@@ -179,7 +179,7 @@ public class CampusHUD : MonoBehaviour
         var tiny = Hud.Resize(Hud.Text, 12);
         if (player != null && player.IsGhost) tiny.normal.textColor = Hud.Brass;
         GUI.Label(new Rect(dev.x + 9f, dev.y + 4f, dev.width - 16f, 16f),
-                  $"{state}  ·  F 날기  ·  F1 로비", tiny);
+                  $"{state}  ·  F 날기  ·  F8 클리어 전/후  ·  F1 로비", tiny);
 
         if (showControls) return;
         var chip = new Rect(16f, h - 28f, 88f, 22f);
@@ -202,6 +202,7 @@ public class CampusHUD : MonoBehaviour
             { "SPACE", "뛰어넘기" },
             { "E", "문으로 들어가기 · 곰에게 말 걸기" },
             { "G", "벽 통과 (개발용)" },
+            { "F8", "레이싱 클리어 전 / 후 (개발용)" },
             { "F", "날기 (개발용)" },
             { "H", "이 창 닫기" },
         };

@@ -59,11 +59,24 @@ public class StoryStage : MonoBehaviour
         var k = Keyboard.current;
         if (k == null) return;
 
-        // T — 이번 장 이야기 다시 보기. 틀 게 없으면(7판 자리) 아무 일도 안 한다.
+        // T — 이번 장 이야기 다시 보기.
+        //
+        // ★ 2026-09-28 전에는 <b>틀 게 없으면 조용히 아무 일도 안 했다.</b> 유저 제보:
+        // *"T 를 눌러도 이야기 장면이 재생이 안 돼."* 그때 상태가 «장 4 · 수집품 0» 이라
+        // `CurrentScene()` 이 빈 문자열이었는데, <b>화면에도 콘솔에도 아무 말이 없으니</b>
+        // 키가 고장 난 건지 조건이 안 맞는 건지 구분할 방법이 없었다.
+        //
+        // <b>디버그 키는 뭐라도 나와야 한다</b> — 못 고르면 프롤로그로 떨어진다.
         if (k.tKey.wasPressedThisFrame)
         {
             string again = StoryScript.CurrentScene();
-            if (!string.IsNullOrEmpty(again)) Enter(again);
+            if (string.IsNullOrEmpty(again))
+            {
+                again = "prologue";
+                Debug.Log($"[이야기] 지금 장({StoryProgress.CurrentChapter})에 걸린 장면이 없어 " +
+                          $"프롤로그를 튼다. 수집품 {CollectionState.Count}/8");
+            }
+            Enter(again);
         }
     }
 

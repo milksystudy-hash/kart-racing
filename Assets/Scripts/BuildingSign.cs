@@ -241,11 +241,23 @@ public class BuildingSign : MonoBehaviour
     public const string PlaqueFontName = "HudFont";
 
     /// <summary>딱지를 붙이거나 뗀다. <see cref="CampusMood"/> 가 이야기 진행에 맞춰 부른다.</summary>
-    public void SetClosed(bool value)
+    public void SetClosed(bool value) => SetClosed(value, -1f);
+
+    /// <summary>
+    /// 딱지를 붙이고 뗀다. <paramref name="delay"/> 가 0 이상이면 <see cref="Reveal"/> 로
+    /// <b>그만큼 늦게, 움직이며</b> 바뀐다 — 열두 동이 같은 프레임에 바뀌면 «설정 변경» 이고
+    /// 조금씩 어긋나면 «지금 떨어지는 중» 이 된다. 음수면 스냅(씬을 열 때).
+    /// </summary>
+    public void SetClosed(bool value, float delay)
     {
         if (closed == value && sticker != null) return;
         closed = value;
-        Apply();
+
+        if (sticker == null) sticker = MakeSticker();
+        if (sticker == null) return;
+
+        if (delay < 0f) Reveal.Snap(sticker, closed);
+        else Reveal.Play(sticker, closed, delay, 0.5f);
     }
 
     void Apply()

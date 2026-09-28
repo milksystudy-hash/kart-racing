@@ -53,6 +53,8 @@ public class CampusBoarding : MonoBehaviour
         Refresh();
     }
 
+    bool first = true;
+
     void Refresh()
     {
         lastCount = CollectionState.Count;
@@ -64,7 +66,18 @@ public class CampusBoarding : MonoBehaviour
         int open = Mathf.RoundToInt(boards.Count * t);
 
         for (int i = 0; i < boards.Count; i++)
-            if (boards[i] != null) boards[i].gameObject.SetActive(i >= open);
+        {
+            if (boards[i] == null) continue;
+            bool nailed = i >= open;
+
+            // ★ 씬을 열 때는 스냅한다. 들어가자마자 판자가 우수수 떨어지면 연출이 아니라
+            // <b>로딩이 덜 된 것</b>으로 보인다. 그 뒤부터는 <b>걷히는 자리에서부터</b>
+            // 순서대로 — 한 프레임에 다 걷히면 «설정 변경» 이다.
+            if (first) Reveal.Snap(boards[i], nailed);
+            else Reveal.Play(boards[i], nailed, Mathf.Abs(i - open) * Reveal.Step, 0.7f);
+        }
+
+        first = false;
     }
 
     /// <summary>

@@ -17,13 +17,37 @@ public static class StoryProgress
 
     static int? cached;
 
+    /// <summary>
+    /// 수집품 <paramref name="collected"/> 개를 모았으면 몇 장인가.
+    ///
+    /// ★★ 2026-09-28 <b>장 번호는 수집 기록을 넘어설 수 없다.</b> 유저 제보:
+    /// *"T 를 눌러도 이야기 장면이 재생이 안 돼."* 재 보니 <b>장 4 · 수집품 0 · 결승 안 깸</b>
+    /// 이라는 있을 수 없는 조합이었다 — F10 으로 수집품을 비울 때 <see cref="CollectionState.ClearAll"/>
+    /// 이 `GrandFinal` 만 되돌리고 <b>장 번호는 4에 남겨 뒀기</b> 때문이다.
+    /// 그러면 `SceneForChapter(4)` 가 "epilogue" 고, `CurrentScene()` 은 «결승도 안 깼는데
+    /// 결말이 먼저 나오면 안 된다» 며 <b>빈 문자열</b>을 돌려준다 → T 가 아무 일도 안 한다.
+    ///
+    /// <b>둘을 따로 저장하면 반드시 어긋난다.</b> 게이트를 수집 기록으로 옮겼던 것과 같은
+    /// 판단이야(2026-09-17) — 여기서도 <b>수집 기록이 진실</b>이고 장 번호는 그 아래로 묶인다.
+    /// 1~2판 → 1장 · 3~4판 → 2장 · 5~6판 → 3장 · 7~8판 → 4장.
+    /// </summary>
+    public static int ChapterFor(int collected) =>
+        Mathf.Clamp((collected + 1) / 2, Prologue, FinalChapter);
+
     /// <summary>0 프롤로그 · 1~3 메인 · 4 마지막 장.</summary>
     public static int CurrentChapter
     {
         get
         {
-            cached ??= PlayerPrefs.GetInt(PrefsKey, 1);
-            return Mathf.Clamp(cached.Value, Prologue, FinalChapter);
+            // ★ 기본값이 <b>1</b> 이었다. 새로 깐 사람은 장 1 로 시작해서
+            // `SceneForChapter(1)` = "ch1" 이 나오고 <b>프롤로그를 영영 못 본다.</b>
+            // 0 이어야 «철거 통지서» 부터 시작한다.
+            cached ??= PlayerPrefs.GetInt(PrefsKey, Prologue);
+            int saved = Mathf.Clamp(cached.Value, Prologue, FinalChapter);
+
+            // 저장값이 수집 기록보다 앞서가 있으면 끌어내린다. 어떤 경로로 어긋나도
+            // <b>스스로 낫는다</b> — 물건이 스스로 판단할 수 있게 만들어라(2026-09-17).
+            return Mathf.Min(saved, ChapterFor(CollectionState.Count));
         }
         set
         {
@@ -89,5 +113,17 @@ public static class StoryProgress
         Seen.Clear();
         PlayerPrefs.SetString(SeenKey, "");
         PlayerPrefs.Save();
+    }
+
+    /// <summary>
+    /// 이야기를 통째로 처음으로. <see cref="CollectionState.ClearAll"/>(F10)이 부른다 —
+    /// <b>수집품을 비우는 건 «처음부터» 라는 뜻</b>이니 장 번호와 본 장면도 같이 간다.
+    /// </summary>
+    public static void ResetStory()
+    {
+        cached = Prologue;
+        PlayerPrefs.SetInt(PrefsKey, Prologue);
+        PlayerPrefs.Save();
+        ClearSeen();
     }
 }

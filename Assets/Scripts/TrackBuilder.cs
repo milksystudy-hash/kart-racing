@@ -655,6 +655,13 @@ public class TrackBuilder : MonoBehaviour
             // 글씨 대신 곰 실루엣 한 덩어리 — 멀리서도 "저 회사" 로 읽히게
             Block(board, "Mark", at + Vector3.up * 4.4f + facing * Vector3.forward * -0.2f, facing,
                   new Vector3(1.5f, 1.5f, 0.1f), ColAdMagenta, noCollider: true);
+
+            // ★ 이 판은 <b>레이싱을 다 끝내면 내려간다</b>(<see cref="CampusVictory"/>).
+            // <c>isStatic</c> 을 달아 두면 구워서 저장하는 씬(캠퍼스)에서 <b>정적 배칭에
+            // 합쳐져</b> 트랜스폼을 옮겨도 그려지는 자리가 안 바뀐다 — 문을 여섯 번 고치고서야
+            // 잡은 그 함정이야(2026-09-18). 판 여섯 개 × 다섯 조각이라 드로우콜도 무시할 만하다.
+            foreach (var piece in board.GetComponentsInChildren<Transform>(true))
+                piece.gameObject.isStatic = false;
         }
     }
 

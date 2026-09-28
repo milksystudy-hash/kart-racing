@@ -55,6 +55,12 @@ public static class CollectionState
         Loaded.Clear();
         Save();
         GrandFinal.Reset();
+
+        // ★ 2026-09-28 <b>장 번호와 본 장면도 같이 되돌린다.</b> 전에는 수집품만 비워서
+        // «장 4 · 수집품 0» 이라는 있을 수 없는 상태가 남았고, 그 조합에서
+        // `StoryScript.CurrentScene()` 이 빈 문자열이라 <b>T 를 눌러도 아무 일도 안 났다.</b>
+        // F10 은 «처음부터» 라는 뜻이니 이야기도 처음으로 가는 게 맞다.
+        StoryProgress.ResetStory();
     }
 
     /// <summary>테스트용. 전시실을 꽉 채워서 확인할 때.</summary>
