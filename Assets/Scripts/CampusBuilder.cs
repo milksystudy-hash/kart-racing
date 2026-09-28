@@ -869,142 +869,436 @@ public class CampusBuilder : MonoBehaviour
             // <b>이 방이 곰인형 박물관에서 제일 중요한 방이다</b> — 여기서 곰들이 만들어진다.
             // 그래서 재봉실에 있을 법한 물건만 늘어놓는 게 아니라 <b>만들어지는 중인 곰</b>을
             // 놓는다. 팻말의 「여기서 다들 태어났습니다」가 그 한 장면으로 설명된다.
+            // ★ 2026-09-23 <b>수예실로 다듬었다.</b> 유저: *"전시실 때 한 연출처럼 다듬어 달라.
+            // 모델링도 좀 더 세심하게, 진짜 수예실처럼."*
+            //
+            // 순서는 <b>공간 → 배경 → 색 → 조명</b>이다(곰밥마당·화장실에서 두 번 배운 것).
+            // 이 방은 22 × 14 × <b>9m</b> 라, 바느질하는 방치고 천장이 너무 높았다 —
+            // 소품을 아무리 늘려도 «작업실» 이 아니라 «창고에 재봉틀을 둔 것» 으로 보인다.
             case "곰손관":     // 인형제작·공예·봉제 — 수예부
             {
                 float sX = w * 0.5f - 0.6f;      // 옆벽 안쪽 (Hollow 벽 두께 0.6)
                 float sZb = -d * 0.5f + 0.6f;    // 뒷벽 안쪽
+                float sZf = d * 0.5f - 0.6f;     // 앞벽(출입문) 안쪽
+                float ceilY = 4.6f;              // 내린 반자. 문(4.2)과 상인방 위를 지나간다
 
-                // ── 재봉 작업대 넷 ── 각 대에 재봉틀·천 뭉치·실패
-                // 한 대만 있으면 «누군가의 책상» 이고, 줄지어 있으면 <b>실습실</b>이 된다.
+                // ══ 공간 ══ 반자를 내린다. <b>이게 제일 크게 듣는다.</b>
+                Block(t, "DropCeiling", new Vector3(0f, ceilY, 0f), Quaternion.identity,
+                      new Vector3(w - 1.0f, 0.12f, d - 1.0f), ColCream, noCollider: true);
+
+                // 서까래 — 한옥 반자는 민짜가 아니다. 이게 없으면 «석고보드 천장» 이 된다
+                for (int g = -6; g <= 6; g++)
+                    Block(t, $"CeilBeam_{g}", new Vector3(0f, ceilY - 0.13f, g * 1.0f),
+                          Quaternion.identity, new Vector3(w - 1.4f, 0.14f, 0.16f),
+                          ColWood, noCollider: true);
+                // 대들보 둘 — 서까래와 직각. 층이 둘이어야 천장이 «구조» 로 읽힌다
+                for (int s2 = -1; s2 <= 1; s2 += 2)
+                    Block(t, $"CeilGirder_{s2}", new Vector3(s2 * 5.2f, ceilY - 0.28f, 0f),
+                          Quaternion.identity, new Vector3(0.28f, 0.3f, d - 1.4f),
+                          ColTrimDark, noCollider: true);
+
+                // 천장 돌림띠 — 벽과 천장이 맞닿는 선에 턱이 있어야 방이 된다
+                for (int s2 = -1; s2 <= 1; s2 += 2)
+                {
+                    Block(t, $"Cornice_X{s2}", new Vector3(s2 * (sX - 0.07f), ceilY - 0.22f, 0f),
+                          Quaternion.identity, new Vector3(0.16f, 0.2f, d - 1.2f),
+                          ColTrimDark, noCollider: true);
+                    Block(t, $"Cornice_Z{s2}", new Vector3(0f, ceilY - 0.22f, s2 * (sZf - 0.07f)),
+                          Quaternion.identity, new Vector3(w - 1.2f, 0.2f, 0.16f),
+                          ColTrimDark, noCollider: true);
+                }
+
+                // 모서리 기둥 넷 — 상자의 날 선 모서리가 레고의 정체다(2026-09-18)
+                for (int sx2 = -1; sx2 <= 1; sx2 += 2)
+                    for (int sz2 = -1; sz2 <= 1; sz2 += 2)
+                        Block(t, $"InCornerPost_{sx2}_{sz2}",
+                              new Vector3(sx2 * (sX - 0.12f), ceilY * 0.5f, sz2 * (sZf - 0.12f)),
+                              Quaternion.identity, new Vector3(0.24f, ceilY, 0.24f),
+                              ColTrimDark, noCollider: true);
+
+                // ══ 배경 ══ 굽도리 + 바닥 줄눈. 벽이 통짜 한 색이면 크기를 잴 수가 없다
+                for (int s2 = -1; s2 <= 1; s2 += 2)
+                {
+                    Block(t, $"InSkirtX_{s2}", new Vector3(s2 * (sX - 0.06f), 0.45f, 0f),
+                          Quaternion.identity, new Vector3(0.12f, 0.9f, d - 1.2f),
+                          ColWoodRail, noCollider: true);
+                    Block(t, $"InSkirtLipX_{s2}", new Vector3(s2 * (sX - 0.14f), 0.92f, 0f),
+                          Quaternion.identity, new Vector3(0.2f, 0.06f, d - 1.2f),
+                          ColWood, noCollider: true);
+                }
+                Block(t, "InSkirtZ", new Vector3(0f, 0.45f, sZb + 0.06f), Quaternion.identity,
+                      new Vector3(w - 1.2f, 0.9f, 0.12f), ColWoodRail, noCollider: true);
+                Block(t, "InSkirtLipZ", new Vector3(0f, 0.92f, sZb + 0.14f), Quaternion.identity,
+                      new Vector3(w - 1.2f, 0.06f, 0.2f), ColWood, noCollider: true);
+
+                for (int g = -4; g <= 4; g++)
+                    Block(t, $"InFloorSeam_{g + 4}", new Vector3(g * 2.4f, 0.006f, 0f),
+                          Quaternion.identity, new Vector3(0.05f, 0.012f, d - 1.4f),
+                          ColTrimDark, noCollider: true);
+
+                // ══ 재봉 작업대 넷 ══
+                // ★ <b>재봉틀을 상자 셋에서 열한 조각으로.</b> 유저: *"모델링도 좀 더 세심하게."*
+                // 재봉틀을 재봉틀로 만드는 건 몸통이 아니라 <b>ㄷ 자 실루엣과 손잡이 바퀴</b>다 —
+                // 아래팔 · 세로 기둥 · 윗팔이 갈라져야 그 모양이 나온다.
                 for (int i = -1; i <= 2; i++)
                 {
                     float bx = i * 4.4f - 2.2f;
-                    Vector3 at = new Vector3(bx, 0f, halfD - 3.2f);
+                    Vector3 at = new Vector3(bx, 0f, sZf - 4.2f);
 
-                    Block(t, $"InBench_{i}", at + Vector3.up * 0.42f, Quaternion.identity,
-                          new Vector3(3.4f, 0.84f, 1.5f), ColWoodRail, noCollider: true);
-                    Block(t, $"InBenchTop_{i}", at + Vector3.up * 0.88f, Quaternion.identity,
-                          new Vector3(3.6f, 0.08f, 1.7f), ColWood, noCollider: true);
+                    // 상판 · 다리 · 가로대 — 다리가 없으면 바닥에 그린 무늬로 보인다
+                    Block(t, $"InBenchTop_{i}", at + Vector3.up * 0.86f, Quaternion.identity,
+                          new Vector3(3.4f, 0.09f, 1.6f), ColWood, noCollider: true);
+                    Block(t, $"InBenchLip_{i}", at + new Vector3(0f, 0.80f, 0.79f),
+                          Quaternion.identity, new Vector3(3.4f, 0.05f, 0.08f),
+                          ColWoodRail, noCollider: true);
+                    for (int lx = -1; lx <= 1; lx += 2)
+                        for (int lz = -1; lz <= 1; lz += 2)
+                            Block(t, $"InBenchLeg_{i}_{lx}_{lz}",
+                                  at + new Vector3(lx * 1.5f, 0.41f, lz * 0.66f),
+                                  Quaternion.identity, new Vector3(0.11f, 0.82f, 0.11f),
+                                  ColTrimDark, noCollider: true);
+                    Block(t, $"InBenchRail_{i}", at + new Vector3(0f, 0.26f, 0f),
+                          Quaternion.identity, new Vector3(2.9f, 0.07f, 0.07f),
+                          ColTrimDark, noCollider: true);
 
-                    // 재봉틀 — 몸통 + 팔 + 바늘대. 상자 하나는 «기계» 로 안 읽힌다
-                    Block(t, $"InMachine_{i}", at + new Vector3(-0.7f, 1.12f, 0f), Quaternion.identity,
-                          new Vector3(0.9f, 0.4f, 0.45f), ColBearDark, noCollider: true);
-                    Block(t, $"InMachineArm_{i}", at + new Vector3(-0.7f, 1.46f, 0f), Quaternion.identity,
-                          new Vector3(0.75f, 0.28f, 0.3f), ColBearDark, noCollider: true);
-                    Block(t, $"InMachineNeedle_{i}", at + new Vector3(-1.02f, 1.22f, 0f),
-                          Quaternion.identity, new Vector3(0.05f, 0.22f, 0.05f),
+                    // ── 재봉틀 ──
+                    Vector3 m = at + new Vector3(-0.8f, 0.905f, 0f);
+                    Block(t, $"InMachBed_{i}", m + new Vector3(0f, 0.04f, 0f), Quaternion.identity,
+                          new Vector3(1.05f, 0.08f, 0.42f), ColTrimDark, noCollider: true);   // 받침판
+                    Block(t, $"InMachArmLow_{i}", m + new Vector3(-0.06f, 0.17f, 0f),
+                          Quaternion.identity, new Vector3(0.82f, 0.22f, 0.3f),
+                          ColBearDark, noCollider: true);                                     // 아래팔
+                    Block(t, $"InMachPillar_{i}", m + new Vector3(0.34f, 0.38f, 0f),
+                          Quaternion.identity, new Vector3(0.24f, 0.62f, 0.28f),
+                          ColBearDark, noCollider: true);                                     // 세로 기둥
+                    Block(t, $"InMachArmTop_{i}", m + new Vector3(-0.02f, 0.62f, 0f),
+                          Quaternion.identity, new Vector3(0.92f, 0.18f, 0.24f),
+                          ColBearDark, noCollider: true);                                     // 윗팔
+                    Block(t, $"InMachHead_{i}", m + new Vector3(-0.42f, 0.55f, 0f),
+                          Quaternion.identity, new Vector3(0.18f, 0.3f, 0.22f),
+                          ColBearDark, noCollider: true);                                     // 머리
+                    // 바늘대와 노루발 — <b>이 두 개가 «바느질하는 기계» 를 만든다</b>
+                    Block(t, $"InMachNeedle_{i}", m + new Vector3(-0.42f, 0.30f, 0f),
+                          Quaternion.identity, new Vector3(0.035f, 0.2f, 0.035f),
+                          ColStoneWall, noCollider: true);
+                    Block(t, $"InMachFoot_{i}", m + new Vector3(-0.42f, 0.16f, 0f),
+                          Quaternion.identity, new Vector3(0.1f, 0.05f, 0.14f),
+                          ColStoneWall, noCollider: true);
+                    // 손잡이 바퀴 — 재봉틀의 얼굴
+                    Disc(t, $"InMachWheel_{i}", m + new Vector3(0.46f, 0.58f, 0f),
+                         new Vector3(0.26f, 0.05f, 0.26f), ColMapleGold);
+                    // 실패 핀과 실 — 위에서 실이 내려온다
+                    Block(t, $"InMachPin_{i}", m + new Vector3(0.18f, 0.76f, 0f),
+                          Quaternion.identity, new Vector3(0.03f, 0.1f, 0.03f),
+                          ColStoneWall, noCollider: true);
+                    Disc(t, $"InMachSpool_{i}", m + new Vector3(0.18f, 0.82f, 0f),
+                         new Vector3(0.1f, 0.13f, 0.1f),
+                         i % 2 == 0 ? ColRibbon : ColMint);
+                    Block(t, $"InMachThread_{i}", m + new Vector3(-0.13f, 0.7f, 0f),
+                          Quaternion.Euler(0f, 0f, 24f), new Vector3(0.42f, 0.012f, 0.012f),
+                          ColCream, noCollider: true);
+                    // 페달과 연결봉 — 발밑까지 내려와야 «발로 밟는 기계» 다
+                    Block(t, $"InMachPedal_{i}", at + new Vector3(-0.8f, 0.05f, 0.45f),
+                          Quaternion.Euler(-7f, 0f, 0f), new Vector3(0.34f, 0.06f, 0.22f),
+                          ColTrimDark, noCollider: true);
+                    Block(t, $"InMachRod_{i}", at + new Vector3(-0.8f, 0.48f, 0.3f),
+                          Quaternion.Euler(18f, 0f, 0f), new Vector3(0.03f, 0.86f, 0.03f),
                           ColStoneWall, noCollider: true);
 
-                    // 천 뭉치와 실패 — 작업 중인 흔적
-                    Block(t, $"InFabric_{i}", at + new Vector3(0.7f, 0.99f, 0.1f),
-                          Quaternion.Euler(0f, 18f, 0f), new Vector3(1.0f, 0.14f, 0.7f),
+                    // 작업 중인 천 — 노루발 아래로 들어간다
+                    Block(t, $"InFabric_{i}", at + new Vector3(-0.35f, 0.93f, 0.05f),
+                          Quaternion.Euler(0f, 14f, 0f), new Vector3(1.1f, 0.03f, 0.72f),
                           i % 2 == 0 ? ColMint : ColRibbon, noCollider: true);
-                    Disc(t, $"InSpool_{i}", at + new Vector3(1.3f, 1.0f, -0.4f),
-                         new Vector3(0.12f, 0.16f, 0.12f), ColCream);
 
-                    // 의자
-                    Block(t, $"InStool_{i}", at + new Vector3(0f, 0.25f, 1.5f), Quaternion.identity,
-                          new Vector3(0.5f, 0.5f, 0.5f), ColWood, noCollider: true);
+                    // 의자 — 등받이가 있어야 «앉아서 오래 하는 일» 이다
+                    Block(t, $"InStool_{i}", at + new Vector3(0f, 0.46f, 1.45f),
+                          Quaternion.identity, new Vector3(0.48f, 0.07f, 0.44f),
+                          ColWoodRail, noCollider: true);
+                    Block(t, $"InStoolBack_{i}", at + new Vector3(0f, 0.72f, 1.65f),
+                          Quaternion.Euler(-8f, 0f, 0f), new Vector3(0.46f, 0.42f, 0.05f),
+                          ColWoodRail, noCollider: true);
+                    for (int lx = -1; lx <= 1; lx += 2)
+                        for (int lz = -1; lz <= 1; lz += 2)
+                            Block(t, $"InStoolLeg_{i}_{lx}_{lz}",
+                                  at + new Vector3(lx * 0.19f, 0.22f, 1.45f + lz * 0.17f),
+                                  Quaternion.identity, new Vector3(0.05f, 0.44f, 0.05f),
+                                  ColTrimDark, noCollider: true);
+
+                    // 작업등 — <b>바느질은 손 앞이 밝아야 한다.</b> 천장등만으로는 공방이 안 된다
+                    Block(t, $"InTaskArm_{i}", at + new Vector3(1.2f, 1.28f, -0.5f),
+                          Quaternion.Euler(0f, 0f, -18f), new Vector3(0.05f, 0.8f, 0.05f),
+                          ColStoneWall, noCollider: true);
+                    Block(t, $"InTaskShade_{i}", at + new Vector3(0.95f, 1.62f, -0.5f),
+                          Quaternion.Euler(0f, 0f, 26f), new Vector3(0.3f, 0.16f, 0.3f),
+                          ColTrimDark, noCollider: true);
+                    Block(t, $"InTaskBulb_{i}", at + new Vector3(0.95f, 1.52f, -0.5f),
+                          Quaternion.identity, new Vector3(0.14f, 0.06f, 0.14f),
+                          ColLantern, noCollider: true);   // ColLantern 은 발광이다
                 }
 
-                // ── 실 벽 ── 수예부의 얼굴. 색 실패가 격자로 꽂힌 판
-                // <b>색이 많은 것이 이 방의 정체다</b> — 나머지 방은 다 나무·크림·돌색이야.
-                Block(t, "InThreadBoard", new Vector3(-sX + 0.25f, 2.2f, 1.5f), Quaternion.identity,
-                      new Vector3(0.12f, 2.2f, 6.0f), ColWood, noCollider: true);
+                // ══ 마름질 대 ══ 방 한가운데. <b>큰 것 하나가 사람 크기를 알려준다</b>
+                // (전시실 벤치와 같은 역할). 재봉 전에 천을 재고 자르는 자리다.
+                Vector3 cut = new Vector3(0.5f, 0f, -0.8f);
+                Block(t, "InCutTop", cut + Vector3.up * 0.94f, Quaternion.identity,
+                      new Vector3(5.2f, 0.1f, 2.0f), ColWoodRail, noCollider: true);
+                for (int lx = -1; lx <= 1; lx += 2)
+                    for (int lz = -1; lz <= 1; lz += 2)
+                        Block(t, $"InCutLeg_{lx}_{lz}",
+                              cut + new Vector3(lx * 2.4f, 0.45f, lz * 0.85f),
+                              Quaternion.identity, new Vector3(0.14f, 0.9f, 0.14f),
+                              ColTrimDark, noCollider: true);
+                Block(t, "InCutShelf", cut + Vector3.up * 0.3f, Quaternion.identity,
+                      new Vector3(4.8f, 0.06f, 1.6f), ColWood, noCollider: true);
+                // 아래칸에 개어 둔 천 — 선반이 비면 «다리 넷 달린 판» 이다
+                for (int i = 0; i < 5; i++)
+                    Block(t, $"InFolded_{i}", cut + new Vector3(-1.8f + i * 0.9f, 0.42f, 0f),
+                          Quaternion.Euler(0f, i * 6f, 0f), new Vector3(0.72f, 0.18f, 1.2f),
+                          i % 3 == 0 ? ColMint : i % 3 == 1 ? ColCream : ColRibbon, noCollider: true);
+
+                // 상판 위 — 자·초크·가위·재단한 천. <b>작은 것이 방의 크기를 알려준다</b>
+                Block(t, "InRuler", cut + new Vector3(-1.1f, 1.0f, -0.55f),
+                      Quaternion.Euler(0f, 4f, 0f), new Vector3(1.5f, 0.015f, 0.09f),
+                      ColCream, noCollider: true);
+                Block(t, "InChalk", cut + new Vector3(-0.2f, 1.01f, -0.6f),
+                      Quaternion.Euler(0f, 32f, 0f), new Vector3(0.1f, 0.03f, 0.05f),
+                      ColWater, noCollider: true);
+                // 가위 — 날 둘이 벌어져 있어야 가위다
+                for (int s2 = -1; s2 <= 1; s2 += 2)
+                    Block(t, $"InScissorBlade_{s2}", cut + new Vector3(1.2f, 1.0f, -0.4f),
+                          Quaternion.Euler(0f, 18f + s2 * 9f, 0f), new Vector3(0.36f, 0.012f, 0.035f),
+                          ColStoneWall, noCollider: true);
+                for (int s2 = -1; s2 <= 1; s2 += 2)
+                    Block(t, $"InScissorRing_{s2}", cut + new Vector3(1.44f, 1.0f, -0.4f + s2 * 0.05f),
+                          Quaternion.identity, new Vector3(0.1f, 0.012f, 0.07f),
+                          ColBearDark, noCollider: true);
+                // 재단해 둔 곰 조각 — 여기서 곰이 «오려진다»
+                for (int i = 0; i < 4; i++)
+                    Block(t, $"InCutPiece_{i}", cut + new Vector3(0.4f + (i % 2) * 0.5f, 1.0f,
+                                                                  0.35f + (i / 2) * 0.4f),
+                          Quaternion.Euler(0f, 20f + i * 34f, 0f), new Vector3(0.34f, 0.012f, 0.24f),
+                          ColMapleGold, noCollider: true);
+
+                // ══ 자수틀 ══ <b>수예실의 상징.</b> 둥근 틀 두 겹에 천을 끼운다
+                for (int i = 0; i < 3; i++)
+                {
+                    Vector3 hp = new Vector3(-8.4f, 1.55f + i * 0.72f, sZb + 0.2f);
+                    Disc(t, $"InHoopOut_{i}", hp, new Vector3(0.52f, 0.05f, 0.52f), ColWood);
+                    Disc(t, $"InHoopCloth_{i}", hp + new Vector3(0f, 0.01f, 0.03f),
+                         new Vector3(0.44f, 0.03f, 0.44f), ColCream);
+                    // 수놓인 곰 얼굴 — 귀 둘과 코
+                    for (int e = -1; e <= 1; e += 2)
+                        Disc(t, $"InHoopEar_{i}_{e}", hp + new Vector3(e * 0.12f, 0.12f, 0.05f),
+                             new Vector3(0.1f, 0.02f, 0.1f), ColMapleGold);
+                    Disc(t, $"InHoopNose_{i}", hp + new Vector3(0f, -0.02f, 0.05f),
+                         new Vector3(0.07f, 0.02f, 0.07f), ColBearDark);
+                }
+
+                // ══ 실 벽 ══ 색이 이 방의 정체다 — 나머지 방은 다 나무·크림·돌색이다
+                Block(t, "InThreadBoard", new Vector3(-sX + 0.25f, 2.3f, 1.8f), Quaternion.identity,
+                      new Vector3(0.12f, 2.4f, 6.0f), ColWood, noCollider: true);
+                Block(t, "InThreadFrame", new Vector3(-sX + 0.31f, 2.3f, 1.8f), Quaternion.identity,
+                      new Vector3(0.05f, 2.6f, 6.3f), ColTrimDark, noCollider: true);
                 var threads = new[] { ColRibbon, ColMint, ColLantern, ColMapleGold, ColWater, ColCream };
                 for (int r = 0; r < 5; r++)
+                {
+                    // 실패를 거는 가로대 — 못이 아니라 봉에 꽂혀 있어야 «수납» 이다
+                    Block(t, $"InThreadRod_{r}", new Vector3(-sX + 0.42f, 1.4f + r * 0.46f, 1.8f),
+                          Quaternion.identity, new Vector3(0.03f, 0.03f, 5.6f),
+                          ColStoneWall, noCollider: true);
                     for (int c = 0; c < 9; c++)
                         Disc(t, $"InThread_{r}_{c}",
-                             new Vector3(-sX + 0.45f, 1.35f + r * 0.42f, -1.2f + c * 0.68f),
-                             new Vector3(0.16f, 0.2f, 0.16f), threads[(r * 9 + c) % threads.Length]);
+                             new Vector3(-sX + 0.44f, 1.4f + r * 0.46f, -1.0f + c * 0.7f),
+                             new Vector3(0.15f, 0.19f, 0.15f), threads[(r * 9 + c) % threads.Length]);
+                }
 
-                // ── 원단 두루마리 ── 옆벽에 기대 세운다. 비스듬해야 «세워 둔 것» 이다
+                // ══ 원단 두루마리 ══ 비스듬해야 «세워 둔 것» 이다. 심지가 보여야 두루마리다
                 for (int i = 0; i < 6; i++)
-                    Block(t, $"InBolt_{i}", new Vector3(sX - 0.5f, 1.1f, -4.5f + i * 0.55f),
-                          Quaternion.Euler(9f, 0f, 6f), new Vector3(0.3f, 2.2f, 0.3f),
+                {
+                    Vector3 bp = new Vector3(sX - 0.55f, 0f, -4.6f + i * 0.58f);
+                    Block(t, $"InBolt_{i}", bp + new Vector3(0f, 1.15f, 0f),
+                          Quaternion.Euler(9f, 0f, 6f), new Vector3(0.32f, 2.3f, 0.32f),
                           i % 3 == 0 ? ColRibbon : i % 3 == 1 ? ColMint : ColCream, noCollider: true);
+                    Block(t, $"InBoltCore_{i}", bp + new Vector3(-0.19f, 2.3f, 0f),
+                          Quaternion.Euler(9f, 0f, 6f), new Vector3(0.07f, 0.16f, 0.07f),
+                          ColWood, noCollider: true);
+                }
 
-                // ── 솜 자루 ── 곰인형 박물관이라 <b>솜이 없으면 안 된다</b>
+                // ══ 솜 자루 ══ 곰인형 박물관이라 <b>솜이 없으면 안 된다</b>
                 for (int i = 0; i < 3; i++)
-                    Block(t, $"InStuffing_{i}", new Vector3(sX - 1.6f - i * 0.1f, 0.55f, 2.4f + i * 1.1f),
-                          Quaternion.Euler(0f, i * 14f, 0f), new Vector3(1.1f, 1.1f, 1.1f),
+                {
+                    Vector3 sp = new Vector3(sX - 1.7f - i * 0.12f, 0f, 2.2f + i * 1.15f);
+                    Block(t, $"InStuffing_{i}", sp + Vector3.up * 0.58f,
+                          Quaternion.Euler(0f, i * 14f, 0f), new Vector3(1.1f, 1.16f, 1.1f),
                           ColCream, noCollider: true);
-                Block(t, "InStuffingOpen", new Vector3(sX - 1.6f, 1.15f, 2.4f), Quaternion.identity,
-                      new Vector3(0.7f, 0.3f, 0.7f), ColWallTile, noCollider: true);
+                    Block(t, $"InStuffTie_{i}", sp + Vector3.up * 1.14f,
+                          Quaternion.Euler(0f, i * 14f, 0f), new Vector3(0.5f, 0.12f, 0.5f),
+                          ColWoodRail, noCollider: true);
+                }
+                // 터진 자루에서 솜이 비어져 나온다 — 한 군데만. <b>쓰던 자루</b>로 읽힌다
+                Ball(t, "InStuffPuff", new Vector3(sX - 1.7f, 1.24f, 2.2f),
+                     new Vector3(0.52f, 0.3f, 0.52f), ColWallTile);
 
-                // ── 만들다 만 곰 ── 이 방의 주인공. 몸통은 작업대에, 팔다리는 옆에 따로.
+                // ══ 만들다 만 곰 ══ 이 방의 주인공.
                 // <b>완성품을 놓으면 «전시» 고, 조각을 놓으면 «작업 중» 이다.</b>
-                Vector3 wip = new Vector3(2.2f, 0f, halfD - 3.2f);
-                Block(t, "InBearBody", wip + new Vector3(0.2f, 1.22f, 0.2f),
+                Vector3 wip = new Vector3(6.6f, 0f, sZf - 4.2f);
+                Block(t, "InBearBody", wip + new Vector3(0.15f, 1.22f, 0.15f),
                       Quaternion.Euler(0f, 20f, 8f), new Vector3(0.5f, 0.6f, 0.4f),
                       ColMapleGold, noCollider: true);
                 for (int i = 0; i < 4; i++)
-                    Block(t, $"InBearLimb_{i}", wip + new Vector3(0.9f + (i % 2) * 0.26f, 0.96f,
-                                                                  -0.1f - (i / 2) * 0.24f),
+                    Block(t, $"InBearLimb_{i}",
+                          wip + new Vector3(0.85f + (i % 2) * 0.26f, 0.96f, -0.12f - (i / 2) * 0.24f),
                           Quaternion.Euler(0f, 30f + i * 25f, 78f), new Vector3(0.16f, 0.42f, 0.16f),
                           ColMapleGold, noCollider: true);
                 for (int i = 0; i < 2; i++)
-                    Disc(t, $"InBearEar_{i}", wip + new Vector3(0.05f + i * 0.3f, 0.95f, 0.55f),
+                    Disc(t, $"InBearEar_{i}", wip + new Vector3(0.0f + i * 0.3f, 0.95f, 0.52f),
                          new Vector3(0.2f, 0.06f, 0.2f), ColMapleGold);
+                // 시침핀이 몸통에 꽂혀 있다 — «꿰매기 직전» 이 보인다
+                for (int i = 0; i < 5; i++)
+                    Block(t, $"InPin_{i}", wip + new Vector3(0.02f + i * 0.07f, 1.42f, 0.18f),
+                          Quaternion.Euler(0f, 0f, 14f + i * 7f), new Vector3(0.008f, 0.09f, 0.008f),
+                          ColStoneWall, noCollider: true);
 
-                // 눈 단추 상자 — 칸마다 까만 단추. 작아서 «세밀한 일» 로 읽힌다
-                Block(t, "InButtonBox", wip + new Vector3(-0.1f, 0.96f, -0.55f), Quaternion.identity,
-                      new Vector3(0.44f, 0.09f, 0.3f), ColWood, noCollider: true);
+                // 눈 단추 상자 — 칸마다 까만 단추
+                Block(t, "InButtonBox", wip + new Vector3(-0.2f, 0.96f, -0.5f), Quaternion.identity,
+                      new Vector3(0.46f, 0.1f, 0.32f), ColWood, noCollider: true);
+                Block(t, "InButtonLid", wip + new Vector3(-0.2f, 1.02f, -0.68f),
+                      Quaternion.Euler(-62f, 0f, 0f), new Vector3(0.46f, 0.02f, 0.3f),
+                      ColWoodRail, noCollider: true);
                 for (int i = 0; i < 6; i++)
-                    Disc(t, $"InEyeButton_{i}", wip + new Vector3(-0.26f + (i % 3) * 0.16f, 1.02f,
-                                                                  -0.62f + (i / 3) * 0.14f),
+                    Disc(t, $"InEyeButton_{i}",
+                         wip + new Vector3(-0.35f + (i % 3) * 0.16f, 1.02f, -0.57f + (i / 3) * 0.14f),
                          new Vector3(0.07f, 0.02f, 0.07f), ColBearDark);
 
-                // ── 완성품 선반 ── 뒷벽. 다 만든 곰들이 앉아 있다
-                Block(t, "InShelfDone", new Vector3(0f, 1.9f, sZb + 0.35f), Quaternion.identity,
-                      new Vector3(w - 5f, 0.12f, 0.6f), ColWood, noCollider: true);
+                // 핀쿠션 — 토마토 모양. 수예실에 이거 없으면 섭섭하다
+                Ball(t, "InPinCushion", wip + new Vector3(0.75f, 0.99f, 0.5f),
+                     new Vector3(0.18f, 0.14f, 0.18f), ColRibbon);
+                for (int i = 0; i < 6; i++)
+                    Block(t, $"InCushionPin_{i}",
+                          wip + new Vector3(0.75f, 1.06f, 0.5f), Quaternion.Euler(28f, i * 60f, 14f),
+                          new Vector3(0.008f, 0.12f, 0.008f), ColStoneWall, noCollider: true);
+
+                // ══ 완성품 선반 ══ 뒷벽. 다 만든 곰들이 앉아 있다
+                Block(t, "InShelfDone", new Vector3(1.5f, 1.95f, sZb + 0.35f), Quaternion.identity,
+                      new Vector3(14f, 0.12f, 0.62f), ColWood, noCollider: true);
+                Block(t, "InShelfLip", new Vector3(1.5f, 2.04f, sZb + 0.64f), Quaternion.identity,
+                      new Vector3(14f, 0.07f, 0.05f), ColWoodRail, noCollider: true);
                 for (int i = -3; i <= 3; i++)
                 {
-                    Block(t, $"InDoneBear_{i + 3}", new Vector3(i * 2.1f, 2.22f, sZb + 0.35f),
+                    float bx = 1.5f + i * 2.0f;
+                    Block(t, $"InDoneBear_{i + 3}", new Vector3(bx, 2.28f, sZb + 0.35f),
                           Quaternion.Euler(0f, i * 11f, 0f), new Vector3(0.42f, 0.52f, 0.34f),
                           i % 2 == 0 ? ColMapleGold : ColWoodRail, noCollider: true);
                     for (int e = 0; e < 2; e++)
                         Disc(t, $"InDoneEar_{i + 3}_{e}",
-                             new Vector3(i * 2.1f - 0.13f + e * 0.26f, 2.5f, sZb + 0.35f),
+                             new Vector3(bx - 0.13f + e * 0.26f, 2.56f, sZb + 0.35f),
                              new Vector3(0.17f, 0.05f, 0.17f),
                              i % 2 == 0 ? ColMapleGold : ColWoodRail);
+                    // 목에 리본 — 완성품과 «만들다 만 것» 을 한눈에 가른다
+                    Block(t, $"InDoneRibbon_{i + 3}", new Vector3(bx, 2.14f, sZb + 0.2f),
+                          Quaternion.identity, new Vector3(0.44f, 0.08f, 0.1f),
+                          i % 2 == 0 ? ColRibbon : ColMint, noCollider: true);
+                    // 이름표 — 실제 공방은 누가 만든 건지 붙여 둔다
+                    Block(t, $"InDoneTag_{i + 3}", new Vector3(bx + 0.28f, 2.02f, sZb + 0.5f),
+                          Quaternion.Euler(0f, 0f, -12f), new Vector3(0.16f, 0.1f, 0.01f),
+                          ColCream, noCollider: true);
                 }
 
-                // ── 패턴 종이 ── 벽에 핀으로 붙인 도면. 종이가 있어야 «공방» 이다
+                // ══ 패턴 종이 ══ 벽에 핀으로 붙인 도면 + 걸어 둔 두루마리
                 for (int i = 0; i < 5; i++)
-                    Block(t, $"InPattern_{i}", new Vector3(-4f + i * 2.0f, 3.1f, sZb + 0.08f),
-                          Quaternion.Euler(0f, 0f, -4f + i * 2f), new Vector3(0.8f, 1.0f, 0.03f),
+                {
+                    Block(t, $"InPattern_{i}", new Vector3(-3.6f + i * 1.9f, 3.35f, sZb + 0.08f),
+                          Quaternion.Euler(0f, 0f, -4f + i * 2f), new Vector3(0.8f, 1.02f, 0.02f),
                           ColCream, noCollider: true);
+                    Block(t, $"InPatternPin_{i}", new Vector3(-3.6f + i * 1.9f, 3.82f, sZb + 0.1f),
+                          Quaternion.identity, new Vector3(0.04f, 0.04f, 0.03f),
+                          ColMapleGold, noCollider: true);
+                }
 
-                // ── 다리미대 ── 좁고 긴 것 하나가 방의 리듬을 깬다
-                Block(t, "InIronBoard", new Vector3(-6.2f, 0.85f, -2.2f), Quaternion.Euler(0f, 24f, 0f),
-                      new Vector3(1.6f, 0.08f, 0.55f), ColCream, noCollider: true);
-                for (int i = -1; i <= 1; i += 2)
-                    Block(t, $"InIronLeg_{i}", new Vector3(-6.2f + i * 0.5f, 0.42f, -2.2f),
-                          Quaternion.Euler(0f, 24f, i * 12f), new Vector3(0.08f, 0.84f, 0.08f),
+                // ══ 다리미대 ══ 좁고 긴 것 하나가 방의 리듬을 깬다
+                Vector3 ib = new Vector3(-6.6f, 0f, -3.6f);
+                Block(t, "InIronBoard", ib + Vector3.up * 0.88f, Quaternion.Euler(0f, 24f, 0f),
+                      new Vector3(1.7f, 0.07f, 0.56f), ColCream, noCollider: true);
+                Block(t, "InIronCover", ib + Vector3.up * 0.92f, Quaternion.Euler(0f, 24f, 0f),
+                      new Vector3(1.6f, 0.02f, 0.5f), ColMint, noCollider: true);
+                for (int s2 = -1; s2 <= 1; s2 += 2)
+                    Block(t, $"InIronLeg_{s2}", ib + new Vector3(s2 * 0.5f, 0.44f, 0f),
+                          Quaternion.Euler(0f, 24f, s2 * 13f), new Vector3(0.07f, 0.88f, 0.07f),
                           ColStoneWall, noCollider: true);
-                Block(t, "InIron", new Vector3(-5.8f, 0.96f, -2.3f), Quaternion.Euler(0f, 24f, 0f),
-                      new Vector3(0.34f, 0.16f, 0.2f), ColStoneWall, noCollider: true);
+                Block(t, "InIron", ib + new Vector3(0.42f, 0.98f, -0.1f), Quaternion.Euler(0f, 24f, 0f),
+                      new Vector3(0.32f, 0.12f, 0.19f), ColStoneWall, noCollider: true);
+                Block(t, "InIronHandle", ib + new Vector3(0.42f, 1.09f, -0.1f),
+                      Quaternion.Euler(0f, 24f, 0f), new Vector3(0.26f, 0.08f, 0.07f),
+                      ColBearDark, noCollider: true);
 
-                // ── 마네킹 둘 ── 사람 키를 알려주는 물건(전시실 벤치와 같은 역할)
+                // ══ 마네킹 둘 ══ 사람 키를 알려주는 물건
                 for (int i = 0; i < 2; i++)
                 {
-                    Vector3 mAt = new Vector3(6.6f + i * 1.8f, 0f, -3.4f);
-                    Block(t, $"InFormPost_{i}", mAt + Vector3.up * 0.5f, Quaternion.identity,
-                          new Vector3(0.09f, 1.0f, 0.09f), ColStoneWall, noCollider: true);
-                    Disc(t, $"InFormFoot_{i}", mAt + Vector3.up * 0.04f,
-                         new Vector3(0.5f, 0.08f, 0.5f), ColBearDark);
-                    Block(t, $"InFormBody_{i}", mAt + Vector3.up * 1.32f,
-                          Quaternion.Euler(0f, i * 26f, 0f), new Vector3(0.52f, 0.72f, 0.36f),
+                    Vector3 mAt = new Vector3(8.2f + i * 1.9f, 0f, -3.8f);
+                    Disc(t, $"InFormFoot_{i}", mAt + Vector3.up * 0.05f,
+                         new Vector3(0.52f, 0.1f, 0.52f), ColBearDark);
+                    Block(t, $"InFormPost_{i}", mAt + Vector3.up * 0.52f, Quaternion.identity,
+                          new Vector3(0.08f, 1.0f, 0.08f), ColStoneWall, noCollider: true);
+                    Block(t, $"InFormBody_{i}", mAt + Vector3.up * 1.34f,
+                          Quaternion.Euler(0f, i * 26f, 0f), new Vector3(0.52f, 0.74f, 0.36f),
                           i == 0 ? ColCream : ColMint, noCollider: true);
+                    Block(t, $"InFormNeck_{i}", mAt + Vector3.up * 1.74f, Quaternion.identity,
+                          new Vector3(0.16f, 0.1f, 0.16f), ColWood, noCollider: true);
+                    // 줄자가 목에 걸려 있다 — 마네킹을 «쓰는 물건» 으로 만든다
+                    if (i == 0)
+                        for (int s2 = -1; s2 <= 1; s2 += 2)
+                            Block(t, $"InTape_{s2}", mAt + new Vector3(s2 * 0.14f, 1.46f, 0.14f),
+                                  Quaternion.Euler(0f, 0f, s2 * 6f), new Vector3(0.04f, 0.62f, 0.012f),
+                                  ColMapleGold, noCollider: true);
                 }
 
-                // ── 바닥에 떨어진 천 조각 ── 작은 것이 있어야 레고로 안 보인다(2026-09-17)
-                for (int i = 0; i < 9; i++)
+                // ══ 바닥에 떨어진 천 조각과 실밥 ══ 작은 것이 있어야 레고로 안 보인다
+                for (int i = 0; i < 11; i++)
                     Block(t, $"InScrap_{i}",
-                          new Vector3(-7f + i * 1.7f, 0.012f, -0.4f + (i % 3) * 1.1f),
-                          Quaternion.Euler(0f, i * 37f, 0f), new Vector3(0.28f, 0.012f, 0.2f),
+                          new Vector3(-8f + i * 1.6f, 0.014f, -1.2f + (i % 3) * 1.3f),
+                          Quaternion.Euler(0f, i * 37f, 0f), new Vector3(0.26f, 0.012f, 0.19f),
                           i % 3 == 0 ? ColRibbon : i % 3 == 1 ? ColMint : ColCream, noCollider: true);
+                for (int i = 0; i < 7; i++)
+                    Block(t, $"InLint_{i}",
+                          new Vector3(-5.5f + i * 1.9f, 0.013f, 1.4f - (i % 2) * 0.8f),
+                          Quaternion.Euler(0f, i * 51f, 0f), new Vector3(0.22f, 0.008f, 0.02f),
+                          i % 2 == 0 ? ColCream : ColMapleGold, noCollider: true);
+
+                // 휴지통 — 실밥이 나오는 방에는 있어야 한다
+                Disc(t, "InBin", new Vector3(-9.4f, 0.24f, -1.4f),
+                     new Vector3(0.44f, 0.48f, 0.44f), ColTrimDark);
+                Block(t, "InBinScrap", new Vector3(-9.4f, 0.5f, -1.4f), Quaternion.Euler(0f, 22f, 0f),
+                      new Vector3(0.36f, 0.1f, 0.3f), ColMint, noCollider: true);
+
+                // ══ 조명 ══
+                // ★ 공통 천장등(`InLamp_*`)은 `h − 0.55` = <b>8.45m</b> 에 있어서
+                // 방금 내린 반자(4.6) <b>위에 묻힌다.</b> 반자 밑으로 끌어내린다 —
+                // 화장실에서 이미 겪은 것이고, 반자를 내릴 때마다 딸려 오는 일이야.
+                foreach (string lampName in new[] { "InLamp_-1", "InLamp_1" })
+                {
+                    var lamp = t.Find(lampName);
+                    if (lamp == null) continue;
+                    lamp.localPosition = new Vector3(lamp.localPosition.x, ceilY - 0.16f, 0f);
+                    lamp.localScale = new Vector3(3.2f, 0.1f, 0.7f);
+                }
+                // 갓 — 알전구만 있으면 «공사장» 이다. 작업실 등은 갓이 있다
+                for (int s2 = -1; s2 <= 1; s2 += 2)
+                    Block(t, $"InLampShade_{s2}", new Vector3(s2 * w * 0.22f, ceilY - 0.07f, 0f),
+                          Quaternion.identity, new Vector3(3.5f, 0.1f, 0.9f),
+                          ColTrimDark, noCollider: true);
+
+                // 실시간 조명 <b>한 개</b> — 마름질 대 위. §7.6 이 막는 건 «방 열셋에 다 다는 것»
+                // 이지 한 방에 하나가 아니다. 발광 재질만으로는 <b>바닥과 벽이 안 밝아져서</b>
+                // 방이 평평하게 보인다(화장실에서 확인한 것).
+                var craftLight = new GameObject("CraftLight");
+                craftLight.transform.SetParent(t, false);
+                craftLight.transform.localPosition = new Vector3(0.5f, ceilY - 0.8f, -0.8f);
+                var cl = craftLight.AddComponent<Light>();
+                cl.type = LightType.Point;
+                cl.range = 13f;
+                cl.intensity = 1.5f;
+                cl.color = new Color(1f, 0.96f, 0.88f);
+                cl.shadows = LightShadows.None;   // §7.6 — 실시간 그림자는 주요 조명 하나만
+                craftLight.isStatic = true;
                 break;
             }
 
