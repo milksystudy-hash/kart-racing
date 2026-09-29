@@ -40,6 +40,12 @@ public class StoryStage : MonoBehaviour
 
     public bool InStory { get; private set; }
 
+    /// <summary>
+    /// 첫 화면(<see cref="TitleScreen"/>) 때문에 미뤄 둔 장면. 타이틀이 로비 <b>안에서</b>
+    /// 도니까, 그게 떠 있는 동안 Enter 를 부르면 대사가 <b>타이틀에 가려진 채로 흘러간다.</b>
+    /// </summary>
+    string pending;
+
     void Start()
     {
         Leave();   // 시작은 무조건 로비 상태로
@@ -49,11 +55,28 @@ public class StoryStage : MonoBehaviour
         // ★ 장 번호만 보면 결말이 어긋난다(2026-09-21) — 결승 장면이 영영 안 나오고,
         // 에필로그가 7판 뒤에 떴다. CurrentScene 이 «결승을 깼는가» 까지 보고 고른다.
         string sceneId = StoryScript.CurrentScene();
-        if (!string.IsNullOrEmpty(sceneId) && !StoryProgress.HasSeen(sceneId)) Enter(sceneId);
+        if (string.IsNullOrEmpty(sceneId) || StoryProgress.HasSeen(sceneId)) return;
+
+        // ★ 첫 화면이 떠 있으면 <b>그 뒤에서 몰래 틀지 않는다</b>(2026-09-28).
+        // 적어 뒀다가 타이틀이 닫히는 프레임에 튼다 — 그래야 프롤로그를 한 줄도 안 놓친다.
+        if (TitleScreen.Up) { pending = sceneId; return; }
+
+        Enter(sceneId);
     }
 
     void Update()
     {
+        // 첫 화면 위로 디버그 키(T · 1~5)가 새어나가면 안 된다.
+        if (TitleScreen.Up) return;
+
+        if (pending != null)
+        {
+            string queued = pending;
+            pending = null;
+            Enter(queued);
+            return;
+        }
+
         if (!debugKeys || InStory) return;
 
         var k = Keyboard.current;

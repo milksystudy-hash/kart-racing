@@ -236,6 +236,7 @@ public class DialogueHUD : MonoBehaviour
     /// <summary>초상화. 그림이 있으면 그리고, 없으면 그 사람 색의 자리표시 네모.</summary>
     string portraitKey = "";
     float portraitAt = -99f;
+    float portraitRise = 24f, portraitSpan = 0.20f;
 
     void DrawPortrait(Rect box, DialogueLine line, float w)
     {
@@ -248,12 +249,27 @@ public class DialogueHUD : MonoBehaviour
         // 나타난 그림은 화면에 붙인 스티커지만, 0.2초 동안 <b>올라오면서 진해지면</b>
         // 그 자리에 선 사람이 된다. 말하는 사람이 바뀔 때마다 다시 논다 —
         // 그래서 «누가 말하는지» 가 이름표를 안 읽어도 눈에 들어온다.
+        // ★ <b>사람이 바뀔 때와 표정만 바뀔 때는 세기가 달라야 한다</b>(2026-09-28).
+        // 유저가 «그냥 매번 하는 게 좋은데 정신 사납지 않겠냐» 고 물어서 내가 정했다 —
+        // <b>둘 다 논다. 대신 크기를 나눈다.</b>
+        //
+        // 표정만 바뀌는데 24px 을 올라오면 «그 사람이 나갔다가 다시 들어온» 것으로 보인다.
+        // 반대로 아무 것도 안 하면 당황·기쁨으로 넘어가는 순간이 <b>그림 교체</b>로만 보인다.
+        // 그래서 사람이 바뀌면 <b>등장</b>(24px · 0.20초), 표정만 바뀌면 <b>반응</b>(7px · 0.13초).
+        // 상용 게임이 하는 구분이 이거다 — 같은 동작을 «얼마나» 하느냐로 뜻이 갈린다.
         string key = line.speakerId + "|" + line.mood;
-        if (key != portraitKey) { portraitKey = key; portraitAt = Time.unscaledTime; }
+        if (key != portraitKey)
+        {
+            bool sameSpeaker = portraitKey.StartsWith(line.speakerId + "|");
+            portraitRise = sameSpeaker ? 7f : 24f;
+            portraitSpan = sameSpeaker ? 0.13f : 0.20f;
+            portraitKey = key;
+            portraitAt = Time.unscaledTime;
+        }
 
-        float rise = Mathf.Clamp01((Time.unscaledTime - portraitAt) / 0.2f);
+        float rise = Mathf.Clamp01((Time.unscaledTime - portraitAt) / portraitSpan);
         rise = 1f - (1f - rise) * (1f - rise);      // 끝에서 부드럽게 멎는다
-        r.y += (1f - rise) * 24f;
+        r.y += (1f - rise) * portraitRise;
 
         var keepColor = GUI.color;
         GUI.color = new Color(1f, 1f, 1f, rise);

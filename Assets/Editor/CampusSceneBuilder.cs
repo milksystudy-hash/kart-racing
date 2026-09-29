@@ -139,6 +139,16 @@ public static class CampusSceneBuilder
                  new Vector3(10.6f, 0.36f, 1.9f), tile);
         }
 
+        // ★ 지붕 위 상징물 — <b>운전대 + 전시 카트</b>. 이 문은 «중앙홀로» 가는 문이고
+        // 중앙홀은 카트를 고르는 방이라, 지붕에 카트가 서 있으면 <b>글자를 안 읽어도</b>
+        // 저 문이 어디로 가는지 안다. 다른 열네 동과 같은 규칙(<see cref="CampusBuilder"/>).
+        //
+        // 문간채만 <c>Hanok</c> 이 아니라 여기서 직접 얹는다 —
+        // 능선(`Ridge`)이 y 7.1 에 높이 0.7 이라 <b>윗면이 7.45</b>, z 는 −2.6 이 한가운데다.
+        CampusBuilder.AddRoofEmblem(root, "11_Central_Hall_Kart",
+                                    new Vector3(0f, 7.45f - 0.06f, -2.6f),
+                                    11f * 0.45f, 6.2f * 1.05f);
+
         var door = root.gameObject.AddComponent<SceneDoor>();
         door.sceneIndex = 0;          // 로비
         door.label = "중앙홀로";

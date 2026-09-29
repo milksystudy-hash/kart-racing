@@ -16,10 +16,13 @@ public class CampusHUD : MonoBehaviour
         var k = Keyboard.current;
         if (k == null) return;
 
-        // 배식 중에는 캠퍼스 조작을 안 받는다. 큰 패널이 떠 있으면 그 패널만 듣는다 —
+        // 미니게임 중에는 캠퍼스 조작을 안 받는다. 큰 패널이 떠 있으면 그 패널만 듣는다 —
         // 안 막으면 ESC 한 번에 급식도 끝나고 조작법 카드도 같이 열린다
         // (레이스 ESC 패널에서 세운 «큰 패널은 한 번에 한 장» 규칙과 같다).
-        if (Canteen.Open) return;
+        //
+        // ★ 안전 점검 훈련은 <b>숫자키 1~9</b> 를 쓴다. 여기서 안 막으면 H(조작법)와 E 가
+        // 훈련 중에 같이 먹어서 판 위에 조작법 카드가 덮인다.
+        if (Canteen.Open || SafetyDrill.Open) return;
 
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
 
@@ -31,12 +34,13 @@ public class CampusHUD : MonoBehaviour
                 case Target.미니게임: MinigameSpot.Nearest.Enter(); break;
                 case Target.수도:     Faucet.Nearest.Toggle();      break;
                 case Target.건물문:   HingedDoor.Nearest.Toggle();  break;
+                case Target.기록첩:   AlbumBook.Nearest.Turn();     break;
                 case Target.곰:       BearNpc.Nearest.Talk();       break;
             }
         }
     }
 
-    enum Target { 없음, 씬문, 미니게임, 수도, 건물문, 곰 }
+    enum Target { 없음, 씬문, 미니게임, 수도, 건물문, 기록첩, 곰 }
 
     /// <summary>
     /// ★ <b>«무엇을 집을지» 는 종류 순서가 아니라 점수로 고른다</b>(2026-09-22).
@@ -68,6 +72,7 @@ public class CampusHUD : MonoBehaviour
         Try(Target.미니게임, MinigameSpot.Nearest != null, MinigameSpot.NearestScore);
         Try(Target.수도,     Faucet.Nearest != null,       Faucet.NearestScore);
         Try(Target.건물문,   HingedDoor.Nearest != null,   HingedDoor.NearestScore);
+        Try(Target.기록첩,   AlbumBook.Nearest != null,    AlbumBook.NearestScore);
 
         if (best == Target.없음 && BearNpc.Nearest != null) best = Target.곰;
         return best;
@@ -77,8 +82,8 @@ public class CampusHUD : MonoBehaviour
 
     void OnGUI()
     {
-        // 급식 화면이 떠 있으면 캠퍼스 안내는 한 장도 안 그린다.
-        if (Canteen.Open) return;
+        // 미니게임 화면이 떠 있으면 캠퍼스 안내는 한 장도 안 그린다.
+        if (Canteen.Open || SafetyDrill.Open) return;
 
         Rect screen = Hud.Begin(uiFont);
         float w = screen.width, h = screen.height;
@@ -122,6 +127,12 @@ public class CampusHUD : MonoBehaviour
                      ? HingedDoor.Nearest.Action
                      : $"{HingedDoor.Nearest.label} {HingedDoor.Nearest.Action}";
                 if (!HingedDoor.Nearest.Actionable) key = "";
+                break;
+
+            case Target.기록첩:
+                // 몇 쪽인지 같이 보여준다 — «넘어가고 있다» 를 숫자로도 확인할 수 있어야
+                // 낙서를 넣은 뒤에 «내 그림이 몇 번째인지» 를 찾을 수 있다
+                what = AlbumBook.Nearest.Action;
                 break;
 
             case Target.곰:

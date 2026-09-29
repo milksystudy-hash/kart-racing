@@ -30,6 +30,11 @@ public class CanteenHUD : MonoBehaviour
         Rect screen = Hud.Begin(font);
         float w = screen.width, h = screen.height;
 
+        // ★ 준비 카드나 ESC 패널이 떠 있으면 배식판을 한 장도 안 그린다 —
+        // «큰 패널은 한 번에 한 장» (레이스 ESC 패널에서 세운 규칙).
+        var flow = game.Flow;
+        if (flow != null && flow.Blocking) { Hud.End(); return; }
+
         const float panelW = 560f;
         float x = w * 0.5f - panelW * 0.5f;
         float top = h * 0.5f - 210f;
@@ -180,8 +185,22 @@ public class CanteenHUD : MonoBehaviour
                   "배식 마감", Hud.Resize(Hud.Title, 24, TextAnchor.UpperCenter));
         Hud.Rule(inner.x + 14f, inner.y + 48f, inner.width - 28f);
 
-        GUI.Label(new Rect(inner.x, inner.y + 62f, inner.width, 56f),
+        // ★ <b>등급과 점수를 나란히.</b> 숫자만 남으면 «잘한 건지» 를 모른다
+        // (안전 점검 훈련 결과 화면과 같은 모양 — 한 게임에서 배운 것이 다른 게임에서도 통한다).
+        GUI.Label(new Rect(inner.x + 40f, inner.y + 62f, inner.width - 80f, 56f),
                   $"{game.Score}", Hud.Resize(Hud.Big, 46, TextAnchor.MiddleCenter));
+
+        var flow = game.Flow;
+        if (flow != null)
+        {
+            string mark = flow.Grade(game.Score);
+            var badge = new Rect(inner.xMax - 74f, inner.y + 64f, 52f, 52f);
+            GUI.DrawTexture(badge, mark == "S" ? Hud.BrassTex : Hud.WoodTex);
+            var big = Hud.Resize(Hud.Big, 29, TextAnchor.MiddleCenter);
+            big.normal.textColor = Hud.Paper;
+            GUI.Label(badge, mark, big);
+        }
+
         GUI.Label(new Rect(inner.x, inner.y + 118f, inner.width, 20f),
                   $"손님 {game.Served}명", Hud.Resize(Hud.Label, 14, TextAnchor.UpperCenter));
 

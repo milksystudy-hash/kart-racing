@@ -21,9 +21,17 @@ public class PortraitImport : AssetPostprocessor
 {
     const string Folder = "Assets/Resources/Portraits/";
 
+    /// <summary>
+    /// 첫 화면 배경(<see cref="TitleScreen"/>). 초상화와 <b>거의 같은 설정인데 크기만 다르다</b> —
+    /// 화면을 가득 채우는 그림이라 512 로 줄이면 뭉개진다.
+    /// </summary>
+    const string Backdrops = "Assets/Resources/Backgrounds/";
+
     void OnPreprocessTexture()
     {
-        if (!assetPath.StartsWith(Folder)) return;
+        bool portrait = assetPath.StartsWith(Folder);
+        bool backdrop = assetPath.StartsWith(Backdrops);
+        if (!portrait && !backdrop) return;
 
         var t = (TextureImporter)assetImporter;
 
@@ -44,10 +52,17 @@ public class PortraitImport : AssetPostprocessor
 
         // 화면 칸은 최대 224 × 1.8(스케일 상한) ≈ <b>403px</b> 이라 512 면 충분하다.
         // 원본 1029px 을 그대로 들고 있으면 한 장에 5.6MB 고, 일곱 명 × 세 장이면 118MB 다.
-        t.maxTextureSize = 512;
+        //
+        // 배경은 반대로 <b>화면을 가득 채우니</b> 2048 이 필요하다 — 1080p 가로 1920 을
+        // 덮고도 남는 첫 2의 거듭제곱이야. 2560 × 1440 으로 그려 오면 2048 × 1152 로 들어온다.
+        t.maxTextureSize = backdrop ? 2048 : 512;
 
         // 선화 그림이라 DXT5 압축이 <b>가장자리 계단</b>으로 보인다. 512 로 줄였으니
         // 무압축이어도 한 장 1.3MB — 스물한 장에 28MB 면 감당할 수 있다.
+        //
+        // 배경도 같은 화풍(평면 색 + 굵은 선)이라 무압축으로 둔다. 2048 × 1152 RGBA 가
+        // 9.4MB 인데, <b>게임을 켜면 제일 먼저 보는 화면</b>이라 여기서 띠가 지면 안 된다.
+        // 용량이 급하면 이 한 줄만 CompressedHQ 로 바꾸면 8분의 1 이 된다.
         t.textureCompression = TextureImporterCompression.Uncompressed;
     }
 }

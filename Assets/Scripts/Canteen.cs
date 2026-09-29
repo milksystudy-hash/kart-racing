@@ -123,6 +123,7 @@ public class Canteen : MonoBehaviour
         var game = go.AddComponent<Canteen>();   // 규칙
         go.AddComponent<CanteenStage>();         // 방 — 카메라와 곰 손님
         go.AddComponent<CanteenHUD>();           // 화면
+        go.AddComponent<MinigameFlow>();         // 준비 → 카운트다운 → 일시정지
         return game;
     }
 
@@ -174,10 +175,48 @@ public class Canteen : MonoBehaviour
 
     public void Quit() => Destroy(gameObject);
 
+    /// <summary>준비 카드 · 카운트다운 · ESC 패널. 안전 점검 훈련과 <b>같은 것</b>을 쓴다.</summary>
+    public MinigameFlow Flow => flow != null ? flow : (flow = GetComponent<MinigameFlow>());
+    MinigameFlow flow;
+
+    /// <summary>
+    /// 틀을 꽂는다. <b>Awake 가 아니라 Start</b> 인 이유는 <see cref="Stage"/> 와 같다 —
+    /// <see cref="Begin"/> 이 이 컴포넌트를 제일 먼저 붙이고 그 자리에서 Awake 가 돌기 때문에,
+    /// Awake 에서 형제를 찾으면 영영 null 이다.
+    /// </summary>
+    void Start()
+    {
+        var f = Flow;
+        if (f == null) return;
+
+        f.title = "오늘의 급식";
+        f.subtitle = "곰밥마당 · 배식 · 한 판 90초";
+        f.rules = new (string, string)[]
+        {
+            ("1 ~ 5",  "밥 · 국 · 김치 · 반찬 · 후식 담기 (다시 누르면 뺀다)"),
+            ("ENTER / SPACE", "식판 내보내기"),
+            ("딱 맞음", "10점  ·  3초 안에 내보내면 +3"),
+            ("하나 어긋", "4점  ·  둘 이상 어긋나면 0점"),
+            ("ESC",    "잠깐 멈추기"),
+        };
+        f.goal = "주문표를 읽고 그대로 담는다 · 숫자열과 키패드 둘 다 됩니다";
+        f.grades = new[] { 220, 170, 110 };
+        f.onStart = Restart;
+        f.onQuit = Quit;
+    }
+
     void Update()
     {
         var k = Keyboard.current;
         if (k == null) return;
+
+        var f = Flow;
+        // ★ 준비 카드 · 카운트다운 · ESC 패널이 떠 있는 동안에는 <b>시계도 줄도 멈춰 있다.</b>
+        if (f != null && !f.Running && f.Now != MinigameFlow.Step.끝)
+        {
+            if (f.RestartAsked) { f.RestartAsked = false; Restart(); }
+            return;
+        }
 
         if (Now == Phase.진행)
         {
@@ -192,20 +231,30 @@ public class Canteen : MonoBehaviour
     {
         // <b>토글이다.</b> 잘못 누른 걸 같은 키로 뺄 수 있어야 한다 —
         // 못 빼면 실수 하나가 그대로 점수가 되고, 그건 감점제와 다를 게 없다.
-        if (k.digit1Key.wasPressedThisFrame) Toggle(Dish.밥);
-        if (k.digit2Key.wasPressedThisFrame) Toggle(Dish.국);
-        if (k.digit3Key.wasPressedThisFrame) Toggle(Dish.김치);
-        if (k.digit4Key.wasPressedThisFrame) Toggle(Dish.반찬);
-        if (k.digit5Key.wasPressedThisFrame) Toggle(Dish.후식);
+        //
+        // ★ <see cref="Keys.Digit"/> 가 <b>숫자열과 키패드를 둘 다</b> 읽는다.
+        // 예전엔 여기에 `digit1Key`~`digit5Key` 를 손으로 적어 놔서 키패드가 안 먹었다
+        // (2026-09-29 유저 제보). 게임마다 키를 따로 적으면 반드시 한쪽을 빠뜨린다.
+        for (int i = 0; i < CanteenOrder.Slots; i++)
+            if (Keys.Digit(k, i + 1)) Toggle((Dish)i);
 
-        if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame) Serve();
-        if (k.escapeKey.wasPressedThisFrame) Quit();
+        if (Keys.Confirm(k)) Serve();
+        // ESC 는 <see cref="MinigameFlow"/> 가 «일시정지» 로 받는다 — 전엔 손이 미끄러지면
+        // 판이 통째로 날아갔다(2026-09-29).
     }
 
+    /// <summary>
+    /// 결과 화면. ★ ENTER 는 <b>바로 다시 시작하지 않고</b> 카운트다운으로 돌려보낸다 —
+    /// 결과를 보던 손가락 그대로 다음 판이 시작되면 첫 손님을 반드시 놓친다.
+    /// </summary>
     void ReadEndKeys(Keyboard k)
     {
-        if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame) Restart();
-        if (k.escapeKey.wasPressedThisFrame) Quit();
+        if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame)
+        {
+            if (Flow != null) Flow.Again(); else Restart();
+        }
+        // ESC 는 <see cref="MinigameFlow"/> 가 «나가시겠습니까?» 패널로 받는다.
+        if (k.escapeKey.wasPressedThisFrame && Flow == null) Quit();
     }
 
     void Toggle(Dish d) => Tray ^= 1 << (int)d;
@@ -259,6 +308,7 @@ public class Canteen : MonoBehaviour
     {
         Now = Phase.끝;
         Left = 0f;
+        if (Flow != null) Flow.Finish();
 
         Best = PlayerPrefs.GetInt(BestKey, 0);
         if (Score > Best)

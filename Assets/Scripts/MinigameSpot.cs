@@ -74,11 +74,29 @@ public class MinigameSpot : MonoBehaviour
     public const string CanteenTitle = "오늘의 급식";
 
     /// <summary>
+    /// 철곰관. 2026-09-29 만들었다 — 방이 씨름판에서 <b>안전 체험 훈련장</b>으로 바뀐 뒤다.
+    /// <see cref="CampusBuilder.MinigameSpotFor"/> 가 세우는 입간판 문구와 <b>글자 하나까지
+    /// 같아야 한다</b> — 이 비교가 곧 «만든 게임인가» 의 판단이야.
+    /// </summary>
+    public const string DrillTitle = "안전 점검 훈련";
+
+    /// <summary>
+    /// 재주관. 2026-09-29 만들었다.
+    ///
+    /// ★★ <b>여기 한 줄이 없어서 «플레이가 안 된다» 였다.</b> 판정(<see cref="Tracing"/>)은
+    /// 진작 있었는데 <see cref="Made"/> 목록에 제목이 없으니 자리가 영영 「준비 중」이었고,
+    /// E 를 눌러도 <b>토스트만</b> 떴다. <see cref="CampusBuilder.MinigameSpotFor"/> 가
+    /// 세우는 입간판 문구와 <b>글자 하나까지 같아야 한다.</b>
+    /// </summary>
+    public const string TraceTitle = "따라 그리기";
+
+    /// <summary>
     /// ★ <b>코드가 판단한다, 씬이 아니라.</b> <see cref="ready"/> 는 씬에 구워진 값이라
     /// 옛 씬에서는 «준비 중」인 채로 남는다 — 이 프로젝트에서 «새 컴포넌트/새 값으로 고치면
     /// 씬을 다시 구워야만 고쳐진다」 를 네 번 겪었다. 제목만 보고 스스로 알게 만든다.
     /// </summary>
-    static bool Made(string title) => title == CanteenTitle;
+    static bool Made(string title) =>
+        title == CanteenTitle || title == DrillTitle || title == TraceTitle;
 
     public State Now => !Unlocked ? State.잠김
                       : (ready || Made(title)) ? State.열림 : State.준비중;
@@ -135,7 +153,11 @@ public class MinigameSpot : MonoBehaviour
 
         // 씬을 갈아타지 않는다 — 곰밥마당은 이미 지어져 있고, 방을 두 벌 만들면 어긋난다
         // (이야기 장면을 로비 안에서 돌리는 것과 같은 이유).
+        // 철곰관은 더더욱 그렇다: 게임판이 <b>방 안에 이미 서 있는 반응훈련벽</b>이야.
         if (title == CanteenTitle) { Canteen.Begin(); return; }
+        if (title == DrillTitle) { SafetyDrill.Begin(); return; }
+        // 재주관도 같다 — 게임판이 <b>방 안에 이미 서 있는 이젤</b>이야.
+        if (title == TraceTitle) { TracingGame.Begin(); return; }
 
         Toast.Show($"{title} — 곧 들어갑니다");
     }
