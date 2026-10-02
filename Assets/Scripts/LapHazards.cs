@@ -54,12 +54,29 @@ public class LapHazards : MonoBehaviour
         return player != null ? player.Lap : 1;
     }
 
+    /// <summary>
+    /// ★★ 2026-10-02 유저: *"매번 그냥 플레이하고 물기둥 있고 벽돌 있고 하면
+    /// 그것도 재미가 없을 것 같다. 그 기믹은 첫 판에 추가하고, 2~8판은 삭제하고
+    /// 다른 기믹을 추가해야 할 것 같은데."* 맞는 판단이다.
+    ///
+    /// <b>같은 방해가 아홉 판 내내 나오면 그건 방해가 아니라 «코스의 일부»</b>가 된다.
+    /// 세 바퀴째에는 이미 외워서 피하고, 둘째 판부터는 새로울 게 없다.
+    ///
+    /// 그래서 <b>1판에만</b> 깔린다. 1판은 아무 조건이 없는 «배우는 판» 이라
+    /// 길이 변한다는 걸 가르치기에 제일 좋은 자리이기도 하다 —
+    /// 2판부터는 <b>임무 자체가 그 판의 기믹</b>이다(발판·벽·시간·자재·화물·광고판).
+    ///
+    /// <see cref="MissionManager"/> 를 안 보고 <see cref="CollectionState"/> 만 본다 —
+    /// 컴포넌트도 실행 순서도 필요 없다(「물건이 스스로 판단하게 만들어라」).
+    /// </summary>
+    static bool FirstRace => CollectionState.Count == 0 && !GrandFinal.Available;
+
     void Apply(int lap, bool quiet)
     {
         shown = lap;
 
-        bool wet = lap == 2;
-        bool rough = lap >= 3;
+        bool wet = FirstRace && lap == 2;
+        bool rough = FirstRace && lap >= 3;
 
         if (floods != null && floods.activeSelf != wet) floods.SetActive(wet);
         if (bumps != null && bumps.activeSelf != rough) bumps.SetActive(rough);

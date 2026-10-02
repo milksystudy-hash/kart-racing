@@ -637,7 +637,14 @@ public static class GallerySceneBuilder
     /// </summary>
     static readonly System.Collections.Generic.Dictionary<string, string> ExhibitModels = new()
     {
-        { "coin", "Assets/My blender/Exhibits/Exhibit_1_coin.fbx" },
+        { "coin",      "Assets/My blender/Exhibits/Exhibit_1_coin.fbx" },
+        { "ledger",    "Assets/My blender/Exhibits/Exhibit_2_ledger.fbx" },
+        { "survey",    "Assets/My blender/Exhibits/Exhibit_3_survey.fbx" },
+        { "marker",    "Assets/My blender/Exhibits/Exhibit_4_marker.fbx" },
+        { "signature", "Assets/My blender/Exhibits/Exhibit_5_signature.fbx" },
+        { "contract",  "Assets/My blender/Exhibits/Exhibit_6_contract.fbx" },
+        { "recorder",  "Assets/My blender/Exhibits/Exhibit_7_recorder.fbx" },
+        { "blueprint", "Assets/My blender/Exhibits/Exhibit_8_blueprint.fbx" },
     };
 
     /// <summary>
@@ -703,9 +710,67 @@ public static class GallerySceneBuilder
 
         foreach (var c in go.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
 
+        // ★★ <b>납작한 것은 세워서 보여준다 — 각도는 찍지 말고 재서 고른다.</b>
+        //   여덟 중 다섯이 서류·설계도라 두께가 2~6cm 다. 눕혀 놓고 돌리면
+        //   <b>옆을 지날 때마다 사라진다</b> — 박물관이 문서를 눕히지 않고
+        //   비스듬히 세워 전시하는 이유도 같다.
+        //
+        //   처음엔 −62도를 그냥 박았더니 <b>모델마다 결과가 달랐다</b>(세 개가 옆으로 섰다).
+        //   FBX 축 변환이 모델마다 달리 들어와서, 같은 각도가 같은 자세를 만들지 않는다.
+        //   후보 각도를 다 돌려 보고 <b>보는 사람 쪽 넓이가 제일 큰 것</b>을 고른다 —
+        //   이 프로젝트에서 «앞면은 짐작하지 말고 재라» 로 두 번 배운 그 방법이야.
+        TiltFlatItem(go.transform, caseRoot);
         // 떠서 천천히 돈다 — 어두운 방에서 움직이는 건 이것뿐이라 눈이 여기로 온다
         go.AddComponent<ExhibitSpin>();
         return go;
+    }
+
+    /// <summary>
+    /// 납작한 전시품을 <b>보는 사람 쪽으로 세운다.</b> 두껍고 둥근 것은 그대로 둔다.
+    /// 각도 후보를 돌려 보고 «정면에서 본 넓이»가 제일 큰 자세를 고른다.
+    /// </summary>
+    static void TiltFlatItem(Transform item, Transform caseRoot)
+    {
+        var rs = item.GetComponentsInChildren<Renderer>(true);
+        if (rs.Length == 0) return;
+
+        Quaternion home = item.localRotation;
+        float[] candidates = { 0f, 50f, -50f, 70f, -70f, 90f, -90f };
+
+        float best = -1f;
+        Quaternion bestRot = home;
+
+        foreach (float a in candidates)
+            foreach (int axis in new[] { 0, 1 })   // X 로 눕히기 / Z 로 눕히기
+            {
+                item.localRotation = (axis == 0 ? Quaternion.Euler(a, 0f, 0f)
+                                                : Quaternion.Euler(0f, 0f, a)) * home;
+
+                // 진열장 기준으로 잰다. 정면은 +Z 고, 보이는 넓이는 가로 × 높이다.
+                Vector3 lo = Vector3.one * 1e9f, hi = -Vector3.one * 1e9f;
+                foreach (var r in rs)
+                {
+                    var b = r.bounds;
+                    for (int c = 0; c < 8; c++)
+                    {
+                        var corner = new Vector3(
+                            (c & 1) == 0 ? b.min.x : b.max.x,
+                            (c & 2) == 0 ? b.min.y : b.max.y,
+                            (c & 4) == 0 ? b.min.z : b.max.z);
+                        Vector3 p = caseRoot.InverseTransformPoint(corner);
+                        lo = Vector3.Min(lo, p); hi = Vector3.Max(hi, p);
+                    }
+                }
+
+                Vector3 size = hi - lo;
+                // 유리 안쪽(0.95 × 1.1)을 넘으면 안 된다 — 넘치는 자세는 후보에서 뺀다
+                if (size.x > 0.92f || size.y > 1.05f) continue;
+
+                float seen = size.x * size.y;
+                if (seen > best) { best = seen; bestRot = item.localRotation; }
+            }
+
+        item.localRotation = bestRot;
     }
 
     static GalleryCase[] MakeCases()

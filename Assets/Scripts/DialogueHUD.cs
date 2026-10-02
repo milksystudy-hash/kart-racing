@@ -461,12 +461,20 @@ public class DialogueHUD : MonoBehaviour
         // ★ 쪽 번호(23/124)를 뺐다(2026-10-02 유저). 읽는 사람에게 «앞으로 101줄 남았다» 는
         //   압박만 주고, 이야기를 보는 화면에 <b>진도표</b>가 있으면 그 순간 과제가 된다.
         // 오른쪽 — 다음으로 넘어가는 법
-        string hint;
-        if (runner.Finished) hint = runner.allowReplay ? "장면 끝  ·  R 다시 보기" : "장면 끝";
-        else if (runner.LineFullyShown) hint = "SPACE · 클릭   다음  ▼";
-        else hint = "SPACE   한꺼번에 보기";
+        // ★ 2026-10-02 유저: *"SPACE 클릭 글자는 없애고, 다음 글자랑 화살표는 조금 키워도 될 듯."*
+        //   어느 키를 누르는지는 <b>한 번 눌러보면 아는 것</b>이고, 그 뒤로는 자리만 차지한다.
+        //   남길 건 «다음이 있다» 하나뿐이라 그건 크게.
+        string hint = runner.Finished ? (runner.allowReplay ? "장면 끝  ·  R 다시 보기" : "장면 끝")
+                                      : runner.LineFullyShown ? "다음  ▼" : "";
 
-        GUI.Label(foot, hint, hintStyle);
+        if (!string.IsNullOrEmpty(hint))
+        {
+            var big = new GUIStyle(hintStyle)
+            {
+                fontSize = runner.Finished ? hintStyle.fontSize : hintStyle.fontSize + 5
+            };
+            GUI.Label(foot, hint, big);
+        }
 
         if (debugKeys)
             GUI.Label(new Rect(box.x, box.yMax + 6f, box.width, 20f),

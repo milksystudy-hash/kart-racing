@@ -245,11 +245,15 @@ public class CampusBoarding : MonoBehaviour
         {
             var label = new GameObject("Text").AddComponent<TextMesh>();
             label.transform.SetParent(root, false);
-            //   둘째, <b>180도를 돌린 게 잘못이었다.</b> TextMesh 는 제 +Z 쪽에서 읽히게
-            //   생겼고, 이 표지판은 문의 +Z(바깥)에 세웠으니 <b>돌리지 않아야</b> 맞게 읽힌다.
-            //   현판은 판의 자식이 아니라 형제로 붙어서 180 이 필요했던 것 — 사정이 다르다.
+            //   ★★ 돌리는 것과 자리를 <b>따로따로 고치다 두 번 틀렸다.</b>
+            //   처음엔 180도 + 판 뒤 → 안 보임. 다음엔 0도 + 판 앞 → 거울상("지금입출").
+            //   <b>둘 다 필요했다</b>: TextMesh 는 제 −Z 쪽에서 바로 읽히니 180도를 돌리고,
+            //   보이려면 판보다 앞(+Z)에 있어야 한다.
+            //
+            //   <b>한 번에 하나씩 바꾸면 두 조건이 동시에 맞는 자리를 못 찾는다.</b>
+            //   돌림과 자리는 같이 정해야 한다.
             label.transform.localPosition = new Vector3(0f, 1.95f, 0.07f);
-            label.transform.localRotation = Quaternion.identity;
+            label.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
             label.font = font;
             label.text = "출입금지";
             label.fontSize = 120;
