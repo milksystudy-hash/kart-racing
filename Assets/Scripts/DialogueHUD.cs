@@ -460,12 +460,9 @@ public class DialogueHUD : MonoBehaviour
         if (runner != null && runner.IsPlaying)
         {
             var ff = new GUIStyle(hintStyle) { alignment = TextAnchor.MiddleLeft, fontSize = 12 };
-            bool on = DialogueRunner.FastForward;
-            // 켜지면 색까지 바뀐다 — «눌리긴 한 건가» 를 구분할 수 있어야 한다
-            ff.normal.textColor = on ? new Color(0.90f, 0.78f, 0.38f, 1f)
-                                     : new Color(0.78f, 0.74f, 0.66f, 0.55f);
+            ff.normal.textColor = new Color(0.78f, 0.74f, 0.66f, 0.55f);
             GUI.Label(new Rect(box.x + 18f, box.y - 24f, 240f, 20f),
-                      on ? "▶▶  빨리 넘기는 중" : "CTRL  빨리 넘기기", ff);
+                      "두 번 누르면 한꺼번에", ff);
         }
 
         var foot = new Rect(box.x + 20f, box.yMax - 28f, box.width - 40f, 22f);

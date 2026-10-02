@@ -137,25 +137,18 @@ public class DialogueRunner : MonoBehaviour
     }
 
     /// <summary>
-    /// <b>CTRL 을 누르고 있으면 빨리 넘어간다.</b> 2026-10-02 — 프롤로그가 124줄이
-    /// 됐다(약 3~6분). 글은 좋은데 <b>처음 플레이하는 사람은 운전도 해보기 전에</b>
-    /// 그만큼을 앉아서 본다. 두 번째부터는 더 그렇고.
+    /// <b>빠르게 두 번 누르면 그 줄이 한꺼번에 나온다.</b>
     ///
-    /// 글을 자르는 대신 <b>건너뛸 길</b>을 둔다 — 비주얼 노벨이 전부 이렇게 한다.
-    /// 누르고 있는 동안에만 돌아서 <b>실수로 통째로 날아가지 않는다.</b>
+    /// 2026-10-02 유저: *"CTRL 눌러도 바뀌는 게 없으니 아예 빼고, 대신 마우스를
+    /// 빠르게 두 번 누르면 대사가 한 번에 나오게."* CTRL 은 뺐다.
+    ///
+    /// 한 번 누르는 것과 두 번 누르는 것이 <b>다른 일을 한다</b>:
+    /// 한 번은 «읽었다, 다음», 두 번은 «기다리기 싫다, 다 보여줘».
+    /// 두 번째 누름은 <see cref="MinOnScreen"/> 도 뚫는다 — 참을성이 없다는 뜻이니까.
     /// </summary>
-    public static bool FastForward
-    {
-        get
-        {
-            var k = Keyboard.current;
-            if (k != null && (k.leftCtrlKey.isPressed || k.rightCtrlKey.isPressed)) return true;
-            var pad = Gamepad.current;
-            return pad != null && pad.rightShoulder.isPressed;
-        }
-    }
+    const float DoubleClick = 0.32f;
 
-    float skipAt;
+    float lastClickAt = -99f;
 
     /// <summary>줄이 뜨고 이만큼은 못 넘긴다. 짧은 대사가 스쳐 지나가는 걸 막는다.</summary>
     const float MinOnScreen = 0.28f;
@@ -167,28 +160,30 @@ public class DialogueRunner : MonoBehaviour
         if (IsPlaying && !LineFullyShown && charsPerSecond > 0f)
             revealed += charsPerSecond * Time.unscaledDeltaTime;
 
-        // 빨리 넘기기. ★ 2026-10-02 유저: *"CTRL 눌러봤자 자막이 깜빡거릴 뿐이다."*
-        //   0.14초에 한 줄이면 <b>초당 일곱 줄</b>이라 눈에는 글자가 떨리는 걸로만 보인다.
-        //   «빨리 넘긴다» 는 <b>따라 읽을 수는 있는 속도</b>여야 한다 — 그래야 지나가는 중에도
-        //   «아, 여기까지는 봤던 데» 가 되고 멈출 자리를 고를 수 있다.
-        //   0.34초 = 초당 세 줄. 124줄이면 42초다.
-        if (IsPlaying && FastForward)
+        if (!AdvancePressed)
         {
-            revealed = float.MaxValue;
-            if (Time.unscaledTime - skipAt >= 0.34f) { skipAt = Time.unscaledTime; Advance(); }
+            if (Finished && allowReplay && ReplayPressed) Replay();
             return;
         }
 
-        // ★★ 2026-10-02 유저: *"대사 치는 중간에 SPACE 를 누르면 짧은 대사는 바로 휘릭
-        //   지나간다."* 짧은 줄은 타자가 0.1초면 끝나서, <b>«다 보여줘» 로 누른 그 키가
-        //   그대로 «다음» 이 된다.</b> 한 번 누른 것이 두 가지 일을 한 셈이야.
-        //
-        //   줄이 바뀐 뒤 잠깐은 넘기지 않는다. 이 시간이 지나야 «읽었다» 로 치는 거고,
-        //   긴 줄에서는 어차피 타자가 그보다 오래 걸려서 아무 차이가 없다.
+        // 빠르게 두 번 — 그 줄을 한꺼번에 보여준다. 여기서는 넘기지 않는다,
+        // <b>다 읽을 기회를 주는 것</b>이지 건너뛰는 게 아니니까.
+        bool again = Time.unscaledTime - lastClickAt <= DoubleClick;
+        lastClickAt = Time.unscaledTime;
+
+        if (again && IsPlaying && !LineFullyShown)
+        {
+            revealed = float.MaxValue;
+            return;
+        }
+
+        // ★★ 2026-10-02 유저: *"짧은 대사는 바로 휘릭 지나간다."*
+        //   짧은 줄은 타자가 0.1초면 끝나서 <b>«다 보여줘» 로 누른 키가 그대로 «다음»</b>
+        //   이 된다. 줄이 바뀐 뒤 잠깐은 안 넘긴다 — 긴 줄에서는 타자가 그보다
+        //   오래 걸려서 아무 차이가 없다.
         if (Time.unscaledTime - lineAt < MinOnScreen) return;
 
-        if (AdvancePressed) Advance();
-        else if (Finished && allowReplay && ReplayPressed) Replay();
+        Advance();
     }
 
     static bool AdvancePressed

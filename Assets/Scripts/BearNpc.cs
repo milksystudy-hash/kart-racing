@@ -65,8 +65,31 @@ public class BearNpc : MonoBehaviour
     bool noticed;
     bool ready;
 
+    /// <summary>
+    /// 발자국. 2026-10-02 유저: *"걸을 때마다 발자국이 나와야 하는데 가끔씩만 나온다."*
+    ///
+    /// 둘이 겹쳐 있었다. 하나는 <b>로비 빌더만 붙여 줬다</b>는 것 — 캠퍼스 곰은 아예 없었다.
+    /// 다른 하나는 숫자다: 보폭 0.52m 에 수명 1.9초, 자리가 <b>넷뿐</b>이라
+    /// 조금만 빨리 걸어도 금방 돌려 쓰느라 뒤엣것이 지워졌다.
+    ///
+    /// ★ <b>곰이 스스로 챙긴다.</b> 빌더가 붙이면 씬을 다시 구워야 고쳐지고,
+    /// 이미 구운 씬에는 옛날 숫자가 박혀 있다 — 이 프로젝트에서 다섯 번 겪은 함정이야.
+    /// <c>Awake</c> 에서 값을 넣는 게 중요하다: <c>PawPrints.Start</c> 가 그 값으로
+    /// 자리를 만드는데, Start 끼리는 순서가 정해져 있지 않다.
+    /// </summary>
+    void EnsurePaws()
+    {
+        var paws = GetComponent<PawPrints>();
+        if (paws == null) paws = gameObject.AddComponent<PawPrints>();
+
+        paws.stride = 0.34f;   // 반 걸음마다 — 0.52 는 성큼성큼 걷는 사람 보폭이다
+        paws.life = 2.6f;
+        paws.pool = 12;        // 2.6초 × 초당 3개 = 여덟. 넉넉하게
+    }
+
     void Awake()
     {
+        EnsurePaws();
         AutoBind();
 
         if (body != null)
@@ -423,8 +446,42 @@ public class BearNpc : MonoBehaviour
     }
 
     /// <summary>말을 건다. 대사 한 줄을 뱉고, 말한 쪽을 쳐다보며 손을 든다.</summary>
+    [Header("목소리")]
+    [Tooltip("굵고 거친 아저씨 목소리. 화장실 변기 얘기하는 곰에게 켠다")]
+    public bool deepVoice;
+
+    /// <summary>
+    /// <b>말 걸면 운다.</b> 2026-10-02 유저 요청 — *"동물의 숲에서 나오는 말하는 음성처럼."*
+    ///
+    /// 동물의 숲 소리의 정체는 <b>짧은 모음 하나를 음높이만 바꿔 이어 붙인 것</b>이다.
+    /// 포먼트(입 모양) 둘을 걸어 모음을 만들고, 음절마다 음높이를 튀게 하고,
+    /// 끝을 내리면 «평서문» 으로 들린다. 외부 음원 없이 파이썬으로 합성했다.
+    ///
+    /// ★ 같은 소리를 두 번 연달아 쓰지 않는다. 한 가지만 반복되면
+    /// «말» 이 아니라 <b>«효과음 하나»</b> 로 들려서 금방 거슬린다.
+    /// </summary>
+    static int lastVoice = -1;
+
+    void Cry()
+    {
+        // ★ 역할 0 이 <b>변기 얘기하는 곰</b>이다(BearLines.Plumber). 인스펙터를
+        //   일일이 켜게 하지 않고 <b>스스로 알게</b> 둔다 — 씬을 다시 구울 필요도 없다.
+        bool deep = deepVoice || Role == 0;
+
+        int count = deep ? 3 : 4;
+        string prefix = deep ? "BearVoiceDeep_" : "BearVoice_";
+
+        int pick = Random.Range(0, count);
+        if (count > 1 && pick == lastVoice) pick = (pick + 1) % count;
+        lastVoice = pick;
+
+        Sfx.Play(prefix + (pick + 1), deep ? 1f : 0.85f);
+    }
+
     public void Talk()
     {
+        Cry();
+
         // ★ 곰마다 다른 풀에서 뽑는다. 셋이 같은 걸 말하면 <b>세 마리가 있을 이유가 없다</b> —
         // AI 실력 · 나무 · 급식 손님에서 계속 걸렸던 그 문제야.
         LastLine = BearLines.Random(Role);
