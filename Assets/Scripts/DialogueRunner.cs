@@ -109,12 +109,16 @@ public class DialogueRunner : MonoBehaviour
     {
         index++;
         revealed = charsPerSecond > 0f ? 0f : float.MaxValue;
+        lineAt = Time.unscaledTime;
 
         if (index < lines.Count)
         {
             // ★ 이 줄에 장소가 적혀 있고 <b>그 그림이 실제로 있으면</b> 바꾼다.
             //   없으면 앞 그림이 그대로 간다 — 이름을 잘못 적었다고 배경이 사라지면
             //   «깨진 것» 으로 보이고, 원인이 오타라는 걸 알 방법이 없다.
+            // 암전하고 넘어가는 줄 — Fade 가 씬을 안 바꾸고 잠깐 까맣게 덮는다
+            if (lines[index].cut) Fade.Blink(0.22f);
+
             string p = lines[index].place;
             if (!string.IsNullOrEmpty(p))
             {
@@ -153,20 +157,35 @@ public class DialogueRunner : MonoBehaviour
 
     float skipAt;
 
+    /// <summary>줄이 뜨고 이만큼은 못 넘긴다. 짧은 대사가 스쳐 지나가는 걸 막는다.</summary>
+    const float MinOnScreen = 0.28f;
+
+    float lineAt;
+
     void Update()
     {
         if (IsPlaying && !LineFullyShown && charsPerSecond > 0f)
             revealed += charsPerSecond * Time.unscaledDeltaTime;
 
-        // 빨리 넘기기 — 글자는 바로 다 보여주고 한 줄을 0.14초씩 넘긴다.
-        // 아예 건너뛰지 않고 «빨리 지나가게» 하는 이유: 어디까지 봤는지가 눈에 남아야
-        // 다시 볼 때 «여기서부터 새 내용이구나» 를 안다.
+        // 빨리 넘기기. ★ 2026-10-02 유저: *"CTRL 눌러봤자 자막이 깜빡거릴 뿐이다."*
+        //   0.14초에 한 줄이면 <b>초당 일곱 줄</b>이라 눈에는 글자가 떨리는 걸로만 보인다.
+        //   «빨리 넘긴다» 는 <b>따라 읽을 수는 있는 속도</b>여야 한다 — 그래야 지나가는 중에도
+        //   «아, 여기까지는 봤던 데» 가 되고 멈출 자리를 고를 수 있다.
+        //   0.34초 = 초당 세 줄. 124줄이면 42초다.
         if (IsPlaying && FastForward)
         {
             revealed = float.MaxValue;
-            if (Time.unscaledTime - skipAt >= 0.14f) { skipAt = Time.unscaledTime; Advance(); }
+            if (Time.unscaledTime - skipAt >= 0.34f) { skipAt = Time.unscaledTime; Advance(); }
             return;
         }
+
+        // ★★ 2026-10-02 유저: *"대사 치는 중간에 SPACE 를 누르면 짧은 대사는 바로 휘릭
+        //   지나간다."* 짧은 줄은 타자가 0.1초면 끝나서, <b>«다 보여줘» 로 누른 그 키가
+        //   그대로 «다음» 이 된다.</b> 한 번 누른 것이 두 가지 일을 한 셈이야.
+        //
+        //   줄이 바뀐 뒤 잠깐은 넘기지 않는다. 이 시간이 지나야 «읽었다» 로 치는 거고,
+        //   긴 줄에서는 어차피 타자가 그보다 오래 걸려서 아무 차이가 없다.
+        if (Time.unscaledTime - lineAt < MinOnScreen) return;
 
         if (AdvancePressed) Advance();
         else if (Finished && allowReplay && ReplayPressed) Replay();

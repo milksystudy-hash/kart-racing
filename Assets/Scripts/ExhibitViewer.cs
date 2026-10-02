@@ -42,6 +42,7 @@ public class ExhibitViewer : MonoBehaviour
     GameObject shown;
 
     GalleryCase current;
+    float radius = 0.5f, fit = 1f, zoom = 1f;
     float yaw, pitch = 12f;
     bool dragging;
     Vector2 lastMouse;
@@ -146,13 +147,24 @@ public class ExhibitViewer : MonoBehaviour
         // 피벗을 물건 한가운데로 옮긴다 — 안 그러면 바닥 모서리를 축으로 돈다
         shown.transform.position -= b.center - pivot.position;
 
-        float radius = Mathf.Max(b.extents.magnitude, 0.05f);
-        float distance = radius / Mathf.Sin(stageCamera.fieldOfView * 0.5f * Mathf.Deg2Rad) * 1.25f;
+        radius = Mathf.Max(b.extents.magnitude, 0.05f);
 
-        stageCamera.transform.localPosition = new Vector3(0f, 0f, -distance);
+        // ★ 2026-10-02 유저: *"전시실에서 돌려보는 게 좀 작다."* 여유를 1.25 → <b>1.02</b> 로.
+        //   패널이 정사각인데 물건은 대개 납작하거나 길쭉해서, 바운딩 구에 맞추면
+        //   <b>늘 네 귀퉁이가 남는다.</b> 거의 꽉 채우고 휠로 더 당길 수 있게 한다.
+        fit = radius / Mathf.Sin(stageCamera.fieldOfView * 0.5f * Mathf.Deg2Rad) * 1.02f;
+        zoom = 1f;
+        Reposition();
+    }
+
+    /// <summary>카메라를 지금 배율에 맞춰 다시 놓는다.</summary>
+    void Reposition()
+    {
+        float d = fit / Mathf.Max(0.35f, zoom);
+        stageCamera.transform.localPosition = new Vector3(0f, 0f, -d);
         stageCamera.transform.localRotation = Quaternion.identity;
-        stageCamera.nearClipPlane = Mathf.Max(0.02f, distance - radius * 2f);
-        stageCamera.farClipPlane = distance + radius * 3f;
+        stageCamera.nearClipPlane = Mathf.Max(0.02f, d - radius * 2f);
+        stageCamera.farClipPlane = d + radius * 3f;
     }
 
     /// <summary>
@@ -186,6 +198,18 @@ public class ExhibitViewer : MonoBehaviour
                 lastMouse = v;
                 yaw -= d.x * DragSpeed;
                 pitch = Mathf.Clamp(pitch + d.y * DragSpeed, -60f, 70f);
+            }
+
+            // 휠로 당기고 민다. 패널 위에 있을 때만 — 안 그러면 전시실을 둘러보다가
+            // 안 보이는 패널이 휠을 먹는다.
+            if (panel.Contains(v))
+            {
+                float wheel = m.scroll.ReadValue().y;
+                if (Mathf.Abs(wheel) > 0.01f)
+                {
+                    zoom = Mathf.Clamp(zoom * (1f + Mathf.Sign(wheel) * 0.12f), 0.6f, 3.2f);
+                    Reposition();
+                }
             }
         }
 

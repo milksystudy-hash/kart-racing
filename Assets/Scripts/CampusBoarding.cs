@@ -229,10 +229,13 @@ public class CampusBoarding : MonoBehaviour
         Bar(root, "Foot", new Vector3(0f, 0.05f, 0f), new Vector3(0.44f, 0.10f, 0.44f),
             new Color32(0x6E, 0x6E, 0x6A, 0xFF));
 
-        // 붉은 판 + 흰 테두리. 도로 표지판은 테두리가 있어야 표지판으로 보인다.
-        Bar(root, "Rim", new Vector3(0f, 1.95f, 0.02f), new Vector3(1.06f, 0.82f, 0.05f),
+        // ★★ 2026-10-02 유저: *"출입금지 표지판이 대부분 뒤집혔고 글자도 간판 이상으로 오버다."*
+        //   두 가지를 틀렸다. 첫째, <b>층을 거꾸로 쌓았다</b> — 테두리를 판 앞에 두고
+        //   글자를 판 <b>뒤</b>에 뒀다. 문의 +Z 가 보는 사람 쪽이니 숫자가 커질수록 앞이다.
+        //   (「층은 뒤에서 앞으로 쌓는다 · 글자는 언제나 제일 앞」 — 2026-09-18)
+        Bar(root, "Rim", new Vector3(0f, 1.95f, -0.02f), new Vector3(1.06f, 0.82f, 0.05f),
             new Color32(0xF3, 0xEC, 0xDC, 0xFF));
-        Bar(root, "Plate", new Vector3(0f, 1.95f, -0.01f), new Vector3(0.96f, 0.72f, 0.06f),
+        Bar(root, "Plate", new Vector3(0f, 1.95f, 0.01f), new Vector3(0.96f, 0.72f, 0.06f),
             new Color32(0xC4, 0x45, 0x3E, 0xFF));
 
         // 글자. 현판과 같은 폰트·같은 셰이더를 쓴다 — 기본 폰트 재질은 ZTest Always 라
@@ -242,14 +245,18 @@ public class CampusBoarding : MonoBehaviour
         {
             var label = new GameObject("Text").AddComponent<TextMesh>();
             label.transform.SetParent(root, false);
-            // ★ 문의 +Z 는 보는 사람 쪽인데 TextMesh 는 제 +Z 에서 읽히게 생겼다.
-            //   그대로 붙이면 좌우가 뒤집힌다 — 180도 돌려 단다.
-            label.transform.localPosition = new Vector3(0f, 1.95f, -0.08f);
-            label.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            //   둘째, <b>180도를 돌린 게 잘못이었다.</b> TextMesh 는 제 +Z 쪽에서 읽히게
+            //   생겼고, 이 표지판은 문의 +Z(바깥)에 세웠으니 <b>돌리지 않아야</b> 맞게 읽힌다.
+            //   현판은 판의 자식이 아니라 형제로 붙어서 180 이 필요했던 것 — 사정이 다르다.
+            label.transform.localPosition = new Vector3(0f, 1.95f, 0.07f);
+            label.transform.localRotation = Quaternion.identity;
             label.font = font;
             label.text = "출입금지";
             label.fontSize = 120;
-            label.characterSize = 0.42f * 10f / 120f;   // 글자 높이 0.42m
+
+            // 글자 높이 0.17m. 네 글자면 가로 약 0.68m 라 판(0.96m) 안에 들어온다.
+            // 전에는 0.42m 라 네 글자가 1.68m — <b>판보다 두 배 가까이 길었다.</b>
+            label.characterSize = 0.17f * 10f / 120f;
             label.anchor = TextAnchor.MiddleCenter;
             label.alignment = TextAlignment.Center;
             label.color = new Color32(0xF3, 0xEC, 0xDC, 0xFF);

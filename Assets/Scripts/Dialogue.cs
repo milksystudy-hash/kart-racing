@@ -51,6 +51,22 @@ public struct DialogueLine
         return this;
     }
 
+    /// <summary>
+    /// <b>암전하고 넘어간다.</b> 2026-10-02 유저: *"정치인 나오기 전에 화면을 한 번
+    /// 암전하는 건 어때."* 맞다 — 겹쳐 넘기면 «같은 길을 계속 걷는 중» 이고,
+    /// 한 번 까맣게 끊으면 <b>«장면이 바뀐다»</b> 가 된다. 연극의 암전과 같은 일이야.
+    ///
+    /// <c>.At("villain").Cut()</c> 처럼 장소 바꾸기와 같이 쓴다.
+    /// </summary>
+    public DialogueLine Cut()
+    {
+        cut = true;
+        return this;
+    }
+
+    /// <summary>이 줄로 넘어갈 때 한 번 까맣게 덮을지.</summary>
+    public bool cut;
+
     /// <summary>이 줄이 나올 조건을 건다. 조건을 안 걸면 항상 나온다.</summary>
     public DialogueLine OnlyIf(DialogueCondition c)
     {

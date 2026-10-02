@@ -460,17 +460,18 @@ public class DialogueHUD : MonoBehaviour
         if (runner != null && runner.IsPlaying)
         {
             var ff = new GUIStyle(hintStyle) { alignment = TextAnchor.MiddleLeft, fontSize = 12 };
-            ff.normal.textColor = new Color(0.78f, 0.74f, 0.66f,
-                                            DialogueRunner.FastForward ? 1f : 0.55f);
-            GUI.Label(new Rect(box.x + 18f, box.y - 24f, 220f, 20f), "CTRL  빨리 넘기기", ff);
+            bool on = DialogueRunner.FastForward;
+            // 켜지면 색까지 바뀐다 — «눌리긴 한 건가» 를 구분할 수 있어야 한다
+            ff.normal.textColor = on ? new Color(0.90f, 0.78f, 0.38f, 1f)
+                                     : new Color(0.78f, 0.74f, 0.66f, 0.55f);
+            GUI.Label(new Rect(box.x + 18f, box.y - 24f, 240f, 20f),
+                      on ? "▶▶  빨리 넘기는 중" : "CTRL  빨리 넘기기", ff);
         }
 
         var foot = new Rect(box.x + 20f, box.yMax - 28f, box.width - 40f, 22f);
 
-        // 왼쪽 — 몇 번째 줄인지
-        GUI.Label(foot, $"{runner.LineNumber} / {runner.LineCount}",
-                  new GUIStyle(hintStyle) { alignment = TextAnchor.MiddleLeft });
-
+        // ★ 쪽 번호(23/124)를 뺐다(2026-10-02 유저). 읽는 사람에게 «앞으로 101줄 남았다» 는
+        //   압박만 주고, 이야기를 보는 화면에 <b>진도표</b>가 있으면 그 순간 과제가 된다.
         // 오른쪽 — 다음으로 넘어가는 법
         string hint;
         if (runner.Finished) hint = runner.allowReplay ? "장면 끝  ·  R 다시 보기" : "장면 끝";
