@@ -193,12 +193,20 @@ public class DialogueHUD : MonoBehaviour
     /// </summary>
     void DimBackdrop(float w, float h, float topA = 0.16f, float bottomA = 0.52f, int bands = 16)
     {
-        float bh = h / bands;
+        // ★★ 2026-10-02 유저: *"화면에 지지직거림이 보인다. 대화할 때 더 자주."*
+        //   원인은 Game 뷰 배율이 아니라 <b>이 띠들이었다.</b> 전에는 높이를
+        //   <c>bh + 1f</c> 로 그려서 <b>이웃한 띠가 1 px 겹쳤고</b>, 겹친 줄은 알파가 두 번
+        //   칠해져 어두운 가로줄이 열다섯 개 생긴다. 화면 크기가 조금만 달라져도 그 줄이
+        //   다른 픽셀로 옮겨가니까 <b>지지직거리는 것처럼</b> 보인다.
+        //
+        //   띠 경계를 <b>픽셀에 맞춰 반올림</b>해서 딱 맞붙인다 — 겹치지도, 틈이 생기지도 않는다.
         for (int i = 0; i < bands; i++)
         {
             float t = (i + 0.5f) / bands;                 // 0 화면 위 → 1 화면 아래
             float a = Mathf.Lerp(topA, bottomA, t * t);   // 아래로 갈수록 빠르게 — 대화창 쪽이 제일 어둡다
-            Fill(new Rect(0f, i * bh, w, bh + 1f), new Color(0.04f, 0.05f, 0.09f, a));
+            float y0 = Mathf.Round(h * i / bands);
+            float y1 = Mathf.Round(h * (i + 1) / bands);
+            Fill(new Rect(0f, y0, w, y1 - y0), new Color(0.04f, 0.05f, 0.09f, a));
         }
     }
 

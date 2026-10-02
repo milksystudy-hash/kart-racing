@@ -187,6 +187,19 @@ public class ExhibitViewer : MonoBehaviour
         if (!dragging) yaw -= 16f * Time.unscaledDeltaTime;   // 가만히 두면 저절로 돈다
 
         pivot.localRotation = Quaternion.Euler(pitch, yaw, 0f);
+
+        // ★★ <b>카메라는 한 프레임에 한 번만 그린다.</b> 2026-10-02 유저:
+        //   *"진열장을 누르면 게임이 정지되고 소리도 안 들린다."*
+        //   <see cref="Handle"/> 를 OnGUI 에서 불렀는데 <b>OnGUI 는 한 프레임에 여러 번 돈다</b>
+        //   (Layout · Repaint · 입력 이벤트마다). 거기서 <c>Camera.Render()</c> 를 부르면
+        //   <b>그리는 도중에 또 그리기를 시작</b>하는 꼴이라 화면이 멈추고 오디오가 끊긴다.
+        //
+        //   지금은 <see cref="GalleryHUD"/> 의 Update 에서만 부르지만, 혹시 OnGUI 쪽에서
+        //   다시 불리더라도 여기서 한 번 더 막는다 — 같은 실수를 두 번 하지 않게.
+        if (renderedFrame == Time.frameCount) return;
+        renderedFrame = Time.frameCount;
         stageCamera.Render();
     }
+
+    int renderedFrame = -1;
 }

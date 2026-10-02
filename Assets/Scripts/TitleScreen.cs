@@ -363,7 +363,10 @@ public class TitleScreen : MonoBehaviour
         {
             float t = i / (float)(bands - 1);
             GUI.color = new Color(0.05f, 0.04f, 0.035f, Mathf.Lerp(lo, hi, t * t));
-            GUI.DrawTexture(new Rect(0f, h * i / bands, w, h / bands + 1f), Texture2D.whiteTexture);
+            // 경계를 픽셀에 맞춰 딱 맞붙인다 — 1 px 겹치면 그 줄만 두 번 칠해져 지지직거린다
+            float y0 = Mathf.Round(h * i / bands);
+            float y1 = Mathf.Round(h * (i + 1) / bands);
+            GUI.DrawTexture(new Rect(0f, y0, w, y1 - y0), Texture2D.whiteTexture);
         }
 
         GUI.color = old;

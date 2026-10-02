@@ -27,6 +27,8 @@ public class GalleryHUD : MonoBehaviour
 
     void Update()
     {
+        TickViewer();
+
         var keys = Keyboard.current;
         if (keys == null) return;
 
@@ -120,14 +122,35 @@ public class GalleryHUD : MonoBehaviour
     /// ★ <see cref="ExhibitViewer"/> 를 <b>실행 중에 만든다.</b> 씬에 저장되는 게 없어서
     /// 전시실을 다시 굽지 않아도 들어온다.
     /// </summary>
+    /// <summary>패널 자리. <b>Update 와 OnGUI 가 같은 함수를 쓴다</b> — 두 군데서 계산하면 어긋난다.</summary>
+    static Rect ViewerBox => new Rect(16f, 104f, 268f, 268f);
+
+    static Rect ViewerInner
+    {
+        get { var b = ViewerBox; return new Rect(b.x + 10, b.y + 10, b.width - 20, b.height - 44); }
+    }
+
+    /// <summary>
+    /// ★★ 뷰어가 <b>실제로 일하는 자리</b>. 마우스를 읽고 무대를 돌리고 카메라를 찍는다.
+    ///
+    /// 2026-10-02 유저: *"진열장을 누르면 게임이 정지되고 BGM 도 멈춘다."*
+    /// 이걸 <see cref="OnGUI"/> 에서 하고 있었다 — <b>OnGUI 는 한 프레임에 여러 번 돈다.</b>
+    /// 거기서 <c>Camera.Render()</c> 를 부르면 그리는 도중에 또 그리기를 시작하는 꼴이고,
+    /// <c>Instantiate</c>·<c>Destroy</c> 도 같이 여러 번 돈다.
+    /// <b>OnGUI 는 그리기만 한다.</b>
+    /// </summary>
+    void TickViewer()
+    {
+        if (viewer == null) viewer = gameObject.AddComponent<ExhibitViewer>();
+        viewer.Show(selector != null ? selector.Opened : null);
+        viewer.Handle(ViewerInner);
+    }
+
     void DrawViewer(float w, float h)
     {
         var opened = selector != null ? selector.Opened : null;
 
-        if (viewer == null) viewer = gameObject.AddComponent<ExhibitViewer>();
-        viewer.Show(opened);
-
-        var box = new Rect(16f, 104f, 268f, 268f);
+        var box = ViewerBox;
         GUI.DrawTexture(box, panelTex);
 
         if (opened == null)
@@ -139,10 +162,8 @@ public class GalleryHUD : MonoBehaviour
             return;
         }
 
-        var inner = new Rect(box.x + 10, box.y + 10, box.width - 20, box.height - 44);
-        viewer.Handle(inner);
-
-        if (viewer.Ready) GUI.DrawTexture(inner, viewer.Image, ScaleMode.ScaleToFit);
+        if (viewer != null && viewer.Ready)
+            GUI.DrawTexture(ViewerInner, viewer.Image, ScaleMode.ScaleToFit);
 
         GUI.Label(new Rect(box.x + 14, box.yMax - 32, box.width - 28, 22),
                   opened.IsCollected ? "끌어서 돌려보기" : "아직 찾지 못한 전시품", labelStyle);

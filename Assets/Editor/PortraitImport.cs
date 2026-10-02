@@ -40,6 +40,15 @@ public class PortraitImport : AssetPostprocessor
     /// </summary>
     const string Story = "Assets/Resources/StoryBackdrops/";
 
+    /// <summary>
+    /// ★ <b>이 번호를 올리면 유니티가 이 임포터가 다루는 에셋을 전부 다시 들인다.</b>
+    /// 설정을 고쳐 놓고 파일을 안 건드리면 유니티는 «바뀐 게 없다» 며 그냥 넘어간다 —
+    /// 파일 날짜만 바꿔서는 안 되고(해시로 보니까), 이 번호가 정석이다.
+    ///
+    ///   2 — 2026-10-02 배경에 밉맵을 켰다(지지직거림)
+    /// </summary>
+    public override uint GetVersion() => 2;
+
     void OnPreprocessTexture()
     {
         bool portrait = assetPath.StartsWith(Folder);
@@ -53,9 +62,15 @@ public class PortraitImport : AssetPostprocessor
         t.textureType = TextureImporterType.Default;
         t.alphaIsTransparency = true;
         t.alphaSource = TextureImporterAlphaSource.FromInput;
-        t.mipmapEnabled = ad;            // 광고판만 켠다 — 달리면서 멀리서 보니까
+        // ★★ 2026-10-02 — <b>배경도 밉맵을 켠다.</b> 유저: *"대화할 때 지지직거린다."*
+        //   배경 그림이 1672~2560 px 인데 화면은 그보다 작다. 밉맵이 없으면 축소할 때
+        //   원본 픽셀을 띄엄띄엄 집어서 <b>가장자리가 들끓는다</b> — 게다가 장소가 넘어갈 때
+        //   1.04배에서 당겨 들어오니까 배율이 매 프레임 바뀌어서 더 심하다.
+        //   초상화는 그대로 끈다 — 거의 1:1 로 그려서 밉맵은 흐리게만 만든다.
+        t.mipmapEnabled = ad || backdrop;
+        t.mipMapBias = -0.4f;            // 밉맵을 켜되 조금 선명한 쪽으로 당긴다
+        t.filterMode = FilterMode.Trilinear;
         t.wrapMode = TextureWrapMode.Clamp;      // 가장자리가 반대편으로 말리지 않게
-        t.filterMode = FilterMode.Bilinear;
 
         // ★★ <b>이게 없으면 그림이 정사각형으로 찌부러진다.</b>
         // 유니티 기본값(`ToNearest`)은 2의 거듭제곱이 아닌 텍스처를 <b>가장 가까운 정사각 POT</b>

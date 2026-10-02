@@ -234,9 +234,10 @@ public class TestHUD : MonoBehaviour
         //   가운데(빛이 꽂히는 자리)는 오히려 비워 둔다 — 비네트와 같은 생각이다.
         for (int i = 0; i < 10; i++)
         {
-            float band = h / 10f;
             float t = Mathf.Abs((i + 0.5f) / 10f - ItemReveal.BeamY) * 2f;   // 중심에서 멀수록
-            Hud.Fill(new Rect(0f, i * band, w, band + 1f),
+            float y0 = Mathf.Round(h * i / 10f);
+            float y1 = Mathf.Round(h * (i + 1) / 10f);
+            Hud.Fill(new Rect(0f, y0, w, y1 - y0),
                      new Color(0.03f, 0.03f, 0.05f, Mathf.Lerp(0.10f, 0.52f, t) * stage));
         }
 
@@ -297,8 +298,9 @@ public class TestHUD : MonoBehaviour
         {
             float t = (i + 0.5f) / 12f;
             float a = Mathf.Sin(t * Mathf.PI) * 0.46f;           // 가운데가 제일 짙다
-            Hud.Fill(new Rect(0f, bandTop + t * bandH, w, bandH / 12f + 1f),
-                     new Color(0.02f, 0.02f, 0.04f, a));
+            float y0 = Mathf.Round(bandTop + bandH * i / 12f);
+            float y1 = Mathf.Round(bandTop + bandH * (i + 1) / 12f);
+            Hud.Fill(new Rect(0f, y0, w, y1 - y0), new Color(0.02f, 0.02f, 0.04f, a));
         }
 
         Glow(new Rect(0f, cy + 28f + lift, w, 24f), "증거를 찾았다",
