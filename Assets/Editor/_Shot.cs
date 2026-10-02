@@ -51,9 +51,11 @@ public static class _Shot
         // (씬, 이름, 카메라 자리, 보는 곳, 시야각)
         var takes = new (string scene, string name, Vector3 at, Vector3 look, float fov)[]
         {
-            // 전시실 — 진열장 하나를 정면에서. 받침 1.05 / 유리 1.00~2.24 라 그 사이를 겨눈다
-            ("Gallery", "gallery",       new Vector3(0f, 2.05f,  0.2f), new Vector3(0f, 1.62f,  8.2f), 46f),
-            ("Gallery", "gallery_wide",  new Vector3(0f, 3.40f, -5.4f), new Vector3(0f, 1.50f,  6.0f), 58f),
+            // 전시실 — 1번 진열장이 (0, 0, 8.2) 에 있고 방 가운데를 본다.
+            // 받침 윗면 1.05 · 물건 자리 1.15 · 유리 1.00~2.24
+            ("Gallery", "gallery",       new Vector3(0f, 1.70f, 3.60f), new Vector3(0f, 1.42f, 8.2f), 46f),
+            ("Gallery", "gallery_near",  new Vector3(0f, 1.55f, 4.90f), new Vector3(0f, 1.35f, 8.2f), 40f),
+            ("Gallery", "gallery_wide",  new Vector3(0f, 3.10f, -2.6f), new Vector3(0f, 1.40f, 7.0f), 58f),
 
             // 중앙홀 — 출발문 쪽을 등지고 접수대·곰 받침대가 보이는 각도
             ("Lobby",   "hall",          new Vector3(-2.5f, 2.3f, -9.0f), new Vector3(2.0f, 2.0f, 6.0f), 56f),
@@ -85,6 +87,24 @@ public static class _Shot
                 cam.gameObject.SetActive(true);
                 cam.enabled = true;
                 cam.farClipPlane = Mathf.Max(cam.farClipPlane, 600f);
+
+                // ★ 전시실은 <b>덮개를 걷고</b> 찍는다. 획득 연출의 배경으로 쓸 그림이라
+                //   «아직 못 모은 진열장» 이 아니라 <b>물건이 들어갈 자리</b>가 보여야 한다.
+                //   붉은 카펫·현수막(다 모은 뒤 물건)과 출입 금지 띠(모으기 전 물건)도 치운다 —
+                //   둘 다 화면을 가로질러서 빛줄기가 설 자리를 먹는다.
+                if (t.scene == "Gallery")
+                {
+                    foreach (var c in Object.FindObjectsByType<GalleryCase>(FindObjectsInactive.Include,
+                                                                            FindObjectsSortMode.None))
+                        if (c.dustCover != null) c.dustCover.SetActive(false);
+
+                    foreach (var m in Object.FindObjectsByType<GalleryMood>(FindObjectsInactive.Include,
+                                                                            FindObjectsSortMode.None))
+                    {
+                        foreach (var g in m.beforeThings) if (g != null) g.SetActive(false);
+                        foreach (var g in m.afterThings)  if (g != null) g.SetActive(false);
+                    }
+                }
 
                 DynamicGI.UpdateEnvironment();
                 foreach (var p in Object.FindObjectsByType<ReflectionProbe>(FindObjectsInactive.Exclude,

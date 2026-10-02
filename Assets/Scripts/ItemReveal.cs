@@ -46,7 +46,7 @@ public static class ItemReveal
     /// 그림을 갈아끼우면 이 둘을 다시 재야 한다.
     /// </summary>
     public const float BeamX = 0.5f;
-    public const float BeamY = 0.62f;
+    public const float BeamY = 0.55f;
 
     static float shownAt = -99f;
     static bool up;
