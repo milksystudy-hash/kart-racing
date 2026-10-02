@@ -57,6 +57,11 @@ public static class GallerySceneBuilder
     public static void BuildGallery()
     {
         Directory.CreateDirectory(SceneFolder);
+
+        // ★ 유저가 손으로 놓은 것은 다시 세워 준다 — 캠퍼스와 같은 방식(2026-09-23).
+        //   빌더가 만들지 않은 루트는 건드리지 않는다.
+        var mine = MyProps.Collect(GalleryPath);
+
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         MakeGalleryLighting();
@@ -88,6 +93,7 @@ public static class GallerySceneBuilder
         MuseumLook.RefineMaterials();   // 손으로 다듬을 필요 없이 구워 나올 때부터 마감이 붙어 있게
         MuseumLook.ApplyToOpenScene();   // 후처리 · 안티에일리어싱 — 이게 없으면 다 회색 상자로 보인다
 
+        MyProps.Restore(mine);
         EditorSceneManager.SaveScene(scene, GalleryPath);
         LobbySceneBuilder.RegisterScenes();
 
@@ -271,7 +277,13 @@ public static class GallerySceneBuilder
 
         var root = new GameObject($"Digit_{digit}").transform;
         root.SetParent(parent, false);
-        root.localPosition = origin;
+
+        // ★★ 2026-10-02 유저: *"3번은 글자가 가운데인데 1번은 너무 오른쪽으로 간다."*
+        //   <b>7세그먼트 「1」은 오른쪽 막대 둘(b·c)만 켜진다.</b> 다른 숫자는 가로 막대가
+        //   칸 전체를 채워서 가운데로 보이는데, 1 은 글자가 칸의 한쪽 끝에만 있다.
+        //   계산기에서는 자릿수가 맞아야 하니 그게 맞지만, <b>여기는 한 자리짜리 스티커</b>라
+        //   칸이 아니라 <b>글자</b>가 가운데여야 한다. b·c 가 x −0.043 이니 그만큼 되민다.
+        root.localPosition = origin + (digit == 1 ? new Vector3(0.043f, 0f, 0f) : Vector3.zero);
 
         for (int i = 0; i < 7; i++)
         {
@@ -618,6 +630,63 @@ public static class GallerySceneBuilder
     // ==================================================================
     //  진열장
     // ==================================================================
+    /// <summary>
+    /// 유저가 만든 전시품. <b>한 줄 추가하면 그 칸에 들어간다</b> —
+    /// <see cref="TestSceneBuilder.KartModels"/> 와 같은 방식이다.
+    /// 파일이 없으면 임시 도형이 그대로 서니, 여덟 개를 한꺼번에 기다릴 필요가 없다.
+    /// </summary>
+    static readonly System.Collections.Generic.Dictionary<string, string> ExhibitModels = new()
+    {
+        { "coin", "Assets/My blender/Exhibits/Exhibit_1_coin.fbx" },
+    };
+
+    /// <summary>
+    /// 받침 돌판 윗면. 진열장 로컬 y 다 — <c>Base_Cap</c> 이 1.02 에 두께 0.06 이라 1.05.
+    /// 유저 FBX 는 원점이 바닥이라 여기 그대로 놓으면 «올려놓은» 게 된다.
+    /// </summary>
+    const float CapTop = 1.05f;
+
+    /// <summary>
+    /// 전시품 FBX 를 칸에 세운다. 없으면 null 을 돌려주고 임시 도형이 그대로 쓰인다.
+    /// 임포트 설정도 여기서 맞춘다 — 유저에게 인스펙터를 시키지 않는다(기획서 §9.3).
+    /// </summary>
+    static GameObject MakeExhibitModel(Transform caseRoot, string id)
+    {
+        if (!ExhibitModels.TryGetValue(id, out string path)) return null;
+
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if (prefab == null)
+        {
+            Debug.LogWarning($"[전시실] {id} 모델을 못 찾았다 — {path}. 임시 도형으로 둔다.");
+            return null;
+        }
+
+        // 재질이 밖에 있으면(External) 모델이 <b>새하얗게</b> 나온다 — 카트·곰에서 두 번 겪었다
+        if (AssetImporter.GetAtPath(path) is ModelImporter importer
+            && importer.materialLocation != ModelImporterMaterialLocation.InPrefab)
+        {
+            importer.materialLocation = ModelImporterMaterialLocation.InPrefab;
+            importer.importCameras = false;
+            importer.importLights = false;
+            importer.addCollider = false;
+            importer.importAnimation = false;
+            importer.SaveAndReimport();
+        }
+
+        var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        // ★ 바로 언팩한다 — 이름·자리만 줘도 그건 «오버라이드» 라,
+        //   나중에 다른 모델이 리임포트를 돌리면 조용히 되돌아간다(2026-09-22 스피커).
+        PrefabUtility.UnpackPrefabInstance(go, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+
+        go.name = "RealItem";
+        go.transform.SetParent(caseRoot, false);
+        go.transform.localPosition = new Vector3(0f, CapTop, 0f);
+        go.transform.localRotation = Quaternion.identity;
+
+        foreach (var c in go.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
+        return go;
+    }
+
     static GalleryCase[] MakeCases()
     {
         var root = new GameObject("DisplayCases").transform;
@@ -687,6 +756,7 @@ public static class GallerySceneBuilder
             anchor.localPosition = new Vector3(0f, 1.15f, 0f);
 
             var placeholder = MakePlaceholder(anchor, item.shape);
+            var realModel = MakeExhibitModel(go.transform, item.id);
 
             var display = go.AddComponent<GalleryCase>();
             display.itemId = item.id;
@@ -695,6 +765,7 @@ public static class GallerySceneBuilder
             display.description = item.description;
             display.itemAnchor = anchor;
             display.placeholder = placeholder;
+            display.realModel = realModel;
             display.itemRenderer = placeholder.GetComponent<Renderer>();
             display.plaqueRenderer = plaque.GetComponent<Renderer>();
             display.caseLight = caseLight;

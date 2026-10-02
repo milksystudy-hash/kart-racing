@@ -65,7 +65,17 @@ public static class _Shot
         // 덮개와 분위기 소품을 치운다 — «물건이 들어갈 자리» 가 보여야 한다
         foreach (var c in Object.FindObjectsByType<GalleryCase>(FindObjectsInactive.Include,
                                                                 FindObjectsSortMode.None))
+        {
             if (c.dustCover != null) c.dustCover.SetActive(false);
+
+            // ★ 진짜 모델이 있으면 그걸 세우고 임시 도형은 치운다 —
+            //   획득 연출의 배경은 «모은 뒤» 의 모습이어야 한다.
+            if (c.realModel != null)
+            {
+                c.realModel.SetActive(true);
+                if (c.placeholder != null) c.placeholder.SetActive(false);
+            }
+        }
 
         foreach (var m in Object.FindObjectsByType<GalleryMood>(FindObjectsInactive.Include,
                                                                 FindObjectsSortMode.None))

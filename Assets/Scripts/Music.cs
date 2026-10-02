@@ -58,6 +58,9 @@ public class Music : MonoBehaviour
         // 측정: 피크 −1.2 dBFS · RMS −18.3 · 끝 0.29초 무음 + 그 앞 2.7초 페이드
         // 전시실은 혼자 둘러보는 방이라 조금 더 낮춘다
         "Gallery"    => (0.80f, 3.0f),
+        // 측정: 피크 −2.9 dBFS · RMS −18.2 · 끝 0.39초 무음 + 그 앞 2.5초 페이드
+        // 악당이 나타나는 자리라 프롤로그보다 조금 올린다 — 분위기가 <b>바뀐 게 들려야</b> 한다
+        "villain"    => (0.84f, 2.9f),
         // 측정: 피크 −2.8 dBFS · RMS −18.3 · 끝 0.59초 무음 + 그 앞 1.5초 페이드
         // 다 모은 뒤 곡이라 평소보다 조금 올린다 — «불이 켜졌다» 가 소리로도 와야 한다
         "Gallery_완성" => (0.92f, 2.0f),
@@ -165,8 +168,16 @@ public class Music : MonoBehaviour
         //   <b>똑같아서</b> 외울 게 하나뿐이다:
         //   <c>Music/prologue.wav</c> ↔ <c>StoryBackdrops/prologue.png</c>
         //   곡이 없는 장면은 <see cref="Swap"/> 가 로비 곡으로 되떨어진다.
-        if (StoryStage.Talking && !string.IsNullOrEmpty(StoryStage.TalkingScene))
-            return StoryStage.TalkingScene;
+        if (StoryStage.Talking)
+        {
+            // 장소에 제 곡이 있으면 그게 먼저다. 없으면 장면 곡, 그것도 없으면 씬 곡.
+            // 이야기가 «바깥 → 악당 등장» 으로 넘어갈 때 음악만 갈아끼울 수 있다.
+            string place = StoryStage.TalkingPlace;
+            if (!string.IsNullOrEmpty(place) && Resources.Load<AudioClip>("Music/" + place) != null)
+                return place;
+
+            if (!string.IsNullOrEmpty(StoryStage.TalkingScene)) return StoryStage.TalkingScene;
+        }
 
         string scene = SceneManager.GetActiveScene().name;
         return CollectionState.Count >= ExhibitCatalogue.All.Length ? scene + Done : scene;

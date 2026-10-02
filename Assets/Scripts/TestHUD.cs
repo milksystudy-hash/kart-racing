@@ -228,8 +228,17 @@ public class TestHUD : MonoBehaviour
             Hud.Fill(new Rect(0f, 0f, w, h), new Color(0.09f, 0.11f, 0.17f, 1f));
         GUI.color = keepColor;
 
-        // 전시실은 어두운 방이다 — 빛줄기가 살려면 주변이 눌려 있어야 한다
-        Hud.Fill(new Rect(0f, 0f, w, h), new Color(0.03f, 0.03f, 0.05f, 0.42f * stage));
+        // ★★ 2026-10-02 유저: *"전시관에 글자만 있어서 잘 안 보인다. 가뜩이나 어두운데."*
+        //   맞다 — 전시실 사진이 <b>평균 밝기 0.22</b>(측정)인 어두운 방인데 거기에
+        //   0.42 를 또 덮고 있었다. 주변을 누르는 건 <b>가장자리만</b> 하고,
+        //   가운데(빛이 꽂히는 자리)는 오히려 비워 둔다 — 비네트와 같은 생각이다.
+        for (int i = 0; i < 10; i++)
+        {
+            float band = h / 10f;
+            float t = Mathf.Abs((i + 0.5f) / 10f - ItemReveal.BeamY) * 2f;   // 중심에서 멀수록
+            Hud.Fill(new Rect(0f, i * band, w, band + 1f),
+                     new Color(0.03f, 0.03f, 0.05f, Mathf.Lerp(0.10f, 0.52f, t) * stage));
+        }
 
         float cx = w * ItemReveal.BeamX;
         float cy = h * ItemReveal.BeamY;
@@ -256,7 +265,7 @@ public class TestHUD : MonoBehaviour
         {
             float r = w * 0.035f * i * Mathf.SmoothStep(0f, 1f, shaft);
             Hud.Fill(new Rect(cx - r, cy - r * 0.26f, r * 2f, r * 0.52f),
-                     new Color(1f, 0.96f, 0.84f, 0.09f * shaft));
+                     new Color(1f, 0.96f, 0.84f, 0.13f * shaft));
         }
 
         // 5) 먼지 — 빛 안에서만 보인다. 이게 있어야 빛에 부피가 생긴다
@@ -280,6 +289,17 @@ public class TestHUD : MonoBehaviour
         var fade = GUI.color;
         GUI.color = new Color(1f, 1f, 1f, settle);
         float lift = (1f - settle) * 18f;
+
+        // 글자 뒤 어두운 띠. <b>나무 판이 아니라 그늘</b>이다 — 판을 깔면 «UI 가 떴다» 가 되고
+        // 아무것도 안 깔면 밝은 바닥 위에서 글자가 사라진다. 위아래로 사라지는 띠가 답이야.
+        float bandTop = cy + 18f + lift, bandH = 118f;
+        for (int i = 0; i < 12; i++)
+        {
+            float t = (i + 0.5f) / 12f;
+            float a = Mathf.Sin(t * Mathf.PI) * 0.46f;           // 가운데가 제일 짙다
+            Hud.Fill(new Rect(0f, bandTop + t * bandH, w, bandH / 12f + 1f),
+                     new Color(0.02f, 0.02f, 0.04f, a));
+        }
 
         Glow(new Rect(0f, cy + 28f + lift, w, 24f), "증거를 찾았다",
              Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter), new Color(1f, 0.93f, 0.78f));

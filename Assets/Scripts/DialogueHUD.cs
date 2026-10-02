@@ -42,6 +42,7 @@ public class DialogueHUD : MonoBehaviour
 
     string shownId = "";
     float shownAt;
+    Texture2D leaving;      // 넘어가는 중인 앞 그림
 
     GUIStyle textStyle, nameStyle, titleStyle, hintStyle, narrateStyle, slotStyle;
     bool stylesReady;
@@ -66,6 +67,9 @@ public class DialogueHUD : MonoBehaviour
     /// 그림 파일 이름 = <see cref="StoryScript"/> 의 장면 id:
     /// <c>prologue · ch1 · ch2 · ch3 · ch4 · final_before · final_after · epilogue</c>
     /// </summary>
+    /// <summary>장소가 바뀔 때 겹치는 시간. 짧으면 «툭», 길면 «흐리멍덩» 하다.</summary>
+    const float Crossfade = 0.7f;
+
     static Texture2D Backdrop(string id)
     {
         if (string.IsNullOrEmpty(id)) return null;
@@ -87,12 +91,35 @@ public class DialogueHUD : MonoBehaviour
         var tex = Backdrop(id);
         if (tex == null) return;
 
-        if (shownId != id) { shownId = id; shownAt = Time.unscaledTime; }
-        float a = Mathf.Clamp01((Time.unscaledTime - shownAt) / 0.45f);
+        if (shownId != id)
+        {
+            // ★★ 2026-10-02 — <b>앞 그림을 들고 있다가 겹쳐서 넘긴다.</b>
+            //   전에는 새 그림만 알파 0 에서 올렸더니, 넘어가는 동안 <b>3D 로비가 비쳐</b>
+            //   «장소가 바뀐다» 가 아니라 «그림이 잠깐 사라진다» 로 보였다.
+            //   유저 요청: *"자연스러운 애니메이션처럼."* 겹치면 그게 된다.
+            leaving = shownId == "" ? null : Backdrop(shownId);
+            shownId = id;
+            shownAt = Time.unscaledTime;
+        }
+
+        float a = Mathf.Clamp01((Time.unscaledTime - shownAt) / Crossfade);
 
         var keep = GUI.color;
+
+        // 앞 그림이 밑에서 버틴다 — 새 그림이 다 올라올 때까지
+        if (leaving != null && a < 1f)
+        {
+            GUI.color = new Color(1f, 1f, 1f, 1f);
+            GUI.DrawTexture(new Rect(0f, 0f, w, h), leaving, ScaleMode.ScaleAndCrop);
+        }
+        else leaving = null;
+
+        // 새 그림이 위에서 떠오른다. <b>살짝 당겨 들어온다</b> — 같은 자리에서 알파만 바뀌면
+        // «사진이 바뀌었다» 지만, 조금 움직이면 «장면이 넘어간다» 가 된다.
+        float zoom = Mathf.Lerp(1.04f, 1f, Mathf.SmoothStep(0f, 1f, a));
+        float dw = w * zoom, dh = h * zoom;
         GUI.color = new Color(1f, 1f, 1f, a);
-        GUI.DrawTexture(new Rect(0f, 0f, w, h), tex, ScaleMode.ScaleAndCrop);
+        GUI.DrawTexture(new Rect((w - dw) * 0.5f, (h - dh) * 0.5f, dw, dh), tex, ScaleMode.ScaleAndCrop);
         GUI.color = keep;
     }
 

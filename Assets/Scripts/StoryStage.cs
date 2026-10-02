@@ -61,6 +61,16 @@ public class StoryStage : MonoBehaviour
     public static string TalkingScene { get; private set; } = "";
 
     /// <summary>
+    /// 지금 이야기의 <b>장소</b>(<see cref="DialogueLine.At"/>). 음악이 장면보다 먼저 이걸 본다 —
+    /// 2026-10-02 유저: *"프롤로그 음악 쓰다가 시의원이 나타나면 그 음악으로 바꿔줘."*
+    /// 한 장면 안에서 분위기가 바뀌는 자리가 있고, 그 신호는 <b>장소</b>가 들고 있다.
+    /// </summary>
+    public static string TalkingPlace =>
+        Live != null && Live.runner != null && Live.runner.IsPlaying ? Live.runner.Place : "";
+
+    static StoryStage Live;
+
+    /// <summary>
     /// 첫 화면(<see cref="TitleScreen"/>) 때문에 미뤄 둔 장면. 타이틀이 로비 <b>안에서</b>
     /// 도니까, 그게 떠 있는 동안 Enter 를 부르면 대사가 <b>타이틀에 가려진 채로 흘러간다.</b>
     /// </summary>
@@ -68,6 +78,7 @@ public class StoryStage : MonoBehaviour
 
     void Start()
     {
+        Live = this;
         Leave();   // 시작은 무조건 로비 상태로
 
         if (!playUnseenOnEnter) return;

@@ -27,6 +27,16 @@ public class GalleryCase : MonoBehaviour
     public GameObject placeholder;
     public Renderer itemRenderer;
 
+    /// <summary>
+    /// 유저가 만든 진짜 전시품(FBX). 있으면 <b>모았을 때만</b> 보이고,
+    /// 아직 못 모았을 때는 <see cref="placeholder"/> 실루엣이 대신 선다.
+    ///
+    /// ★ 진짜 모델은 <b>색칠하지 않는다.</b> <see cref="Paint"/> 는 재질 하나를 통째로
+    /// 덮어쓰는데, 유저 모델은 황동·나무·녹청처럼 <b>재질이 여럿</b>이라
+    /// 그걸 쓰면 공들여 만든 물건이 단색 덩어리가 된다.
+    /// </summary>
+    public GameObject realModel;
+
     [Header("연출")]
     [Tooltip("아직 못 모은 진열장을 덮고 있는 흰 천. 모으면 걷힌다")]
     public GameObject dustCover;
@@ -101,6 +111,15 @@ public class GalleryCase : MonoBehaviour
         {
             Color c = !collected ? plaqueLocked : (highlighted ? plaqueHover : plaqueIdle);
             Paint(plaqueRenderer, c);
+        }
+
+        // 진짜 모델이 있으면 «모았을 때만» 그게 서고, 아니면 실루엣이 선다.
+        if (realModel != null)
+        {
+            realModel.SetActive(collected);
+            if (placeholder != null) placeholder.SetActive(!collected);
+            if (!collected && itemRenderer != null) Paint(itemRenderer, silhouetteColor);
+            return;
         }
 
         if (itemRenderer != null)
