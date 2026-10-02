@@ -59,6 +59,12 @@ public class SafetyDrill : MonoBehaviour
     /// <summary>초록 한 장.</summary>
     public const int HitPoints = 2;
 
+    // ★ 「빨리 누르면 보너스」 를 넣었다가 <b>되돌렸다</b>(2026-10-02).
+    //   제일 빨리 누르는 손은 <b>난타</b>다 — 켜지는 순간 이미 누르고 있으니까.
+    //   시뮬레이션에서 난타가 125 → 249 로 뛰고 사람과의 차이가 2.7배 → 1.5배로 줄었다.
+    //   <b>속도 보상은 난타를 막는 장치와 정면으로 부딪힌다.</b>
+    //   실력 천장은 나중에 «판이 동시에 여러 장 켜지는 것」 으로 올릴 것.
+
     /// <summary>연속 보너스가 붙기 시작하는 횟수.</summary>
     public const int StreakStart = 5;
     const int StreakStep = 5;
@@ -237,7 +243,11 @@ public class SafetyDrill : MonoBehaviour
         };
         f.goal = "실패는 없다 · 숫자열과 키패드 둘 다 됩니다";
         // 전수 시뮬레이션 기준(1,200판): 최적 314 · 반응 0.32초 255 · 0.45초 195 · 난타 118
-        f.grades = new[] { 260, 200, 140 };
+        // ★★ 2026-10-02 측정으로 다시 잡았다. 전에는 <b>S 가 260</b> 이었는데
+        //   시뮬레이션에서 <b>난타가 125~158, 제대로 한 손이 296~464</b> 가 나왔다 —
+        //   즉 <b>아무렇게나 두드려도 B</b> 고 제대로 하면 무조건 S 였다. 등급이 아무 말도 안 한 거야.
+        //   난타는 C, 웬만큼 하면 B~A, 거의 안 틀려야 S.
+        f.grades = new[] { 400, 320, 220 };
         f.onStart = Restart;
         f.onQuit = Quit;
     }

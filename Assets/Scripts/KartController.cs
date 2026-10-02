@@ -197,11 +197,13 @@ public class KartController : MonoBehaviour
     {
         var other = OtherKart(collision);
         if (other != null) { Bump(collision, other); return; }
+        if (IsRoadBump(collision)) return;          // 3바퀴 둔덕 — 벽이 아니다
         ScrubOnWall(collision, impact: true);
     }
 
     void OnCollisionStay(Collision collision)
     {
+        if (IsRoadBump(collision)) return;
         // 카트끼리는 벽 처리를 타면 안 된다. 그러면 <b>속도가 매 프레임 지워져서</b>
         // 둘이 붙은 채 서로 밀기만 하고 아무도 못 빠져나간다(2026-09-17 유저 제보).
         // 벽 부딪힘 횟수에도 잘못 세졌다.
@@ -211,6 +213,13 @@ public class KartController : MonoBehaviour
 
     static KartController OtherKart(Collision collision)
         => collision.rigidbody != null ? collision.rigidbody.GetComponent<KartController>() : null;
+
+    /// <summary>
+    /// 3바퀴째 노면에 솟는 둔덕인가. <b>둔덕은 벽이 아니다</b> —
+    /// 세면 무충돌(3판)·완벽(8판)이 길 때문에 실패한다(<see cref="RoadBump"/>).
+    /// </summary>
+    static bool IsRoadBump(Collision collision)
+        => collision.collider != null && collision.collider.GetComponentInParent<RoadBump>() != null;
 
     /// <summary>
     /// 카트끼리 <b>탁 튕긴다.</b> 유저: *"탑블레이드 팽이처럼 부딪혀야 재밌잖아."*
@@ -488,6 +497,43 @@ public class KartController : MonoBehaviour
         DriftBoosts = 0;
         lastWallHitAt = -99f;
     }
+
+    /// <summary>
+    /// 물기둥을 맞았다(<see cref="WaterJet"/>). <b>속도를 깎고 살짝 들어 올린다.</b>
+    ///
+    /// ★ 날려 보내지 않는다 — 코스 밖으로 날아가면 «맞은 쪽이 레이스를 포기하게» 되고
+    /// 그건 재미가 아니라 벌이다(2026-09-17 카트 충돌에서 정한 선).
+    /// ★ 벽 부딪힘으로 <b>안 센다.</b> 트리거라 애초에 충돌이 안 일어난다.
+    /// ★ 부스트는 끊는다. 안 그러면 물을 맞고도 앞으로 쭉 나간다.
+    /// </summary>
+    public void Douse(float keepSpeed, float lift)
+    {
+        if (rb == null) return;
+        if (Time.time - lastDouseAt < DouseCooldown) return;
+        lastDouseAt = Time.time;
+
+        CancelBoost();
+        Vector3 v = rb.linearVelocity;
+        Vector3 flat = new Vector3(v.x, 0f, v.z) * Mathf.Clamp01(keepSpeed);
+        rb.linearVelocity = new Vector3(flat.x, Mathf.Max(v.y, lift), flat.z);
+    }
+
+    /// <summary>
+    /// 잠긴 도로를 지나간다(<see cref="FloodZone"/>). <b>매 프레임 조금씩</b> 끌린다 —
+    /// 한 번에 확 깎으면 «벽에 부딪힌 것» 이고, 조금씩 끌려야 «물속을 간다» 로 읽힌다.
+    /// 세로 속도는 안 건드린다. 물이 카트를 가라앉히거나 띄우면 안 된다.
+    /// </summary>
+    /// <param name="keepPerSecond">1초에 남는 속도 비율. 1 이면 안 느려진다.</param>
+    public void Wade(float keepPerSecond)
+    {
+        if (rb == null || keepPerSecond >= 0.999f) return;
+        float k = Mathf.Pow(Mathf.Clamp(keepPerSecond, 0.05f, 1f), Time.deltaTime);
+        Vector3 v = rb.linearVelocity;
+        rb.linearVelocity = new Vector3(v.x * k, v.y, v.z * k);
+    }
+
+    const float DouseCooldown = 0.45f;
+    float lastDouseAt = -9f;
 
     /// <summary>돌던 부스트를 즉시 끊는다. 벽에 눌려 못 움직일 때 빠져나갈 길을 터준다.</summary>
     public void CancelBoost()

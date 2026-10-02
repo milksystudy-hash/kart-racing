@@ -65,6 +65,21 @@ public class TracingGame : MonoBehaviour
     /// <summary>이번 판에 그린 점들. <b>화판 0~1 좌표</b>(y 는 아래로).</summary>
     public readonly List<Vector2> Drawn = new List<Vector2>();
 
+    /// <summary>
+    /// 윤곽 표본 하나하나가 덮였나. <b><see cref="Tracing.Judge"/> 와 같은 표본·같은 잣대</b>다 —
+    /// 다른 식으로 세면 막대가 90% 인데 점수는 60 이 나오고, 그 순간 막대가 거짓말이 된다.
+    /// </summary>
+    public readonly bool[] Covered = new bool[Tracing.Marks];
+
+    /// <summary>덮은 표본 수.</summary>
+    public int CoveredCount { get; private set; }
+
+    /// <summary>
+    /// 지금까지 덮은 비율. ★ <b>이게 없어서 18초 동안 «잘하고 있나» 를 알 수가 없었다</b> —
+    /// 그리기 게임에서 제일 중요한 건 <b>남은 곳이 줄어드는 게 보이는 것</b>이야.
+    /// </summary>
+    public float LiveCoverage => CoveredCount / (float)Tracing.Marks;
+
     /// <summary>방금 끝낸 도형의 채점. 회차 사이에 잠깐 띄운다.</summary>
     public Tracing.Mark Last { get; private set; }
 
@@ -171,6 +186,8 @@ public class TracingGame : MonoBehaviour
     void OpenRound()
     {
         Drawn.Clear();
+        System.Array.Clear(Covered, 0, Covered.Length);
+        CoveredCount = 0;
         Left = Tracing.PerShape;
     }
 
@@ -190,6 +207,18 @@ public class TracingGame : MonoBehaviour
 
         Drawn.Add(at);
         if (Drawn.Count > Tracing.MaxPoints) Drawn.RemoveAt(0);
+
+        // 새로 덮인 윤곽 표본을 센다. 점 하나에 220번 도는데, 점은 <see cref="Tracing.StepMin"/>
+        // 간격으로만 들어오니 한 회차에 많아야 900번이다 — 공짜나 다름없다.
+        var shape = Shape;
+        for (int i = 0; i < Tracing.Marks; i++)
+        {
+            if (Covered[i]) continue;
+            Vector2 m = Tracing.At(shape, (float)i / (Tracing.Marks - 1));
+            if ((m - at).sqrMagnitude > Tracing.Tolerance * Tracing.Tolerance) continue;
+            Covered[i] = true;
+            CoveredCount++;
+        }
         return true;
     }
 

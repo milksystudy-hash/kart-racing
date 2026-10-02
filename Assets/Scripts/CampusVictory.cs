@@ -155,13 +155,16 @@ public class CampusVictory : MonoBehaviour
         var statue = FindFirstObjectByType<CampusStatue>(FindObjectsInactive.Include);
         if (statue == null) return;
 
-        foreach (string n in new[] { "Figure", "Plate", "PlateText" })
+        // ★ <b>명판은 안 내린다.</b> 유저 설정: 시의원이 철거를 포기한 뒤에도 «자기 발자취를
+        // 남겨야겠다» 며 동상을 그대로 둔다 — 다만 <b>근육 버전이 진짜 체형으로 바뀐다.</b>
+        // 그가 물러났다는 걸 말로 설명하지 않고 <b>동상 하나로</b> 말하는 자리야.
+        foreach (string n in new[] { "Figure_Muscle", "Figure" })
         {
             var part = statue.transform.Find(n);
             if (part != null) gone.Add(part);
         }
 
-        bear = MakeBear(statue.transform);
+        bear = statue.transform.Find("Figure_Real");   // 없으면(옛 씬·FBX 없음) 그냥 사라지기만 한다
     }
 
     /// <summary>

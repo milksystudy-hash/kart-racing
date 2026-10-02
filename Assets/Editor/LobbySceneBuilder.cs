@@ -72,6 +72,11 @@ public static class LobbySceneBuilder
     [MenuItem("Racing/로비 씬 만들기", false, 2)]
     public static void BuildLobby()
     {
+        // ★ 유저가 손으로 놓은 것은 빌더가 안 지운다(2026-09-23 캠퍼스와 같은 방식).
+        //   로비를 다시 구울 일이 생겼으니(문을 열리게 하려면 정적 배칭을 풀어야 한다)
+        //   여기도 같이 건다 — 안 그러면 드래그해 놓은 FBX 가 통째로 날아간다.
+        var mine = MyProps.Collect(LobbyPath);
+
         Directory.CreateDirectory(SceneFolder);
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -119,9 +124,10 @@ public static class LobbySceneBuilder
         selector.stands = stands;
 
         // ---- 임시 몸 : 걸어가서 말을 걸 수 있게 ----
-        // 캐릭터 모델이 나오면 Player 안의 상자만 갈아 끼우면 된다.
+        // 몸은 <see cref="VisitorBody"/> 가 <b>실행할 때 스스로 세운다</b> — 고른 캐릭터의
+        // 캡슐이라 씬을 굽는 시점에는 누구인지 알 수가 없다(«씬을 구울 때 런타임 선택에
+        // 의존하는 값을 읽지 마라»). 예전 나무상자 몸통+머리는 2026-10-01 에 걷어냈다.
         var player = TestSceneBuilder.MakePlayer(new Vector3(0f, 0.1f, 11f), 180f);
-        MakeTempBody(player.controller.transform);
 
         var entrance = new GameObject("WalkEntrance").transform;
         entrance.SetPositionAndRotation(new Vector3(0f, 0.1f, 11f), Quaternion.Euler(0f, 180f, 0f));
@@ -153,6 +159,7 @@ public static class LobbySceneBuilder
 
         // 이야기 장면은 이 방 안에서 돈다. 전용 씬을 만들면 중앙홀이 두 벌이 되니까.
         StoryRigBuilder.EnsureRig();
+        MyProps.Restore(mine);
         MuseumLook.RefineMaterials();   // 손으로 다듬을 필요 없이 구워 나올 때부터 마감이 붙어 있게
         MuseumLook.ApplyToOpenScene();
 
@@ -169,17 +176,6 @@ public static class LobbySceneBuilder
     /// 그림자와 씬 뷰에서 어디 있는지 보이라고 둔다. 콜라이더는 안 붙인다
     /// (충돌은 CharacterController 가 이미 맡는다).
     /// </summary>
-    static void MakeTempBody(Transform parent)
-    {
-        var body = TestSceneBuilder.Cube(parent, "TempBody", Vector3.zero,
-                                         new Vector3(0.5f, 1.2f, 0.35f), ColWoodDark, keepCollider: false);
-        body.transform.localPosition = new Vector3(0f, 0.6f, 0f);
-
-        var head = TestSceneBuilder.Cube(parent, "TempHead", Vector3.zero,
-                                         new Vector3(0.42f, 0.42f, 0.42f), ColStone, keepCollider: false);
-        head.transform.localPosition = new Vector3(0f, 1.45f, 0f);
-    }
-
     /// <summary>
     /// 있는 씬만 골라 순서대로 빌드 설정에 넣는다.
     /// <b>F1 로비 · F2 트랙 · F3 전시실 · F4 캠퍼스.</b> (캠퍼스는 2026-09-17 에 붙었다)
@@ -285,6 +281,24 @@ public static class LobbySceneBuilder
     /// <summary>문이 선 자리. 살창이 여기를 피해 간다.</summary>
     static readonly System.Collections.Generic.List<Vector3> doorSpots = new System.Collections.Generic.List<Vector3>();
 
+    /// <summary>
+    /// 문짝을 미끄러뜨릴 수 있게 <see cref="HingedDoor"/> 를 꽂는다.
+    ///
+    /// ★ <b>문짝은 통(<c>LeafRoot_s</c>) 안에 들어 있다.</b> <c>Transform.Find</c> 는
+    /// 직계 자식만 보니까 <c>Find("Leaf_-1")</c> 을 부르면 <b>null 이 꽂히고 씬에 그대로 저장된다</b> —
+    /// 캠퍼스 문을 네 번 고치고 나서야 잡은 함정이다(2026-09-18).
+    ///
+    /// ★ <b>로비 문은 «판자를 박지 않는다»</b>. 폐과 판자는 캠퍼스 연출이고
+    /// 로비 문이 막히면 전시실·캠퍼스로 영영 못 간다.
+    /// </summary>
+    static void Openable(GameObject door, string label)
+    {
+        var hinge = door.AddComponent<HingedDoor>();
+        hinge.label = label;
+        hinge.boardable = false;
+        hinge.leaves = new[] { door.transform.Find("LeafRoot_-1"), door.transform.Find("LeafRoot_1") };
+    }
+
     static void MakeDoors()
     {
         doorSpots.Clear();
@@ -313,15 +327,27 @@ public static class LobbySceneBuilder
         // 동쪽 — 전시실로. 접수대(x 11.5, z 4)를 피해 z -6 에.
         var east = new Vector3(HallWidth * 0.5f - 0.25f, 0f, -6f);
         doorSpots.Add(east);
-        HanokDoor.Build(root, east, Quaternion.Euler(0f, 270f, 0f), 3.6f, 4.4f, mat,
-                        plaque: true, buildingName: "전시실", department: "");
+        var eastDoor = HanokDoor.Build(root, east, Quaternion.Euler(0f, 270f, 0f), 3.6f, 4.4f, mat,
+                                       plaque: true, buildingName: "전시실", department: "", openable: true);
+
+        // ★ 2026-10-01 유저: *"로비씬에 있는 캠퍼스와 전시실 문 좀 열어주라."*
+        //   재 보니 <b>전시실 문에는 아예 SceneDoor 가 없었다</b> — 문패는 「전시실」인데
+        //   걸어가서 E 를 눌러도 아무 일이 없고, F3(개발용)로만 갈 수 있었다.
+        //   <b>문패가 곧 지도</b>인데 그 문이 가짜면 홀이 어디로 이어지는지 알 수가 없다.
+        Openable(eastDoor, "전시실");
+        var toGallery = eastDoor.AddComponent<SceneDoor>();
+        toGallery.sceneIndex = 2;     // F3
+        toGallery.label = "전시실로";
+        toGallery.range = 3.4f;
 
         // 서쪽 — 캠퍼스로. 2026-09-17 에 진짜로 열렸다(F4 캠퍼스 씬).
         var west = new Vector3(-HallWidth * 0.5f + 0.25f, 0f, 8f);
         doorSpots.Add(west);
         var westDoor = HanokDoor.Build(root, west, Quaternion.Euler(0f, 90f, 0f), 3.6f, 4.4f, mat,
-                                       plaque: true, buildingName: "캠퍼스", department: "곰밥마당 · 별관");
+                                       plaque: true, buildingName: "캠퍼스", department: "곰밥마당 · 별관",
+                                       openable: true);
 
+        Openable(westDoor, "캠퍼스");
         var toCampus = westDoor.AddComponent<SceneDoor>();
         toCampus.sceneIndex = 3;      // F4
         toCampus.label = "캠퍼스로";

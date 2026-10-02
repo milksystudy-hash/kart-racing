@@ -27,6 +27,18 @@ public class FirstPersonController : MonoBehaviour
     [Tooltip("눈 위치. 비워두면 자식에서 카메라를 찾아 쓴다")]
     public Transform cameraPivot;
 
+    [Header("3인칭 — 고른 캐릭터 캡슐이 보이게")]
+    [Tooltip("몸에서 카메라까지. 0 이면 1인칭으로 돌아간다")]
+    public float viewDistance = 3.1f;
+
+    [Tooltip("카메라가 도는 중심 높이. 캡슐 키 1.15m 바로 위")]
+    public float viewHeight = 1.25f;
+
+    [Tooltip("카메라가 뚫지 말아야 할 것 — 벽·건물")]
+    // 레이어 2(Ignore Raycast)는 뺀다. 카트가 거기 있어서(CLAUDE.md) 트랙에서 내려 걸을 때
+    // 카메라가 제 카트에 걸려 코앞까지 당겨진다.
+    public LayerMask viewBlockers = ~(1 << 2);
+
     [Header("추락 복구")]
     [Tooltip("이 높이보다 아래로 내려가면 시작 위치로 되돌린다")]
     public float fallResetY = -15f;
@@ -74,6 +86,11 @@ public class FirstPersonController : MonoBehaviour
         pitch = cameraPivot != null ? cameraPivot.localEulerAngles.x : 0f;
         if (pitch > 180f) pitch -= 360f;
 
+        // ★ 걷는 몸은 여태 <b>그림이 하나도 없었다</b>. 고른 캐릭터의 캡슐을 세운다 —
+        //   스스로 붙으니 씬을 다시 구울 필요가 없다.
+        VisitorBody.Ensure(gameObject);
+        PlaceCamera();
+
         spawnPosition = transform.position;
         spawnYaw = transform.eulerAngles.y;
     }
@@ -102,6 +119,9 @@ public class FirstPersonController : MonoBehaviour
 
         if (CursorLock.IsLocked) HandleLook();
         HandleMove();
+        // 마우스를 안 움직여도 카메라는 제자리에 있어야 한다 — 커서가 풀려 있을 때도,
+        // 벽 뒤로 걸어 들어갈 때도. HandleLook 안에만 두면 둘 다 놓친다.
+        PlaceCamera();
     }
 
     void HandleLook()
@@ -115,6 +135,43 @@ public class FirstPersonController : MonoBehaviour
 
         pitch = Mathf.Clamp(pitch - delta.y, -pitchLimit, pitchLimit);
         cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+    }
+
+    /// <summary>
+    /// 3인칭 — 몸 뒤로 뺀다. <b>몸이 보여야 «내가 고른 캐릭터» 라는 게 읽힌다.</b>
+    ///
+    /// ★ 거리·각도 판정(<see cref="Reach"/>)은 <b>카메라가 아니라 몸</b>을 본다
+    /// (빌더가 <c>visitor</c> 에 Player 루트를 꽂는다). 그래서 카메라를 뒤로 빼도
+    /// 문·곰·수도꼭지가 잡히는 거리는 하나도 안 바뀐다 — 그게 이 변경이 안전한 이유야.
+    ///
+    /// 벽에 닿으면 그만큼 당겨 온다. <b>유령 모드에서는 안 당긴다</b> — 벽을 통과해
+    /// 점검하는 게 그 모드의 목적인데 카메라만 벽 앞에 서면 아무 것도 못 본다.
+    /// </summary>
+    void PlaceCamera()
+    {
+        if (cameraPivot == null) return;
+
+        if (viewDistance <= 0.01f)
+        {
+            cameraPivot.localPosition = new Vector3(0f, 1.6f, 0f);   // 1인칭 — 눈높이
+            return;
+        }
+
+        Vector3 pivot = new Vector3(0f, viewHeight, 0f);
+        Vector3 back = cameraPivot.localRotation * Vector3.back;
+        float d = viewDistance;
+
+        if (!ghost)
+        {
+            // 시작점이 CharacterController 안이라 제 몸에는 안 걸린다(캡슐에는 콜라이더가 없다)
+            Vector3 from = transform.TransformPoint(pivot);
+            Vector3 dir = transform.TransformDirection(back);
+            if (Physics.SphereCast(from, 0.22f, dir, out var hit, viewDistance,
+                                   viewBlockers, QueryTriggerInteraction.Ignore))
+                d = Mathf.Max(0.45f, hit.distance - 0.08f);
+        }
+
+        cameraPivot.localPosition = pivot + back * d;
     }
 
     void HandleMove()

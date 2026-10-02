@@ -30,11 +30,38 @@ public class CampusStatue : MonoBehaviour
     const string RootName = "DonorStatue";
 
     /// <summary>
-    /// 웅지관(0, 0, −107 · 36 × 22 × 13)의 정면 오른쪽.
-    /// 측정해서 골랐다 — 제일 가까운 물건(깃대)까지 5.7m, 코스까지 6m, 문 앞은 비어 있다.
-    /// 문 정면(x 0)을 피한 이유는 <b>문 앞에 뭘 놓지 마라</b>(2026-09-18) 그대로야.
+    /// ★ <b>캠퍼스의 중앙홀 입구 앞 광장.</b> 문간채(<c>ReturnDoor</c>, (0, 0, 90))에서
+    /// 들어오는 사람 기준 <b>오른쪽 7m · 앞으로 4.5m</b>.
+    ///
+    /// 자리를 두 번 옮겼다. 처음엔 웅지관 앞이었고(2026-09-21), 2026-10-01 에 유저가
+    /// *"메인 중앙홀에 크게 놓는 게 더 잘 띄지 않을까"* 라고 해서 <b>로비 씬 안</b>으로 옮겼다가
+    /// 바로 되돌렸다 — 유저: *"애초에 동상은 중앙홀 바깥에 있어야지 왜 로비 안에 있는데."*
+    /// <b>맞는 말이다. 청동 기념상은 실내 로비가 아니라 입구 광장에 선다.</b>
+    /// «중앙홀» 은 로비 씬의 이름이기도 하고 그 로비로 들어가는 문의 이름이기도 한데,
+    /// 유저가 말한 건 <b>문 쪽</b>이었다.
+    ///
+    /// 이 자리가 좋은 이유: 캠퍼스를 걸어 다니다 중앙홀로 돌아갈 때 <b>반드시 지나가고</b>,
+    /// 동상이 <b>들어오는 사람을 마주 본다</b>(후원자 동상의 기본 자세). 문 정면(x 0)은
+    /// 비워 둔다 — <b>문 앞에 뭘 놓지 마라</b>(2026-09-18).
     /// </summary>
-    static readonly Vector3 Spot = new Vector3(13f, 0f, -90f);
+    static readonly Vector3 Spot = new Vector3(7f, 0f, 85.5f);
+
+    /// <summary>기단 꼭대기(<c>Cap</c> 윗면). 1.52 + 0.14 / 2.</summary>
+    const float PedestalTop = 1.59f;
+
+    /// <summary>
+    /// 동상 키. 기단까지 합쳐 <b>4.59m</b> — 로비 벽이 7m 라 여유 2.4m.
+    /// 사람(1.75)의 두 배가 넘어야 «기념» 으로 읽힌다.
+    /// </summary>
+    const float FigureHeight = 3.0f;
+
+    /// <summary>
+    /// FBX 가 바라보는 쪽을 캠퍼스 안쪽(+Z)으로 돌리는 각도.
+    /// ★ <b>짐작이 아니라 잰 값</b>이다 — 배치모드에서 실제로 세워 놓고 «위로 뻗은 주먹이
+    /// 어느 쪽으로 튀어나왔나» 를 재서 구했다(<c>Editor/_Statue.cs</c>).
+    /// 모델을 갈아끼우면 그 검사를 다시 돌려라.
+    /// </summary>
+    public const float FacingYaw = 180f;
 
     static readonly Color Bronze = new Color32(0x7E, 0x5F, 0x38, 0xFF);
     static readonly Color BronzeLit = new Color32(0x9A, 0x77, 0x46, 0xFF);
@@ -60,23 +87,21 @@ public class CampusStatue : MonoBehaviour
         // 그 뒤 초기화가 통째로 건너뛰어진다 — 실패하면 조용히 포기한다.
         try
         {
-            // 웅지관이 있는 씬에만 선다. 이름은 씬에 하나뿐이다.
-            var hall = GameObject.Find("웅지관");
-            if (hall == null) return;
-
-            var host = hall.transform.parent;
-            if (host == null) host = hall.transform;
-            if (host.Find(RootName) != null) return;   // 이미 세웠다
+            // 중앙홀 문간채가 있는 씬에만 선다 — 캠퍼스다. 그 문이 곧 자리의 기준이다.
+            var gate = GameObject.Find("ReturnDoor");
+            if (gate == null) return;
+            if (GameObject.Find(RootName) != null) return;            // 이미 세웠다
 
             var go = new GameObject(RootName);
+            Transform host = gate.transform.parent;
 
             // ★ AddComponent 는 Awake 를 그 자리에서 부른다. 꺼진 채로 만들어야
             // 값을 꽂은 뒤에 Awake 가 돈다(2026-09-21 여기서 한 번 터졌다).
             go.SetActive(false);
-            go.transform.SetParent(host, false);
+            if (host != null) go.transform.SetParent(host, false);
             go.transform.position = Spot;
-            // 캠퍼스 안쪽(+Z)을 본다 — 건물을 등지고 선다. 후원자 동상은 늘 그렇게 선다.
-            go.transform.rotation = Quaternion.identity;
+            // 캠퍼스 쪽(−Z)을 본다 — 중앙홀로 걸어오는 사람을 마주 본다.
+            go.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
 
             go.AddComponent<CampusStatue>();
             go.SetActive(true);
@@ -92,7 +117,7 @@ public class CampusStatue : MonoBehaviour
     void Awake()
     {
         Pedestal();
-        Figure();
+        Figures();
         Plaque();
     }
 
@@ -117,9 +142,65 @@ public class CampusStatue : MonoBehaviour
     /// 정장 차림으로 뒀다. 웃통을 벗기면 대놓고 웃기라는 신호가 돼서 규칙을 어긴다 —
     /// 정장인데 체형이 저러면 <b>실제로 있을 법한 허영</b>이라 더 서늘하다.
     /// </summary>
+    void Figures()
+    {
+        // 유저가 만든 동상 두 벌이 있으면 그걸 쓴다. 없으면 옛 상자 몸으로 떨어진다 —
+        // <b>파일이 없어서 안 보이는 것</b>과 <b>코드가 고장난 것</b>은 구분되어야 한다.
+        var muscle = Model("Figure_Muscle", "Statue/Statue_Muscle");
+        var real = Model("Figure_Real", "Statue/Statue_Real");
+        if (muscle != null || real != null)
+        {
+            // 평소에는 근육 동상. 결승까지 깨면 <see cref="CampusVictory"/> 가 바꿔 끼운다.
+            if (muscle != null) muscle.gameObject.SetActive(true);
+            if (real != null) real.gameObject.SetActive(false);
+            return;
+        }
+        Figure();
+    }
+
+    /// <summary>
+    /// 동상 FBX 한 벌을 기단 위에 앉힌다.
+    ///
+    /// ★ <b>임포트한 FBX 의 회전·스케일을 덮어쓰지 않는다.</b> 블렌더 FBX 는 축 변환을
+    /// <b>루트 회전</b>으로 달고 오는데 <c>identity</c> 로 덮으면 모델이 눕고,
+    /// <c>localScale = one * s</c> 로 덮으면 <c>Lcl Scaling = 100</c> 을 잃어 <b>1만 분의 1</b>이 된다.
+    /// 둘 다 이 프로젝트에서 실제로 겪었다(2026-09-21 곰 · 2026-09-22 소품).
+    /// 그래서 <b>빈 통을 씌우고 통을 돌린다</b> — FBX 자신은 안 건드린다.
+    /// </summary>
+    Transform Model(string name, string resource)
+    {
+        var src = Resources.Load<GameObject>(resource);
+        if (src == null) return null;
+
+        var holder = Sub(name, new Vector3(0f, PedestalTop, 0f));
+        holder.localRotation = Quaternion.Euler(0f, FacingYaw, 0f);
+
+        var go = Instantiate(src, holder);
+        go.name = "Art";
+        go.transform.localPosition = Vector3.zero;
+
+        var rs = go.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) { Debug.LogWarning($"[동상] {resource} 에 메시가 없다."); return holder; }
+
+        // 콜라이더는 기단에만. 동상 안으로 걸어 들어가도 물리는 안 바뀐다.
+        foreach (var c in go.GetComponentsInChildren<Collider>()) Destroy(c);
+
+        var b = rs[0].bounds;
+        for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+        if (b.size.y > 0.001f)
+            go.transform.localScale *= FigureHeight / b.size.y;    // 덮어쓰지 않고 <b>곱한다</b>
+
+        // 원점이 바닥이 아니어도 기단 위에 앉힌다 — 바운즈 최저점을 읽어 그만큼 올린다
+        b = rs[0].bounds;
+        for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+        go.transform.localPosition += Vector3.up * (holder.position.y - b.min.y);
+        return holder;
+    }
+
+    /// <summary>옛 상자 몸. FBX 가 없을 때만 쓴다.</summary>
     void Figure()
     {
-        Transform body = Sub("Figure", new Vector3(0f, 1.59f, 0f));
+        Transform body = Sub("Figure", new Vector3(0f, PedestalTop, 0f));
 
         // 다리 — 한 발을 앞으로. 차렷 자세는 기념비가 아니라 마네킹이다.
         Limb(body, "Leg_L", new Vector3(-0.26f, 0.42f, 0.10f), new Vector3(-8f, 0f, 0f), 0.34f, 0.92f, Bronze);

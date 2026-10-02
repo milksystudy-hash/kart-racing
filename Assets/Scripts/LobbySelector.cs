@@ -73,6 +73,16 @@ public class LobbySelector : MonoBehaviour
         return null;
     }
 
+    /// <summary>
+    /// 걷기 모드에서 <b>받침대 앞에 서서 E</b> 로 고르는 길. 2026-10-01 유저:
+    /// *"캡슐 선택하면 레이스 들어갈 권리도 생기고."*
+    ///
+    /// 둘러보기에서는 마우스로 고르고 걷기에서는 E 로 고른다 — <b>어느 쪽으로 골라도
+    /// 같은 자리로 들어간다</b>(<see cref="GameSelection"/>). 고르는 길을 둘로 나누되
+    /// 결과를 두 군데서 계산하지는 않는다.
+    /// </summary>
+    public void ChooseByWalk(CharacterStand stand) => Apply(stand, silent: false);
+
     void Apply(CharacterStand stand, bool silent)
     {
         if (stand == null || !stand.Selectable) return;

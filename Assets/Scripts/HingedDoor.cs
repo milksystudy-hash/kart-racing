@@ -247,6 +247,9 @@ public class HingedDoor : MonoBehaviour
 
     public void Toggle()
     {
+        // 문이 움직이는 걸 <b>귀로도</b> 알려 준다. 미닫이라 «스르륵 — 탁» 한 덩어리다.
+        // 소리가 없으면 반쯤 열린 문 앞에서 «눌렸나» 를 눈으로만 판단해야 한다.
+
         if (Barred)
         {
             if (doorDebug) Debug.Log($"[문] '{label}' 판자가 박혀 있어서 안 열린다", this);
@@ -269,6 +272,7 @@ public class HingedDoor : MonoBehaviour
 
         Open = canClose ? !Open : true;
         movedAt = Time.time;
+        Sfx.Play("DoorSlide");
 
         if (doorDebug) Debug.Log($"[문] '{label}' {(Open ? "연다" : "닫는다")}", this);
     }

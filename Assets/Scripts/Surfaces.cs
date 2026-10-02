@@ -122,6 +122,44 @@ public static class FlatMaterial
         return mat;
     }
 
+    static readonly Dictionary<(uint, int), Material> clear = new();
+
+    /// <summary>
+    /// <b>비치는 재질.</b> 물처럼 뒤가 보여야 하는 것에만 쓴다.
+    ///
+    /// ★ <see cref="Get(Color, Finish)"/> 는 <c>Finish.유리</c> 를 줘도 <b>불투명</b>이다 —
+    /// 런타임 쪽은 매끈함·금속감만 만지고 투명 설정을 안 한다(에디터 <c>MaterialAsset</c> 만 한다).
+    /// 그래서 물을 유리로 달라고 하면 <b>하늘색 판때기</b>가 나온다. 화장실 거울을 불투명
+    /// 크림색 판으로 만들었다가 «무슨 원리인지 모르겠다» 를 들은 그 자리야(2026-09-22).
+    ///
+    /// URP 는 투명을 <b>여섯 군데를 같이</b> 맞춰야 켜진다 — 하나만 빠져도 조용히 불투명이다.
+    /// </summary>
+    public static Material Water(Color rgb, float alpha)
+    {
+        int a = Mathf.RoundToInt(Mathf.Clamp01(alpha) * 100f);
+        if (clear.TryGetValue((Key(rgb), a), out var hit) && hit != null) return hit;
+
+        var c = new Color(rgb.r, rgb.g, rgb.b, a / 100f);
+        var mat = new Material(Surface.Lit()) { name = $"Clear_{ColorUtility.ToHtmlStringRGB(rgb)}_{a}" };
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", c);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.92f);
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);     // Transparent
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0f);         // Alpha
+        if (mat.HasProperty("_SrcBlend")) mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (mat.HasProperty("_DstBlend")) mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 0f);
+        if (mat.HasProperty("_AlphaClip")) mat.SetFloat("_AlphaClip", 0f);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.DisableKeyword("_ALPHATEST_ON");
+        mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+
+        clear[(Key(rgb), a)] = mat;
+        return mat;
+    }
+
     /// <summary>색을 0xRRGGBB 정수로. 구조체를 그대로 키로 쓰면 해시가 미덥지 않다.</summary>
     static uint Key(Color c)
     {

@@ -51,7 +51,11 @@ public class SceneNavigator : MonoBehaviour
         }
 
         CursorLock.Unlock();   // 씬을 넘어가는 동안은 커서를 풀어둔다
-        SceneManager.LoadScene(buildIndex);
+
+        // ★ 까맣게 덮었다 걷는다(2026-10-01). 캠퍼스는 3,200조각이라 로딩이 2~3초인데,
+        //   <b>멈춘 화면</b>과 <b>어두워지는 화면</b>은 완전히 다르게 읽힌다 —
+        //   가만히 있으면 «렉» 이고 어두워지면 «넘어가는 중» 이다.
+        Fade.Load(buildIndex);
     }
 
     public static void Reload() => LoadByIndex(SceneManager.GetActiveScene().buildIndex);

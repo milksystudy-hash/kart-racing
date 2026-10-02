@@ -125,10 +125,18 @@ public class TestHUD : MonoBehaviour
         bool canRestart = tracker != null && (tracker.Finished || (mission != null && mission.Failed));
         if (canRestart && KartInput.RestartPressed)
         {
+            KartInput.Clear();
+
+            // ★★ 2026-10-01 유저: *"미션 하나 깨고 로비로 안 돌아온다. 바로 다음 레이스
+            //   카드가 나온다."* <b>맞다 — 돌아갈 길이 ESC 밖에 없었다.</b>
+            //   임무를 깨서 <b>새 이야기가 풀렸는데</b> ENTER 가 다음 판을 시작해 버리면,
+            //   이야기는 영영 안 보고 레이스만 아홉 판 하게 된다.
+            //   이야기가 기다리고 있으면 ENTER 는 <b>중앙홀로</b> 간다.
+            if (StoryWaiting()) { SceneNavigator.LoadByIndex(0); return; }
+
             recordSent = false;
             recordRank = 0;
             tracker.ResetRace();
-            KartInput.Clear();
         }
 
         if (!debugKeys) return;
@@ -350,7 +358,12 @@ public class TestHUD : MonoBehaviour
     // ---- 순위 ----
     void DrawRankPanel(float w)
     {
-        if (standings == null || standings.RacerCount <= 0) return;
+        // ★ 혼자 달리는 판에서는 <b>아예 안 그린다.</b> «1대 중 1위» 는 아무 말도 안 하는데,
+        //   패널은 y 16~104 를 차지해서 바로 밑의 코스 지도와 <b>겹쳤다</b>
+        //   (2026-10-01 유저: "지도랑 뭐 하나 겹쳐져 있어"). 지도가 나중에 그려져서
+        //   위 10px 만 삐져나와 있었고, 그게 «판이 두 장 겹친» 것으로 보였다.
+        //   임무 1~8 은 전부 혼자 달리니 이 패널은 결승·자유 주행에서만 뜬다.
+        if (standings == null || standings.RacerCount <= 1) return;
 
         var p = new Rect(w - 120f, 16f, 104f, 88f);
         Hud.Panel(p);
@@ -660,8 +673,22 @@ public class TestHUD : MonoBehaviour
 
         DrawRecords(box);
 
-        GUI.Label(new Rect(box.x, box.y + box.height - 30f, box.width, 22f), "ENTER 를 누르면 다시 시작",
-                  Hud.Resize(Hud.Label, 14, TextAnchor.MiddleCenter));
+        bool story = StoryWaiting();
+        var foot = Hud.Resize(Hud.Label, 14, TextAnchor.MiddleCenter);
+        if (story) foot.normal.textColor = Hud.Brass;
+        GUI.Label(new Rect(box.x, box.y + box.height - 30f, box.width, 22f),
+                  story ? "ENTER — 중앙홀로   ·   새 이야기가 기다린다" : "ENTER 를 누르면 다시 시작",
+                  foot);
+    }
+
+    /// <summary>
+    /// 아직 안 본 이야기가 있나. 있으면 완주 뒤 ENTER 가 <b>다시 하기</b>가 아니라
+    /// <b>중앙홀로</b>가 된다 — 이야기는 로비 안에서 도니까(StoryStage).
+    /// </summary>
+    static bool StoryWaiting()
+    {
+        string id = StoryScript.CurrentScene();
+        return !string.IsNullOrEmpty(id) && !StoryProgress.HasSeen(id);
     }
 
     bool recordSent;

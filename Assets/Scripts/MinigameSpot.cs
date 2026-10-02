@@ -98,6 +98,24 @@ public class MinigameSpot : MonoBehaviour
     static bool Made(string title) =>
         title == CanteenTitle || title == DrillTitle || title == TraceTitle;
 
+    bool signHidden;
+
+    /// <summary>
+    /// ★ 판이 열려 있는 동안에는 <b>입간판을 감춘다.</b> 「지금 그 게임을 하는 중」이면
+    /// «여기 게임이 있다» 는 안내가 필요 없고, 재주관에서는 이 판이 이젤 정면 0.35m 에 서서
+    /// <b>화판을 통째로 가리고 있었다</b>(2026-09-30 측정).
+    ///
+    /// <see cref="Update"/> 가 아니라 LateUpdate 인 건 그쪽이 «제일 가까운 자리» 를
+    /// 겨루는 자리라서다 — 보이기/안 보이기를 거기 섞으면 둘이 같이 틀린다.
+    /// </summary>
+    void LateUpdate()
+    {
+        bool hide = MinigameFlow.AnyOpen;
+        if (hide == signHidden) return;
+        signHidden = hide;
+        foreach (var r in GetComponentsInChildren<Renderer>(true)) r.enabled = !hide;
+    }
+
     public State Now => !Unlocked ? State.잠김
                       : (ready || Made(title)) ? State.열림 : State.준비중;
 

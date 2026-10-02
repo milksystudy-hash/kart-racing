@@ -33,10 +33,68 @@ public class DialogueHUD : MonoBehaviour
 
     readonly Dictionary<Color, Texture2D> textures = new();
 
+    /// <summary>
+    /// 장면 배경 그림 — <c>Resources/StoryBackdrops/{장면id}.png</c>.
+    /// <b>못 찾은 것도 캐시에 넣는다</b>(null 로) — 안 그러면 매 프레임
+    /// <see cref="Resources.Load"/> 를 때린다.
+    /// </summary>
+    static readonly Dictionary<string, Texture2D> backdrops = new();
+
+    string shownId = "";
+    float shownAt;
+
     GUIStyle textStyle, nameStyle, titleStyle, hintStyle, narrateStyle, slotStyle;
     bool stylesReady;
 
     void Reset() => runner = GetComponent<DialogueRunner>();
+
+    // ==================================================================
+    //  장면 배경
+    // ==================================================================
+    /// <summary>
+    /// ★★ 2026-10-01 유저: *"박물관 바깥은 어떻게 생겼어. 추석에 내려왔다가 철거 예정인
+    /// 컨셉인데 <b>바깥에서 보는 환웅 박물관 그림</b>이라도 있어야 하는데. 거기에서
+    /// 대화창 대화할 거고."* 맞다 — §3.6 이 «3D 배경 + 2D 초상화» 인데, 그 3D 배경이
+    /// <b>중앙홀 하나뿐</b>이라 프롤로그도 중앙홀에서 시작한다. 그런데 프롤로그의 핵심은
+    /// <b>«이런 데가 있었구나»</b> 라서, 이감이 이미 홀 안에 서 있으면 그 놀람이 성립하지 않는다.
+    ///
+    /// <b>장면마다 그림 한 장을 깔 수 있게 한다.</b>
+    /// <c>Assets/Resources/StoryBackdrops/{장면id}.png</c> 를 떨구면 그 장면의 배경이 되고,
+    /// 없으면 지금처럼 3D 로비가 배경이다 — <b>코드는 한 줄도 안 고친다.</b>
+    /// 초상화·배경화면과 같은 방식이야(폴더에 넣기만 하면 임포트 설정까지 맞춰진다).
+    ///
+    /// 그림 파일 이름 = <see cref="StoryScript"/> 의 장면 id:
+    /// <c>prologue · ch1 · ch2 · ch3 · ch4 · final_before · final_after · epilogue</c>
+    /// </summary>
+    static Texture2D Backdrop(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        if (backdrops.TryGetValue(id, out var cached)) return cached;
+        var tex = Resources.Load<Texture2D>("StoryBackdrops/" + id);
+        backdrops[id] = tex;
+        return tex;
+    }
+
+    /// <summary>
+    /// 배경 그림을 화면 가득. <b>ScaleAndCrop</b> — 창 비율이 그림과 달라도 여백 없이
+    /// 채우고 넘치는 쪽을 자른다. 늘리면(StretchToFill) 건물이 홀쭉해진다.
+    ///
+    /// <b>0.45초에 걸쳐 스며든다.</b> 한 프레임에 «툭» 바뀌면 로딩 화면처럼 보이고,
+    /// 스며들면 «장면이 열렸다» 가 된다(초상화 등장과 같은 판단).
+    /// </summary>
+    void DrawBackdrop(float w, float h, string id)
+    {
+        var tex = Backdrop(id);
+        if (tex == null) return;
+
+        if (shownId != id) { shownId = id; shownAt = Time.unscaledTime; }
+        float a = Mathf.Clamp01((Time.unscaledTime - shownAt) / 0.45f);
+
+        var keep = GUI.color;
+        GUI.color = new Color(1f, 1f, 1f, a);
+        GUI.DrawTexture(new Rect(0f, 0f, w, h), tex, ScaleMode.ScaleAndCrop);
+        GUI.color = keep;
+    }
 
     void Awake()
     {
@@ -103,21 +161,6 @@ public class DialogueHUD : MonoBehaviour
             float t = (i + 0.5f) / bands;                 // 0 화면 위 → 1 화면 아래
             float a = Mathf.Lerp(topA, bottomA, t * t);   // 아래로 갈수록 빠르게 — 대화창 쪽이 제일 어둡다
             Fill(new Rect(0f, i * bh, w, bh + 1f), new Color(0.04f, 0.05f, 0.09f, a));
-        }
-    }
-
-    /// <summary>
-    /// 바깥에서 안으로 좁혀 가며 <b>같은 옅은 색을 겹친다</b> — 가운데가 저절로 진해진다.
-    /// 테두리가 없어서 «판을 깔았다» 가 아니라 «저기 사람이 서 있다» 로 읽힌다.
-    /// </summary>
-    void SoftColumn(Rect r, Color c, int layers = 9)
-    {
-        for (int i = 0; i < layers; i++)
-        {
-            float t = i / (float)layers;
-            float ix = r.width * 0.46f * t;
-            float iy = r.height * 0.55f * t;
-            Fill(new Rect(r.x + ix, r.y + iy, r.width - ix * 2f, r.height - iy), c);
         }
     }
 
@@ -195,6 +238,11 @@ public class DialogueHUD : MonoBehaviour
         // 비어 보인 진짜 원인은 <b>배경과 인물이 같은 밝기</b>인 것이다 — 크림색 홀 앞에
         // 크림색 인물이 서 있으니 서로 묻힌다. 비주얼 노벨이 쓰는 방법은 판을 까는 게 아니라
         // <b>배경을 어둡게 누르는 것</b>이고, 그러면 같은 그림이 앞으로 걸어 나온다.
+        // 배경 그림이 있으면 먼저 깐다 — 3D 로비를 덮는다.
+        // <b>대사가 없는 프레임에도 그린다</b>: 장면이 끝나는 순간 그림만 사라지고
+        // 홀이 한 프레임 번쩍이면 «깨진 것» 으로 보인다.
+        if (runner.IsPlaying) DrawBackdrop(w, h, runner.sceneId);
+
         if (hasLine) DimBackdrop(w, h);
 
         DrawSceneTitle(w);
@@ -274,10 +322,15 @@ public class DialogueHUD : MonoBehaviour
         var keepColor = GUI.color;
         GUI.color = new Color(1f, 1f, 1f, rise);
 
-        // 인물 뒤 — 테두리 없이 좌우·위로 스며 나가는 옅은 어둠. 배경이 밝은 벽이든
-        // 어두운 구석이든 인물의 윤곽이 일정하게 떨어진다.
-        SoftColumn(new Rect(r.x - r.width * 0.20f, r.y - 10f, r.width * 1.40f, r.height + 10f),
-                   new Color(0.03f, 0.04f, 0.07f, 0.035f));
+        // ★ 인물 뒤에 깔던 «옅은 어둠 기둥» 은 걷어냈다(2026-10-01).
+        //   유저: *"뭔가 사각형에 막혀 있는 느낌."* 맞다 — 각진 사각형을 아홉 장 겹친 거라
+        //   «스며 나간다» 가 아니라 <b>제일 바깥 테두리가 직선으로 남았다.</b>
+        //   뒤가 밋밋한 크림색 벽이면 3% 짜리 그림자도 선으로 읽힌다.
+        //
+        //   그리고 이제 <b>필요가 없다.</b> 이걸 깐 이유가 «크림색 홀 앞에 크림색 인물이라
+        //   서로 묻힌다» 였는데, 초상화마다 <b>인물 색 테두리</b>가 들어가면서 그 일을
+        //   테두리가 한다. 기능을 하나 더하면 <b>앞서 내린 결정의 이유가 없어졌는지</b>
+        //   확인해야 한다 — 접수대 시계를 되돌릴 때 배운 것과 같은 자리야.
 
         var tex = Cast.Portrait(line.speakerId, line.mood);
         if (tex != null)

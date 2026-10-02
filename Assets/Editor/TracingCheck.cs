@@ -172,6 +172,13 @@ public static class TracingCheck
         Report(log, bad);
     }
 
+    /// <summary>배치모드용 — 점검하고 바로 나간다.</summary>
+    public static void RunBatch()
+    {
+        Run();
+        EditorApplication.Exit(0);
+    }
+
     static void Report(List<string> log, int bad)
     {
         Debug.Log("[따라 그리기 점검]\n  " + string.Join("\n  ", log)

@@ -29,6 +29,16 @@ public class MinigameFlow : MonoBehaviour
 
     public Step Now { get; private set; } = Step.준비;
 
+    /// <summary>
+    /// 미니게임 판이 하나라도 열려 있나. <b>방 안 물건이 이걸 보고 비킨다</b> —
+    /// <see cref="MinigameSpot"/> 의 입간판이 그리기 화판을 가린 적이 있다(2026-09-30).
+    /// </summary>
+    public static bool AnyOpen => open > 0;
+    static int open;
+
+    void OnEnable() => open++;
+    void OnDisable() => open = Mathf.Max(0, open - 1);
+
     /// <summary>게임이 시계를 돌려도 되나. <b>진행</b> 일 때만 true.</summary>
     public bool Running => Now == Step.진행;
 
@@ -105,6 +115,18 @@ public class MinigameFlow : MonoBehaviour
 
     void Update()
     {
+        // ★★ <b>시간으로 넘어가는 자리는 키보드 없이도 돌아야 한다.</b>
+        // 전에는 <c>Keyboard.current == null</c> 이면 Update 가 통째로 빠져나가서,
+        // 키보드를 못 잡은 상황에서 <b>카운트다운이 영영 «시작전» 에 멈췄다</b> —
+        // 화면에는 «시작» 이 떠 있는데 게임이 시작을 안 하니 완전한 먹통이다.
+        // (배치모드 탐침에서 이걸로 잡았다. 2026-09-30)
+        if (Now == Step.시작전 && Since >= Beat * 4f)
+        {
+            Go(Step.진행);
+            onStart?.Invoke();   // ← 게임의 시계는 <b>여기서</b> 0이 된다
+            return;
+        }
+
         var k = Keyboard.current;
         if (k == null) return;
 
@@ -121,12 +143,8 @@ public class MinigameFlow : MonoBehaviour
                 break;
 
             case Step.시작전:
-                if (k.escapeKey.wasPressedThisFrame) { onQuit?.Invoke(); break; }
-                if (Since >= Beat * 4f)
-                {
-                    Go(Step.진행);
-                    onStart?.Invoke();   // ← 게임의 시계는 <b>여기서</b> 0이 된다
-                }
+                // 시간 조건은 <b>위로 올라갔다</b> — 여기는 ESC 만 본다.
+                if (k.escapeKey.wasPressedThisFrame) onQuit?.Invoke();
                 break;
 
             case Step.진행:

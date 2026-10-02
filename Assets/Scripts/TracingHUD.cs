@@ -38,7 +38,9 @@ public class TracingHUD : MonoBehaviour
     void Playing(float w, float h)
     {
         // ── 왼쪽 위 — 무엇을 그리나 ──
-        var head = new Rect(24f, 20f, 268f, 86f);
+        // 진행 막대가 한 줄 늘어서 86 → 124. <b>칸을 안 늘리면 종이 밖으로 나간다</b>
+        // (Hud.Inner 는 높이에서 16 을 뺀다 — 이 프로젝트에서 두 번 겪은 자리야).
+        var head = new Rect(24f, 20f, 268f, 124f);
         Hud.Panel(head);
         Rect hi = Hud.Inner(head);
 
@@ -54,6 +56,20 @@ public class TracingHUD : MonoBehaviour
         GUI.DrawTexture(bar, Hud.WoodDarkTex);
         GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * frac, bar.height),
                         frac < 0.25f ? Hud.RibbonTex : Hud.BrassTex);
+
+        // ── 진행 — ★ <b>덮은 만큼 찬다</b> ──
+        // 이게 없으면 18초 동안 «잘하고 있나» 를 알 방법이 없어서, 그리기가 아니라
+        // <b>그냥 문지르기</b>가 된다. 남은 시간(금색)과 <b>다른 색</b>으로 칠해야
+        // 두 막대가 서로 다른 말을 하는 게 보인다.
+        float cov = game.LiveCoverage;
+        GUI.Label(new Rect(hi.x + 14f, hi.y + 72f, 100f, 18f), "진행",
+                  Hud.Resize(Hud.Label, 13, TextAnchor.MiddleLeft));
+        GUI.Label(new Rect(hi.x + hi.width - 70f, hi.y + 72f, 56f, 18f), $"{cov * 100f:0}%",
+                  Hud.Resize(Hud.Label, 13, TextAnchor.MiddleRight));
+
+        var cbar = new Rect(hi.x + 14f, hi.y + 90f, hi.width - 28f, 10f);
+        GUI.DrawTexture(cbar, Hud.WoodDarkTex);
+        GUI.DrawTexture(new Rect(cbar.x, cbar.y, cbar.width * cov, cbar.height), Hud.PaperTex);
 
         // ── 오른쪽 위 — 점수 ──
         var sc = new Rect(w - 24f - 176f, 20f, 176f, 66f);

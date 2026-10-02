@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -127,6 +128,16 @@ public class TrackBuilder : MonoBehaviour
     static readonly Color ColLineDark = new Color32(0x2E, 0x2C, 0x2A, 0xFF);
 
     // 가속 발판 — 회색 아스팔트 위에서 멀리서도 튀어야 해서 팔레트 중 제일 센 색을 쓴다
+    // 바퀴마다 달라지는 노면 (2026-10-01)
+    static readonly Color ColWater      = new Color32(0x7E, 0xB4, 0xBE, 0xFF);   // 수면
+    static readonly Color ColWaterDeep  = new Color32(0x3E, 0x6A, 0x74, 0xFF);   // 한 겹 아래 — 깊이가 보인다
+    static readonly Color ColWetRoad    = new Color32(0x4A, 0x4C, 0x4A, 0xFF);   // 젖은 노면
+    static readonly Color ColFoam       = new Color32(0xE4, 0xEE, 0xEC, 0xFF);   // 가장자리 포말
+    static readonly Color ColBumpSoil   = new Color32(0x6E, 0x62, 0x4E, 0xFF);   // 솟아오른 흙
+    static readonly Color ColBumpSlab   = new Color32(0xA8, 0xA4, 0x9A, 0xFF);   // 깨진 포석
+    static readonly Color ColBumpSlabAlt= new Color32(0x8E, 0x89, 0x7E, 0xFF);
+    static readonly Color ColBumpEdge   = new Color32(0x58, 0x4E, 0x3E, 0xFF);
+
     static readonly Color ColBoostPad   = new Color32(0x2E, 0x4C, 0x7A, 0xFF);
     static readonly Color ColBoostArrow = new Color32(0xFF, 0xD1, 0x3C, 0xFF);
 
@@ -169,12 +180,221 @@ public class TrackBuilder : MonoBehaviour
         BuildSurface();
         BuildStartLine();
         if (raceFurniture) BuildBoostPads();
+        if (raceFurniture) BuildLapHazards();
         BuildAdBoards(built);
         BuildAdSigns(built);
         BuildDebris(built);
         BuildCargo(built);
         BuildFinishArch(built);
         if (raceFurniture) BuildCheckpoints();
+    }
+
+    // ------------------------------------------------------------------
+    //  바퀴마다 달라지는 노면 — 2바퀴 물기둥 · 3바퀴 울퉁불퉁
+    // ------------------------------------------------------------------
+    /// <summary>
+    /// <b>잠기는 구간.</b> <c>(시작 t, 끝 t, 차선 왼끝, 차선 오른끝)</c>.
+    ///
+    /// 가속 발판(0.11 · 0.26 · 0.45 · 0.63 · 0.88)을 <b>하나도 안 품는다</b> —
+    /// 발판을 밟는 순간 물에 끌리면 그건 장치가 아니라 사고야.
+    ///
+    /// 차선을 섞는다. <b>네 곳이 다 전폭이면 «피할 수 없는 벌»</b> 이고,
+    /// 다 반폭이면 한쪽으로만 달리면 그만이다. 둘을 번갈아 둬야 «길을 고른다» 가 된다.
+    /// </summary>
+    static readonly (float t0, float t1, float laneA, float laneB)[] Floods =
+    {
+        (0.150f, 0.215f, -1.00f,  0.30f),   // 서편 진입 — 왼쪽만 잠긴다
+        (0.330f, 0.395f, -1.00f,  1.00f),   // 전폭. 여긴 피할 데가 없다
+        (0.520f, 0.585f,  0.10f,  1.00f),   // 연못 옆 — 오른쪽만. 연못에서 넘친 걸로 읽힌다
+        (0.700f, 0.765f, -1.00f,  1.00f),   // 전폭
+    };
+
+    /// <summary>
+    /// 둔덕 자리. <b>«랜덤» 으로 보이되 자리는 고정</b>이다 — 매번 달라지면 외울 수가 없고,
+    /// 외울 수 없는 장애물은 실력이 아니라 운이다. 차선을 섞어서 «가운데로만 달리면 그만» 도 막는다.
+    /// </summary>
+    static readonly (float t, float lane)[] RoadBumps =
+    {
+        (0.03f, -0.25f), (0.08f,  0.32f), (0.13f,  0.00f), (0.17f, -0.38f),
+        (0.22f,  0.28f), (0.29f, -0.30f), (0.35f,  0.36f), (0.42f,  0.00f),
+        (0.50f, -0.34f), (0.53f,  0.30f), (0.60f, -0.26f), (0.66f,  0.34f),
+        (0.74f,  0.00f), (0.78f, -0.32f), (0.85f,  0.28f), (0.93f, -0.30f),
+    };
+
+    const float BumpRise = 0.065f;    // 둔덕이 노면 위로 나온 높이
+
+    /// <summary>
+    /// 2바퀴 잠긴 도로와 3바퀴 둔덕을 <b>한 번에 지어 두고 꺼 둔다.</b>
+    /// 켜고 끄는 건 <see cref="LapHazards"/> 가 한다.
+    /// </summary>
+    void BuildLapHazards()
+    {
+        var root = new GameObject("LapHazards").transform;
+        root.SetParent(built, false);
+
+        var floods = new GameObject("Floods").transform;
+        floods.SetParent(root, false);
+        for (int i = 0; i < Floods.Length; i++)
+        {
+            var (t0, t1, la, lb) = Floods[i];
+
+            var zone = new GameObject($"Flood_{i + 1}").transform;
+            zone.SetParent(floods, false);
+            zone.position = transform.position + PointOnPath((t0 + t1) * 0.5f);
+
+            // 젖은 노면 — <b>늘 깔려 있다.</b> 어디가 잠기는지 미리 보여야 길을 고를 수 있다
+            Sheet(zone, "Wet", t0, t1, la, lb, 0.018f, FlatMaterial.Get(ColWetRoad));
+
+            // 포말 — 물과 마른 길의 경계. 양 끝과 (반폭이면) 옆구리에
+            var foam = new GameObject("Foam").transform;
+            foam.SetParent(zone, false);
+            Sheet(foam, "FoamIn", t0, t0 + 0.006f, la, lb, 0.030f, FlatMaterial.Get(ColFoam));
+            Sheet(foam, "FoamOut", t1 - 0.006f, t1, la, lb, 0.030f, FlatMaterial.Get(ColFoam));
+            if (la > -0.98f || lb < 0.98f)
+            {
+                if (la > -0.98f) Sheet(foam, "FoamL", t0, t1, la, la + 0.08f, 0.030f, FlatMaterial.Get(ColFoam));
+                if (lb < 0.98f) Sheet(foam, "FoamR", t0, t1, lb - 0.08f, lb, 0.030f, FlatMaterial.Get(ColFoam));
+            }
+
+            // 물 — <b>두 겹.</b> 한 장이면 «파란 판때기» 고, 두 장이 어긋나야 «수면» 이 된다
+            var under = Sheet(zone, "Under", t0, t1, la, lb, 0.055f, FlatMaterial.Water(ColWaterDeep, 0.52f));
+            var top = Sheet(zone, "Surface", t0, t1, la, lb, 0.075f, FlatMaterial.Water(ColWater, 0.38f));
+
+            // 잠기는 판정 — 수면 높이까지만. 위로 지나가는 건 안 잡는다
+            var box = zone.gameObject.AddComponent<BoxCollider>();
+            var p0 = PointOnPath(t0);
+            var p1 = PointOnPath(t1);
+            float span = Vector3.Distance(p0, p1) + 14f;
+            box.isTrigger = true;
+            box.size = new Vector3(span, 1.0f, span);
+            box.center = new Vector3(0f, 0.5f, 0f);
+
+            var fz = zone.gameObject.AddComponent<FloodZone>();
+            fz.surface = top.transform;
+            fz.underLayer = under.transform;
+            fz.foam = foam.gameObject;
+            fz.phase = i * 1.9f;        // 네 곳이 같이 차면 «수영장» 이지 «길» 이 아니다
+        }
+        floods.gameObject.SetActive(false);
+
+        var bumps = new GameObject("Bumps").transform;
+        bumps.SetParent(root, false);
+        for (int i = 0; i < RoadBumps.Length; i++)
+        {
+            var (t, lane) = RoadBumps[i];
+            Vector3 forward = TangentOnPath(t);
+            Vector3 side = Vector3.Cross(Vector3.up, forward);
+            float width = WidthOnPath(t);
+            Vector3 at = transform.position + PointOnPath(t) + side * (lane * width * 0.5f);
+            var rot = Quaternion.LookRotation(forward, Vector3.up);
+
+            var cluster = new GameObject($"Bump_{i + 1}").transform;
+            cluster.SetParent(bumps, false);
+            cluster.SetPositionAndRotation(at, rot);
+            cluster.gameObject.AddComponent<RoadBump>();   // 카트가 «벽이 아니다» 로 읽는 표식
+
+            // 한 자리에 둘씩 — 하나만 두면 «과속방지턱» 이고, 둘이 어긋나야 «울퉁불퉁» 이 된다
+            for (int k = 0; k < 2; k++)
+            {
+                float along = (k == 0 ? -1.6f : 1.9f);
+                float off = (k == 0 ? -0.7f : 0.8f) * (i % 2 == 0 ? 1f : -1f);
+                Hump(cluster, $"Hump_{k}", at + forward * along + side * off, rot,
+                     3.0f - k * 0.5f, 2.2f, i * 7 + k);
+            }
+        }
+        bumps.gameObject.SetActive(false);
+
+        var gate = root.gameObject.AddComponent<LapHazards>();
+        gate.floods = floods.gameObject;
+        gate.bumps = bumps.gameObject;
+    }
+
+    /// <summary>
+    /// 코스를 따라 깔리는 <b>판</b>. 길이 휘어 있어서 상자 하나로는 못 덮는다 —
+    /// 네모를 늘어놓으면 코너 바깥에 쐐기 구멍이 생긴다(2026-09-15 에 길에서 겪은 그것).
+    /// 그래서 <b>경로를 따라 띠 메시</b>를 짠다.
+    /// </summary>
+    GameObject Sheet(Transform parent, string name, float t0, float t1,
+                     float laneA, float laneB, float lift, Material material)
+    {
+        int steps = Mathf.Max(2, Mathf.CeilToInt((t1 - t0) * 240f));
+        var verts = new Vector3[(steps + 1) * 2];
+        var tris = new int[steps * 6];
+        Vector3 origin = parent.position;
+
+        for (int i = 0; i <= steps; i++)
+        {
+            float t = Mathf.Lerp(t0, t1, i / (float)steps);
+            Vector3 c = transform.position + PointOnPath(t) + Vector3.up * lift;
+            Vector3 side = Vector3.Cross(Vector3.up, TangentOnPath(t));
+            float half = WidthOnPath(t) * 0.5f;
+            verts[i * 2] = c + side * (laneA * half) - origin;
+            verts[i * 2 + 1] = c + side * (laneB * half) - origin;
+        }
+        for (int i = 0; i < steps; i++)
+        {
+            int v = i * 2, k = i * 6;
+            tris[k] = v; tris[k + 1] = v + 2; tris[k + 2] = v + 1;
+            tris[k + 3] = v + 1; tris[k + 4] = v + 2; tris[k + 5] = v + 3;
+        }
+
+        var mesh = new Mesh { name = name };
+        mesh.vertices = verts;
+        mesh.triangles = tris;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = Vector3.zero;
+        go.AddComponent<MeshFilter>().sharedMesh = mesh;
+        go.AddComponent<MeshRenderer>().sharedMaterial = material;
+        return go;
+    }
+
+    /// <summary>
+    /// 둔덕 하나. <b>부딪히는 건 완만한 돔, 보이는 건 깨져 솟은 포석</b>이다.
+    ///
+    /// 돔만 두면 «유니티 기본 구» 로 보인다(유저: *"레고 느낌"*). 그렇다고 기울어진 판을
+    /// 콜라이더로 쓰면 모서리가 서서 카트가 걸린다. <b>물리는 돔, 그림은 판</b>으로 가른다 —
+    /// 카트 그림을 껍데기 안에 넣는 것과 같은 규칙이야.
+    ///
+    /// ★ 구 프리미티브의 <c>SphereCollider</c> 를 그대로 두면 안 된다. 비균등 스케일에서
+    /// 반지름이 <b>제일 큰 축</b>으로 잡혀서 길 한가운데 거대한 공이 생긴다
+    /// (CLAUDE.md 의 «납작하게 누른 캡슐» 과 같은 함정).
+    /// </summary>
+    void Hump(Transform parent, string name, Vector3 at, Quaternion rot, float wide, float longways, int seed)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        go.name = name;
+        go.transform.SetParent(parent, true);
+        go.transform.SetPositionAndRotation(at + Vector3.up * (BumpRise - 0.16f), rot);
+        go.transform.localScale = new Vector3(wide, 0.32f, longways);
+        go.GetComponent<Renderer>().sharedMaterial = FlatMaterial.Get(ColBumpSoil);
+        go.isStatic = true;
+
+        var sphere = go.GetComponent<SphereCollider>();
+        if (sphere != null) Discard(sphere);
+        var mesh = go.AddComponent<MeshCollider>();
+        mesh.sharedMesh = go.GetComponent<MeshFilter>().sharedMesh;
+
+        // 깨져 솟은 포석 — 같은 돔 위에 <b>기울어진 판 넷</b>. 전부 콜라이더 없음.
+        var rng = new System.Random(seed * 977 + 13);
+        float Next(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+        for (int k = 0; k < 4; k++)
+        {
+            float u = Next(-0.34f, 0.34f), v = Next(-0.34f, 0.34f);
+            Vector3 c = at + rot * new Vector3(u * wide, 0f, v * longways);
+            float rise = BumpRise * (1f - (Mathf.Abs(u) + Mathf.Abs(v)));
+            var tilt = rot * Quaternion.Euler(Next(-16f, 16f), Next(-40f, 40f), Next(-16f, 16f));
+            Block(parent, $"{name}_Slab{k}", c + Vector3.up * Mathf.Max(0.02f, rise), tilt,
+                  new Vector3(Next(0.8f, 1.5f), 0.07f, Next(0.7f, 1.3f)),
+                  k % 2 == 0 ? ColBumpSlab : ColBumpSlabAlt, noCollider: true);
+        }
+
+        // 가장자리 — 어디가 솟았는지 눈에 들어와야 피할 수 있다
+        Block(parent, name + "_Edge", at + Vector3.up * 0.012f, rot,
+              new Vector3(wide * 1.06f, 0.02f, longways * 1.06f), ColBumpEdge, noCollider: true);
     }
 
     // ------------------------------------------------------------------
@@ -647,8 +867,17 @@ public class TrackBuilder : MonoBehaviour
                   new Vector3(6.4f, 3.0f, 0.22f), ColAdGold, noCollider: true);
             // 폭을 판(6.4)보다 <b>조금 좁게</b> 잡는다. 딱 맞추면 좌우 옆면이 판의 옆면과 같은
             // 평면이 되어 그 모서리가 금색·자홍색으로 번쩍거린다 — 벽 경고 띠와 같은 병이야.
-            Block(board, "Stripe", at + Vector3.up * 3.05f + facing * Vector3.forward * -0.14f, facing,
-                  new Vector3(6.28f, 0.8f, 0.1f), ColAdMagenta, noCollider: true);
+            // 포스터. 2026-09-30 에 받은 그림이 <b>1832 × 859 = 비율 2.133</b> 인데
+            // 판(6.4 × 3.0)이 정확히 같은 비율이라 <b>판을 꽉 채운다</b> — 늘어나지도, 여백도 없다.
+            // ★ 간판의 앞면은 <b>+z</b> 다. at 이 코스 <b>바깥</b>으로 밀린 자리고
+            // facing 은 −across(=코스 쪽)를 보니까, facing 의 +z 가 곧 코스 쪽이다.
+            // 2026-09-30 까지 −0.14 로 두어 <b>포스터가 판 뒤에 숨어 있었다</b> —
+            // 트랙에서는 «그림이 없다», 캠퍼스에서는 «뒤에서 본 거울상» 으로 보였다.
+            Poster(board, "Poster", at + Vector3.up * 4.1f + facing * new Vector3(0f, 0f, 0.14f),
+                   facing, new Vector2(6.1f, 2.86f), "GoldenBear");
+
+            // 자홍 띠는 뺐다 — 포스터가 판을 덮어서 어디에 둬도 겹친다.
+            // 기획서 §4.4 의 «금색 + 자홍» 은 포스터 자체가 이미 입고 있다.
             Block(board, "Frame", at + Vector3.up * 5.7f, facing,
                   new Vector3(6.9f, 0.34f, 0.34f), ColAdFrame, noCollider: true);
 
@@ -861,12 +1090,12 @@ public class TrackBuilder : MonoBehaviour
 
             Block(art, "Panel", at + facing * new Vector3(0f, 2f, 0f), facing,
                   new Vector3(2.2f, 2.2f, 0.09f), ColAdGold, noCollider: true);
-            // 띠와 마크는 <b>코스 쪽(+z)</b>으로 나와야 보인다. 간판의 +z 가 코스 가운데를 향한다.
-            // 폭도 판(1.3)보다 좁게 — 딱 맞추면 좌우 모서리가 같은 평면이 되어 번쩍거린다.
-            Block(art, "Stripe", at + facing * new Vector3(0f, 1.15f, 0.07f), facing,
-                  new Vector3(2.1f, 0.3f, 0.06f), ColAdMagenta, noCollider: true);
-            Block(art, "Mark", at + facing * new Vector3(0f, 2.25f, 0.07f), facing,
-                  new Vector3(0.85f, 0.85f, 0.06f), ColAdMagenta, noCollider: true);
+            // 포스터가 <b>코스 쪽(+z)</b>으로 나와야 보인다. 간판의 +z 가 코스 가운데를 향한다.
+            // 2026-09-17 에 판을 1.3 → 2.2 로 넓힌 게 <b>바로 이걸 붙이려고</b>였다.
+            // 그림이 1254 × 1254 <b>정사각</b>이라 판(2.2)을 거의 꽉 채운다.
+            // 자홍 띠는 뺐다 — 포스터가 그 자리를 덮는다.
+            Poster(art, "Poster", at + facing * new Vector3(0f, 2f, 0.07f), facing,
+                   new Vector2(2.0f, 2.0f), "GoldenBear_Sq");
         }
     }
 
@@ -1011,6 +1240,81 @@ public class TrackBuilder : MonoBehaviour
     }
 
     // ------------------------------------------------------------------
+    static readonly Dictionary<string, Material> posterMats = new();
+
+    /// <summary>
+    /// 그림이 붙은 얇은 판. 골든베어 광고에 쓴다.
+    ///
+    /// 왜 <see cref="Block"/> 위에 따로 얹는가 — 광고판 몸통은 금색 <b>단색</b>이라
+    /// 그 머티리얼은 <see cref="FlatMaterial"/> 이 <b>여러 물건과 나눠 쓴다.</b>
+    /// 거기에 텍스처를 꽂으면 담장·석등까지 골든베어 포스터가 된다.
+    ///
+    /// ★★ <b>큐브를 쓰지 않는다.</b> 유니티 기본 큐브의 UV 가 면마다 어느 쪽으로 붙는지는
+    /// 짐작할 수밖에 없고, 실제로 그림이 <b>좌우로 뒤집혀</b> 나왔다(2026-09-30 유저 신고).
+    /// 대신 <b>쿼드를 직접 만들어 UV 를 내가 박는다</b> — 따라 그리기 화판에서 이미 쓴 방법이다.
+    ///
+    /// 로컬 +z 가 <b>보는 사람 쪽</b>이고, 그 사람에게 <b>화면 오른쪽은 로컬 −x</b> 다
+    /// (유니티는 왼손 좌표계라 Cross(up, 시선) 이 오른쪽인데 시선이 −z 다).
+    /// 그래서 u 는 −x 로, v 는 +y 로 자란다. 와인딩은 앞을 보는 쪽이 시계방향이라
+    /// (3,2,1)(3,1,0) — 계산하면 법선이 정확히 +z 로 나온다.
+    /// </summary>
+    GameObject Poster(Transform parent, string name, Vector3 position, Quaternion rotation,
+                      Vector2 size, string texture)
+    {
+        if (!posterMats.TryGetValue(texture, out var mat) || mat == null)
+        {
+            var tex = Resources.Load<Texture2D>("Ads/" + texture);
+            mat = new Material(Surface.Lit()) { name = "Ad_" + texture };
+            if (tex != null)
+            {
+                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+                if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
+            }
+            else
+            {
+                Debug.LogWarning($"[광고] Resources/Ads/{texture} 이 없다 — 금색 판으로 둔다.");
+            }
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.22f);
+            if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.22f);
+            posterMats[texture] = mat;
+        }
+
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, true);
+        go.transform.SetPositionAndRotation(position, rotation);
+        go.AddComponent<MeshFilter>().sharedMesh = PosterQuad(size);
+        go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+        go.isStatic = true;
+        return go;
+    }
+
+    static readonly Dictionary<Vector2, Mesh> posterQuads = new();
+
+    /// <summary>
+    /// 포스터 한 장짜리 쿼드. 같은 크기는 한 번만 만든다.
+    /// </summary>
+    static Mesh PosterQuad(Vector2 size)
+    {
+        if (posterQuads.TryGetValue(size, out var got) && got != null) return got;
+
+        float hx = size.x * 0.5f, hy = size.y * 0.5f;
+        var mesh = new Mesh { name = $"Poster_{size.x:0.##}x{size.y:0.##}" };
+        mesh.vertices = new[]
+        {
+            new Vector3( hx, -hy, 0f),   // 화면 왼쪽 아래
+            new Vector3(-hx, -hy, 0f),   // 화면 오른쪽 아래
+            new Vector3(-hx,  hy, 0f),   // 화면 오른쪽 위
+            new Vector3( hx,  hy, 0f),   // 화면 왼쪽 위
+        };
+        mesh.uv = new[] { new Vector2(0f, 0f), new Vector2(1f, 0f),
+                          new Vector2(1f, 1f), new Vector2(0f, 1f) };
+        mesh.normals = new[] { Vector3.forward, Vector3.forward, Vector3.forward, Vector3.forward };
+        mesh.triangles = new[] { 3, 2, 1, 3, 1, 0 };
+        mesh.RecalculateBounds();
+        posterQuads[size] = mesh;
+        return mesh;
+    }
+
     GameObject Block(Transform parent, string name, Vector3 position, Quaternion rotation,
                      Vector3 scale, Color color, bool noCollider = false)
     {

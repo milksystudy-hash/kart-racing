@@ -114,6 +114,20 @@ public static class StoryScript
         //  ※ 여기서 «못 이기면 증거도 소용없다» 가 깔려야 결승이 무게를 가진다
         //  ※ 무인 모형 카트다 — 타는 얘기 금지. 저쪽도 조종기를 든다
         // ══════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════
+        //  제4장 (§2.5) — 마지막 실사 전야
+        //   · 증거가 일곱 개. 하나만 더 모으면 들이밀 수 있다
+        //   · 저쪽도 눈치챘다 — 마지막 실사는 트집을 잡으려고 온다
+        //  ※ 여기서 «다음 한 판이 마지막 임무» 라는 게 깔려야 결승이 산다
+        // ══════════════════════════════════════════════════════════════
+        new Scene { id = "ch4", title = "제4장 · 마지막 실사", lines = new[]
+        {
+            Narrate("철거 전날 밤 · 중앙홀"),
+            Say("시우", "일곱 개. 하나만 더야."),
+            Say("세진", Mood.기쁨, "그럼 내일 한 바퀴만 더 돌면 되는 거네."),
+            Say("이감", Mood.당황, "저쪽도 그걸 알 텐데."),
+        }},
+
         new Scene { id = "final_before", title = "결승 · 여덟 개의 증거", lines = new[]
         {
             Narrate("시청 앞 · 생중계"),
@@ -199,6 +213,12 @@ public static class StoryScript
         1 => "ch1",
         2 => "ch2",
         3 => "ch3",
+        // ★★ 2026-10-01 유저: *"수집품 7개인데 T 를 누르면 처음 대화가 나온다."*
+        //   <b>4장에 걸린 장면이 «epilogue» 뿐이었다.</b> 그런데 에필로그는 결승을 깨야
+        //   나오는 것이라 아래 <see cref="CurrentScene"/> 가 빈 문자열로 막았고,
+        //   그러면 T 는 «고를 게 없다» 며 프롤로그로 떨어진다 — 그게 «처음 대화» 다.
+        //   <b>7~8개 구간에도 제 장면이 있어야 한다.</b> 에필로그는 결승 뒤에만.
+        4 => "ch4",
         _ => "epilogue",
     };
 
@@ -231,6 +251,13 @@ public static class StoryScript
 
         // 여덟 개를 다 모았고 아직 결승 전이면 «증거를 들이미는» 장면.
         if (GrandFinal.Available) return "final_before";
+
+        // ★ <b>판마다 장면을 둘 수 있다</b>(2026-10-01). 위의 <c>All</c> 에
+        //   <c>id = "after3"</c> 같은 장면을 적어 두면 <b>3판을 깬 직후</b>에 나온다.
+        //   없으면 아무 일도 안 일어난다 — 쓰고 싶은 판에만 쓰면 된다.
+        //   장 단위(두 판에 하나)로는 «한 판 깼는데 아무 말이 없다» 가 생긴다.
+        string perRace = $"after{CollectionState.Count}";
+        if (!StoryProgress.HasSeen(perRace) && TryFind(perRace, out _)) return perRace;
 
         string byChapter = SceneForChapter(StoryProgress.CurrentChapter);
 

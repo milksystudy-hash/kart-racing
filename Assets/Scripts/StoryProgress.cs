@@ -42,12 +42,21 @@ public static class StoryProgress
             // ★ 기본값이 <b>1</b> 이었다. 새로 깐 사람은 장 1 로 시작해서
             // `SceneForChapter(1)` = "ch1" 이 나오고 <b>프롤로그를 영영 못 본다.</b>
             // 0 이어야 «철거 통지서» 부터 시작한다.
+            // ★★ 2026-10-01 — <b>수집 기록만 본다.</b> 유저: *"미션을 깨고도 게임을 껐다
+            // 다시 들어가야 이야기를 볼 수 있다."*
+            //
+            // 전에는 <c>Min(저장값, ChapterFor(수집))</c> 이었다. 저장값은
+            // <see cref="AdvanceChapter"/> 로만 올라가는데, 그걸 부르는 조건이
+            // «그 장의 전시품이 전부 들어왔을 때» 였다. 그런데 <see cref="ExhibitCatalogue"/> 의
+            // <c>chapterIndex</c> 는 <b>모으는 순서와 다르다</b> — 프롤로그 몫인 조감도가
+            // 여덟 번째라, <b>장 0 은 8판을 깰 때까지 안 끝난다.</b>
+            // 그래서 저장값이 0 에 묶이고 <c>Min</c> 이 그걸 그대로 돌려줘서
+            // 한 판을 깨도 «프롤로그»(이미 본 것)만 나왔다 — 아무 것도 안 뜬 이유야.
+            //
+            // <b>같은 것을 두 군데 저장하면 반드시 어긋난다</b>(2026-09-28 에 적어 둔 것).
+            // 수집 기록이 진실이고, 장 번호는 거기서 <b>나오기만</b> 하면 된다.
             cached ??= PlayerPrefs.GetInt(PrefsKey, Prologue);
-            int saved = Mathf.Clamp(cached.Value, Prologue, FinalChapter);
-
-            // 저장값이 수집 기록보다 앞서가 있으면 끌어내린다. 어떤 경로로 어긋나도
-            // <b>스스로 낫는다</b> — 물건이 스스로 판단할 수 있게 만들어라(2026-09-17).
-            return Mathf.Min(saved, ChapterFor(CollectionState.Count));
+            return ChapterFor(CollectionState.Count);
         }
         set
         {

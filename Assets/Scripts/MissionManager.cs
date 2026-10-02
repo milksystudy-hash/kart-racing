@@ -53,7 +53,7 @@ public class MissionManager : MonoBehaviour
     // <b>발판을 써야 겨우 되는 선</b>으로 내리는 게 맞아 — 그래야 발판이 보상이 된다.
     // 이건 계산값이다. 실제로 달려서 재면 그 숫자로 다시 조일 것.
     [Tooltip("제한시간 임무의 제한(초). 발판 쓴 한 판이 ~87초")]
-    public float timeLimit = 96f;
+    public float timeLimit = 94f;
 
     [Tooltip("빠른랩 임무에서 한 바퀴를 몇 초 안에. 535m 기준 (지금은 안 쓴다 — 광고판으로 바뀜)")]
     public float lapLimit = 38f;
@@ -79,7 +79,7 @@ public class MissionManager : MonoBehaviour
 
     // 제한시간(96)보다 조금 넉넉하다 — 담장을 안 긁으려면 코너에서 어차피 늦어지니까.
     [Tooltip("완벽 임무의 제한(초). 무충돌까지 같이 지켜야 한다")]
-    public float perfectTimeLimit = 106f;
+    public float perfectTimeLimit = 102f;
 
     public bool Failed { get; private set; }
     public bool Cleared { get; private set; }

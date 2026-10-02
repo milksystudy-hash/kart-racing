@@ -14,8 +14,10 @@ using UnityEngine;
 /// </summary>
 public static class BuildGame
 {
-    const string OutDir  = "Build/환웅박물관_최후의_그랑프리";
-    const string ExeName = "환웅박물관_최후의_그랑프리.exe";
+    // 2026-09-30 유저가 제목을 정했다 — <see cref="TitleScreen.GameTitle"/> 과 같은 이름이어야
+    // 받아 보는 사람이 exe 와 첫 화면을 같은 게임으로 읽는다.
+    const string OutDir  = "Build/철거까지_여덟_바퀴";
+    const string ExeName = "철거까지_여덟_바퀴.exe";
 
     [MenuItem("Racing/윈도우 빌드 뽑기")]
     public static void Build()

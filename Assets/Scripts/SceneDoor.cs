@@ -79,6 +79,21 @@ public class SceneDoor : MonoBehaviour
     public void Enter()
     {
         if (sceneIndex < 0) return;
-        SceneNavigator.LoadByIndex(sceneIndex);
+
+        // ★ 문이 있으면 <b>열고 나서</b> 넘어간다(2026-10-01 유저: *"로비 캠퍼스·전시실 문 좀 열어줘"*).
+        //   닫힌 문 앞에서 화면만 바뀌면 «문» 이 아니라 «버튼» 이다 — 열리는 걸 보고
+        //   그 사이로 넘어가야 들어간 게 된다. 문이 없는 씬(전시실의 궤도 카메라)에서는
+        //   그냥 바로 넘어간다.
+        var hinge = GetComponent<HingedDoor>();
+        if (hinge != null && !hinge.Open && !hinge.Barred)
+        {
+            hinge.Toggle();
+            CancelInvoke(nameof(Go));
+            Invoke(nameof(Go), 0.55f);
+            return;
+        }
+        Go();
     }
+
+    void Go() => SceneNavigator.LoadByIndex(sceneIndex);
 }

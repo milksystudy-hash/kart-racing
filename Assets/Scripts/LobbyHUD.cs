@@ -44,6 +44,7 @@ public class LobbyHUD : MonoBehaviour
             if (SceneDoor.Nearest != null) SceneDoor.Nearest.Enter();
             else if (HingedDoor.Nearest != null) HingedDoor.Nearest.Toggle();
             else if (DeskClock.Nearest != null) { /* 시계가 직접 연다 */ }
+            else if (NearStand() is CharacterStand pick) Choose(pick);
             else if (BearNpc.Nearest != null) BearNpc.Nearest.Talk();
         }
     }
@@ -73,14 +74,23 @@ public class LobbyHUD : MonoBehaviour
         if (walking) style.normal.textColor = Hud.Brass;
 
         // 시계 앞에서는 «E 말 걸기» 가 거짓말이 된다 — 그 자리의 E 는 시계가 먹는다.
+        // 받침대 앞에서는 «E 말 걸기» 가 거짓말이 된다 — 그 자리의 E 는 캐릭터 고르기가 먹는다.
+        var stand = NearStand();
         string chipText = !walking ? "TAB 걸어다니기"
-                        : DeskClock.Nearest != null ? "TAB 둘러보기로"
+                        : (DeskClock.Nearest != null || stand != null) ? "TAB 둘러보기로"
                         : "TAB 둘러보기로   ·   E 말 걸기";
         GUI.Label(chip, chipText, style);
 
         // ★ 접수대 시계 앞에 서면 그 자리에서 알려준다.
         // <b>키가 있어도 화면에 없으면 없는 것이다</b> — 이 프로젝트에서 세 번째야(G, TAB, 이번).
-        if (walking && DeskClock.Nearest != null)
+        if (walking && stand != null)
+        {
+            var big = Hud.Resize(Hud.Text, 17, TextAnchor.MiddleCenter);
+            big.normal.textColor = Hud.Brass;
+            var hint = new Rect(chip.x - 60f, chip.y - 30f, chip.width + 60f, 24f);
+            GUI.Label(hint, $"E   {stand.Label} 고르기", big);
+        }
+        else if (walking && DeskClock.Nearest != null)
         {
             var hint = new Rect(w * 0.5f - 110f, h - 92f, 220f, 26f);
             Hud.Chip(hint);
@@ -204,6 +214,45 @@ public class LobbyHUD : MonoBehaviour
         GUI.Label(new Rect(area.x + 12f, area.y, area.width - 16f, area.height), Toast.Message, text);
     }
 
+    // ---- 걸어가서 캐릭터 고르기 ----
+
+    /// <summary>받침대까지 걸어갈 수 있는 거리. 받침대 지름 1.9m 라 한 걸음 앞.</summary>
+    const float StandReach = 2.9f;
+
+    /// <summary>
+    /// 걷기 모드에서 <b>지금 고를 수 있는 받침대</b>. 2026-10-01 유저:
+    /// *"캡슐 선택하면 레이스 들어갈 권리도 생기고."*
+    ///
+    /// 둘러보기에서는 마우스로 받침대를 누르는데, 걷는 동안에는
+    /// <see cref="LobbySelector"/> 가 꺼져 있어서 <b>고를 방법이 아예 없었다.</b>
+    /// 캠퍼스가 쓰는 <see cref="Reach"/> 와 같은 자(거리 × 각도 벌점)로 고른다 —
+    /// 받침대 여섯이 반원으로 서 있어서 <b>거리만 보면 옆 자리가 이긴다.</b>
+    /// </summary>
+    CharacterStand NearStand()
+    {
+        if (walk == null || !walk.Walking) return null;
+        if (selector == null || selector.stands == null) return null;
+
+        var who = walk.player != null ? walk.player.transform : null;
+        if (who == null || !who.gameObject.activeInHierarchy) return null;
+
+        CharacterStand best = null;
+        float bestScore = float.MaxValue;
+        foreach (var stand in selector.stands)
+        {
+            if (stand == null || !stand.Selectable) continue;
+            if (!Reach.Score(who, stand.transform.position, StandReach, out float d)) continue;
+            if (d < bestScore) { bestScore = d; best = stand; }
+        }
+        return best;
+    }
+
+    void Choose(CharacterStand stand)
+    {
+        selector.ChooseByWalk(stand);
+        Toast.Show($"{stand.Label}   —   이 카트로 달린다");
+    }
+
     // ---- 말 걸기 버튼 ★임시 ----
     /// <summary>제일 가까운 곰 한 마리에게만 뜬다. 셋이 몰려 있을 때 누구한테 거는지 헷갈리면 안 된다.</summary>
     void DrawTalkPrompt(float w, float h)
@@ -220,6 +269,7 @@ public class LobbyHUD : MonoBehaviour
         // 곰이 지나가는 건 <b>내가 못 정하는 일</b>이라(순찰한다) 시계 쪽을 이기게 두면
         // 같은 자리에서 결과가 매번 달라진다. <b>고정된 물건이 이긴다.</b>
         if (DeskClock.Nearest != null) return;
+        if (NearStand() != null) return;   // 받침대가 잡혔으면 그 자리의 E 는 캐릭터 고르기다
 
         var chip = new Rect(w * 0.5f - 62f, h * 0.72f, 124f, 28f);
         Hud.Chip(chip);
@@ -279,7 +329,7 @@ public class LobbyHUD : MonoBehaviour
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 146f, 400f, 292f);
+        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 168f, 400f, 336f);
         Hud.Panel(box);
 
         GUI.Label(new Rect(box.x, box.y + 14f, box.width, 24f), "조작법", Hud.Title);
@@ -293,10 +343,10 @@ public class LobbyHUD : MonoBehaviour
             {
                 { "WASD", "걷기 (SHIFT 뛰기)" },
                 { "마우스", "둘러보기" },
-                { "E", "문으로 들어가기 · 곰에게 말 걸기" },
-                { "TAB", "돌아가서 카트 고르기" },
+                { "E", "문 · 곰에게 말 걸기 · 받침대에서 카트 고르기" },
+                { "TAB", "돌아가서 둘러보기" },
+                { "−  =", "음악 줄이기 · 키우기" },
                 { "H", "이 창 닫기" },
-                { "", "" },
             }
             : new[,]
             {
@@ -305,12 +355,13 @@ public class LobbyHUD : MonoBehaviour
                 { "휠", "가까이 · 멀리" },
                 { "클릭", "카트 고르기 / 출발문 열기" },
                 { "TAB", "걸어다니기" },
+                { "−  =", "음악 줄이기 · 키우기" },
                 { "H", "이 창 닫기" },
             };
         Rows(box, controls, box.y + 50f);
 
-        Hud.Rule(box.x + 20f, box.y + 168f, box.width - 40f);
-        GUI.Label(new Rect(box.x, box.y + 174f, box.width, 22f), "카트 항목", Hud.Resize(Hud.Title, 15));
+        Hud.Rule(box.x + 20f, box.y + 194f, box.width - 40f);
+        GUI.Label(new Rect(box.x, box.y + 200f, box.width, 22f), "카트 항목", Hud.Resize(Hud.Title, 15));
 
         // 무슨 일이 일어나는지를 적는다. 어느 카트가 좋다는 말은 여기에도 안 쓴다.
         string[,] spec =
@@ -320,7 +371,7 @@ public class LobbyHUD : MonoBehaviour
             { "출발",   "멈췄다 붙을 때 빠르다" },
             { "코너",   "높으면 안 미끄러지고 낮으면 잘 돈다" },
         };
-        Rows(box, spec, box.y + 200f);
+        Rows(box, spec, box.y + 226f);
     }
 
     void Rows(Rect box, string[,] rows, float top)
