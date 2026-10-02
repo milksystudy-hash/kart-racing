@@ -56,7 +56,21 @@ public class DialogueRunner : MonoBehaviour
     public string CurrentText => Current.text ?? "";
 
     /// <summary>지금까지 드러난 글자 수. HUD 가 이만큼만 보이게 그린다.</summary>
+    /// <summary>
+    /// 지금까지 드러난 글자 수.
+    ///
+    /// ★★ 2026-10-02 유저: *"두 번 클릭하면 대사가 아예 빈 공간이 된다."*
+    /// <c>revealed</c> 에 <c>float.MaxValue</c> 를 넣었는데
+    /// <b><see cref="Mathf.FloorToInt"/> 는 int 범위를 넘으면 int.MinValue 를 돌려준다.</b>
+    /// 그걸 Clamp 하면 0 — <b>글자 0개 = 빈칸</b>이 된다.
+    /// 다시 한 번 누르면 다음 줄로 넘어가면서 정상으로 보이고, 또 두 번 누르면 또 빈칸.
+    ///
+    /// 큰 수를 쓰지 말고 <b>«다 보여줘» 는 글자 수를 그대로</b> 넣는다.
+    /// </summary>
     public int RevealedCount => Mathf.Clamp(Mathf.FloorToInt(revealed), 0, CurrentText.Length);
+
+    /// <summary>타자를 건너뛰고 그 줄을 통째로 보여준다.</summary>
+    void RevealAll() => revealed = CurrentText.Length;
 
     public bool LineFullyShown => RevealedCount >= CurrentText.Length;
 
@@ -108,8 +122,9 @@ public class DialogueRunner : MonoBehaviour
     void Step()
     {
         index++;
-        revealed = charsPerSecond > 0f ? 0f : float.MaxValue;
         lineAt = Time.unscaledTime;
+        revealed = 0f;
+        if (charsPerSecond <= 0f) RevealAll();   // 타자를 끈 설정이면 바로 다 보여준다
 
         if (index < lines.Count)
         {
@@ -173,7 +188,7 @@ public class DialogueRunner : MonoBehaviour
 
         if (again && IsPlaying && !LineFullyShown)
         {
-            revealed = float.MaxValue;
+            RevealAll();
             return;
         }
 

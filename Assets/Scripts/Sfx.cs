@@ -34,11 +34,16 @@ public class Sfx : MonoBehaviour
     }
 
     /// <summary><c>Assets/Resources/Sfx/</c> 의 파일 이름. 없으면 <b>조용히 넘어간다.</b></summary>
-    public static void Play(string name, float gain = 1f)
+    public static void Play(string name, float gain = 1f, bool duckMusic = true)
     {
         if (live == null || live.source == null) return;
         var clip = Resources.Load<AudioClip>("Sfx/" + name);
         if (clip == null) return;
+
+        // ★ 말소리·알림이 나는 동안 음악이 비켜 준다(2026-10-02).
+        //   소리 길이 + 0.35초 — 꼬리가 사라지기 전에 음악이 올라오면 묻힌다.
+        if (duckMusic) Music.Duck(clip.length + 0.35f);
+
         live.source.PlayOneShot(clip, Mathf.Clamp01(Music.Volume * 1.7f) * Mathf.Clamp01(gain));
     }
 }

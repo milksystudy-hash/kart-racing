@@ -475,7 +475,8 @@ public class BearNpc : MonoBehaviour
         if (count > 1 && pick == lastVoice) pick = (pick + 1) % count;
         lastVoice = pick;
 
-        Sfx.Play(prefix + (pick + 1), deep ? 1f : 0.85f);
+        // 말소리는 음악보다 또렷해야 한다. 음악이 더킹으로 비켜 주니 1.0 으로 둬도 안 시끄럽다.
+        Sfx.Play(prefix + (pick + 1), 1f);
     }
 
     public void Talk()

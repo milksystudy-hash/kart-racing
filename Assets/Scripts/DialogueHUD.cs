@@ -456,15 +456,6 @@ public class DialogueHUD : MonoBehaviour
 
     void DrawFooter(Rect box)
     {
-        // CTRL 안내. 이 프로젝트에서 «키가 있어도 화면에 없으면 없는 것» 을 세 번 겪었다.
-        if (runner != null && runner.IsPlaying)
-        {
-            var ff = new GUIStyle(hintStyle) { alignment = TextAnchor.MiddleLeft, fontSize = 12 };
-            ff.normal.textColor = new Color(0.78f, 0.74f, 0.66f, 0.55f);
-            GUI.Label(new Rect(box.x + 18f, box.y - 24f, 240f, 20f),
-                      "두 번 누르면 한꺼번에", ff);
-        }
-
         var foot = new Rect(box.x + 20f, box.yMax - 28f, box.width - 40f, 22f);
 
         // ★ 쪽 번호(23/124)를 뺐다(2026-10-02 유저). 읽는 사람에게 «앞으로 101줄 남았다» 는

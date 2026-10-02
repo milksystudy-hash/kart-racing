@@ -81,6 +81,37 @@ public class Music : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// <b>말소리가 나는 동안 음악을 낮춘다.</b>
+    ///
+    /// 2026-10-02 유저: *"배경음악이 너무 커서 배관공들 소리가 잘 안 들려."*
+    /// 음악을 통째로 낮추면 <b>조용한 게임</b>이 되고, 효과음만 올리면 거슬린다.
+    /// 방송에서 쓰는 방법이 <b>더킹</b>이다 — 말이 나올 때만 음악이 비켜 준다.
+    /// 끝나면 천천히 돌아오니 음악이 꺼진 줄 모르고, 말은 또렷하게 들린다.
+    /// </summary>
+    const float DuckTo = 0.34f;
+
+    static float duckUntil = -99f;
+
+    /// <summary>이만큼 음악을 비켜 준다. 소리 길이보다 조금 길게 준다.</summary>
+    public static void Duck(float seconds) =>
+        duckUntil = Mathf.Max(duckUntil, Time.unscaledTime + seconds);
+
+    /// <summary>지금 음악에 곱할 값. 눌릴 때는 빠르게, 돌아올 때는 천천히.</summary>
+    static float ducked = 1f;
+
+    static float Ducked
+    {
+        get
+        {
+            bool down = Time.unscaledTime < duckUntil;
+            float want = down ? DuckTo : 1f;
+            float speed = down ? 7f : 1.6f;   // 비키는 건 빠르게, 돌아오는 건 천천히
+            ducked = Mathf.MoveTowards(ducked, want, speed * Time.unscaledDeltaTime);
+            return ducked;
+        }
+    }
+
     static Music live;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -122,7 +153,7 @@ public class Music : MonoBehaviour
         if (want != playing) Swap(want);
 
         var cur = deck[front];
-        float target = Volume * gain;
+        float target = Volume * gain * Ducked;
 
         // 끝나기 전에 다음 바퀴를 겹쳐 튼다
         if (cur.clip != null && cur.isPlaying && !string.IsNullOrEmpty(playing)
