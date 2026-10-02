@@ -59,6 +59,16 @@ public class TestHUD : MonoBehaviour
     void Update()
     {
         var k = Keyboard.current;
+
+        // ★ 획득 연출이 떠 있는 동안에는 <b>다른 키가 하나도 안 먹는다.</b>
+        //   여기서 ENTER 가 «다시 하기» 로 새면 연출을 보기도 전에 판이 다시 시작한다.
+        if (ItemReveal.Open)
+        {
+            if (k != null && k.anyKey.wasPressedThisFrame) ItemReveal.Dismiss();
+            KartInput.Clear();
+            return;
+        }
+
         if (k == null) return;
 
         // ★ 브리핑 카드가 떠 있으면 <b>그 카드만</b> 듣는다. 다른 키가 같이 먹으면
@@ -168,11 +178,97 @@ public class TestHUD : MonoBehaviour
         // 두 장이 겹쳐서 어느 쪽 글씨인지 알 수가 없다(2026-09-18 유저 제보).
         // 브리핑이 제일 앞이다 — 이게 떠 있는 동안은 아직 아무 판도 시작 안 했다.
         if (RaceBriefing.Open) DrawBriefing(w, h);
+        // ★ 획득 연출이 완주 패널보다 앞이다 — 결승선을 넘은 그 순간에 뜨니까,
+        //   뒤에 성적표가 같이 보이면 «찾았다» 가 «몇 등이더라» 에 묻힌다.
+        else if (ItemReveal.Open) DrawReveal(w, h);
         else if (confirmQuit) DrawQuitAsk(w, h);
         else if (InKart && tracker != null && tracker.Finished) DrawFinish(w, h);
         else if (InKart && mission != null && mission.Failed) DrawFailed(w, h);
 
         Hud.End();
+    }
+
+    /// <summary>
+    /// <b>증거 하나를 찾았다.</b> 결승선을 넘는 순간 한 번 뜬다(<see cref="ItemReveal"/>).
+    ///
+    /// 쓰는 것은 셋뿐이고 전부 <see cref="Hud"/> 의 기존 재료다 —
+    /// <b>어둠 · 빛줄기 · 나무 판에 붙은 종이.</b> 새 에셋이 0개야.
+    ///
+    /// ★ <b>빛줄기는 가운데에서 «벌어진다».</b> 그냥 번쩍이면 «화면이 깜빡했다» 지만
+    /// 중심에서 뻗어 나오면 <b>«저기서 뭔가 나왔다»</b> 가 된다 — 축제 장식을 위에서
+    /// 내려오게 한 것과 같은 판단(2026-09-18).
+    /// </summary>
+    void DrawReveal(float w, float h)
+    {
+        float burst = ItemReveal.Burst;
+        float settle = ItemReveal.Settle;
+
+        // 1) 어둠 — 번쩍이는 동안 빠르게 덮고 그대로 둔다
+        Hud.Fill(new Rect(0f, 0f, w, h), new Color(0.04f, 0.035f, 0.03f, 0.78f * burst));
+
+        var centre = new Vector2(w * 0.5f, h * 0.42f);
+
+        // 2) 빛줄기 — 중심에서 열두 갈래. 벌어지면서 옅어진다
+        var keep = GUI.matrix;
+        float reach = Mathf.Lerp(0f, Mathf.Max(w, h) * 0.75f, Mathf.Sqrt(burst));
+        for (int i = 0; i < 12; i++)
+        {
+            float a = (1f - burst * 0.55f) * (i % 2 == 0 ? 0.26f : 0.15f) * (1f - settle * 0.45f);
+            if (a <= 0.004f) continue;
+
+            GUI.matrix = keep;
+            GUIUtility.RotateAroundPivot(i * 30f + burst * 14f, centre * Hud.ScaleFactor);
+            float thick = Mathf.Lerp(26f, 7f, burst);
+            Hud.Fill(new Rect(centre.x, centre.y - thick * 0.5f, reach, thick),
+                     new Color(1f, 0.93f, 0.78f, a));
+        }
+        GUI.matrix = keep;
+
+        // 3) 가운데 번짐 — 줄기만 있으면 중심이 비어 보인다
+        for (int i = 6; i >= 1; i--)
+        {
+            float r = Mathf.Lerp(18f, 120f, i / 6f) * Mathf.Lerp(0.3f, 1f, burst);
+            Hud.Fill(new Rect(centre.x - r, centre.y - r, r * 2f, r * 2f),
+                     new Color(1f, 0.95f, 0.82f, 0.10f * (1f - settle * 0.6f)));
+        }
+
+        if (settle <= 0.001f) return;
+
+        // 4) 카드 — 다 벌어진 뒤에 올라온다
+        float lift = (1f - settle) * 26f;
+        float pw = Mathf.Min(520f, w - 80f);
+        var box = new Rect((w - pw) * 0.5f, centre.y - 26f + lift, pw, 206f);
+
+        var fade = GUI.color;
+        GUI.color = new Color(1f, 1f, 1f, settle);
+        Hud.Panel(box);
+        Rect inner = Hud.Inner(box);
+
+        GUI.Label(new Rect(inner.x, inner.y + 6f, inner.width, 22f), "증거를 찾았다",
+                  Hud.Resize(Hud.Label, 14, TextAnchor.MiddleCenter));
+
+        var title = Hud.Resize(Hud.Title, 26, TextAnchor.MiddleCenter);
+        title.normal.textColor = Hud.Ink;
+        GUI.Label(new Rect(inner.x, inner.y + 30f, inner.width, 36f), ItemReveal.ItemName, title);
+
+        Hud.Rule(inner.x + inner.width * 0.22f, inner.y + 72f, inner.width * 0.56f);
+
+        var body = Hud.Resize(Hud.Label, 13, TextAnchor.UpperCenter);
+        body.wordWrap = true;
+        // 제일 긴 설명이 세 줄이다(측정). 58px = 17px × 3 + 여유.
+        GUI.Label(new Rect(inner.x + 16f, inner.y + 80f, inner.width - 32f, 58f),
+                  ItemReveal.ItemText, body);
+
+        var slot = Hud.Resize(Hud.Text, 15, TextAnchor.MiddleCenter);
+        slot.normal.textColor = Hud.Brass;
+        GUI.Label(new Rect(inner.x, inner.y + 144f, inner.width, 22f),
+                  $"전시실 {ItemReveal.CaseNumber}번 · 수집품 {ItemReveal.Have} / {ItemReveal.Total}", slot);
+
+        if (ItemReveal.CanSkip)
+            GUI.Label(new Rect(inner.x, inner.y + 170f, inner.width, 18f), "아무 키나 누르면 넘어간다",
+                      Hud.Resize(Hud.Tiny, 12, TextAnchor.MiddleCenter));
+
+        GUI.color = fade;
     }
 
     /// <summary>

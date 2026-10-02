@@ -342,6 +342,11 @@ public class MissionManager : MonoBehaviour
         int chapterBefore = ChapterOf(RewardId);
 
         CollectionState.Collect(RewardId);
+
+        // ★ 2026-10-02 — 알림 줄 한 줄로 흘려보내기엔 아깝다. 여덟 판을 도는 내내
+        //   <b>이 순간이 유일한 보상</b>이고, 알림은 구석에서 2초 뒤 사라진다.
+        //   <see cref="ItemReveal"/> 이 화면 한가운데에서 한 번 세워 준다.
+        ItemReveal.Show(RewardId);
         Toast.Show(RaceVoice.Reward(name, CollectionState.Count, ExhibitCatalogue.Count));
 
         // 이 장의 수집품을 다 모았으면 다음 장으로. 이게 있어서 F7 로 손수 넘길 필요가 없어졌다.
@@ -366,6 +371,7 @@ public class MissionManager : MonoBehaviour
     /// <summary>레이스를 다시 시작할 때 LapTracker 가 불러준다.</summary>
     public void Restart()
     {
+        ItemReveal.Clear();
         RewardId = NextReward();
         goal = CurrentGoal;   // 결승이면 Goal.결승 — 상품은 없고 판정만 있다
 

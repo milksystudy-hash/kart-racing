@@ -287,28 +287,23 @@ public class TitleScreen : MonoBehaviour
     /// 세로 가운데에 놓고, 메뉴는 <b>판 바로 아래</b>에서 시작한다.
     /// </summary>
     /// <summary>
-    /// ★★ 2026-10-02 — 제목과 메뉴를 <b>왼쪽 기둥</b>으로 옮겼다.
-    /// 유저가 박물관 정문 그림을 첫 화면 배경으로 가져왔는데, 재 보니 메뉴 세 칸이
-    /// <b>정문·현수막·철거 안내서를 정확히 덮고 있었다</b>(UI 가 덮는 자리의 정보량이
-    /// 화면 평균의 1.27배). 그림의 주인공을 UI 로 가리면 배경을 쓸 이유가 없다.
+    /// ★ 2026-10-02 — 왼쪽 기둥으로 옮겼다가 <b>가운데로 되돌렸다.</b>
+    /// 정문 그림(바깥)에서는 가운데 메뉴가 정문을 덮어서 왼쪽이 맞았는데,
+    /// 유저가 쓰는 배경은 <b>중앙홀 안</b> 그림이고 거기서는 <b>곰인형이 왼쪽에 있다</b> —
+    /// 왼쪽으로 옮기면 이번엔 곰인형을 덮는다. 가운데는 비어 있는 바닥이라 비켜간다.
     ///
-    /// 가운데 정렬을 포기한 게 아니라 <b>기둥 안에서</b> 가운데다 — 제목판·칸·안내가
-    /// 같은 x 에서 시작하고 같은 폭이라 축이 하나다.
+    /// <b>자리는 배경이 정한다.</b> 배경을 바꾸면 여기도 같이 봐야 한다.
     /// </summary>
-    static float ColumnX(float w) => Mathf.Max(48f, Mathf.Min(w * 0.06f, w - ColumnW(w) - 48f));
-
-    static float ColumnW(float w) => Mathf.Min(470f, w - 96f);
-
     static Rect PlaqueRect(float w, float h)
     {
-        float pw = ColumnW(w);
+        float pw = Mathf.Min(640f, w - 60f);
         float ph = Mathf.Clamp(h * 0.21f, 110f, 150f);
 
         float block = ph + MenuGap(h)
                     + Items.Length * ItemH + (Items.Length - 1) * ItemGap
                     + 40f;                                  // 아래 안내 한 줄
         float top = Mathf.Max(h * 0.03f, (h - block) * 0.5f);
-        return new Rect(ColumnX(w), top, pw, ph);
+        return new Rect((w - pw) * 0.5f, top, pw, ph);
     }
 
     /// <summary>
@@ -317,10 +312,8 @@ public class TitleScreen : MonoBehaviour
     /// </summary>
     static Rect ItemRect(int i, float w, float h)
     {
-        var p = PlaqueRect(w, h);
-        float iw = Mathf.Min(ItemW, p.width - 24f);
-        return new Rect(p.x + (p.width - iw) * 0.5f, p.yMax + MenuGap(h) + i * (ItemH + ItemGap),
-                        iw, ItemH);
+        float top = PlaqueRect(w, h).yMax + MenuGap(h);
+        return new Rect((w - ItemW) * 0.5f, top + i * (ItemH + ItemGap), ItemW, ItemH);
     }
 
     void OnGUI()
@@ -343,8 +336,7 @@ public class TitleScreen : MonoBehaviour
         // 아래 구석 안내. 키를 안 적어 두면 «마우스로만 되는 줄» 안다.
         // 자리는 <b>마지막 칸에서 뽑는다</b> — 칸 수가 늘어도 저절로 따라온다.
         float hintY = ItemRect(Items.Length - 1, w, h).yMax + 16f;
-        var col = PlaqueRect(w, h);
-        GUI.Label(new Rect(col.x, hintY, col.width, 22f), "↑↓  고르기      ENTER  결정",
+        GUI.Label(new Rect(0f, hintY, w, 22f), "↑↓  고르기      ENTER  결정",
                   Hud.Resize(Hud.Tiny, 12, TextAnchor.MiddleCenter));
 
         Hud.End();
@@ -369,22 +361,6 @@ public class TitleScreen : MonoBehaviour
             float t = i / (float)(bands - 1);
             GUI.color = new Color(0.05f, 0.04f, 0.035f, Mathf.Lerp(lo, hi, t * t));
             GUI.DrawTexture(new Rect(0f, h * i / bands, w, h / bands + 1f), Texture2D.whiteTexture);
-        }
-
-        // ★ 2026-10-02 — <b>왼쪽을 한 번 더 누른다.</b> 글이 왼쪽 기둥으로 갔고 그림의
-        // 주인공(정문·현수막)은 오른쪽에 있다. 고르게 덮으면 글은 안 살고 그림만 탁해진다.
-        // 가로로도 기울이면 <b>둘 다 산다</b> — 세로 띠 열두 장이면 경계가 안 보인다.
-        if (hasArt)
-        {
-            const int cols = 12;
-            float edge = ColumnX(w) + ColumnW(w) + 60f;      // 기둥 오른쪽 끝에서 사라진다
-            for (int i = 0; i < cols; i++)
-            {
-                float t = (i + 0.5f) / cols;
-                GUI.color = new Color(0.05f, 0.04f, 0.035f, Mathf.Lerp(0.30f, 0f, t));
-                GUI.DrawTexture(new Rect(edge * i / cols, 0f, edge / cols + 1f, h),
-                                Texture2D.whiteTexture);
-            }
         }
 
         GUI.color = old;
@@ -414,7 +390,7 @@ public class TitleScreen : MonoBehaviour
         bool sub = !string.IsNullOrWhiteSpace(GameSubtitle);
         // 글자는 <b>판 높이에서 뽑는다</b> — 고정값으로 두면 낮은 창에서 판 밖으로 넘친다
         // (현판에서 배운 것: 「글자는 판에 맞춰 줄인다」).
-        int size = Mathf.RoundToInt(Mathf.Clamp(Mathf.Min(ph * 0.27f, pw * 0.072f), 22f, 42f));
+        int size = Mathf.RoundToInt(Mathf.Clamp(ph * 0.27f, 26f, 42f));
         var titleStyle = Hud.Resize(Hud.Title, size, TextAnchor.MiddleCenter);
 
         // 이름이 아직 없으면 <b>흐리게</b>. 자리는 잡혀 있고 글자만 안 정해졌다는 뜻이 된다.

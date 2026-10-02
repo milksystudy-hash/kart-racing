@@ -118,6 +118,15 @@ public static class Hud
         GUI.DrawTexture(Inner(r), PaperTex);
     }
 
+    /// <summary>한 가지 색으로 칠한다. 알파가 있는 색도 그대로 먹는다.</summary>
+    public static void Fill(Rect r, Color c)
+    {
+        var keep = GUI.color;
+        GUI.color = new Color(c.r, c.g, c.b, c.a * keep.a);
+        GUI.DrawTexture(r, Texture2D.whiteTexture);
+        GUI.color = keep;
+    }
+
     /// <summary>판 안에서 종이가 덮는 영역. 글씨는 반드시 이 안에 있어야 한다.</summary>
     public static Rect Inner(Rect r) => new Rect(r.x + 7f, r.y + 7f, r.width - 14f, r.height - 16f);
 
