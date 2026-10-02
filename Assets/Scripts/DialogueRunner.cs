@@ -132,10 +132,41 @@ public class DialogueRunner : MonoBehaviour
         onSceneFinished?.Invoke(sceneId);
     }
 
+    /// <summary>
+    /// <b>CTRL 을 누르고 있으면 빨리 넘어간다.</b> 2026-10-02 — 프롤로그가 124줄이
+    /// 됐다(약 3~6분). 글은 좋은데 <b>처음 플레이하는 사람은 운전도 해보기 전에</b>
+    /// 그만큼을 앉아서 본다. 두 번째부터는 더 그렇고.
+    ///
+    /// 글을 자르는 대신 <b>건너뛸 길</b>을 둔다 — 비주얼 노벨이 전부 이렇게 한다.
+    /// 누르고 있는 동안에만 돌아서 <b>실수로 통째로 날아가지 않는다.</b>
+    /// </summary>
+    public static bool FastForward
+    {
+        get
+        {
+            var k = Keyboard.current;
+            if (k != null && (k.leftCtrlKey.isPressed || k.rightCtrlKey.isPressed)) return true;
+            var pad = Gamepad.current;
+            return pad != null && pad.rightShoulder.isPressed;
+        }
+    }
+
+    float skipAt;
+
     void Update()
     {
         if (IsPlaying && !LineFullyShown && charsPerSecond > 0f)
             revealed += charsPerSecond * Time.unscaledDeltaTime;
+
+        // 빨리 넘기기 — 글자는 바로 다 보여주고 한 줄을 0.14초씩 넘긴다.
+        // 아예 건너뛰지 않고 «빨리 지나가게» 하는 이유: 어디까지 봤는지가 눈에 남아야
+        // 다시 볼 때 «여기서부터 새 내용이구나» 를 안다.
+        if (IsPlaying && FastForward)
+        {
+            revealed = float.MaxValue;
+            if (Time.unscaledTime - skipAt >= 0.14f) { skipAt = Time.unscaledTime; Advance(); }
+            return;
+        }
 
         if (AdvancePressed) Advance();
         else if (Finished && allowReplay && ReplayPressed) Replay();

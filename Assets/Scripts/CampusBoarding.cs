@@ -29,8 +29,48 @@ public class CampusBoarding : MonoBehaviour
     [Tooltip("못 자국 색")]
     public Color nailColor = new Color32(0x4A, 0x40, 0x38, 0xFF);
 
+    /// <summary>
+    /// ★★ 2026-10-02 유저: *"개발업자랑 시의원이랑 레이스 완주 못했을 때는
+    /// <b>절대</b> 나무판자로 막혀 있게 해줘. 근데 화장실은 열어줘."*
+    ///
+    /// 전에는 «수집품 하나에 한 동씩 걷힌다» 였고, 미니게임이 있는 세 동은
+    /// 아예 안 박았다(2026-09-22). 이제 <b>결승을 이기기 전에는 전부 박힌다</b> —
+    /// 철거가 결정된 곳이니 그게 설정에 맞고, 다 이겼을 때 한꺼번에 걷히는 게
+    /// 「지켜냈다」 를 제일 크게 만든다.
+    ///
+    /// ⚠ <b>대가가 있다</b>: 미니게임 셋(급식·안전훈련·따라그리기)이 결승 전까지 못 들어간다.
+    /// 되돌리려면 <see cref="onlyAfterFinal"/> 을 끄면 수집품에 따라 한 동씩 걷히는
+    /// 예전 방식으로 돌아간다.
+    /// </summary>
+    [Tooltip("켜면 결승을 이기기 전까지 전부 막힌다. 끄면 수집품마다 한 동씩 걷힌다")]
+    public bool onlyAfterFinal = true;
+
+    [Tooltip("절대 안 막는 곳. 화장실은 곰과 대화하는 자리라 늘 열려 있다")]
+    public string[] alwaysOpen = { "화장실" };
+
     readonly List<Transform> boards = new();
+    readonly List<Transform> notices = new();
     int lastCount = -1;
+    bool lastCleared;
+
+    /// <summary>
+    /// 이 문에 판자를 박나. <b>건물 정문만</b> — 화장실 칸막이 문(«왼쪽 칸»)은 아니다.
+    /// <see cref="HingedDoor.boardable"/> 이 꺼져 있어도 <b>미니게임이 있는 동이면 박는다</b> —
+    /// 그 예외는 미니게임을 열어 두려고 넣은 것인데, 이제 결승 전에는 전부 막는 게 맞다.
+    /// </summary>
+    bool ShouldBoard(HingedDoor door)
+    {
+        if (door == null || string.IsNullOrEmpty(door.label)) return false;
+
+        foreach (var open in alwaysOpen)
+            if (door.label == open) return false;
+
+        bool minigame = door.GetComponentInParent<MinigameSpot>() != null
+                     || (door.transform.parent != null &&
+                         door.transform.parent.GetComponentInChildren<MinigameSpot>(true) != null);
+
+        return door.boardable || minigame;
+    }
 
     void Start()
     {
@@ -38,18 +78,21 @@ public class CampusBoarding : MonoBehaviour
         // 안 그러면 다시 켤 때마다 다른 건물이 열려서 "내가 저길 열었다" 가 안 남는다.
         var doors = new List<HingedDoor>();
         foreach (var door in FindObjectsByType<HingedDoor>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-            if (door.boardable && !string.IsNullOrEmpty(door.label) && door.label != neverClosed)
-                doors.Add(door);
+            if (ShouldBoard(door)) doors.Add(door);
 
         doors.Sort((a, b) => string.CompareOrdinal(a.label, b.label));
 
-        foreach (var door in doors) boards.Add(MakeBoards(door));
+        foreach (var door in doors)
+        {
+            boards.Add(MakeBoards(door));
+            notices.Add(MakeNotice(door));
+        }
         Refresh();
     }
 
     void Update()
     {
-        if (lastCount == CollectionState.Count) return;
+        if (lastCount == CollectionState.Count && lastCleared == GrandFinal.Cleared) return;
         Refresh();
     }
 
@@ -58,11 +101,16 @@ public class CampusBoarding : MonoBehaviour
     void Refresh()
     {
         lastCount = CollectionState.Count;
+        lastCleared = GrandFinal.Cleared;
 
-        float t = ExhibitCatalogue.Count <= 0 ? 0f
-                : Mathf.Clamp01(CollectionState.Count / (float)ExhibitCatalogue.Count);
+        // 결승을 이기기 전에는 하나도 안 걷힌다. 이기면 전부 — 한꺼번에 걷히는 게
+        // 「지켜냈다」 를 제일 크게 만든다. 걷히는 순서는 Reveal 이 어긋나게 놓는다.
+        float t = onlyAfterFinal
+            ? (GrandFinal.Cleared ? 1f : 0f)
+            : (ExhibitCatalogue.Count <= 0 ? 0f
+               : Mathf.Clamp01(CollectionState.Count / (float)ExhibitCatalogue.Count));
 
-        // 살아남은 건물 수 = 전체 × 진행도. 8/8 이면 전부 걷힌다.
+        // 살아남은 건물 수 = 전체 × 진행도.
         int open = Mathf.RoundToInt(boards.Count * t);
 
         for (int i = 0; i < boards.Count; i++)
@@ -75,6 +123,14 @@ public class CampusBoarding : MonoBehaviour
             // 순서대로 — 한 프레임에 다 걷히면 «설정 변경» 이다.
             if (first) Reveal.Snap(boards[i], nailed);
             else Reveal.Play(boards[i], nailed, Mathf.Abs(i - open) * Reveal.Step, 0.7f);
+
+            // 출입금지 표지판은 판자와 같이 움직인다 — 판자가 걷혔는데 «출입금지» 가
+            // 서 있으면 <b>어느 쪽이 맞는지</b> 플레이어가 알 수가 없다.
+            if (i < notices.Count && notices[i] != null)
+            {
+                if (first) Reveal.Snap(notices[i], nailed);
+                else Reveal.Play(notices[i], nailed, Mathf.Abs(i - open) * Reveal.Step, 0.7f);
+            }
         }
 
         first = false;
@@ -142,6 +198,76 @@ public class CampusBoarding : MonoBehaviour
             if (root != null && root.childCount == 0) return root;
 
         return null;   // 못 찾으면 기본값(3.2 × 4.2)을 쓴다. 틀린 숫자보다 낫다.
+    }
+
+    /// <summary>
+    /// 문 옆에 세우는 <b>붉은 출입금지 표지판.</b> 2026-10-02 유저 요청 —
+    /// *"레이싱 게임 전에 출입금지 적혀 있는 빨간 안내판을 건물마다 세워줘."*
+    ///
+    /// 판자만 있으면 <b>«수리 중»</b> 으로도 읽힌다. 도로 표지판처럼 생긴 붉은 판이
+    /// 같이 서 있으면 «행정이 막아 놓았다» 가 되고, 그게 이 이야기의 내용이다.
+    ///
+    /// 자리는 <b>문 옆</b>이다 — 문 정면 한가운데는 지나다니는 길이라 비워 둔다
+    /// (「문 앞에 뭘 놓을 때는 x 를 0 으로 두지 마라」 — 2026-09-18 곰생회관 게시판).
+    /// 안내판(문폭×0.5 + 1.5m)과도 반대쪽에 세워서 서로 안 가린다.
+    /// </summary>
+    Transform MakeNotice(HingedDoor door)
+    {
+        if (door == null) return null;
+
+        float w = 3.2f;
+        Transform leaf = LeafOf(door);
+        if (leaf != null) w = Mathf.Abs(leaf.localScale.x) * 2f;
+
+        var root = new GameObject("EntryNotice").transform;
+        root.SetParent(door.transform, false);
+        // 안내판은 +x 쪽(문폭×0.5 + 1.5)에 있으니 표지판은 −x 쪽으로
+        root.localPosition = new Vector3(-(w * 0.5f + 1.1f), 0f, 1.5f);
+
+        Bar(root, "Post", new Vector3(0f, 1.0f, 0f), new Vector3(0.10f, 2.0f, 0.10f),
+            new Color32(0x9A, 0x9A, 0x96, 0xFF));
+        Bar(root, "Foot", new Vector3(0f, 0.05f, 0f), new Vector3(0.44f, 0.10f, 0.44f),
+            new Color32(0x6E, 0x6E, 0x6A, 0xFF));
+
+        // 붉은 판 + 흰 테두리. 도로 표지판은 테두리가 있어야 표지판으로 보인다.
+        Bar(root, "Rim", new Vector3(0f, 1.95f, 0.02f), new Vector3(1.06f, 0.82f, 0.05f),
+            new Color32(0xF3, 0xEC, 0xDC, 0xFF));
+        Bar(root, "Plate", new Vector3(0f, 1.95f, -0.01f), new Vector3(0.96f, 0.72f, 0.06f),
+            new Color32(0xC4, 0x45, 0x3E, 0xFF));
+
+        // 글자. 현판과 같은 폰트·같은 셰이더를 쓴다 — 기본 폰트 재질은 ZTest Always 라
+        // <b>벽 뒤에서도 보인다</b>(2026-09-17 에 겪은 것).
+        var font = Resources.Load<Font>("HudFont");
+        if (font != null)
+        {
+            var label = new GameObject("Text").AddComponent<TextMesh>();
+            label.transform.SetParent(root, false);
+            // ★ 문의 +Z 는 보는 사람 쪽인데 TextMesh 는 제 +Z 에서 읽히게 생겼다.
+            //   그대로 붙이면 좌우가 뒤집힌다 — 180도 돌려 단다.
+            label.transform.localPosition = new Vector3(0f, 1.95f, -0.08f);
+            label.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            label.font = font;
+            label.text = "출입금지";
+            label.fontSize = 120;
+            label.characterSize = 0.42f * 10f / 120f;   // 글자 높이 0.42m
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.color = new Color32(0xF3, 0xEC, 0xDC, 0xFF);
+            label.GetComponent<MeshRenderer>().sharedMaterial = BuildingSign.TextMaterial(font);
+        }
+
+        return root;
+    }
+
+    void Bar(Transform parent, string name, Vector3 at, Vector3 size, Color color)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        Strip(go.GetComponent<Collider>());
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = at;
+        go.transform.localScale = size;
+        go.GetComponent<Renderer>().sharedMaterial = FlatMaterial.Get(color);
     }
 
     void Plank(Transform parent, string name, Vector3 at, float tilt, float length)
