@@ -22,6 +22,35 @@ public struct DialogueLine
     public Cast.Mood mood;
     public DialogueCondition condition;
 
+    /// <summary>
+    /// 이 줄부터 배경 그림이 바뀐다. 비워 두면 앞 줄의 배경이 그대로 간다.
+    /// <c>Assets/Resources/StoryBackdrops/&lt;이 이름&gt;.png</c> 를 찾는다.
+    /// </summary>
+    public string place;
+
+    /// <summary>
+    /// ★★ <b>이 줄부터 장소가 바뀐다</b>(2026-10-02 유저 요청).
+    ///
+    /// 한 장면 안에서 «바깥에서 얘기하다 안으로 들어간다» 가 되게 하는 것이다.
+    /// 장면을 쪼개는 방법도 있지만, 그러면 장소가 바뀔 때마다 장면이 하나씩 늘어서
+    /// <see cref="StoryScript"/> 가 금방 지저분해진다 — 장면은 <b>이야기의 단위</b>지
+    /// 장소의 단위가 아니다.
+    ///
+    /// <code>
+    /// Narrate("환웅박물관 · 아침"),                    // prologue.png (장면 이름)
+    /// Say("이감", "현관에 뭐가 붙어 있는데."),
+    /// Narrate("— 중앙홀 —").At("hall"),               // 여기서부터 hall.png
+    /// Say("관장", "오셨군요."),
+    /// </code>
+    ///
+    /// 그림이 없으면 <b>앞 그림이 그대로</b> 간다 — 한 줄만 배경이 사라지면 «깨진 것» 으로 보인다.
+    /// </summary>
+    public DialogueLine At(string placeId)
+    {
+        place = placeId;
+        return this;
+    }
+
     /// <summary>이 줄이 나올 조건을 건다. 조건을 안 걸면 항상 나온다.</summary>
     public DialogueLine OnlyIf(DialogueCondition c)
     {

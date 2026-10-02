@@ -40,6 +40,13 @@ public class DialogueRunner : MonoBehaviour
     public bool Finished { get; private set; }
     public string SceneTitle { get; private set; } = "";
 
+    /// <summary>
+    /// 지금 보여줄 배경 그림 이름. 장면 id 로 시작했다가
+    /// <see cref="DialogueLine.At"/> 가 걸린 줄을 지나면 그 이름으로 바뀐다.
+    /// <b>한 번 바뀌면 그대로 간다</b> — 줄마다 적을 필요가 없다.
+    /// </summary>
+    public string Place { get; private set; } = "";
+
     public int LineCount => lines.Count;
     public int LineNumber => Mathf.Clamp(index + 1, 0, lines.Count);
 
@@ -65,6 +72,7 @@ public class DialogueRunner : MonoBehaviour
     {
         sceneId = id;
         SceneTitle = StoryScript.TitleOf(id);
+        Place = id;                       // 장면 이름이 곧 첫 배경
 
         lines.Clear();
         lines.AddRange(StoryScript.Playable(id));   // ← 조건 판정은 여기서 한 번
@@ -102,7 +110,20 @@ public class DialogueRunner : MonoBehaviour
         index++;
         revealed = charsPerSecond > 0f ? 0f : float.MaxValue;
 
-        if (index < lines.Count) return;
+        if (index < lines.Count)
+        {
+            // ★ 이 줄에 장소가 적혀 있고 <b>그 그림이 실제로 있으면</b> 바꾼다.
+            //   없으면 앞 그림이 그대로 간다 — 이름을 잘못 적었다고 배경이 사라지면
+            //   «깨진 것» 으로 보이고, 원인이 오타라는 걸 알 방법이 없다.
+            string p = lines[index].place;
+            if (!string.IsNullOrEmpty(p))
+            {
+                if (Resources.Load<Texture2D>("StoryBackdrops/" + p) != null) Place = p;
+                else Debug.LogWarning($"[대화] '{p}' 배경이 없어 앞 그림을 그대로 쓴다 — " +
+                                      $"Assets/Resources/StoryBackdrops/{p}.png 를 넣어줘.");
+            }
+            return;
+        }
 
         // 마지막 줄까지 다 나왔다
         index = lines.Count - 1;

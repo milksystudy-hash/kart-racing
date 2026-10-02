@@ -365,6 +365,17 @@ public class BearNpc : MonoBehaviour
 
         if (target == null) return;
 
+        // ★★ 2026-10-02 유저: *"TAB 을 눌러 걸어다니지 않아도 E 가 뜨고 곰돌이랑 말하게 된다.
+        //   TAB 을 눌러야 말할 수 있게 바꿔줘."* 맞다 — <b>말을 걸려면 다가가야 한다.</b>
+        //
+        //   아바타(<c>lookTarget</c>)가 꽂혀 있는데 <b>꺼져 있으면</b> 둘러보기 모드다.
+        //   그런데 거리 계산은 아바타가 마지막으로 서 있던 자리를 그대로 쓰니까,
+        //   그 자리가 곰 옆이면 <b>둘러보기 중에도 E 가 떴다.</b>
+        //
+        //   몸이 안 나와 있으면 아무도 가까이 있지 않은 것이다. <see cref="Nearest"/> 가
+        //   null 이 되면서 화면의 안내와 E 동작이 <b>한꺼번에</b> 사라진다.
+        if (lookTarget != null && !lookTarget.gameObject.activeInHierarchy) return;
+
         // 아바타가 있으면 거리로, 없으면(궤도 카메라) 화면 가운데에 가까운 순서로 고른다.
         float score;
         if (lookTarget != null)

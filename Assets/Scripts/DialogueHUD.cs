@@ -241,7 +241,9 @@ public class DialogueHUD : MonoBehaviour
         // 배경 그림이 있으면 먼저 깐다 — 3D 로비를 덮는다.
         // <b>대사가 없는 프레임에도 그린다</b>: 장면이 끝나는 순간 그림만 사라지고
         // 홀이 한 프레임 번쩍이면 «깨진 것» 으로 보인다.
-        if (runner.IsPlaying) DrawBackdrop(w, h, runner.sceneId);
+        // ★ 장면 id 가 아니라 <b>지금 장소</b>를 본다 — 한 장면 안에서 바깥 → 안으로
+        //   옮겨갈 수 있다(<see cref="DialogueLine.At"/>).
+        if (runner.IsPlaying) DrawBackdrop(w, h, runner.Place);
 
         if (hasLine) DimBackdrop(w, h);
 
