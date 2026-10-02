@@ -48,6 +48,15 @@ public static class ItemReveal
     public const float BeamX = 0.5f;
     public const float BeamY = 0.55f;
 
+    /// <summary>
+    /// ★ 진단 로그. 2026-10-02 유저: *"전시실 화면이 0.2초 뜨고 사라진다."*
+    /// 코드를 읽어서는 원인이 안 보였고, 배치모드 플레이 테스트는 멈춰 버렸다.
+    /// <b>이 프로젝트에서 «코드는 도는데 화면은 그대로» 를 로그 없이 잡은 적이 없다</b>
+    /// (문 여섯 번). 그래서 <b>누가 언제 닫았는지</b>를 콘솔이 말하게 한다.
+    /// 제출 전에 끌 것.
+    /// </summary>
+    public static bool debugLog = true;
+
     static float shownAt = -99f;
     static bool up;
 
@@ -78,10 +87,17 @@ public static class ItemReveal
     public static bool CanSkip => Elapsed >= Hold;
 
     /// <summary>
-    /// 전시실 그림. 없으면 <b>짙은 남색 바탕</b>으로 대신한다 —
+    /// 전시실 그림. <b>진열장 번호마다 다른 사진</b>이다 —
+    /// 2026-10-02 유저: *"두 번째 임무를 깼는데 여전히 1번 코인에만 빛이 뜬다."*
+    /// 사진이 한 장뿐이면 이름만 바뀌고 <b>여덟 판 내내 같은 칸이 빛난다.</b>
+    ///
+    /// <c>StoryBackdrops/gallery_3.png</c> 처럼 번호를 붙이고,
+    /// 없으면 <c>gallery.png</c>, 그것도 없으면 짙은 남색 방으로 떨어진다 —
     /// 그림이 안 들어왔다고 연출이 통째로 사라지면 «고장» 으로 보인다.
     /// </summary>
-    public static Texture2D Backdrop => Resources.Load<Texture2D>("StoryBackdrops/gallery");
+    public static Texture2D Backdrop =>
+        Resources.Load<Texture2D>($"StoryBackdrops/gallery_{CaseNumber}")
+        ?? Resources.Load<Texture2D>("StoryBackdrops/gallery");
 
     /// <summary>
     /// 상품이 들어오는 자리에서 부른다(<see cref="MissionManager"/>).
@@ -103,16 +119,27 @@ public static class ItemReveal
         shownAt = Time.unscaledTime;
         up = true;
 
+        if (debugLog)
+            Debug.Log($"[획득] '{ItemName}' (진열장 {CaseNumber}번) 연출 시작 · " +
+                      $"배경 {(Backdrop == null ? "없음 → 남색 방" : Backdrop.name)} · " +
+                      $"{Hold:0.0}초 뒤부터 아무 키로 닫힘 · {Timeout:0}초면 저절로");
+
         Sfx.Play("ItemFound");
     }
 
-    /// <summary>아무 키로 닫는다. <see cref="CanSkip"/> 전에는 안 닫힌다.</summary>
+    /// <summary>아무 키·마우스로 닫는다. <see cref="CanSkip"/> 전에는 안 닫힌다.</summary>
     public static void Dismiss()
     {
         if (!CanSkip) return;
+        if (debugLog && up) Debug.Log($"[획득] {Elapsed:0.00}초에 <b>눌러서</b> 닫음");
         up = false;
     }
 
     /// <summary>판을 다시 시작하거나 씬을 떠날 때. 떠 있는 채로 남으면 화면이 막힌다.</summary>
-    public static void Clear() => up = false;
+    public static void Clear()
+    {
+        if (debugLog && up) Debug.Log($"[획득] {Elapsed:0.00}초에 <b>Clear() 로</b> 닫음 — " +
+                                      "판을 다시 시작했거나 씬을 떠났다");
+        up = false;
+    }
 }

@@ -39,6 +39,86 @@ public static class _Shot
     public static void Candidates() => Run(1280, 720, Takes, notice: false);
 
     /// <summary>
+    /// 진열장 여덟 칸을 <b>하나씩</b> 찍는다 — 획득 연출의 배경.
+    ///
+    /// ★★ 2026-10-02 유저: *"두 번째 임무를 깼는데 여전히 1번 코인에만 빛이 뜬다."*
+    /// 맞다 — 배경 사진이 <b>1번 진열장 한 장뿐</b>이었다. 이름만 바뀌고 그림은 늘 같은 칸이니,
+    /// 여덟 판을 깨도 같은 코인이 여덟 번 빛난다.
+    ///
+    /// <c>gallery_1.png</c> … <c>gallery_8.png</c>. 없으면 <c>gallery.png</c> 로 떨어진다.
+    /// 카메라는 <b>칸마다 똑같은 거리·높이·시야각</b>이라 그림이 서로 튀지 않는다.
+    /// </summary>
+    public static void Cases()
+    {
+        Directory.CreateDirectory(Dir);
+        EditorSceneManager.OpenScene("Assets/Scenes/Gallery.unity", OpenSceneMode.Single);
+
+        var cams = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (cams.Length == 0) { Debug.LogError("[사진] 전시실에 카메라가 없다"); EditorApplication.Exit(1); return; }
+
+        var cam = cams[0];
+        cam.gameObject.SetActive(true);
+        cam.enabled = true;
+        cam.farClipPlane = Mathf.Max(cam.farClipPlane, 600f);
+        cam.fieldOfView = 46f;
+
+        // 덮개와 분위기 소품을 치운다 — «물건이 들어갈 자리» 가 보여야 한다
+        foreach (var c in Object.FindObjectsByType<GalleryCase>(FindObjectsInactive.Include,
+                                                                FindObjectsSortMode.None))
+            if (c.dustCover != null) c.dustCover.SetActive(false);
+
+        foreach (var m in Object.FindObjectsByType<GalleryMood>(FindObjectsInactive.Include,
+                                                                FindObjectsSortMode.None))
+        {
+            foreach (var g in m.beforeThings) if (g != null) g.SetActive(false);
+            foreach (var g in m.afterThings)  if (g != null) g.SetActive(false);
+        }
+
+        DynamicGI.UpdateEnvironment();
+        foreach (var p in Object.FindObjectsByType<ReflectionProbe>(FindObjectsInactive.Exclude,
+                                                                    FindObjectsSortMode.None))
+            p.RenderProbe();
+
+        var cases = Object.FindObjectsByType<GalleryCase>(FindObjectsInactive.Include,
+                                                          FindObjectsSortMode.None);
+        const int W = 1920, H = 1080;
+
+        for (int i = 0; i < ExhibitCatalogue.Count; i++)
+        {
+            string id = ExhibitCatalogue.All[i].id;
+            Transform target = null;
+            foreach (var c in cases) if (c.itemId == id) { target = c.transform; break; }
+            if (target == null) { Debug.LogWarning($"[사진] {id} 진열장을 못 찾았다"); continue; }
+
+            // 칸은 반지름 8.2 원 위에 있고 방 가운데를 본다. 4.6m 앞에서 같은 각도로.
+            Vector3 p = target.position;
+            Vector3 inward = new Vector3(p.x, 0f, p.z).normalized;
+            cam.transform.SetPositionAndRotation(
+                new Vector3(p.x, 1.70f, p.z) - inward * 4.6f,
+                Quaternion.LookRotation(new Vector3(p.x, 1.42f, p.z)
+                                      - (new Vector3(p.x, 1.70f, p.z) - inward * 4.6f), Vector3.up));
+
+            var rt = new RenderTexture(W, H, 24) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, W, H), 0, 0);
+            tex.Apply();
+            RenderTexture.active = null;
+            cam.targetTexture = null;
+
+            string path = Path.Combine(Dir, $"gallery_{i + 1}.png");
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            Debug.Log($"[사진] {i + 1}번 {ExhibitCatalogue.All[i].name,-12} 밝기 {Mean(tex):0.000} → {path}");
+
+            Object.DestroyImmediate(rt);
+            Object.DestroyImmediate(tex);
+        }
+        // ★ 저장하지 않는다.
+    }
+
+    /// <summary>
     /// 방 안 참고 사진 — 이야기 배경으로 쓸 그림을 GPT 에 넘기기 전의 <b>3D 참고</b>다.
     /// 바깥 사진과 달리 <b>아무 것도 숨기지 않는다</b>(지붕이 있어야 방이다).
     ///

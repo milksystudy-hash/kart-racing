@@ -64,7 +64,14 @@ public class TestHUD : MonoBehaviour
         //   여기서 ENTER 가 «다시 하기» 로 새면 연출을 보기도 전에 판이 다시 시작한다.
         if (ItemReveal.Open)
         {
-            if (k != null && k.anyKey.wasPressedThisFrame) ItemReveal.Dismiss();
+            // ★ 2026-10-02 유저 요청 — <b>마우스로 아무 데나 눌러도 닫힌다.</b>
+            //   레이스 중에 손이 키보드에 있다가 연출이 뜨면 «뭘 눌러야 하지» 가 된다.
+            //   닫는 길은 많을수록 좋다 — 못 닫는 게 제일 나쁘다.
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            bool clicked = mouse != null &&
+                           (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame);
+
+            if ((k != null && k.anyKey.wasPressedThisFrame) || clicked) ItemReveal.Dismiss();
             KartInput.Clear();
             return;
         }
