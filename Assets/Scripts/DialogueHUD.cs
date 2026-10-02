@@ -111,7 +111,18 @@ public class DialogueHUD : MonoBehaviour
         // 장면 골라 보기 — StoryScript.All 순서대로
         var digits = new[] { k.digit1Key, k.digit2Key, k.digit3Key, k.digit4Key, k.digit5Key };
         for (int i = 0; i < digits.Length && i < StoryScript.All.Length; i++)
-            if (digits[i].wasPressedThisFrame) runner.Play(StoryScript.All[i].id);
+        {
+            if (!digits[i].wasPressedThisFrame) continue;
+
+            // ★★ 2026-10-02 유저: *"1~5 로 장면 선택이 되더라, 전시실에 아무것도 없는 상태인데."*
+            //   맞는 지적이다 — 수집품 0개인데 4장을 틀면 <b>«일곱 개 모았다» 는 대사</b>가 나오고,
+            //   전시실·캠퍼스는 아무것도 안 바뀐 채다. 대사와 세계가 따로 논다.
+            //
+            //   <b>장면을 고르면 그 장의 수집 상태로 같이 맞춘다.</b> 그래야 이 키로 본 것이
+            //   실제로 플레이해서 보는 것과 같아진다 — 안 맞으면 확인용으로 쓸 수가 없다.
+            SetProgressFor(i);
+            runner.Play(StoryScript.All[i].id);
+        }
 
         // 수집 상태를 뒤집어서 "다 모으기 전 / 다 모은 후" 대사를 바로 비교해 볼 수 있게.
         // 전시실(F9·F10)과 같은 키라 헷갈리지 않는다.
@@ -219,6 +230,22 @@ public class DialogueHUD : MonoBehaviour
         { fontSize = 14, alignment = TextAnchor.MiddleCenter, wordWrap = true, richText = false }, font);
 
         stylesReady = true;
+    }
+
+    /// <summary>
+    /// 그 장이 <b>막 시작한 상태</b>로 수집 기록을 맞춘다.
+    /// 장 번호는 <c>(수집품 + 1) / 2</c> 라, 1장은 1개 · 2장은 3개 · 3장은 5개 · 4장은 7개다.
+    /// (프롤로그는 0개.) 8개로 맞추면 결승이 열려 버려서 4장을 7개로 둔다.
+    /// </summary>
+    static void SetProgressFor(int sceneIndex)
+    {
+        int want = sceneIndex <= 0 ? 0 : Mathf.Min(sceneIndex * 2 - 1, ExhibitCatalogue.Count);
+
+        CollectionState.ClearAll();
+        for (int i = 0; i < want; i++) CollectionState.Collect(ExhibitCatalogue.All[i].id);
+
+        Debug.Log($"[대화] 장면을 고르면서 수집품을 {want}/{ExhibitCatalogue.Count} 로 맞췄다 — " +
+                  $"전시실·캠퍼스도 그 상태로 바뀐다.");
     }
 
     void OnGUI()
@@ -410,7 +437,8 @@ public class DialogueHUD : MonoBehaviour
 
         if (debugKeys)
             GUI.Label(new Rect(box.x, box.yMax + 6f, box.width, 20f),
-                      "1~5 장면 고르기     F9 전시품 전부 수집 / F10 전부 지우기 — 대사가 어떻게 갈리는지 비교용",
+                      "1~5 장면 고르기 (수집 기록도 그 장에 맞춘다)     " +
+                      "F9 전시품 전부 수집 / F10 전부 지우기",
                       new GUIStyle(hintStyle) { alignment = TextAnchor.MiddleCenter, fontSize = 12 });
     }
 }

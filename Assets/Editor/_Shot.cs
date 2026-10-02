@@ -38,6 +38,86 @@ public static class _Shot
 
     public static void Candidates() => Run(1280, 720, Takes, notice: false);
 
+    /// <summary>
+    /// 방 안 참고 사진 — 이야기 배경으로 쓸 그림을 GPT 에 넘기기 전의 <b>3D 참고</b>다.
+    /// 바깥 사진과 달리 <b>아무 것도 숨기지 않는다</b>(지붕이 있어야 방이다).
+    ///
+    /// 전시실 컷은 그대로 <c>StoryBackdrops/gallery.png</c> 로 쓸 수 있게 잡았다 —
+    /// <see cref="ItemReveal.BeamX"/> 0.50 · <see cref="ItemReveal.BeamY"/> 0.62 자리에
+    /// <b>진열장 하나가 오도록</b> 한 구도다.
+    /// </summary>
+    public static void Rooms()
+    {
+        // (씬, 이름, 카메라 자리, 보는 곳, 시야각)
+        var takes = new (string scene, string name, Vector3 at, Vector3 look, float fov)[]
+        {
+            // 전시실 — 진열장 하나를 정면에서. 받침 1.05 / 유리 1.00~2.24 라 그 사이를 겨눈다
+            ("Gallery", "gallery",       new Vector3(0f, 2.05f,  0.2f), new Vector3(0f, 1.62f,  8.2f), 46f),
+            ("Gallery", "gallery_wide",  new Vector3(0f, 3.40f, -5.4f), new Vector3(0f, 1.50f,  6.0f), 58f),
+
+            // 중앙홀 — 출발문 쪽을 등지고 접수대·곰 받침대가 보이는 각도
+            ("Lobby",   "hall",          new Vector3(-2.5f, 2.3f, -9.0f), new Vector3(2.0f, 2.0f, 6.0f), 56f),
+            ("Lobby",   "hall_gate",     new Vector3( 0.0f, 2.2f, -2.0f), new Vector3(0.0f, 2.6f, 11.0f), 52f),
+
+            // 캠퍼스 — 웅지관 앞 광장, 동상이 보이는 자리
+            ("Campus",  "campus",        new Vector3(-6f, 2.4f, -72f), new Vector3(10f, 2.6f, -90f), 54f),
+            ("Campus",  "campus_plaza",  new Vector3( 0f, 3.2f, -50f), new Vector3( 4f, 2.0f, -86f), 58f),
+
+            // 경기장 — 출발선 아치 아래
+            ("Track",   "track",         new Vector3(0f, 3.0f, -62f), new Vector3(0f, 3.0f, -84f), 56f),
+        };
+
+        Directory.CreateDirectory(Dir);
+        string current = "";
+        Camera cam = null;
+
+        foreach (var t in takes)
+        {
+            if (current != t.scene)
+            {
+                EditorSceneManager.OpenScene($"Assets/Scenes/{t.scene}.unity", OpenSceneMode.Single);
+                current = t.scene;
+
+                var cams = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include,
+                                                            FindObjectsSortMode.None);
+                if (cams.Length == 0) { Debug.LogError($"[사진] {t.scene} 에 카메라가 없다"); continue; }
+                cam = cams[0];
+                cam.gameObject.SetActive(true);
+                cam.enabled = true;
+                cam.farClipPlane = Mathf.Max(cam.farClipPlane, 600f);
+
+                DynamicGI.UpdateEnvironment();
+                foreach (var p in Object.FindObjectsByType<ReflectionProbe>(FindObjectsInactive.Exclude,
+                                                                            FindObjectsSortMode.None))
+                    p.RenderProbe();
+            }
+            if (cam == null) continue;
+
+            cam.transform.SetPositionAndRotation(t.at, Quaternion.LookRotation(t.look - t.at, Vector3.up));
+            cam.fieldOfView = t.fov;
+
+            const int W = 1920, H = 1080;
+            var rt = new RenderTexture(W, H, 24) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, W, H), 0, 0);
+            tex.Apply();
+            RenderTexture.active = null;
+            cam.targetTexture = null;
+
+            string path = Path.Combine(Dir, t.name + ".png");
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            Debug.Log($"[사진] {t.name,-14} 밝기 {Mean(tex):0.000}  →  {path}");
+
+            Object.DestroyImmediate(rt);
+            Object.DestroyImmediate(tex);
+        }
+        // ★ 씬은 저장하지 않는다.
+    }
+
+
     /// <summary>고른 한 컷을 2560×1440 으로. 통지서 붙인 것과 안 붙인 것 둘 다.</summary>
     public static void Final()
     {

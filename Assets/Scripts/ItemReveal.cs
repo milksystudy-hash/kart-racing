@@ -3,29 +3,50 @@ using UnityEngine;
 /// <summary>
 /// <b>증거 하나를 찾았을 때의 연출.</b> 결승선을 넘고 상품이 들어오는 순간 한 번 뜬다.
 ///
-/// 2026-10-02 유저: *"임무 한 개 끝날 때 찾은 아이템이 새로 추가되었다고, 빛이 쏘아지면서
-/// 불 켜지는 소리와 찾은 아이템을 잠시 보여주는 이벤트씬 같은 거… 너무 복잡해지나.
-/// 어차피 모델링도 조잡한데."*
+/// ★★ 2026-10-02 에 <b>다시 만들었다.</b> 첫 판은 «결승선 앞에서 빛이 번쩍» 이었는데
+/// 유저가 원한 것은 그게 아니었다:
+/// *"임무가 끝나고 바로 빛나는 게 아니라, 화면이 0.2초 정도 암전되었다가
+/// <b>박물관 씬을 보여주며</b> 그 아이템에 <b>젤다의 전설처럼 빛을 쬐어</b> 달라는 뜻이었어.
+/// 지금 번쩍 빛나는 씬은 삭제하는 게 좋아."*
 ///
-/// <b>복잡하지 않고, 모델링이 하나도 안 필요하다.</b> 이야기 장면이 3D 캐릭터를 안 쓰고
-/// 2D 초상화로 가는 것과 같은 이유야(§3.6) — 보여줘야 하는 건 «물건의 생김새» 가 아니라
-/// <b>«하나 더 찾았다»</b> 라서, 빛과 글자만으로 충분하다. 오히려 조잡한 모델을 띄우면
-/// 그 순간에 제일 못 만든 걸 화면 한가운데에 크게 보여주는 꼴이 된다.
+/// <b>차이가 크다.</b> 번쩍임은 «지금 여기서 뭔가 일어났다» 지만, 암전 뒤 다른 장소를
+/// 보여주는 건 <b>«그 물건이 저기 들어갔다»</b> 이다. 수집품은 트랙에 있는 게 아니라
+/// <b>전시실에 쌓이는 것</b>이라, 보여줘야 하는 자리도 전시실이다.
+///
+/// <code>
+///   0.00  달리던 화면이 0.2초에 걸쳐 까맣게       ← 장소가 바뀐다는 신호
+///   0.20  전시실 그림이 떠오른다
+///   0.45  위에서 빛줄기가 내려와 진열장에 꽂힌다
+///   0.95  빛 속에 이름이 선다
+///   ...   아무 키 (안 눌러도 저절로 넘어간다)
+/// </code>
 ///
 /// ★ <see cref="RaceCountdown"/> · <see cref="RaceBriefing"/> 과 같은 <b>static</b> 이다.
-/// 씬에 올릴 것도 저장할 것도 없고, 옛 씬에서도 그대로 돈다 —
-/// 「새 컴포넌트로 고치면 씬을 다시 구워야만 고쳐진다」 를 다섯 번 겪은 뒤의 기본형.
+/// 씬에 올릴 것도 저장할 것도 없고, 옛 씬에서도 그대로 돈다.
 /// </summary>
 public static class ItemReveal
 {
-    /// <summary>빛이 번쩍 — 어둠이 덮이고 광선이 벌어지는 구간.</summary>
-    const float Flash = 0.45f;
+    /// <summary>까맣게 덮는 시간. <b>짧아야 «장면이 바뀐다» 지 «렉» 이 안 된다.</b></summary>
+    public const float Blackout = 0.2f;
+
+    /// <summary>전시실 그림이 떠오르는 시간.</summary>
+    const float Appear = 0.25f;
+
+    /// <summary>빛줄기가 내려오는 시간.</summary>
+    const float Beam = 0.5f;
 
     /// <summary>글자가 머무는 시간. 이 뒤로는 아무 키나 누르면 넘어간다.</summary>
-    const float Hold = 2.6f;
+    const float Hold = 2.2f;
 
     /// <summary>다 읽지 않아도 저절로 넘어가는 한계. <b>안 넘어가는 게 제일 나쁘다.</b></summary>
-    const float Timeout = 7f;
+    const float Timeout = 9f;
+
+    /// <summary>
+    /// 빛이 꽂히는 자리 — 화면 가로·세로 비율. 배경 그림의 <b>진열장 위치</b>에 맞춘 값이다.
+    /// 그림을 갈아끼우면 이 둘을 다시 재야 한다.
+    /// </summary>
+    public const float BeamX = 0.5f;
+    public const float BeamY = 0.62f;
 
     static float shownAt = -99f;
     static bool up;
@@ -41,17 +62,29 @@ public static class ItemReveal
 
     public static float Elapsed => Time.unscaledTime - shownAt;
 
-    /// <summary>번쩍이 끝나고 글자가 다 선 비율 0~1.</summary>
-    public static float Settle => Mathf.Clamp01((Elapsed - Flash) / 0.35f);
+    /// <summary>까맣게 덮인 정도 0~1.</summary>
+    public static float Dark => Mathf.Clamp01(Elapsed / Blackout);
 
-    /// <summary>광선이 벌어진 정도 0~1. 번쩍 구간에서만 움직인다.</summary>
-    public static float Burst => Mathf.Clamp01(Elapsed / Flash);
+    /// <summary>전시실 그림이 떠오른 정도 0~1.</summary>
+    public static float Stage => Mathf.Clamp01((Elapsed - Blackout) / Appear);
+
+    /// <summary>빛줄기가 내려온 정도 0~1.</summary>
+    public static float Shaft => Mathf.Clamp01((Elapsed - Blackout - Appear) / Beam);
+
+    /// <summary>글자가 선 정도 0~1.</summary>
+    public static float Settle => Mathf.Clamp01((Elapsed - Blackout - Appear - Beam) / 0.3f);
 
     /// <summary>글자가 다 섰고 <see cref="Hold"/> 도 지났나 — 그때부터 «아무 키» 안내가 뜬다.</summary>
     public static bool CanSkip => Elapsed >= Hold;
 
     /// <summary>
-    /// 상품이 들어오는 자리에서 부른다(<see cref="MissionManager.GiveReward"/>).
+    /// 전시실 그림. 없으면 <b>짙은 남색 바탕</b>으로 대신한다 —
+    /// 그림이 안 들어왔다고 연출이 통째로 사라지면 «고장» 으로 보인다.
+    /// </summary>
+    public static Texture2D Backdrop => Resources.Load<Texture2D>("StoryBackdrops/gallery");
+
+    /// <summary>
+    /// 상품이 들어오는 자리에서 부른다(<see cref="MissionManager"/>).
     /// 이름이 비면 아무 일도 안 한다.
     /// </summary>
     public static void Show(string id)

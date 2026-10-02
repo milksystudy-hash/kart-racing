@@ -189,86 +189,131 @@ public class TestHUD : MonoBehaviour
     }
 
     /// <summary>
-    /// <b>증거 하나를 찾았다.</b> 결승선을 넘는 순간 한 번 뜬다(<see cref="ItemReveal"/>).
+    /// <b>증거 하나를 찾았다</b> — 암전 → 전시실 → 빛줄기(<see cref="ItemReveal"/>).
     ///
-    /// 쓰는 것은 셋뿐이고 전부 <see cref="Hud"/> 의 기존 재료다 —
-    /// <b>어둠 · 빛줄기 · 나무 판에 붙은 종이.</b> 새 에셋이 0개야.
+    /// ★ 번쩍이는 연출을 <b>걷어냈다</b>(2026-10-02). 결승선 앞에서 빛이 터지는 건
+    /// «여기서 뭔가 일어났다» 지만, 수집품은 트랙이 아니라 <b>전시실에 쌓이는 것</b>이다.
+    /// 짧은 암전으로 <b>장소가 바뀐다</b>는 신호를 주고, 그 물건이 들어간 자리를 보여준다.
     ///
-    /// ★ <b>빛줄기는 가운데에서 «벌어진다».</b> 그냥 번쩍이면 «화면이 깜빡했다» 지만
-    /// 중심에서 뻗어 나오면 <b>«저기서 뭔가 나왔다»</b> 가 된다 — 축제 장식을 위에서
-    /// 내려오게 한 것과 같은 판단(2026-09-18).
+    /// 빛줄기는 <b>위에서 아래로 내려오는 사다리꼴</b>이다. 가로로 퍼지는 광선은
+    /// «폭발» 이지만, 세로로 내려오는 빛은 <b>«저기로 쏟아진다»</b> 가 된다.
+    /// 먼지 알갱이가 그 안에서 천천히 떠다니면 빛에 <b>부피</b>가 생긴다.
     /// </summary>
     void DrawReveal(float w, float h)
     {
-        float burst = ItemReveal.Burst;
+        float dark = ItemReveal.Dark;
+        float stage = ItemReveal.Stage;
+        float shaft = ItemReveal.Shaft;
         float settle = ItemReveal.Settle;
 
-        // 1) 어둠 — 번쩍이는 동안 빠르게 덮고 그대로 둔다
-        Hud.Fill(new Rect(0f, 0f, w, h), new Color(0.04f, 0.035f, 0.03f, 0.78f * burst));
+        // 1) 암전 — 달리던 화면을 0.2초에 덮는다
+        Hud.Fill(new Rect(0f, 0f, w, h), new Color(0.02f, 0.02f, 0.03f, dark));
+        if (stage <= 0.001f) return;
 
-        var centre = new Vector2(w * 0.5f, h * 0.42f);
+        // 2) 전시실. 그림이 없으면 짙은 남색 방으로 대신한다 —
+        //    연출이 통째로 사라지면 «고장» 으로 보인다.
+        var art = ItemReveal.Backdrop;
+        var keepColor = GUI.color;
+        GUI.color = new Color(1f, 1f, 1f, stage);
+        if (art != null)
+            GUI.DrawTexture(new Rect(0f, 0f, w, h), art, ScaleMode.ScaleAndCrop);
+        else
+            Hud.Fill(new Rect(0f, 0f, w, h), new Color(0.09f, 0.11f, 0.17f, 1f));
+        GUI.color = keepColor;
 
-        // 2) 빛줄기 — 중심에서 열두 갈래. 벌어지면서 옅어진다
-        var keep = GUI.matrix;
-        float reach = Mathf.Lerp(0f, Mathf.Max(w, h) * 0.75f, Mathf.Sqrt(burst));
-        for (int i = 0; i < 12; i++)
+        // 전시실은 어두운 방이다 — 빛줄기가 살려면 주변이 눌려 있어야 한다
+        Hud.Fill(new Rect(0f, 0f, w, h), new Color(0.03f, 0.03f, 0.05f, 0.42f * stage));
+
+        float cx = w * ItemReveal.BeamX;
+        float cy = h * ItemReveal.BeamY;
+        if (shaft <= 0.001f) return;
+
+        // 3) 빛줄기 — 천장에서 진열장까지, 아래로 갈수록 넓어지는 사다리꼴.
+        //    가로 띠를 쌓아 만든다. 세로로 기울어진 사각형을 IMGUI 로는 못 그리니까.
+        const int bands = 34;
+        float reach = cy * Mathf.SmoothStep(0f, 1f, shaft);
+        for (int i = 0; i < bands; i++)
         {
-            float a = (1f - burst * 0.55f) * (i % 2 == 0 ? 0.26f : 0.15f) * (1f - settle * 0.45f);
-            if (a <= 0.004f) continue;
+            float t = (i + 0.5f) / bands;
+            float y = t * reach;
+            if (y > cy) break;
 
-            GUI.matrix = keep;
-            GUIUtility.RotateAroundPivot(i * 30f + burst * 14f, centre * Hud.ScaleFactor);
-            float thick = Mathf.Lerp(26f, 7f, burst);
-            Hud.Fill(new Rect(centre.x, centre.y - thick * 0.5f, reach, thick),
-                     new Color(1f, 0.93f, 0.78f, a));
+            float half = Mathf.Lerp(w * 0.028f, w * 0.085f, t);
+            float a = Mathf.Lerp(0.30f, 0.07f, t) * shaft;
+            Hud.Fill(new Rect(cx - half, y, half * 2f, reach / bands + 1f),
+                     new Color(1f, 0.97f, 0.86f, a));
         }
-        GUI.matrix = keep;
 
-        // 3) 가운데 번짐 — 줄기만 있으면 중심이 비어 보인다
-        for (int i = 6; i >= 1; i--)
+        // 4) 바닥에 고이는 빛 — 줄기만 있으면 «어디에» 쏟아지는지 안 보인다
+        for (int i = 5; i >= 1; i--)
         {
-            float r = Mathf.Lerp(18f, 120f, i / 6f) * Mathf.Lerp(0.3f, 1f, burst);
-            Hud.Fill(new Rect(centre.x - r, centre.y - r, r * 2f, r * 2f),
-                     new Color(1f, 0.95f, 0.82f, 0.10f * (1f - settle * 0.6f)));
+            float r = w * 0.035f * i * Mathf.SmoothStep(0f, 1f, shaft);
+            Hud.Fill(new Rect(cx - r, cy - r * 0.26f, r * 2f, r * 0.52f),
+                     new Color(1f, 0.96f, 0.84f, 0.09f * shaft));
+        }
+
+        // 5) 먼지 — 빛 안에서만 보인다. 이게 있어야 빛에 부피가 생긴다
+        for (int i = 0; i < 18; i++)
+        {
+            float seed = i * 37.7f;
+            float t = Mathf.Repeat(ItemReveal.Elapsed * 0.09f + i * 0.137f, 1f);
+            float y = t * cy;
+            if (y > reach) continue;
+
+            float spread = Mathf.Lerp(w * 0.024f, w * 0.075f, t);
+            float x = cx + Mathf.Sin(seed + ItemReveal.Elapsed * 0.5f) * spread;
+            float s = 1.6f + Mathf.Sin(seed * 1.7f) * 0.8f;
+            Hud.Fill(new Rect(x, y, s, s), new Color(1f, 0.98f, 0.9f, 0.45f * shaft));
         }
 
         if (settle <= 0.001f) return;
 
-        // 4) 카드 — 다 벌어진 뒤에 올라온다
-        float lift = (1f - settle) * 26f;
-        float pw = Mathf.Min(520f, w - 80f);
-        var box = new Rect((w - pw) * 0.5f, centre.y - 26f + lift, pw, 206f);
-
+        // 6) 이름 — 빛 속에 선다. 판을 깔지 않는다. 나무 판을 깔면 그 순간
+        //    «UI 가 떴다» 가 되고, 지금은 <b>장면</b>을 보여주는 중이다.
         var fade = GUI.color;
         GUI.color = new Color(1f, 1f, 1f, settle);
-        Hud.Panel(box);
-        Rect inner = Hud.Inner(box);
+        float lift = (1f - settle) * 18f;
 
-        GUI.Label(new Rect(inner.x, inner.y + 6f, inner.width, 22f), "증거를 찾았다",
-                  Hud.Resize(Hud.Label, 14, TextAnchor.MiddleCenter));
+        Glow(new Rect(0f, cy + 28f + lift, w, 24f), "증거를 찾았다",
+             Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter), new Color(1f, 0.93f, 0.78f));
 
-        var title = Hud.Resize(Hud.Title, 26, TextAnchor.MiddleCenter);
-        title.normal.textColor = Hud.Ink;
-        GUI.Label(new Rect(inner.x, inner.y + 30f, inner.width, 36f), ItemReveal.ItemName, title);
+        Glow(new Rect(0f, cy + 52f + lift, w, 44f), ItemReveal.ItemName,
+             Hud.Resize(Hud.Title, 32, TextAnchor.MiddleCenter), Color.white);
 
-        Hud.Rule(inner.x + inner.width * 0.22f, inner.y + 72f, inner.width * 0.56f);
-
-        var body = Hud.Resize(Hud.Label, 13, TextAnchor.UpperCenter);
-        body.wordWrap = true;
-        // 제일 긴 설명이 세 줄이다(측정). 58px = 17px × 3 + 여유.
-        GUI.Label(new Rect(inner.x + 16f, inner.y + 80f, inner.width - 32f, 58f),
-                  ItemReveal.ItemText, body);
-
-        var slot = Hud.Resize(Hud.Text, 15, TextAnchor.MiddleCenter);
-        slot.normal.textColor = Hud.Brass;
-        GUI.Label(new Rect(inner.x, inner.y + 144f, inner.width, 22f),
-                  $"전시실 {ItemReveal.CaseNumber}번 · 수집품 {ItemReveal.Have} / {ItemReveal.Total}", slot);
+        Glow(new Rect(0f, cy + 98f + lift, w, 24f),
+             $"전시실 {ItemReveal.CaseNumber}번   ·   수집품 {ItemReveal.Have} / {ItemReveal.Total}",
+             Hud.Resize(Hud.Text, 16, TextAnchor.MiddleCenter), Hud.Brass);
 
         if (ItemReveal.CanSkip)
-            GUI.Label(new Rect(inner.x, inner.y + 170f, inner.width, 18f), "아무 키나 누르면 넘어간다",
-                      Hud.Resize(Hud.Tiny, 12, TextAnchor.MiddleCenter));
+            Glow(new Rect(0f, h - 46f, w, 20f), "아무 키나 누르면 넘어간다",
+                 Hud.Resize(Hud.Tiny, 12, TextAnchor.MiddleCenter), new Color(0.82f, 0.78f, 0.70f));
 
         GUI.color = fade;
+    }
+
+    /// <summary>
+    /// 그림 위에 글을 얹을 때. <b>판 없이 쓰려면 글자에 테두리가 있어야 한다</b> —
+    /// 밝은 데 밝은 글씨가 얹히면 그 부분만 사라진다. 나무 판을 깔면 읽히긴 하지만
+    /// 그 순간 «UI 가 떴다» 가 되고, 지금은 <b>장면</b>을 보여주는 중이다.
+    ///
+    /// IMGUI 에 글자 그림자가 없어서 <b>여덟 방향으로 어둡게 깔고 그 위에</b> 그린다.
+    /// 네 방향만 깔면 대각선에서 테가 끊긴다.
+    /// </summary>
+    static void Glow(Rect r, string text, GUIStyle style, Color colour)
+    {
+        var keep = style.normal.textColor;
+        style.normal.textColor = new Color(0.03f, 0.03f, 0.05f, 0.75f * GUI.color.a);
+
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0) continue;
+                GUI.Label(new Rect(r.x + dx * 1.6f, r.y + dy * 1.6f, r.width, r.height), text, style);
+            }
+
+        style.normal.textColor = colour;
+        GUI.Label(r, text, style);
+        style.normal.textColor = keep;
     }
 
     /// <summary>
