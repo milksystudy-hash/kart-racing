@@ -86,12 +86,18 @@ public class GalleryHUD : MonoBehaviour
         ready = true;
     }
 
+    void OnDisable()
+    {
+        if (viewer != null) { Destroy(viewer); viewer = null; }
+    }
+
     void OnGUI()
     {
         if (!ready) BuildStyles();
         float w = Screen.width, h = Screen.height;
 
         DrawProgress();
+        DrawViewer(w, h);
         DrawHoverName(w, h);
         DrawOpenedPanel(w, h);
         DrawBackPrompt(w, h);
@@ -100,6 +106,46 @@ public class GalleryHUD : MonoBehaviour
         // 줄글로 설명할 게 아니었고, 전시실은 "가만히 보는 방" 이라 글자가 적을수록 낫다.
         // 개발용 단축키는 사라진 게 아니라 여전히 듣는다 — 목록은 프로젝트 루트의
         // 개발자_단축키.md 에 있다.
+    }
+
+    ExhibitViewer viewer;
+
+    /// <summary>
+    /// <b>고른 전시품을 돌려보는 패널.</b> 2026-10-02 유저 요청 —
+    /// *"설명은 아주 좋은데 좀 허전하다. 선택한 아이템을 빙글빙글 돌리는 패널을 왼쪽에."*
+    ///
+    /// 진열장 안의 물건은 유리 너머 8 m 라 아무리 잘 만들어도 안 보인다.
+    /// 여기서는 화면 가득 차게 보이고 <b>끌어서 돌린다</b> — 손을 떼면 저절로 돈다.
+    ///
+    /// ★ <see cref="ExhibitViewer"/> 를 <b>실행 중에 만든다.</b> 씬에 저장되는 게 없어서
+    /// 전시실을 다시 굽지 않아도 들어온다.
+    /// </summary>
+    void DrawViewer(float w, float h)
+    {
+        var opened = selector != null ? selector.Opened : null;
+
+        if (viewer == null) viewer = gameObject.AddComponent<ExhibitViewer>();
+        viewer.Show(opened);
+
+        var box = new Rect(16f, 104f, 268f, 268f);
+        GUI.DrawTexture(box, panelTex);
+
+        if (opened == null)
+        {
+            GUI.Label(new Rect(box.x + 18, box.y + box.height * 0.5f - 26, box.width - 36, 24),
+                      "진열장을 클릭하면", bodyStyle);
+            GUI.Label(new Rect(box.x + 18, box.y + box.height * 0.5f - 2, box.width - 36, 24),
+                      "여기서 돌려볼 수 있습니다", bodyStyle);
+            return;
+        }
+
+        var inner = new Rect(box.x + 10, box.y + 10, box.width - 20, box.height - 44);
+        viewer.Handle(inner);
+
+        if (viewer.Ready) GUI.DrawTexture(inner, viewer.Image, ScaleMode.ScaleToFit);
+
+        GUI.Label(new Rect(box.x + 14, box.yMax - 32, box.width - 28, 22),
+                  opened.IsCollected ? "끌어서 돌려보기" : "아직 찾지 못한 전시품", labelStyle);
     }
 
     void DrawProgress()

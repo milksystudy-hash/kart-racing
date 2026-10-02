@@ -647,6 +647,19 @@ public static class GallerySceneBuilder
     const float CapTop = 1.05f;
 
     /// <summary>
+    /// 전시품을 <b>받침에서 얼마나 띄울지</b>. 2026-10-02 유저: *"코인이 안에 박힌 것 같다."*
+    /// 유리 안쪽이 1.00~2.24 라 0.34 를 띄우면 물건이 <b>유리 한가운데</b>에 온다.
+    /// </summary>
+    const float ItemLift = 0.34f;
+
+    /// <summary>
+    /// 전시품을 키우는 배율. 유저가 보내준 코인이 가로 0.348 m 인데, 유리 안쪽 0.95 m 에서
+    /// 8 m 떨어져 보면 작다. <b>박물관 전시품은 원래 «크게 보이게» 전시한다.</b>
+    /// 1.7배면 0.59 m — 유리 안에서 사방 0.18 m 가 남는다.
+    /// </summary>
+    const float ItemScale = 1.7f;
+
+    /// <summary>
     /// 전시품 FBX 를 칸에 세운다. 없으면 null 을 돌려주고 임시 도형이 그대로 쓰인다.
     /// 임포트 설정도 여기서 맞춘다 — 유저에게 인스펙터를 시키지 않는다(기획서 §9.3).
     /// </summary>
@@ -680,10 +693,18 @@ public static class GallerySceneBuilder
 
         go.name = "RealItem";
         go.transform.SetParent(caseRoot, false);
-        go.transform.localPosition = new Vector3(0f, CapTop, 0f);
-        go.transform.localRotation = Quaternion.identity;
+        go.transform.localPosition = new Vector3(0f, CapTop + ItemLift, 0f);
+
+        // ★ 회전과 스케일을 <b>대입하지 않고 얹는다.</b> 임포트한 FBX 는 축 변환을
+        //   루트 트랜스폼으로 들고 오는데, 덮어쓰면 모델이 눕거나 1만 분의 1 이 된다
+        //   (2026-09-21 곰 · 2026-09-22 로비 소품에서 각각 겪었다).
+        var t = go.transform;
+        t.localScale = Vector3.Scale(t.localScale, Vector3.one * ItemScale);
 
         foreach (var c in go.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
+
+        // 떠서 천천히 돈다 — 어두운 방에서 움직이는 건 이것뿐이라 눈이 여기로 온다
+        go.AddComponent<ExhibitSpin>();
         return go;
     }
 
