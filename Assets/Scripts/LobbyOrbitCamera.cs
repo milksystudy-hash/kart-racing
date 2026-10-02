@@ -84,6 +84,16 @@ public class LobbyOrbitCamera : MonoBehaviour
         var mouse = Mouse.current;
         if (mouse == null) return;
 
+        // ★ UI 패널이 마우스를 쓰는 중이면 카메라는 가만히 있는다.
+        //   <see cref="UiFocus"/> 는 프레임 번호로 들고 있다가 저절로 풀려서
+        //   «풀어주는 자리를 빠뜨려 영영 잠기는» 일이 없다.
+        if (UiFocus.MouseOverPanel)
+        {
+            IsDragging = false;
+            ClickedWithoutDragging = false;
+            return;
+        }
+
         // 커서가 화면 가운데서 얼마나 벗어났는지에 맞춰 카메라를 살짝 기울인다.
         // yaw 에 더하지 않고 따로 들고 있다가 마지막에 얹는다 — 더하면 값이 계속 쌓여서
         // 마우스를 왔다갔다 하는 것만으로 카메라가 빙빙 돌아버린다.

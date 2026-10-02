@@ -146,27 +146,52 @@ public class GalleryHUD : MonoBehaviour
         viewer.Handle(ViewerInner);
     }
 
+    /// <summary>
+    /// 전시품 패널 — <b>진열장을 클릭했을 때만</b> 뜬다.
+    ///
+    /// 2026-10-02 유저: *"평소에는 전시실이 아무것도 없다가, 진열장을 클릭하면
+    /// 아이템이랑 설명이 동시에 뜨는 구조를 원해."*
+    ///
+    /// 전에는 빈 상자가 늘 왼쪽에 떠 있었다 — 안에 아무 것도 없는 액자는
+    /// <b>«아직 안 만든 자리»</b> 로 보인다. 아무 것도 안 고른 상태의 기본값은
+    /// «빈 패널» 이 아니라 <b>«패널 없음»</b> 이어야 한다.
+    /// </summary>
     void DrawViewer(float w, float h)
     {
         var opened = selector != null ? selector.Opened : null;
+        if (opened == null) { DrawMemo(w, h); return; }
 
         var box = ViewerBox;
         GUI.DrawTexture(box, panelTex);
-
-        if (opened == null)
-        {
-            GUI.Label(new Rect(box.x + 18, box.y + box.height * 0.5f - 26, box.width - 36, 24),
-                      "진열장을 클릭하면", bodyStyle);
-            GUI.Label(new Rect(box.x + 18, box.y + box.height * 0.5f - 2, box.width - 36, 24),
-                      "여기서 돌려볼 수 있습니다", bodyStyle);
-            return;
-        }
 
         if (viewer != null && viewer.Ready)
             GUI.DrawTexture(ViewerInner, viewer.Image, ScaleMode.ScaleToFit);
 
         GUI.Label(new Rect(box.x + 14, box.yMax - 32, box.width - 28, 22),
                   opened.IsCollected ? "끌어서 돌려보기" : "아직 찾지 못한 전시품", labelStyle);
+    }
+
+    /// <summary>
+    /// <b>임시 메모장.</b> 유저 요청(2026-10-02) — *"메모장 UI 를 작게 하나 만들어서
+    /// 전시실 설명을 적고, 진열장을 클릭하면 아이템과 설명을 볼 수 있다고 나타나면 좋겠어.
+    /// UI 는 나중에 내가 검토할게."*
+    ///
+    /// 방이 하는 일을 한 줄로 말하고, 다음에 뭘 누르면 되는지를 말한다.
+    /// 그림 한 장 없이 <b>«여긴 뭐 하는 방이고 뭘 하면 되는지»</b> 가 전해지면 된 거야.
+    /// </summary>
+    void DrawMemo(float w, float h)
+    {
+        var box = new Rect(16f, 104f, 268f, 150f);
+        GUI.DrawTexture(box, panelTex);
+
+        float x = box.x + 18f, iw = box.width - 36f;
+        GUI.Label(new Rect(x, box.y + 14f, iw, 24f), "전시실", valueStyle);
+
+        GUI.Label(new Rect(x, box.y + 46f, iw, 20f), "철거를 막은 증거 여덟 점이", bodyStyle);
+        GUI.Label(new Rect(x, box.y + 66f, iw, 20f), "여기 한 칸씩 모입니다.", bodyStyle);
+
+        GUI.Label(new Rect(x, box.y + 100f, iw, 20f), "진열장을 클릭하면", labelStyle);
+        GUI.Label(new Rect(x, box.y + 120f, iw, 20f), "전시품과 설명을 볼 수 있습니다.", labelStyle);
     }
 
     void DrawProgress()

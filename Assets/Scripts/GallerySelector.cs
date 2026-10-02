@@ -40,6 +40,10 @@ public class GallerySelector : MonoBehaviour
         foreach (var c in cases)
             if (c != null) c.SetHighlighted(c == Hovered);
 
+        // ★ 패널 위에서 누른 건 «진열장을 골랐다» 가 아니다 — 안 막으면
+        //   물건을 돌리려고 끄는 동안 뒤에 있는 진열장이 열리거나 닫힌다.
+        if (UiFocus.MouseOverPanel) return;
+
         bool clicked = orbit != null
             ? orbit.ClickedWithoutDragging
             : (Mouse.current != null && Mouse.current.leftButton.wasReleasedThisFrame);

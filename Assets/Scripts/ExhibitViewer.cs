@@ -172,6 +172,11 @@ public class ExhibitViewer : MonoBehaviour
             var p = m.position.ReadValue();
             var v = new Vector2(p.x / s, (Screen.height - p.y) / s);
 
+            // ★ 커서가 패널 안이거나 끌고 있는 동안에는 <b>마우스를 우리가 쓴다.</b>
+            //   안 그러면 같은 드래그를 궤도 카메라와 진열장 고르기가 같이 받아서
+            //   물건을 돌리는데 <b>방 전체가 따라 돈다</b>(2026-10-02 유저 제보).
+            if (panel.Contains(v) || dragging) UiFocus.Capture();
+
             if (m.leftButton.wasPressedThisFrame && panel.Contains(v)) { dragging = true; lastMouse = v; }
             if (!m.leftButton.isPressed) dragging = false;
 
