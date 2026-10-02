@@ -36,9 +36,29 @@ public class StoryStage : MonoBehaviour
     public bool playUnseenOnEnter = true;
 
     [Tooltip("켜두면 T 로 이번 장 이야기를 다시 본다. 제출 전에 꺼")]
+    // ★ 2026-10-02 — <b>T(이야기 다시 보기)는 이제 디버그 키가 아니다.</b>
+    //   유저: *"스토리는 플레이어가 진행한 상황대로 한 번 더 읽고 싶으면 몇 번 더
+    //   읽을 수 있게 해줘."* 제출본에서도 살아 있어야 하니 이 스위치 밖으로 뺐고,
+    //   <see cref="LobbyHUD"/> 가 화면에도 적는다 — 「키가 있어도 화면에 없으면 없는 것」.
+    //   이 스위치는 이제 아무 것도 안 막는다(남겨둔 건 인스펙터에 이미 저장돼 있어서다).
     public bool debugKeys = true;
 
     public bool InStory { get; private set; }
+
+    /// <summary>
+    /// 지금 이야기가 도는 중인가. <b>static 인 이유가 있다</b> —
+    /// 2026-10-02 유저: *"T 를 눌렀는데 레이스 시작도 안 눌렀는데 트랙으로 이동돼 버린다."*
+    /// <see cref="StartGate"/> 가 ENTER·클릭으로 출발하는데, 그게 <b>대사를 넘기는 키와 같다.</b>
+    /// 그래서 대사를 넘길 때마다 출발문도 같이 눌리고 있었다.
+    ///
+    /// 빌더의 «잠깐 꺼둘 것» 목록에 StartGate 를 더하는 방법도 있지만, 그러면
+    /// <b>씬을 다시 구워야만 고쳐진다</b> — 이 프로젝트에서 다섯 번 겪었다.
+    /// 물건이 <b>스스로 판단하게</b> 둔다.
+    /// </summary>
+    public static bool Talking { get; private set; }
+
+    /// <summary>지금 도는 이야기 장면 id. 음악이 이걸 보고 곡을 고른다.</summary>
+    public static string TalkingScene { get; private set; } = "";
 
     /// <summary>
     /// 첫 화면(<see cref="TitleScreen"/>) 때문에 미뤄 둔 장면. 타이틀이 로비 <b>안에서</b>
@@ -55,12 +75,21 @@ public class StoryStage : MonoBehaviour
         // ★ 장 번호만 보면 결말이 어긋난다(2026-09-21) — 결승 장면이 영영 안 나오고,
         // 에필로그가 7판 뒤에 떴다. CurrentScene 이 «결승을 깼는가» 까지 보고 고른다.
         string sceneId = StoryScript.CurrentScene();
-        if (string.IsNullOrEmpty(sceneId) || StoryProgress.HasSeen(sceneId)) return;
+        if (string.IsNullOrEmpty(sceneId)) return;
 
-        // ★ 첫 화면이 떠 있으면 <b>그 뒤에서 몰래 틀지 않는다</b>(2026-09-28).
-        // 적어 뒀다가 타이틀이 닫히는 프레임에 튼다 — 그래야 프롤로그를 한 줄도 안 놓친다.
+        // ★★ 2026-10-02 유저: *"게임 키자마자 대화씬이 안 뜨더라. 게임 시작 누르면
+        //   바로 로비로 가고, T 를 눌러야 읽을 수 있다."* 원인은 <b>이미 본 것</b>이라
+        //   <see cref="StoryProgress.HasSeen"/> 가 막고 있던 것.
+        //
+        //   «게임 시작» 은 플레이어가 <b>일부러 누른 것</b>이라 다르게 봐야 한다 —
+        //   지금 장 이야기를 <b>본 것이어도</b> 튼다. 레이스를 마치고 로비로 돌아오는 길은
+        //   그대로 «안 본 것만» 이다(매번 같은 장면이 또 뜨면 안내가 아니라 장애물이 된다).
+        //
+        //   첫 화면이 떠 있으면 적어 뒀다가 <b>타이틀이 닫히는 프레임</b>에 튼다 —
+        //   그래야 프롤로그를 한 줄도 안 놓친다.
         if (TitleScreen.Up) { pending = sceneId; return; }
 
+        if (StoryProgress.HasSeen(sceneId)) return;
         Enter(sceneId);
     }
 
@@ -77,7 +106,7 @@ public class StoryStage : MonoBehaviour
             return;
         }
 
-        if (!debugKeys || InStory) return;
+        if (InStory) return;
 
         var k = Keyboard.current;
         if (k == null) return;
@@ -114,6 +143,8 @@ public class StoryStage : MonoBehaviour
         }
 
         InStory = true;
+        Talking = true;
+        TalkingScene = sceneId;
         SetLobbyActive(false);
 
         runner.enabled = true;
@@ -132,6 +163,8 @@ public class StoryStage : MonoBehaviour
     public void Leave()
     {
         InStory = false;
+        Talking = false;
+        TalkingScene = "";
         SetLobbyActive(true);
 
         if (runner != null) { runner.onSceneFinished = null; runner.enabled = false; }

@@ -49,6 +49,16 @@ public class StartGate : MonoBehaviour
     {
         if (loading) return;
 
+        // ★ 이야기가 도는 동안·첫 화면이 떠 있는 동안·획득 연출 중에는 <b>아무 것도 안 듣는다.</b>
+        //   출발 키(ENTER·클릭)가 대사를 넘기는 키와 같아서, 안 막으면
+        //   <b>대사를 읽다가 레이스가 시작된다</b>(2026-10-02 유저 제보).
+        if (StoryStage.Talking || TitleScreen.Up)
+        {
+            Hovered = false;
+            if (appliedHover) { appliedHover = false; ApplyColor(); }
+            return;
+        }
+
         Hovered = (orbit != null && orbit.IsDragging) ? false : PointerIsOnGate();
         if (Hovered != appliedHover) { appliedHover = Hovered; ApplyColor(); }
 

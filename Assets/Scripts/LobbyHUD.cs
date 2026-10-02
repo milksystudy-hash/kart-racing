@@ -67,6 +67,12 @@ public class LobbyHUD : MonoBehaviour
 
         bool walking = walk != null && walk.Walking;
 
+        // ★ 2026-10-02 — 이야기 다시 보기(T)를 여기 적는다. 「키가 있어도 화면에 없으면 없는 것」
+        //   이 프로젝트에서 세 번째다(G 유령 · TAB 걷기 · 이번).
+        var story = new Rect(w - 214f, h - 68f, 198f, 24f);
+        Hud.Chip(story);
+        GUI.Label(story, "T  이야기 다시 보기", Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter));
+
         var chip = new Rect(w - 214f, h - 40f, 198f, 24f);
         Hud.Chip(chip);
 

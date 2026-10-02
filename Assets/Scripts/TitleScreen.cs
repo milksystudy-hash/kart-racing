@@ -192,10 +192,13 @@ public class TitleScreen : MonoBehaviour
         // 마우스 처리까지 통째로 건너뛰므로 뒤에 있는 메뉴 칸은 잡히지도 않는다.
         if (settings)
         {
-            if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame
-                || k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) Nudge(1);
-            if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame
-                || k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) Nudge(-1);
+            // ★★ 2026-10-02 유저: *"소리 줄이고 킬 때마다 두 칸씩 움직인다."*
+            //   <c>−</c> <c>=</c> 를 <b>여기와 <see cref="Music.Keys"/> 두 군데서</b> 듣고 있었다.
+            //   한 번 누르면 두 번 불려서 0.2씩 — 막대 두 칸이다.
+            //   <b>키 하나에 주인은 하나.</b> −/= 는 Music 이 가져가고(게임 어디서나 먹어야 하니까),
+            //   여기는 창 안에서만 뜻이 있는 ←→ 만 듣는다.
+            if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) Nudge(1);
+            if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) Nudge(-1);
             if (k.escapeKey.wasPressedThisFrame || k.enterKey.wasPressedThisFrame
                 || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame)
                 settings = false;

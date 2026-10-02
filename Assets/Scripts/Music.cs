@@ -61,6 +61,10 @@ public class Music : MonoBehaviour
         // 측정: 피크 −2.8 dBFS · RMS −18.3 · 끝 0.59초 무음 + 그 앞 1.5초 페이드
         // 다 모은 뒤 곡이라 평소보다 조금 올린다 — «불이 켜졌다» 가 소리로도 와야 한다
         "Gallery_완성" => (0.92f, 2.0f),
+        // ── 이야기 장면. 파일 이름 = 장면 id (StoryBackdrops 의 그림과 같은 이름) ──
+        // 측정: 피크 −3.1 dBFS · RMS −18.1 · 끝 0.41초 무음 + 그 앞 2.4초 페이드
+        // 대사 위에 깔리는 곡이라 제일 낮춘다 — 글을 읽는 화면이다
+        "prologue"   => (0.72f, 2.8f),
         _            => (1.00f, 1.6f),
     };
 
@@ -155,6 +159,15 @@ public class Music : MonoBehaviour
     {
         if (TitleScreen.Up) return "Title";
 
+        // ★★ 2026-10-02 — 이야기가 도는 동안에는 <b>장면 id 로 곡을 찾는다.</b>
+        //   이야기는 로비 «안에서» 도니까(§3.6) 씬 이름으로만 고르면 프롤로그에도
+        //   로비 곡이 깔린다. 파일 이름이 <see cref="StoryBackdrops"/> 의 그림과
+        //   <b>똑같아서</b> 외울 게 하나뿐이다:
+        //   <c>Music/prologue.wav</c> ↔ <c>StoryBackdrops/prologue.png</c>
+        //   곡이 없는 장면은 <see cref="Swap"/> 가 로비 곡으로 되떨어진다.
+        if (StoryStage.Talking && !string.IsNullOrEmpty(StoryStage.TalkingScene))
+            return StoryStage.TalkingScene;
+
         string scene = SceneManager.GetActiveScene().name;
         return CollectionState.Count >= ExhibitCatalogue.All.Length ? scene + Done : scene;
     }
@@ -177,6 +190,15 @@ public class Music : MonoBehaviour
             string plain = want.Substring(0, want.Length - Done.Length);
             clip = Resources.Load<AudioClip>("Music/" + plain);
             if (clip != null) (gain, overlap) = Tuning(plain);
+        }
+
+        // 이야기 장면에 제 곡이 없으면 <b>그 씬 곡</b>으로. 이야기 중에 음악이 뚝 끊기면
+        // «버그» 로 읽힌다 — 조용해지는 건 연출일 때만 해야 한다.
+        if (clip == null && StoryStage.Talking)
+        {
+            string scene = SceneManager.GetActiveScene().name;
+            clip = Resources.Load<AudioClip>("Music/" + scene);
+            if (clip != null) (gain, overlap) = Tuning(scene);
         }
 
         if (clip == null)
