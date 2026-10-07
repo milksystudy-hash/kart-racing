@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -21,6 +21,46 @@ using UnityEngine;
 /// </summary>
 public class CampusBoarding : MonoBehaviour
 {
+    // ==================================================================
+    //  스스로 씬에 들어온다
+    // ==================================================================
+    /// <summary>
+    /// ★★ 2026-10-06 유저: *"초반 레이싱할 때 건물에 모든 판자가 안 세워져 있는데,
+    /// 무조건 관장이랑 맞장뜨기 전까지는 나무 패널 유지해 줘."*
+    ///
+    /// <b>판자가 «걷힌» 게 아니라 아예 없었다.</b> 이 컴포넌트를 붙여 주는 건
+    /// <c>CampusSceneBuilder</c> 뿐이라 <b>캠퍼스 씬에만</b> 있었는데, 캠퍼스 건물은
+    /// <b>트랙 씬에서도</b> 지어진다(<c>CampusBuilder.buildOnAwake</c>) — 거기엔 아무도 안 붙였다.
+    /// 그래서 레이스 중에 보이는 건물은 열세 동 전부 맨 문이었다.
+    ///
+    /// 스스로 들어오게 고쳤다. 「새 컴포넌트로 고치면 씬을 다시 구워야만 고쳐진다」를
+    /// 다섯 번 겪은 뒤의 기본형이고, 이러면 <b>트랙 씬을 안 건드려도</b> 들어온다.
+    /// <see cref="onlyAfterFinal"/> 가 기본 켜짐이라 <b>결승을 이기기 전에는 하나도 안 걷힌다.</b>
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void Install()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnLoaded;
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnLoaded;
+        Place();
+    }
+
+    static void OnLoaded(UnityEngine.SceneManagement.Scene s,
+                         UnityEngine.SceneManagement.LoadSceneMode m) => Place();
+
+    static void Place()
+    {
+        // 캠퍼스가 없는 씬(로비·전시실)에는 붙일 문이 없다
+        if (Object.FindFirstObjectByType<CampusBuilder>() == null) return;
+
+        // 캠퍼스 씬에는 리그에 이미 붙어 있다 — 두 개면 판자가 두 겹이 된다.
+        // 꺼져 있을 수도 있으니 <b>Include</b> 로 찾는다(이 프로젝트에서 세 번 걸린 함정).
+        if (Object.FindObjectsByType<CampusBoarding>(FindObjectsInactive.Include,
+                                                     FindObjectsSortMode.None).Length > 0) return;
+
+        new GameObject("CampusBoarding").AddComponent<CampusBoarding>();
+    }
+
     [Tooltip("판자를 안 붙일 건물. 행정동은 없어지지 않는다 — 그게 농담이야")]
     public string neverClosed = "웅지관";
 
@@ -45,8 +85,16 @@ public class CampusBoarding : MonoBehaviour
     [Tooltip("켜면 결승을 이기기 전까지 전부 막힌다. 끄면 수집품마다 한 동씩 걷힌다")]
     public bool onlyAfterFinal = true;
 
-    [Tooltip("절대 안 막는 곳. 화장실은 곰과 대화하는 자리라 늘 열려 있다")]
-    public string[] alwaysOpen = { "화장실" };
+    /// <summary>
+    /// 절대 안 막는 곳. 화장실은 곰과 대화하는 자리라 늘 열려 있다.
+    ///
+    /// ★★ 2026-10-06 <b>웅지관(행정동)을 넣었다.</b> 열세 동이 전부 판자로 막혀 있는데
+    /// <b>행정동 문만 멀쩡히 열린다</b> — 아무도 말 안 해주는 신호다.
+    /// 「폐과 딱지가 안 붙는 유일한 건물」(<see cref="CampusMood.neverClosed"/>)과 같은 말을
+    /// 하고 있고, 플레이어는 0/8 에 캠퍼스를 한 바퀴 돌면서 이걸 먼저 본다.
+    /// </summary>
+    [Tooltip("절대 안 막는 곳. 화장실은 대화 자리, 웅지관은 복선이다")]
+    public string[] alwaysOpen = { "화장실", "웅지관" };
 
     readonly List<Transform> boards = new();
     readonly List<Transform> notices = new();

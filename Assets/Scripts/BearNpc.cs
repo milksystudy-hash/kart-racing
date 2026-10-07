@@ -446,37 +446,41 @@ public class BearNpc : MonoBehaviour
     }
 
     /// <summary>말을 건다. 대사 한 줄을 뱉고, 말한 쪽을 쳐다보며 손을 든다.</summary>
-    [Header("목소리")]
-    [Tooltip("굵고 거친 아저씨 목소리. 화장실 변기 얘기하는 곰에게 켠다")]
-    public bool deepVoice;
-
     /// <summary>
     /// <b>말 걸면 운다.</b> 2026-10-02 유저 요청 — *"동물의 숲에서 나오는 말하는 음성처럼."*
     ///
-    /// 동물의 숲 소리의 정체는 <b>짧은 모음 하나를 음높이만 바꿔 이어 붙인 것</b>이다.
-    /// 포먼트(입 모양) 둘을 걸어 모음을 만들고, 음절마다 음높이를 튀게 하고,
-    /// 끝을 내리면 «평서문» 으로 들린다. 외부 음원 없이 파이썬으로 합성했다.
-    ///
-    /// ★ 같은 소리를 두 번 연달아 쓰지 않는다. 한 가지만 반복되면
-    /// «말» 이 아니라 <b>«효과음 하나»</b> 로 들려서 금방 거슬린다.
+    /// 2026-10-07 에 <b>유저가 만든 음원 셋</b>으로 갈았다. 임시로 합성해 쓰던
+    /// <c>BearVoice_1~4</c> · <c>BearVoiceDeep_1~3</c> 일곱 개는 지웠다 —
+    /// <c>deepVoice</c> 토글도 같이 없앴다(이제 역할이 목소리를 정한다).
     /// </summary>
-    static int lastVoice = -1;
+
+    /// <summary>
+    /// ★★ 2026-10-07 — <b>곰마다 제 목소리를 하나씩</b> 가진다(유저 지시).
+    ///
+    /// 전에는 네 가지를 무작위로 돌려 썼는데, 그러면 <b>같은 곰이 말할 때마다 목소리가 바뀐다</b> —
+    /// 그건 «세 마리» 가 아니라 «효과음 네 개» 다. 역할에 목소리를 묶으면 <b>캐릭터가 된다.</b>
+    ///
+    /// 역할 번호는 <see cref="BearLines"/> 와 같다:
+    /// <b>0 변기 곰</b>(«축하는 나중에. 지금 2층 물 새.») ·
+    /// <b>1 학생 곰</b>(«동아리방 다시 준대요!») ·
+    /// <b>2 어르신 곰</b>(«관장 얼굴이 좀 폈더라.»)
+    ///
+    /// 음량은 <b>재서 넣었다</b> — 셋 다 RMS −18 로 같은데 피크가 −1.0 / −1.2 / −0.2 라
+    /// 변기 곰 것이 제일 날카롭다. 그래서 그것만 더 낮춘다.
+    /// </summary>
+    static readonly (string file, float gain)[] Voices =
+    {
+        ("BearVoice_Plumber", 0.78f),   // 0 — 물 새는 걱정을 하는 곰
+        ("BearVoice_Student", 0.88f),   // 1 — 동아리방 소식에 신난 곰
+        ("BearVoice_Elder",   0.88f),   // 2 — 관장 얼굴을 보는 곰
+    };
 
     void Cry()
     {
-        // ★ 역할 0 이 <b>변기 얘기하는 곰</b>이다(BearLines.Plumber). 인스펙터를
-        //   일일이 켜게 하지 않고 <b>스스로 알게</b> 둔다 — 씬을 다시 구울 필요도 없다.
-        bool deep = deepVoice || Role == 0;
+        var v = Voices[Mathf.Clamp(Role, 0, Voices.Length - 1)];
 
-        int count = deep ? 3 : 4;
-        string prefix = deep ? "BearVoiceDeep_" : "BearVoice_";
-
-        int pick = Random.Range(0, count);
-        if (count > 1 && pick == lastVoice) pick = (pick + 1) % count;
-        lastVoice = pick;
-
-        // 말소리는 음악보다 또렷해야 한다. 음악이 더킹으로 비켜 주니 1.0 으로 둬도 안 시끄럽다.
-        Sfx.Play(prefix + (pick + 1), 1f);
+        // 말소리는 음악보다 또렷해야 한다. 음악이 더킹으로 비켜 준다.
+        Sfx.Play(v.file, v.gain);
     }
 
     public void Talk()

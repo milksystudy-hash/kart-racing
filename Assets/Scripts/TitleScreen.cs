@@ -74,6 +74,9 @@ public class TitleScreen : MonoBehaviour
     /// <summary>앱을 켜고 <b>한 번만</b> 띄운다. 레이스 끝나고 로비로 돌아올 때마다 뜨면 문이 아니라 벽이다.</summary>
     static bool shownThisRun;
 
+    /// <summary>이번 실행의 <b>첫 씬</b>을 이미 봤는가. 0번이 아니었으면 첫 화면을 영영 안 띄운다.</summary>
+    static bool bootChecked;
+
     /// <summary>
     /// 배경 그림. <b>있으면 쓰고 없으면 3D 로비가 그대로 배경</b>이다 —
     /// 유저가 나중에 <c>Assets/Resources/Backgrounds/Title.png</c> 를 넣기만 하면 들어온다.
@@ -103,6 +106,7 @@ public class TitleScreen : MonoBehaviour
     static void Install()
     {
         shownThisRun = false;
+        bootChecked = false;
         Up = false;
         SceneManager.sceneLoaded -= OnLoaded;
         SceneManager.sceneLoaded += OnLoaded;
@@ -115,7 +119,21 @@ public class TitleScreen : MonoBehaviour
         // <b>0번 씬 = 게임이 부팅하는 씬</b>. 이름이 아니라 번호로 보는 이유는,
         // 나중에 씬 순서가 바뀌어도 «첫 화면» 이라는 뜻이 안 흔들리기 때문이야.
         // 에디터에서 트랙(1번)을 열고 ▶ 를 누르면 안 뜬다 — 그게 맞다.
-        if (scene.buildIndex != 0) return;
+        //
+        // ★★ 그런데 «안 뜬다» 로는 모자랐다(2026-10-06 유저: *"레이스 끝나자마자 전시실 화면
+        //   비춰주고 자꾸 메인화면으로 이동한다"*). 트랙에서 ▶ 를 누르면 0번 씬을 거친 적이 없어
+        //   <c>shownThisRun</c> 이 false 로 남고, <b>레이스를 깨고 중앙홀로 돌아오는 순간</b>
+        //   그게 «첫 부팅» 으로 보여 타이틀이 떴다. 임무를 깰 때마다 첫 화면이 나오는 꼴이다.
+        //
+        //   그래서 <b>이번 실행의 첫 씬이 0번일 때만</b> 첫 화면으로 친다.
+        //   빌드는 언제나 0번으로 부팅하니 빌드 동작은 그대로고, 에디터에서 어느 씬을 열고
+        //   ▶ 를 눌러도 그 실행 내내 안 뜬다.
+        if (!bootChecked)
+        {
+            bootChecked = true;
+            if (scene.buildIndex != 0) shownThisRun = true;   // 이 실행에서는 영영 안 띄운다
+        }
+        if (shownThisRun || scene.buildIndex != 0) return;
 
         shownThisRun = true;
         new GameObject("TitleScreen").AddComponent<TitleScreen>();
@@ -211,6 +229,7 @@ public class TitleScreen : MonoBehaviour
         if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame
             || k.spaceKey.wasPressedThisFrame)
         {
+            Sfx.Play("UiSelect");
             Choose(cursor);
             return;
         }
@@ -238,6 +257,7 @@ public class TitleScreen : MonoBehaviour
     void Move(int step)
     {
         cursor = (cursor + step + Items.Length) % Items.Length;
+        Sfx.Play("UiMove", 1f, duckMusic: false);
     }
 
     static void Nudge(int step)

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// 플레이어의 랩타임과 완주 판정. 랩을 세는 일 자체는 <see cref="RaceProgress"/> 가 하고,
@@ -51,8 +51,22 @@ public class LapTracker : MonoBehaviour
         progress.totalLaps = totalLaps;
         watchedLap = progress.Lap;
 
+        // ★★ 2026-10-06 <b>씬을 넘어 살아남는 전역값을 여기서 싹 푼다.</b>
+        //
+        // <c>Time.timeScale</c>(미니게임 일시정지) · <c>Physics.simulationMode</c>(레이스
+        // 일시정지) · <see cref="ItemReveal"/>(획득 연출) 은 전부 <b>static 이거나 엔진 전역</b>이라
+        // 씬을 갈아타도 안 풀린다. 어느 한 군데서 푸는 걸 빠뜨리면 <b>다음 레이스가
+        // 멈춘 채로 시작하고</b>, 그건 «먹통» 으로 보이지 로그에는 아무것도 안 남는다.
+        //
+        // 푸는 자리를 늘리는 대신 <b>레이스가 시작되는 이 한 곳에서 무조건 제자리로</b> 돌린다 —
+        // 「못 푸는 게 제일 나쁘다」(문 바닥값 · 브리핑 25초 · 급식 4초 안전장치와 같은 판단).
+        Time.timeScale = 1f;
+        RacePause.Clear();
+        ItemReveal.Clear();
+
         // 씬에 들어올 때는 <b>브리핑부터</b>. 처음 보는 임무면 카드를 띄우고, 이미 본 임무면
         // 그대로 카운트다운으로 넘어간다 (RaceBriefing 이 알아서 고른다).
+        RaceCountdown.Arm();   // 35초 안전장치의 기준 시각
         RaceBriefing.Begin();
     }
 
@@ -62,6 +76,7 @@ public class LapTracker : MonoBehaviour
 
         // 카운트 중에는 시계도 안 간다. 안 그러면 제한시간 판이 3초를 손해 본다.
         // ESC 로 멈춘 동안도 마찬가지 — <b>고민하는 시간이 기록에 들어가면 안 된다.</b>
+        RaceBriefing.Tick();
         if (RaceCountdown.Blocked || RacePause.On) return;
 
         if (!progress.Finished)
@@ -80,11 +95,33 @@ public class LapTracker : MonoBehaviour
         {
             watchedFinished = true;
             RecordLap();
+            // ★★ 2026-10-07 수연: *"임무 실패한 채 결승선에 들어오면 결승선 소리가 나지
+            //   실패 소리가 안 난다."* 맞다 — 둘이 <b>같은 프레임에 같이</b> 울렸고,
+            //   3.5초짜리 팡파레가 1.6초짜리 트럼펫을 덮었다.
+            //
+            //   고치는 자리는 음량이 아니라 <b>«실패한 판에 팡파레를 틀지 마라»</b> 다.
+            //   「잘했다」 소리를 「임무 실패」 글자 위에 깔면 그건 버그보다 나쁘다.
+            //   <b>한 프레임 늦춰서</b> 판정이 끝난 뒤에 고른다 — MissionManager 의 Update 가
+            //   LapTracker 보다 먼저 도는지 나중에 도는지는 정해져 있지 않다(이 프로젝트에서
+            //   실행 순서로 다섯 번 틀렸다).
+            finishSoundAt = Time.unscaledTime;
+        }
+
+        if (finishSoundAt > 0f && Time.unscaledTime > finishSoundAt)
+        {
+            finishSoundAt = -1f;
+            var judge = FindFirstObjectByType<MissionManager>();
+            // 실패했으면 <see cref="MissionManager.Fail"/> 이 이미 트럼펫을 울렸다.
+            if (judge == null || !judge.Failed)
+                Sfx.Play("Finish");  // 결승선 — 음악이 잠깐 비켜 준다(duckMusic 기본값)
         }
 
         if (kart != null && kart.transform.position.y < killPlaneY)
             RespawnAtLastCheckpoint();
     }
+
+    /// <summary>결승선 소리를 낼 시각. 판정이 끝난 <b>다음 프레임</b>에 «무슨 소리» 인지 정한다.</summary>
+    float finishSoundAt = -1f;
 
     void RecordLap()
     {
@@ -125,6 +162,7 @@ public class LapTracker : MonoBehaviour
         //
         // ENTER 로 <b>같은 판을 다시</b> 하는 경우라 브리핑은 대개 안 뜬다 — 방금 읽은 카드가
         // 또 나오면 안내가 아니라 장애물이다. 상품을 받아서 임무가 바뀌었을 때만 뜬다.
+        RaceCountdown.Arm();   // 35초 안전장치의 기준 시각
         RaceBriefing.Begin();
     }
 

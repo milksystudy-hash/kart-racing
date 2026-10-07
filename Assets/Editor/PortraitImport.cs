@@ -1,4 +1,4 @@
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 
 /// <summary>
@@ -47,7 +47,7 @@ public class PortraitImport : AssetPostprocessor
     ///
     ///   2 — 2026-10-02 배경에 밉맵을 켰다(지지직거림)
     /// </summary>
-    public override uint GetVersion() => 2;
+    public override uint GetVersion() => 3;
 
     void OnPreprocessTexture()
     {
@@ -67,7 +67,13 @@ public class PortraitImport : AssetPostprocessor
         //   원본 픽셀을 띄엄띄엄 집어서 <b>가장자리가 들끓는다</b> — 게다가 장소가 넘어갈 때
         //   1.04배에서 당겨 들어오니까 배율이 매 프레임 바뀌어서 더 심하다.
         //   초상화는 그대로 끈다 — 거의 1:1 로 그려서 밉맵은 흐리게만 만든다.
-        t.mipmapEnabled = ad || backdrop;
+        // ★★ 2026-10-06 <b>초상화에도 밉맵을 켠다</b>
+        //   (유저: *"애들이 말할 때 사진이 깨져 보이고 도트처럼 흐릿하다"*).
+        //   전에 끈 이유는 «거의 1:1 로 그리니 흐려지기만 한다» 였는데, 출발 티키타카 패널은
+        //   420×512 를 <b>72px 로</b> 줄여 그린다 — 1/6 이다. 밉맵이 없으면 그 축소가
+        //   <b>픽셀을 띄엄띄엄 집는 것</b>이라 도트처럼 깨진다.
+        //   <c>mipMapBias −0.4</c> 가 이미 걸려 있어서 큰 대사창은 그대로 선명하다.
+        t.mipmapEnabled = true;
         t.mipMapBias = -0.4f;            // 밉맵을 켜되 조금 선명한 쪽으로 당긴다
         t.filterMode = FilterMode.Trilinear;
         t.wrapMode = TextureWrapMode.Clamp;      // 가장자리가 반대편으로 말리지 않게

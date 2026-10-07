@@ -42,6 +42,50 @@ public class AiRaceGate : MonoBehaviour
 
     void Start() => Apply();
 
+    bool lastRace;
+    bool haveLast;
+
+    /// <summary>
+    /// ★★ 2026-10-06 유저: *"게임 다 끝내고 자유 플레이 하러 들어가면 첫 판에 AI 가 없고,
+    /// 나갔다가 다시 들어가면 그제서야 AI 자유 주행이 된다."*
+    ///
+    /// <b>«나갔다 오면 된다» 는 언제나 «첫 프레임 순서» 문제다.</b> <see cref="Apply"/> 가
+    /// <c>Start</c> 와 재시작에서만 돌아서, 그 시점에 <c>ShouldRace</c> 가 아직 false 로
+    /// 읽히면 <b>그 판 내내 다시 묻지 않았다.</b> 이제 <b>답이 바뀌면 바로 다시 맞춘다</b> —
+    /// 매 프레임 세는 게 아니라 <b>달라졌을 때만</b>.
+    /// </summary>
+    void Update()
+    {
+        bool race = ShouldRace;
+        if (haveLast && race == lastRace) return;
+        haveLast = true; lastRace = race;
+        Apply();
+    }
+
+    /// <summary>
+    /// 게이트가 <b>없는 씬</b>에서도 스스로 들어온다. 「새 컴포넌트로 고치면 씬을 다시
+    /// 구워야만 고쳐진다」를 다섯 번 겪은 뒤의 기본형이야.
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void Install()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnLoaded;
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnLoaded;
+        Place();
+    }
+
+    static void OnLoaded(UnityEngine.SceneManagement.Scene s,
+                         UnityEngine.SceneManagement.LoadSceneMode m) => Place();
+
+    static void Place()
+    {
+        // 꺼진 카트까지 봐야 한다 — 한 번 꺼두면 기본 검색으로는 영영 안 잡힌다
+        if (FindObjectsByType<KartAi>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length == 0) return;
+        if (FindObjectsByType<AiRaceGate>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length > 0) return;
+
+        new GameObject("AiRaceGate").AddComponent<AiRaceGate>();
+    }
+
     /// <summary>레이스를 다시 시작할 때도 맞춰준다 — 그 사이에 마지막 판이 됐을 수 있다.</summary>
     public void Apply()
     {

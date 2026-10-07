@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// 전시실의 진열장 하나. 수집품 한 점을 올려놓는다.
@@ -36,6 +36,26 @@ public class GalleryCase : MonoBehaviour
     /// 그걸 쓰면 공들여 만든 물건이 단색 덩어리가 된다.
     /// </summary>
     public GameObject realModel;
+
+    /// <summary>
+    /// ★★ 2026-10-06 <b>돋보기에서 쓸 자세</b> — 진열장에 세울 때 기울이기 <b>전</b>의 회전.
+    ///
+    /// 진열장 안에서는 납작한 서류를 68도 눕혀 세운다(옆에서 봐도 보이라고).
+    /// 그런데 <b>돋보기 카메라는 눈높이</b>라, 그 자세를 그대로 복제하면 종이가
+    /// 거의 천장을 보고 누워서 <b>글씨가 아래로 돌아간다</b>
+    /// (유저: *"마우스를 오른쪽으로 돌리면 글씨가 완전 아래로 돌려져 있다"*).
+    ///
+    /// 옛날에 구운 씬에서는 (0,0,0,0) 이라 <see cref="ExhibitViewer"/> 가
+    /// 그걸 보고 예전 방식으로 되떨어진다 — 씬을 다시 안 구워도 안 터진다.
+    /// </summary>
+    public Quaternion viewRotation;
+
+    /// <summary>
+    /// 이 전시품이 <b>납작한 서류</b>인가. 돋보기에서 세우는 방향이 달라진다 —
+    /// 서류는 <b>윗면</b>이 보여야 하고(눕혀 두면 종이 옆면만 보인다),
+    /// 서 있는 물건은 <b>앞면</b>이 보여야 한다.
+    /// </summary>
+    public bool itemIsFlat;
 
     [Header("연출")]
     [Tooltip("아직 못 모은 진열장을 덮고 있는 흰 천. 모으면 걷힌다")]

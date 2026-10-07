@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
@@ -39,6 +39,7 @@ public class TestHUD : MonoBehaviour
 
     bool showControls;
     bool confirmQuit;
+    string lastCountdown = "";
 
     /// <summary>
     /// 멈춘 걸 푼다. <b>timeScale 을 켜는 자리를 한 군데로 모은다</b> —
@@ -48,7 +49,9 @@ public class TestHUD : MonoBehaviour
     void Resume()
     {
         confirmQuit = false;
-        RacePause.Set(false);
+        // ★ 조작법(H)이 아직 열려 있으면 <b>계속 멈춰 있는다.</b> ESC 를 취소한 것이
+        //   조작법까지 닫는 것으로 읽히면 안 된다.
+        RacePause.Set(showControls);
     }
 
     // 씬을 옮기거나 이 HUD 가 꺼질 때도 반드시 푼다 — 로비로 나갔는데 로비가 얼어 있으면 안 된다.
@@ -81,17 +84,61 @@ public class TestHUD : MonoBehaviour
         // ★ 브리핑 카드가 떠 있으면 <b>그 카드만</b> 듣는다. 다른 키가 같이 먹으면
         // 카드를 닫으려다 이펙트가 꺼지거나 조작법이 열린다 —
         // "큰 패널은 한 번에 한 장" 을 입력 쪽에도 적용한 것(2026-09-18).
+        // ★ 마우스로도 넘어간다. <b>닫는 길은 많을수록 좋다</b> — 못 닫는 게 제일 나쁘다
+        var tapMouse = UnityEngine.InputSystem.Mouse.current;
+        bool tap = k.anyKey.wasPressedThisFrame
+                || (tapMouse != null && (tapMouse.leftButton.wasPressedThisFrame
+                                      || tapMouse.rightButton.wasPressedThisFrame));
+
         if (RaceBriefing.Open)
         {
-            if (k.anyKey.wasPressedThisFrame) RaceBriefing.Dismiss();
+            if (tap) RaceBriefing.Dismiss();
             return;
         }
 
-        if (k.hKey.wasPressedThisFrame) showControls = !showControls;
+        // 티키타카가 끝나면 숫자가 시작된다. 아무 키나 누르면 건너뛴다 —
+        // 두 번째부터는 안 나오지만, 처음에도 <b>못 건너뛰는 건 안 된다.</b>
+        RaceBriefing.Tick();
+        if (RaceBriefing.Chatting)
+        {
+            if (tap) RaceBriefing.SkipChatter();
+            return;
+        }
+
+        // ★★ 2026-10-06 유저: *"조작법을 눌러도 게임이 계속 진행되는데, ESC 랑 조작법 H 를
+        //   눌러도 게임 진행 말고 일시정지되게 해 줘."* <b>맞다 — 조작법을 읽는 동안
+        //   벽에 박혀 있으면 그건 도움말이 아니라 벌이다.</b>
+        //   푸는 자리는 <see cref="Resume"/> 한 군데로 모아 둔다(멈춘 채로 남는 게 제일 나쁘다).
+        if (k.hKey.wasPressedThisFrame)
+        {
+            showControls = !showControls;
+            if (showControls) RacePause.Set(true);
+            else if (!confirmQuit) Resume();
+        }
 
         // TAB 으로 내려서 걷기. <b>개발용이다</b> — 플레이어가 걸어다니는 건 캠퍼스 씬(F4)이고,
         // 레이스 도중에 내리는 건 이상하다는 유저 판단(2026-09-17). 점검할 때만 쓴다.
-        if (debugKeys && k.tabKey.wasPressedThisFrame && modeSwitcher != null && modeSwitcher.HasKart)
+        // ★ 3 · 2 · 1 · 출발 소리. <b>OnGUI 가 아니라 Update 에서</b> 낸다 —
+        //   OnGUI 는 한 프레임에 두 번 돌아서 소리가 겹친다.
+        string cd = RaceCountdown.Label;
+        if (cd != lastCountdown)
+        {
+            string was = lastCountdown;
+            lastCountdown = cd;
+
+            // ★★ <b>숫자마다 한 번이 아니라, 셀 때 한 번이다.</b>
+            //   유저가 구한 음원이 «삐 · 삐 · 삐 · 빵» 이 <b>한 파일에 다 들어</b> 있다 —
+            //   숫자가 바뀔 때마다 틀면 넷이 겹쳐서 소리가 뭉갠다.
+            //   숫자마다 따로 울리고 싶으면 <c>CountdownTick</c> 이라는 짧은 파일을 넣으면 된다.
+            if (string.IsNullOrEmpty(was) && !string.IsNullOrEmpty(cd))
+                Sfx.Play("Countdown", 0.9f, duckMusic: false);
+            else if (!string.IsNullOrEmpty(cd) && cd != "출발!")
+                Sfx.Play("CountdownTick", 0.9f, duckMusic: false);
+
+            if (cd == "출발!") Sfx.Play("CountdownGo", 1f, duckMusic: false);
+        }
+
+        if (Dev.Enabled && debugKeys && k.tabKey.wasPressedThisFrame && modeSwitcher != null && modeSwitcher.HasKart)
         {
             modeSwitcher.Toggle();
             Toast.Show(modeSwitcher.InKart ? "카트에 탔다" : "내려서 걷는다   TAB 다시 타기");
@@ -116,8 +163,11 @@ public class TestHUD : MonoBehaviour
         // 이 카트는 레이캐스트 서스펜션이 매 FixedUpdate 마다 밀어 올려서 떠 있는 거라,
         // 물리를 세우면 <b>받쳐주던 힘도 같이 멈춘다.</b> <see cref="RacePause"/> 를 쓴다 —
         // 카트를 키네마틱으로 재워서 떨어질 수가 없게 하고, 풀 때 속도를 그대로 돌려준다.
-        if (k.escapeKey.wasPressedThisFrame)
+        // ★ 획득 연출을 막 닫았으면 ESC 를 안 받는다 — 연타한 키가 여기로 새면
+        //   두 번째 ESC 에 <b>로비로 나가 버린다</b>(2026-10-06 유저 제보).
+        if (k.escapeKey.wasPressedThisFrame && !ItemReveal.JustClosed)
         {
+            Sfx.Play(confirmQuit ? "UiSelect" : "UiBack", 1f, duckMusic: false);
             if (confirmQuit) { Resume(); SceneNavigator.LoadByIndex(0); return; }
             confirmQuit = true;
             RacePause.Set(true);
@@ -156,7 +206,7 @@ public class TestHUD : MonoBehaviour
             tracker.ResetRace();
         }
 
-        if (!debugKeys) return;
+        if (!Dev.Enabled || !debugKeys) return;
 
         // 아직 임무 판정이 없어서 장이 저절로 안 넘어간다. 손으로 넘겨보는 용도.
         if (k.f7Key.wasPressedThisFrame) { StoryProgress.AdvanceChapter(); SceneNavigator.Reload(); }
@@ -177,6 +227,7 @@ public class TestHUD : MonoBehaviour
         }
 
         if (InKart) DrawCountdown(w, h);
+        if (InKart) DrawChatter(w, h);
         DrawToast(w, h);
         DrawCorner(h);
         if (InKart) DrawMiniMap(w, h);
@@ -398,13 +449,30 @@ public class TestHUD : MonoBehaviour
         }
 
         // 대사가 들어오면 여기. 없으면 아무 것도 안 그린다.
+        // ★ 2026-10-06 — 브리핑 한 줄에 <b>말하는 사람</b>을 붙일 수 있게 했다.
+        //   «세운|대사» 꼴이면 이름이 그 캐릭터 색으로 앞에 붙고, 없으면 나레이션이다.
         string line = RaceBriefing.Line;
         if (!string.IsNullOrEmpty(line))
         {
+            string who = "", what = line;
+            int bar = line.IndexOf('|');
+            if (bar > 0) { who = line.Substring(0, bar).Trim(); what = line.Substring(bar + 1).Trim(); }
+
             var say = Hud.Resize(Hud.Text, 15, TextAnchor.UpperLeft);
             say.wordWrap = true;
             say.normal.textColor = Hud.InkSoft;
-            GUI.Label(new Rect(inner.x + 14f, inner.y + 228f, inner.width - 28f, 44f), line, say);
+
+            float y = inner.y + 228f;
+            if (who.Length > 0)
+            {
+                var tag = Hud.Resize(Hud.Text, 15, TextAnchor.UpperLeft);
+                tag.normal.textColor = Cast.ColorOf(who);
+                tag.fontStyle = FontStyle.Bold;
+                float tw = tag.CalcSize(new GUIContent(who)).x + 8f;
+                GUI.Label(new Rect(inner.x + 14f, y, tw, 22f), who, tag);
+                GUI.Label(new Rect(inner.x + 14f + tw, y, inner.width - 28f - tw, 44f), what, say);
+            }
+            else GUI.Label(new Rect(inner.x + 14f, y, inner.width - 28f, 44f), what, say);
         }
 
         // ★ "아무 키" 는 게임 밖 말투다 — 실제로 누를 키를 적는다(2026-09-18).
@@ -599,6 +667,119 @@ public class TestHUD : MonoBehaviour
         GUI.matrix = saved;
     }
 
+    // ---- 출발 카운트다운 동안의 티키타카 ----
+    /// <summary>
+    /// ★ 2026-10-06 — 카운트다운 3초는 <b>카트가 안 움직이는 죽은 시간</b>이라
+    /// 이 게임에서 대사를 공짜로 넣을 수 있는 유일한 자리다.
+    ///
+    /// · <b>처음 보는 판에만</b>(<see cref="RaceBriefing.Fresh"/>). ENTER 로 다시 할 때마다
+    ///   같은 대사가 또 나오면 안내가 아니라 장애물이 된다
+    /// · 자리는 <b>아래쪽</b> — 가운데는 숫자가, 왼쪽은 수집품 판이, 오른쪽은 지도가 쓴다
+    /// · 판을 안 깐다. 3초짜리라 <b>글자 뒤 그림자</b>면 충분하고 아무것도 안 가린다
+    /// · 대사는 <see cref="StoryScript.Chatter"/> 에 있고 <b>비어 있으면 아무 것도 안 그린다</b>
+    /// </summary>
+    void DrawChatter(float w, float h)
+    {
+        if (!RaceBriefing.Chatting) return;
+
+        var lines = StoryScript.Chatter(MissionManager.CurrentGoal);
+        if (lines == null || lines.Length == 0) return;
+
+        // ★★ 2026-10-06 유저: *"대사가 트랙이랑 배경색에 묻혀서 안 보인다."*
+        //   맞다 — <b>글자 뒤에 그림자를 깔아 봐야 배경이 밝으면 진다.</b>
+        //   해결은 하나뿐이야: <b>불투명한 판을 깔고 그 위에 쓴다.</b>
+        //
+        //   생김새는 <b>대사 로그</b> 꼴 — 어두운 판 · 얘마한 나무빛 테두리 ·
+        //   가로 줄무늬 · 왼쪽에 초상화. 초상화는 <b>이미 스물한 장이 들어와 있어서</b>
+        //   가져다 쓰기만 하면 된다(<see cref="Cast.Portrait"/> 가 캐시한다).
+        int upTo = Mathf.Min(RaceBriefing.ChatterShown, lines.Length);
+        int rows = Mathf.Min(lines.Length, 2);
+
+        // ★ 자리를 고정 좌표로 주지 않는다. 왼쪽에 수집품 판(x 16~224), 오른쪽에 지도가
+        //   있어서 창이 좁아지면 바로 겹친다 — 이 프로젝트에서 세 번 겪은 함정이야
+        //   (지도 · 개발 정보 칩 · 카운트다운). <b>남는 가운데를 받아 쓴다.</b>
+        const float rowH = 104f, padV = 16f, padH = 18f;
+        float left = 236f, right = w - 200f;
+        float panelW = Mathf.Min(820f, right - left);
+        if (panelW < 300f) return;                 // 너무 좁으면 아예 안 그린다
+        float panelH = padV * 2f + rowH * rows;
+        var panel = new Rect(left + (right - left - panelW) * 0.5f,
+                             h * 0.5f - panelH * 0.5f + 26f, panelW, panelH);
+
+        var white = Texture2D.whiteTexture;
+        var keep = GUI.color;
+
+        // 판 — 검정에 가까운 갈색. 순검정은 이 게임의 나무·종이와 안 어울린다
+        GUI.color = new Color(0.07f, 0.06f, 0.05f, 0.90f);
+        GUI.DrawTexture(panel, white);
+
+        // 가로 줄무늬 — 이게 있어야 «화면» 이 아니라 «기록» 으로 보인다
+        GUI.color = new Color(0f, 0f, 0f, 0.22f);
+        for (float y = panel.y + 2f; y < panel.yMax - 1f; y += 3f)
+            GUI.DrawTexture(new Rect(panel.x, y, panel.width, 1f), white);
+
+        // 위아래 나무빛 테두리 — HUD 의 나무 색과 같은 것을 쓴다
+        GUI.color = new Color(0.79f, 0.67f, 0.54f, 0.85f);
+        GUI.DrawTexture(new Rect(panel.x, panel.y, panel.width, 2f), white);
+        GUI.DrawTexture(new Rect(panel.x, panel.yMax - 2f, panel.width, 2f), white);
+        GUI.color = keep;
+
+        for (int i = 0; i < rows && i < upTo; i++)
+        {
+            string raw = lines[i];
+            if (string.IsNullOrEmpty(raw)) continue;
+
+            int bar = raw.IndexOf('|');
+            string who = bar > 0 ? raw.Substring(0, bar) : "";
+            string text = bar > 0 ? raw.Substring(bar + 1) : raw;
+
+            float rowY = panel.y + padV + i * rowH;
+
+            // 줄 사이 가는 선
+            if (i > 0)
+            {
+                GUI.color = new Color(0.79f, 0.67f, 0.54f, 0.28f);
+                GUI.DrawTexture(new Rect(panel.x + padH, rowY - 1f, panel.width - padH * 2f, 1f), white);
+                GUI.color = keep;
+            }
+
+            // 초상화 — 없으면 그 자리를 비운다(회색 네모를 그리면 «빠졌다» 로 보인다)
+            float faceW = 72f, faceH = 88f;
+            var face = new Rect(panel.x + padH, rowY + (rowH - faceH) * 0.5f - 6f, faceW, faceH);
+            var tex = Cast.Portrait(who, Cast.Mood.기본);
+            if (tex != null)
+            {
+                GUI.color = new Color(0.79f, 0.67f, 0.54f, 0.55f);
+                GUI.DrawTexture(new Rect(face.x - 2f, face.y - 2f, face.width + 4f, face.height + 4f), white);
+                GUI.color = new Color(0.12f, 0.10f, 0.09f, 1f);
+                GUI.DrawTexture(face, white);
+                GUI.color = keep;
+                GUI.DrawTexture(face, tex, ScaleMode.ScaleToFit);
+            }
+
+            // 이름 — 초상화 밑, 이름표 색. 어두운 판이라 한 번 밝혀서 쓴다
+            var nameStyle = Hud.Resize(Hud.Label, 14, TextAnchor.UpperCenter);
+            nameStyle.normal.textColor = Color.Lerp(Cast.ColorOf(who), Color.white, 0.45f);
+            GUI.Label(new Rect(face.x - 8f, face.yMax + 1f, faceW + 16f, 20f), Cast.NameOf(who), nameStyle);
+
+            // 대사 — 크림색. 어두운 판 위라 무슨 배경이든 읽힙다
+            float textX = face.xMax + 22f;
+            var textStyle = Hud.Resize(Hud.Label, 26, TextAnchor.MiddleLeft);
+            textStyle.wordWrap = true;
+            textStyle.normal.textColor = new Color(0.95f, 0.91f, 0.83f);
+            GUI.Label(new Rect(textX, rowY, panel.xMax - padH - textX, rowH - 12f), text, textStyle);
+        }
+
+        // ★ «다음 ▼» — 대화창이면 <b>넘길 수 있다는 걸 화면이 말해야 한다.</b>
+        //   천천히 깜빡인다(가만히 있으면 눌러야 하는 줄 모른다). 마지막 줄에서는 «시작 ▼».
+        //   삼각형은 글자로 찍는다 — 새로 넣는 에셋이 0개다.
+        float blink = 0.55f + 0.45f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.4f));
+        var next = Hud.Resize(Hud.Label, 17, TextAnchor.MiddleRight);
+        next.normal.textColor = new Color(0.86f, 0.78f, 0.62f, blink);
+        GUI.Label(new Rect(panel.x, panel.yMax - 26f, panel.width - padH, 22f),
+                  RaceBriefing.ChatterHasNext ? "다음  ▼" : "시작  ▼", next);
+    }
+
     // ---- 3 · 2 · 1 · 출발! ----
     /// <summary>
     /// 화면 <b>한가운데</b>에 크게. 구석에 작게 띄우면 출발선을 보고 있는 동안 못 본다.
@@ -607,6 +788,8 @@ public class TestHUD : MonoBehaviour
     /// </summary>
     void DrawCountdown(float w, float h)
     {
+        // ★ 숫자가 실제로 그려지는 첫 프레임을 0초로 삼는다 — 로딩 끊김에 3·2 를 뺏기지 않게
+        RaceCountdown.Shown();
         string label = RaceCountdown.Label;
         if (string.IsNullOrEmpty(label)) return;
 
@@ -657,7 +840,7 @@ public class TestHUD : MonoBehaviour
     // ---- 왼쪽 아래 구석: 조작법 힌트 + 개발용 ----
     void DrawCorner(float h)
     {
-        if (debugKeys)
+        if (Dev.Enabled && debugKeys)
         {
             // 가운데 위에 두면 랩 패널과 부딪힌다. 구석이 제자리야.
             var dev = new Rect(16f, h - 54f, 236f, 22f);
@@ -684,7 +867,7 @@ public class TestHUD : MonoBehaviour
         {
             { "화살표 · WASD", "운전" },
             { "SHIFT", "꺾으면서 꾹 — 놓으면 태엽 작동" },
-            { "SPACE", "톡 누르면 폴짝 (호핑)" },
+            { "SPACE", "폴짝 — 땅울림이 지나갈 때 뛰면 넘는다" },
             { "R", "제자리로 되돌리기" },
             { "ENTER", "이 판 다시 하기" },
             { "TAB", "내려서 걷기 (개발용)" },

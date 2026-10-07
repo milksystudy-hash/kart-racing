@@ -28,7 +28,14 @@ public class SceneNavigator : MonoBehaviour
     void Update()
     {
         // 플레이어는 씬을 마음대로 건너뛰면 안 된다. 에디터에서만 듣는다.
-        if (!debugKeys || !Application.isEditor) return;
+        if (!Dev.Enabled || !debugKeys) return;
+
+        // ★★ 2026-10-06 유저: *"프롤로그에서 F2 누르면 레이싱 장면으로 이동되고
+        //   프롤로그 브금으로 레이싱 할 수 있던데 못 하게 막아."* <b>맞다.</b>
+        //   이야기가 도는 중에 씬을 넘기면 <see cref="StoryStage"/> 가 로비를 되돌려 놓지
+        //   못해서 음악도 카메라도 이야기 상태 그대로 끌려간다.
+        //   <b>큰 화면이 떠 있으면 F 키는 없다</b> — «큰 패널은 한 번에 한 장» 과 같은 규칙.
+        if (StoryStage.Talking || TitleScreen.Up) return;
 
         var keyboard = Keyboard.current;
         if (keyboard == null) return;

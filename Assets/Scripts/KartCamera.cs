@@ -52,6 +52,9 @@ public class KartCamera : MonoBehaviour
     Camera cam;
     float yaw;
     float hitImpulse;
+
+    /// <summary>바깥에서 한 번 때리는 충격. 도장 땅울림(<see cref="RaceShock"/>)이 쓴다.</summary>
+    public void Jolt(float amount) => hitImpulse = Mathf.Max(hitImpulse, amount);
     int lastWallHits;
     float noiseSeed;
 

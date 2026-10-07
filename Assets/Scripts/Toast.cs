@@ -19,6 +19,10 @@ public static class Toast
 
     public static void Show(string message)
     {
+        // ★ 같은 말이 연달아 뜰 때는 소리를 또 내지 않는다 — 알림이 겹치면 «삑삑» 거린다
+        if (message != Message || Time.time - ShownAt > 1.2f)
+            Sfx.Play("Toast", 0.8f, duckMusic: false);
+
         Message = message;
         ShownAt = Time.time;
     }

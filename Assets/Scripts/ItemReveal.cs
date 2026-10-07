@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// <b>증거 하나를 찾았을 때의 연출.</b> 결승선을 넘고 상품이 들어오는 순간 한 번 뜬다.
@@ -119,7 +119,7 @@ public static class ItemReveal
         shownAt = Time.unscaledTime;
         up = true;
 
-        if (debugLog)
+        if (Dev.Enabled && debugLog)
             Debug.Log($"[획득] '{ItemName}' (진열장 {CaseNumber}번) 연출 시작 · " +
                       $"배경 {(Backdrop == null ? "없음 → 남색 방" : Backdrop.name)} · " +
                       $"{Hold:0.0}초 뒤부터 아무 키로 닫힘 · {Timeout:0}초면 저절로");
@@ -128,17 +128,27 @@ public static class ItemReveal
     }
 
     /// <summary>아무 키·마우스로 닫는다. <see cref="CanSkip"/> 전에는 안 닫힌다.</summary>
+    /// <summary>
+    /// ★ 연출을 닫은 <b>직후</b>인가. 닫는 조건이 «아무 키» 라서 연타하면
+    /// 남은 키가 뒤의 ESC 처리로 새는데, 그게 <b>두 번이면 로비로 나가 버린다</b>
+    /// (유저: *"레이싱 끝나니까 갑자기 메인 화면으로 이동한다"*).
+    /// </summary>
+    public static bool JustClosed => Time.unscaledTime - closedAt < 0.45f;
+
+    static float closedAt = -99f;
+
     public static void Dismiss()
     {
         if (!CanSkip) return;
-        if (debugLog && up) Debug.Log($"[획득] {Elapsed:0.00}초에 <b>눌러서</b> 닫음");
+        if (Dev.Enabled && debugLog && up) Debug.Log($"[획득] {Elapsed:0.00}초에 <b>눌러서</b> 닫음");
         up = false;
+        closedAt = Time.unscaledTime;
     }
 
     /// <summary>판을 다시 시작하거나 씬을 떠날 때. 떠 있는 채로 남으면 화면이 막힌다.</summary>
     public static void Clear()
     {
-        if (debugLog && up) Debug.Log($"[획득] {Elapsed:0.00}초에 <b>Clear() 로</b> 닫음 — " +
+        if (Dev.Enabled && debugLog && up) Debug.Log($"[획득] {Elapsed:0.00}초에 <b>Clear() 로</b> 닫음 — " +
                                       "판을 다시 시작했거나 씬을 떠났다");
         up = false;
     }

@@ -130,7 +130,7 @@ public class DialogueHUD : MonoBehaviour
 
     void Update()
     {
-        if (!debugKeys || runner == null) return;
+        if (!Dev.Enabled || !debugKeys || runner == null) return;
 
         var k = Keyboard.current;
         if (k == null) return;
@@ -153,12 +153,22 @@ public class DialogueHUD : MonoBehaviour
 
         // 수집 상태를 뒤집어서 "다 모으기 전 / 다 모은 후" 대사를 바로 비교해 볼 수 있게.
         // 전시실(F9·F10)과 같은 키라 헷갈리지 않는다.
+        // ★ F9 는 <b>결승까지 깬 상태</b>를 만든다(전시실 F9 와 같다, 2026-10-06).
+        //   수집품만 채우면 전시실·캠퍼스를 보려고 <b>결승을 또 달려야</b> 한다.
         if (k.f9Key.wasPressedThisFrame)
         {
             var ids = new List<string>();
             foreach (var e in ExhibitCatalogue.All) ids.Add(e.id);
             CollectionState.CollectAll(ids);
+            GrandFinal.MarkCleared();
             runner.Replay();
+        }
+
+        // F11 — 결승만 토글. «8개는 모았지만 아직 결승 전» 을 보려면 이쪽
+        if (k.f11Key.wasPressedThisFrame)
+        {
+            if (GrandFinal.Cleared) GrandFinal.Reset(); else GrandFinal.MarkCleared();
+            Toast.Show(GrandFinal.Cleared ? "결승 클리어 ON" : "결승 클리어 OFF");
         }
         if (k.f10Key.wasPressedThisFrame)
         {
@@ -476,7 +486,7 @@ public class DialogueHUD : MonoBehaviour
             GUI.Label(foot, hint, big);
         }
 
-        if (debugKeys)
+        if (Dev.Enabled && debugKeys)
             GUI.Label(new Rect(box.x, box.yMax + 6f, box.width, 20f),
                       "1~5 장면 고르기 (수집 기록도 그 장에 맞춘다)     " +
                       "F9 전시품 전부 수집 / F10 전부 지우기",

@@ -106,6 +106,7 @@ public class AdBoard : MonoBehaviour
     {
         Broken = true;
         Breaks++;
+        Sfx.Play("AdBreak", 1f, duckMusic: false);
         if (visual != null) visual.gameObject.SetActive(false);
 
         var box = GetComponent<Collider>();

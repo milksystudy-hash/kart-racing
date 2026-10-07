@@ -180,7 +180,14 @@ public class TrackBuilder : MonoBehaviour
         BuildSurface();
         BuildStartLine();
         if (raceFurniture) BuildBoostPads();
-        if (raceFurniture) BuildLapHazards();
+        // ★★ 2026-10-06 유저: *"첫 판 돌 때 물에 잠긴다 이런 거 넣지 말자. 플레이어가 알아서
+        //   하게 냅두자. 어차피 한 판밖에 그런 기믹 없고, 지금 속도도 별로 안 줄어서
+        //   그렇지 이건 떡밥이나 기분 나쁜 요소로 넘기자."* <b>맞는 판단이다.</b>
+        //   한 판에만 있는 조작 규칙은 <b>배울 가치가 없는 규칙</b>이다 — 그 판에서만
+        //   쓰고 버리니까 플레이어는 «왜 갑자기 미끄럽지» 로만 읽는다.
+        //   침수와 둔덕은 <b>길에 그대로 둔다</b>(떡밥). 다만 <b>속도를 깎지는 않는다.</b>
+        //   되살리려면 이 줄의 false 를 raceFurniture 로 바꾸면 된다.
+        if (false) BuildLapHazards();
         BuildAdBoards(built);
         BuildAdSigns(built);
         BuildDebris(built);
@@ -874,7 +881,7 @@ public class TrackBuilder : MonoBehaviour
             // 2026-09-30 까지 −0.14 로 두어 <b>포스터가 판 뒤에 숨어 있었다</b> —
             // 트랙에서는 «그림이 없다», 캠퍼스에서는 «뒤에서 본 거울상» 으로 보였다.
             Poster(board, "Poster", at + Vector3.up * 4.1f + facing * new Vector3(0f, 0f, 0.14f),
-                   facing, new Vector2(6.1f, 2.86f), "GoldenBear");
+                   facing, new Vector2(6.1f, 2.86f), "GoldenBear_01");
 
             // 자홍 띠는 뺐다 — 포스터가 판을 덮어서 어디에 둬도 겹친다.
             // 기획서 §4.4 의 «금색 + 자홍» 은 포스터 자체가 이미 입고 있다.
@@ -1095,7 +1102,7 @@ public class TrackBuilder : MonoBehaviour
             // 그림이 1254 × 1254 <b>정사각</b>이라 판(2.2)을 거의 꽉 채운다.
             // 자홍 띠는 뺐다 — 포스터가 그 자리를 덮는다.
             Poster(art, "Poster", at + facing * new Vector3(0f, 2f, 0.07f), facing,
-                   new Vector2(2.0f, 2.0f), "GoldenBear_Sq");
+                   new Vector2(2.0f, 2.0f), "GoldenBear_02");
         }
     }
 
@@ -1263,21 +1270,28 @@ public class TrackBuilder : MonoBehaviour
     {
         if (!posterMats.TryGetValue(texture, out var mat) || mat == null)
         {
-            var tex = Resources.Load<Texture2D>("Ads/" + texture);
+            // ★★ 2026-10-07 — <b>그림을 못 찾으면 «흰 판» 이 된다.</b> 수연이 파일 이름을
+            // `GoldenBear` → `GoldenBear_01` 로 바꾸자 코스의 간판 열넷이 전부 새하얗게 나왔다.
+            // 흰 판은 <b>«칠하다 만 것»</b> 으로 보여서, 아예 안 붙은 것보다 훨씬 나쁘다.
+            //
+            // 그래서 둘을 같이 한다 — <b>이름을 몇 가지 더 찾아보고</b>, 그래도 없으면
+            // <b>포스터를 아예 안 만든다</b>(밑의 금색 판이 그대로 보여서 «광고판» 으로 읽힌다).
+            var tex = LoadAd(texture);
+            if (tex == null)
+            {
+                Debug.LogWarning($"[광고] Resources/Ads/{texture} 을 못 찾았다 — 포스터 없이 금색 판만 세운다.");
+                posterMats[texture] = null;
+                return null;
+            }
+
             mat = new Material(Surface.Lit()) { name = "Ad_" + texture };
-            if (tex != null)
-            {
-                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
-                if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
-            }
-            else
-            {
-                Debug.LogWarning($"[광고] Resources/Ads/{texture} 이 없다 — 금색 판으로 둔다.");
-            }
+            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.22f);
             if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.22f);
             posterMats[texture] = mat;
         }
+        if (mat == null) return null;
 
         var go = new GameObject(name);
         go.transform.SetParent(parent, true);
@@ -1286,6 +1300,27 @@ public class TrackBuilder : MonoBehaviour
         go.AddComponent<MeshRenderer>().sharedMaterial = mat;
         go.isStatic = true;
         return go;
+    }
+
+    /// <summary>
+    /// 광고 그림을 찾는다. <b>이름이 조금 바뀌어도 찾아낸다</b> —
+    /// 2026-10-07 에 `GoldenBear` 가 `GoldenBear_01` 로 바뀌면서 간판이 통째로 하얘졌다.
+    ///
+    /// 찾는 순서: ① 적힌 이름 그대로 → ② 꼬리 숫자를 떼고 → ③ `_01`~`_04` 를 붙여서.
+    /// <b>그래도 없으면 null</b> 이고, 부르는 쪽이 포스터를 안 만든다.
+    /// </summary>
+    static Texture2D LoadAd(string texture)
+    {
+        var tex = Resources.Load<Texture2D>("Ads/" + texture);
+        if (tex != null) return tex;
+
+        string stem = System.Text.RegularExpressions.Regex.Replace(texture, @"_(\d+|Sq)$", "");
+        tex = Resources.Load<Texture2D>("Ads/" + stem);
+        if (tex != null) return tex;
+
+        for (int i = 1; i <= 4 && tex == null; i++)
+            tex = Resources.Load<Texture2D>($"Ads/{stem}_{i:00}");
+        return tex;
     }
 
     static readonly Dictionary<Vector2, Mesh> posterQuads = new();

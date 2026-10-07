@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
@@ -123,7 +123,31 @@ public class ExhibitViewer : MonoBehaviour
         shown = Instantiate(source, pivot);
         shown.name = "Shown";
         shown.SetActive(true);
-        shown.transform.localRotation = Quaternion.identity;
+
+        // ★★ 2026-10-06 <b>여기가 「전시품이 다 뒤집혀 보인다」의 진짜 범인이었다.</b>
+        //   (유저: *"여전히 기본이 뒤집혀있어. 이게 −90도 인지 뭔지는 몰라도"* — ★ −90도가 맞다.)
+        //
+        //   전에는 <c>localRotation = Quaternion.identity</c> 를 넣었다. 그런데 임포트한 FBX 는
+        //   <b>축 변환(−90도 X)을 루트 회전으로 들고 온다.</b> identity 로 덮으면 그게 지워져서
+        //   모델이 <b>뒤로 눕는다</b> — 진열장 안은 멀쩡한데 돋보기에서만 누워 보였던 이유야.
+        //   CLAUDE.md 에 두 번 적혀 있는 함정이다(2026-09-21 곰 · 2026-09-22 로비 소품).
+        //
+        //   ★ 180도는 <b>따로 필요하다.</b> 진열장의 앞은 +Z(방 한가운데)인데
+        //   돋보기 카메라는 −Z 에서 +Z 를 본다 — 그대로 복제하면 <b>뒷면이 보인다.</b>
+        //   진열장에서 보던 바로 그 면이 먼저 나와야 한다.
+        // ★ 진열장의 <b>기울임은 빼고</b> 세운다. 68도 누운 서류를 눈높이 카메라로 보면
+        //   글씨가 아래를 본다 — 진열장 안에서 옳은 자세가 돋보기에서도 옳은 건 아니다.
+        bool known = source == display.realModel && !display.viewRotation.Equals(default);
+        Quaternion basis = known ? display.viewRotation : source.transform.localRotation;
+
+        // ★★ 2026-10-06 <b>세우는 방향이 물건마다 다르다.</b> 돋보기 카메라는 −Z 에서 +Z 를 본다:
+        //   · <b>서류</b>는 윗면(+Y)이 글씨 면이라 <b>X 로 −90도</b> 눕혀 세워야 글씨가 보인다.
+        //     그냥 두면 종이 <b>옆면</b>만 보이고(두께 2cm), 180도만 돌리면 뒷장이 보인다.
+        //   · <b>서 있는 물건</b>은 앞면이 +Z 라 <b>Y 로 180도</b> 돌려야 앞이 카메라를 본다.
+        //   하나로 퉁치면 둘 중 하나는 반드시 틀린다 — 처음에 Y180 하나로 뒀다가 여섯이 틀렸다.
+        shown.transform.localRotation =
+            (known && display.itemIsFlat ? Quaternion.Euler(-90f, 0f, 0f)
+                                         : Quaternion.Euler(0f, 180f, 0f)) * basis;
 
         // 돌리는 건 우리가 한다 — 제자리 회전이 섞이면 드래그가 안 먹는 것처럼 보인다
         foreach (var s in shown.GetComponentsInChildren<ExhibitSpin>(true)) Destroy(s);

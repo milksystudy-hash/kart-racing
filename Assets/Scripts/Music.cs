@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
@@ -64,10 +64,22 @@ public class Music : MonoBehaviour
         // 측정: 피크 −2.8 dBFS · RMS −18.3 · 끝 0.59초 무음 + 그 앞 1.5초 페이드
         // 다 모은 뒤 곡이라 평소보다 조금 올린다 — «불이 켜졌다» 가 소리로도 와야 한다
         "Gallery_완성" => (0.92f, 2.0f),
+        // ── 캠퍼스. 걸어 다니며 건물을 보는 씬이라 <b>발소리와 곰 말소리를 덮으면 안 된다</b> ──
+        "Track"       => (0.74f, 2.4f),   // RACE_01 · 피크 −4.9 RMS −18.3 · 꼬리무음 1.52초
+        "Track_후반"  => (0.76f, 2.4f),   // 아직 파일 없음 — 없으면 Track 으로 되떨어진다
+        "Track_결승"  => (0.82f, 2.0f),   // RACE_BOSS · 피크 −6.5 RMS −18.4 · 꼬리무음 1.08초
+        "Track_완성"  => (0.76f, 2.6f),   // Racing After · 피크 −5.5 RMS −18.4 · 꼬리무음 1.66초
+        "안전점검훈련" => (0.80f, 2.7f),  // 철곰관 · 피크 −6.3 RMS −18.3 · 꼬리무음 1.79초
+        "오늘의급식"   => (0.78f, 2.0f),  // 곰밥마당 · 피크 −3.5 RMS −18.4 · 꼬리무음 1.14초
+        "따라그리기"   => (0.76f, 2.7f),  // 재주관 · 피크 −1.7 RMS −18.5 · 꼬리무음 1.83초
+        "Campus"      => (0.78f, 3.0f),
+        "Campus_완성" => (0.90f, 2.4f),
         // ── 이야기 장면. 파일 이름 = 장면 id (StoryBackdrops 의 그림과 같은 이름) ──
         // 측정: 피크 −3.1 dBFS · RMS −18.1 · 끝 0.41초 무음 + 그 앞 2.4초 페이드
         // 대사 위에 깔리는 곡이라 제일 낮춘다 — 글을 읽는 화면이다
         "prologue"   => (0.72f, 2.8f),
+        "ch3"        => (0.74f, 2.9f),   // 관장의 배신 · 피크 −2.9 RMS −18.5 · 제일 어두운 곡(밝기 677Hz)
+        "epilogue"   => (0.80f, 3.1f),   // 에필로그 · 피크 −3.6 RMS −18.2 · 제일 밝은 곡(1162Hz)
         _            => (1.00f, 1.6f),
     };
 
@@ -210,8 +222,47 @@ public class Music : MonoBehaviour
             if (!string.IsNullOrEmpty(StoryStage.TalkingScene)) return StoryStage.TalkingScene;
         }
 
+        // ★★ 2026-10-06 — 미니게임은 <b>제 곡을 쓴다.</b> 유저가 «배경음악으로 쓸까
+        //   전용 테마로 쓸까» 물었는데 <b>전용 테마가 맞다</b>: 미니게임은 화면도 규칙도
+        //   따로인 <b>다른 판</b>이라, 캠퍼스 곡이 그대로 깔리면 «메뉴를 연 것» 처럼 들린다.
+        //   60초짜리 훈련에는 그 60초에 맞는 박자가 필요하다.
+        //   곡이 없으면 <see cref="Swap"/> 가 씬 곡으로 되떨어진다 — 없어도 안 망가진다.
+        if (SafetyDrill.Open) return "안전점검훈련";
+        if (Canteen.Open) return "오늘의급식";
+        if (TracingGame.Active != null) return "따라그리기";
+
         string scene = SceneManager.GetActiveScene().name;
-        return CollectionState.Count >= ExhibitCatalogue.All.Length ? scene + Done : scene;
+
+        // ★★ 2026-10-06 유저: *"8판마다 각각 음악이 다 달라야 돼?"* <b>아니다.</b>
+        //   한 판이 1분 27초인데 판마다 다른 곡이면 <b>어느 곡도 두 번 안 들린다</b> —
+        //   그러면 «이 게임의 음악» 이 생기지 않는다. 레이싱 게임이 곡을 가르는 기준은
+        //   «몇 판째» 가 아니라 <b>긴장도</b>고, 같은 트랙을 여덟 번 도는 지루함은
+        //   이미 <see cref="RaceProps"/> 가 판마다 다른 풍경으로 맡고 있다.
+        //
+        //   그래서 셋이면 충분하다. <b>뒤의 셋은 없어도 된다</b>(없으면 Track 으로 되떨어진다):
+        //     Track        판 1~5    — 기본
+        //     Track_후반   판 6~8    — 같은 멜로디를 무겁게
+        //     Track_결승   9판       — 개발업자·시의원과의 대결
+        //     Track_완성   자유 주행 — 다 끝낸 뒤
+        if (scene == "Track")
+        {
+            string tier = GrandFinal.FreeRun         ? "Track" + Done
+                        : GrandFinal.Available       ? "Track_결승"
+                        : CollectionState.Count >= 5 ? "Track_후반"
+                        : "Track";
+            if (tier != "Track" && Resources.Load<AudioClip>("Music/" + tier) == null) tier = "Track";
+            return tier;
+        }
+
+        // ★ 2026-10-06 <b>캠퍼스만 기준이 다르다.</b> 다른 씬은 «수집품 8개» 가 분기점인데
+        //   (전시실은 그때 불이 켜진다), <b>캠퍼스는 결승을 이겨야 바뀐다</b> —
+        //   판자도 광고판도 동상도 <see cref="GrandFinal.FreeRun"/> 에서 걷힌다.
+        //   8/8 에 곡만 먼저 바뀌면 <b>아직 판자로 막힌 캠퍼스에 축제 음악</b>이 깔린다.
+        bool done = scene == "Campus"
+                  ? GrandFinal.FreeRun
+                  : CollectionState.Count >= ExhibitCatalogue.All.Length;
+
+        return done ? scene + Done : scene;
     }
 
     const string Done = "_완성";
@@ -236,7 +287,9 @@ public class Music : MonoBehaviour
 
         // 이야기 장면에 제 곡이 없으면 <b>그 씬 곡</b>으로. 이야기 중에 음악이 뚝 끊기면
         // «버그» 로 읽힌다 — 조용해지는 건 연출일 때만 해야 한다.
-        if (clip == null && StoryStage.Talking)
+        // ★ 이야기 장면뿐 아니라 <b>미니게임 곡이 없을 때도</b> 씬 곡으로 되떨어진다.
+        //   «곡이 없으면 조용해진다» 가 기본값이면 파일 하나 빠뜨렸을 때 버그로 보인다.
+        if (clip == null)
         {
             string scene = SceneManager.GetActiveScene().name;
             clip = Resources.Load<AudioClip>("Music/" + scene);

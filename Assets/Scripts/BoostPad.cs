@@ -93,6 +93,7 @@ public class BoostPad : MonoBehaviour
         lastTaken[kart] = Time.time;
 
         kart.ApplyBoost(boostAmount, duration);
+        if (kart.GetComponent<PlayerKart>() != null) Sfx.Play("Boost", 1f, duckMusic: false);
 
         // 임무 판정은 플레이어 것만 센다. AI 가 밟은 걸 같이 세면 가만히 있어도 임무가 깨진다.
         if (kart.GetComponent<PlayerKart>() != null) TakenByPlayer = true;

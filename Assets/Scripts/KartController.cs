@@ -78,6 +78,10 @@ public class KartController : MonoBehaviour
     public float SteerInput => steerInput;
     public bool IsGrounded { get; private set; }
     public bool IsDrifting { get; private set; }
+
+    /// <summary>호핑으로 <b>떠 있는 중</b>. <see cref="IsGrounded"/> 는 서스펜션 레이캐스트라
+    /// 0.5m 짜리 호핑에서는 여전히 true 일 수 있다 — 「뛰었나」는 이쪽으로 물어라.</summary>
+    public bool IsHopping => hopTimer > 0f;
     /// <summary>
     /// 이번 판에 벽에 세게 부딪힌 횟수. 무충돌 임무가 이걸 본다.
     ///
@@ -240,6 +244,7 @@ public class KartController : MonoBehaviour
         if (rb == null || collision.contactCount == 0) return;
         if (Time.time - lastBumpAt < BumpCooldown) return;
         lastBumpAt = Time.time;
+        Sfx.Play("KartBump", 1f, duckMusic: false);
 
         Vector3 normal = collision.GetContact(0).normal;   // 상대 -> 나
         normal.y = 0f;
@@ -283,6 +288,7 @@ public class KartController : MonoBehaviour
             if (Time.time - lastWallHitAt < WallHitCooldown) return;
             lastWallHitAt = Time.time;
             WallHits++;
+            Sfx.Play("WallHit", 0.9f, duckMusic: false);
         }
         else if (wallScrubPerSecond > 0f)
         {

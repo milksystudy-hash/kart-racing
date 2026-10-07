@@ -158,7 +158,11 @@ public class LobbyHUD : MonoBehaviour
             ? selector.Hovered.CastId : GameSelection.SelectedCastId;
         if (!KartSpec.TryGet(castId, out var spec)) return;
 
-        var p = new Rect(16f, 104f, 196f, 124f);
+        // ★★ 2026-10-06 강사님: *"튜토리얼 중에 세진이가 누구고 세운이가 누군지 모르겠다."*
+        //   <b>맞는 지적이고, 고칠 자리는 여기다.</b> 받침대를 고르는 화면은 플레이어가
+        //   <b>레이스마다 한 번씩 반드시 지나가는</b> 자리라, 여기 한 줄이면 아홉 번 읽게 된다.
+        //   이야기에 설명을 넣는 것보다 싸고, 프롤로그의 «몰랐다» 도 안 건드린다.
+        var p = new Rect(16f, 104f, 196f, 162f);
         Hud.Panel(p);
 
         float x = p.x + 14f;
@@ -172,6 +176,51 @@ public class LobbyHUD : MonoBehaviour
         Row(p, 1, "빠르기", $"{spec.topSpeed:0.0}",  KartSpec.SpeedBar(spec));
         Row(p, 2, "출발",   $"{spec.acceleration:0.0}", KartSpec.AccelBar(spec));
         Row(p, 3, "코너",   $"{spec.grip:0.0}",     KartSpec.GripBar(spec));
+
+        // 누구인지 한 줄. 이름만 있으면 «세진» 이 사람 이름인지 카트 이름인지도 모른다
+        if (string.IsNullOrEmpty(spec.tagline)) return;
+
+        Hud.Rule(x, p.y + 116f, p.width - 28f);
+        var who = Hud.Resize(Hud.Label, 11, TextAnchor.UpperLeft);
+        who.wordWrap = true;
+        GUI.Label(new Rect(x, p.y + 124f, p.width - 28f, 34f), spec.tagline, who);
+
+        DrawProfile(p, castId, spec);
+    }
+
+    /// <summary>
+    /// 제원표 <b>아래</b>에 붙는 흰 편지지 — 그 캐릭터가 누구인가 세 줄.
+    ///
+    /// ★ 제원표와 <b>다른 종이</b>여야 한다. 한 판에 숫자와 성격을 같이 넣으면
+    /// 둘 다 «스펙» 으로 읽힌다 — 현판과 안내판을 나눈 것과 같은 판단이야(2026-09-17).
+    /// 왼쪽 세로줄만 그 사람 색이라 <b>어느 종이가 누구 것인지</b>가 색으로 먼저 보인다.
+    /// </summary>
+    void DrawProfile(Rect spec, string castId, KartSpec.Spec data)
+    {
+        if (data.profile == null || data.profile.Length == 0) return;
+
+        var style = Hud.Resize(Hud.Label, 12, TextAnchor.UpperLeft);
+        style.wordWrap = true;
+
+        float w = spec.width;
+        float h = 20f + data.profile.Length * 17f;
+        var p = new Rect(spec.x, spec.yMax + 8f, w, h);
+
+        // 종이 한 장 — 나무 판 없이 종이만. 제원표와 질감이 달라야 다른 물건으로 읽힌다
+        GUI.DrawTexture(p, Hud.PaperTex);
+
+        // 왼쪽 세로줄만 그 사람 색. 종이 전체를 물들이면 글자 대비가 무너진다
+        GUI.color = Cast.ColorOf(castId);
+        GUI.DrawTexture(new Rect(p.x, p.y, 4f, p.height), Hud.PaperTex);
+        GUI.color = Color.white;
+
+        float y = p.y + 9f;
+        foreach (var line in data.profile)
+        {
+            if (string.IsNullOrEmpty(line)) continue;
+            GUI.Label(new Rect(p.x + 14f, y, p.width - 24f, 17f), line, style);
+            y += 17f;
+        }
     }
 
     void Row(Rect p, int index, string label, string value, float fill)

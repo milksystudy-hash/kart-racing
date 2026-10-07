@@ -330,6 +330,9 @@ public class MissionManager : MonoBehaviour
         Failed = true;
         FailReason = reason;
         Toast.Show(reason);
+
+        // ★ 알림 소리(Toast)는 이미 났으니 음악은 이쪽만 비켜 준다 — 두 번 숙이면 뚝 끊긴 것처럼 들린다.
+        Sfx.Play("MissionFail");
     }
 
     /// <summary>임무를 깬 그 순간 수집품이 들어온다. 트랙을 되돌아갈 일이 없다.</summary>

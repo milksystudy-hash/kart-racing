@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -116,7 +116,15 @@ public class CampusVictory : MonoBehaviour
     void Update()
     {
         var k = Keyboard.current;
-        if (debugKeys && k != null && k.f8Key.wasPressedThisFrame)
+        // ★★ 2026-10-06 유저: *"F8 은 개발업자·시의원이 나오기 전까지 꺼 둬라.
+        //   플레이어가 못 찾게."* 맞는 요구다 — 전에는 F8 한 번에 <b>수집품 여덟 개를
+        //   통째로 채우고</b> 결승까지 깬 상태가 돼서, 모르고 눌러도 <b>게임이 끝나 버렸다.</b>
+        //
+        //   이제 <b>여덟 개를 진짜로 다 모은 뒤에만</b> 듣는다. 그 시점이 곧 악당 둘이
+        //   이야기에 들어오는 자리라, <b>건너뛸 게 남아 있지 않다</b> — 전후를 눈으로
+        //   보는 용도는 그대로 살고 지름길만 사라진다.
+        //   (점검할 때는 로비에서 F9 로 수집품을 채운 뒤 F8 — 두 단계라 우연히 못 누른다.)
+        if (Dev.Enabled && debugKeys && GrandFinal.AllCollected && k != null && k.f8Key.wasPressedThisFrame)
         {
             if (GrandFinal.FreeRun)
             {

@@ -82,6 +82,7 @@ public class CampusBuilder : MonoBehaviour
 
         doorFronts.Clear();
         footprints.Clear();
+        storySign = StorySignSeed;   // 묶음 방향 — 실측값에서 시작해서 더 센 신호가 나오면 바뀐다
 
         // 상징물 방향은 <b>이번 빌드에서 다시 잰다</b> — 모델을 갈아끼웠을 수 있다
         pendingEmblems.Clear();
@@ -638,10 +639,62 @@ public class CampusBuilder : MonoBehaviour
     /// <b>static 이다</b> — 로비 빌더도 같은 규칙으로 유저 모델을 앉혀야 한다(2026-09-22 곰 스피커).
     /// 인스턴스 상태를 하나도 안 쓰니 옮길 것도 없었다.
     /// </summary>
+#if UNITY_EDITOR
+    static System.Collections.Generic.Dictionary<string, string> assetByName;
+
+    /// <summary>
+    /// ★★ <b>파일이 적힌 자리에 없으면 이름으로 찾아낸다.</b>
+    ///
+    /// 수연이 소품을 폴더로 묶으면 코드에 적힌 경로가 전부 어긋난다. 그때 <see cref="MyModel"/>
+    /// 은 <b>조용히 아무 것도 안 만들고</b>, 화면에서는 «소품이 통째로 사라진» 것으로 보인다 —
+    /// 2026-10-07 에 곰밥마당 열다섯 · 로비 가구 일곱 · 지붕 그릇 둘 · 화장실 곰이 한꺼번에 그랬다.
+    ///
+    /// 그러니 <b>정리해도 안 깨지게</b> 둔다. 찾는 곳은 `My blender` 와 `NPC_bear` 두 폴더뿐이고,
+    /// 이름이 같은 파일이 둘이면 <b>먼저 찾은 것</b>을 쓴다(이 프로젝트에 중복 이름은 없다).
+    /// </summary>
+    public static string ResolveAsset(string assetPath)
+    {
+        if (System.IO.File.Exists(assetPath)) return assetPath;
+
+        string want = System.IO.Path.GetFileName(assetPath);
+
+        // 못 찾을 때만 다시 훑는다 — 있으면 캐시가 그대로 듣는다.
+        if (assetByName == null || !assetByName.ContainsKey(want))
+        {
+            assetByName = new System.Collections.Generic.Dictionary<string, string>();
+            foreach (var dir in new[] { "Assets/My blender", "Assets/NPC_bear" })
+            {
+                if (!System.IO.Directory.Exists(dir)) continue;
+                foreach (var f in System.IO.Directory.GetFiles(dir, "*.fbx",
+                                                               System.IO.SearchOption.AllDirectories))
+                {
+                    string got = f.Replace('\\', '/');
+                    assetByName[System.IO.Path.GetFileName(got)] = got;
+                }
+            }
+        }
+
+        if (assetByName.TryGetValue(want, out var found))
+        {
+            Debug.Log($"[모델] '{want}' 는 {found} 에 있다 (적힌 자리: {assetPath}).");
+            return found;
+        }
+        return assetPath;
+    }
+#endif
+
     public static Transform MyModel(Transform parent, string assetPath, string name, Vector3 at, float targetWidth,
                       float maxHeight = 0f)
     {
 #if UNITY_EDITOR
+        // ★★ 2026-10-07 — <b>폴더를 정리하면 적어 둔 경로가 전부 null 이 된다.</b>
+        // 수연이 곰밥마당 소품 열다섯을 `My blender/Gombap/` 으로 묶자 급식실 소품이 통째로
+        // 사라졌고, 로비 가구·스피커·지붕 그릇·화장실 곰도 같이 날아갔다 — 전부 같은 병이다.
+        //
+        // 경로를 하나씩 고쳐 적는 건 <b>다음에 또 정리하면 또 깨진다.</b>
+        // <b>이름으로 찾게</b> 두면 어디로 옮겨도 알아서 따라온다.
+        assetPath = ResolveAsset(assetPath);
+
         // <b>임포트 설정을 먼저 맞춘다.</b> 유니티 기본값은 `materialLocation: External` 이라
         // 짝이 맞는 `.mat` 에셋이 없으면 <b>모델이 새하얗게</b> 나온다 — 카트와 곰에서 이미
         // 두 번 겪은 함정이야. 유저에게 임포터를 만지라고 시키지 않는다(기획서 §9.3).
@@ -1847,6 +1900,342 @@ public class CampusBuilder : MonoBehaviour
         return at;
     }
 
+
+    // ══════════════════════════════════════════════════════════════════
+    //  이야기 단서 에셋 열 점 — 웅성관 · 곰머리관 · 곰테크관 · 참잘했어요관
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 곰누리관 소품 배율. 방이 20 × 13m 로 캠퍼스에서 두 번째로 크다 —
+    /// 유저가 «크면 좋지만 너무 크면 조절해» 라고 했는데, <b>1.05 가 상한</b>이다:
+    /// 왼벽에 세계지도(5.08) + 안내책자대(3.09) 가 붙는데 그 벽이 11.8m 라
+    /// 1.1 이면 간격이 1m 밑으로 떨어진다.
+    /// </summary>
+    const float GomnuriScale = 1.05f;
+
+    /// <summary>
+    /// ★★ 상황판에 적히는 <b>연간 방문객 목표</b>.
+    ///
+    /// 제작자가 숫자를 비워서(`— 명`) 보냈다 — 기획서에 수치가 없었기 때문이야.
+    /// <b>이 한 군데서만 정한다.</b> 1장 대사가 «시 발표의 열 배» 라고 하니까,
+    /// 시가 발표한 숫자 = 이 목표치 = <b>12,000</b>, 실제 기록부 = <b>120,000</b> 이 된다.
+    ///
+    /// 떡밥이 여기서 완성된다: <b>아무도 «목표» 를 «실적» 이라고 말하지 않았지만,
+    /// 시가 발표한 숫자가 여기 적힌 목표치와 똑같다.</b> 플레이어가 혼자 잇는다.
+    ///
+    /// 바꾸려면 이 줄만 고치고, <b>1장 대사의 «열 배» 와 어긋나지 않는지</b> 확인해라 —
+    /// 같은 숫자를 두 군데서 정하면 반드시 어긋난다.
+    /// </summary>
+    const string TourismTarget = "12,000";
+
+    /// <summary>
+    /// 상황판의 빈 숫자판에 목표치를 얹는다. 아틀라스를 고치는 대신 <b>월드 글자</b>로 —
+    /// 현판·안내판·접수대 시계가 쓰는 그 길이다(<see cref="BuildingSign.TextMaterial"/>).
+    /// 새로 넣는 에셋이 0개고, 숫자를 바꾸려면 위 상수 한 줄만 고치면 된다.
+    /// </summary>
+    void TourismNumber(Transform t, float w, float d)
+    {
+        var board = t.Find("In_관광상황판");
+        if (board == null) return;
+
+        MeshRenderer plate = null;
+        foreach (var r in board.GetComponentsInChildren<MeshRenderer>())
+            if (r.name.StartsWith("Target_Number")) { plate = r; break; }
+        if (plate == null) { Debug.LogWarning("[곰누리관] 상황판의 Target_Number 를 못 찾았다."); return; }
+
+        // ★★ 2026-10-07 유저: *"12,000 숫자가 떠 있으니 이건 고치는 게 좋아."*
+        //   <b><c>plate.position</c> 을 썼던 게 틀렸다.</b> FBX 부품의 트랜스폼은
+        //   보통 <b>모델 원점(바닥 한가운데)</b>에 있어서, 숫자가 판이 아니라
+        //   <b>바닥으로 떨어졌다.</b> 보이는 자리를 쓰려면 <b>렌더러 바운즈 한가운데</b>다.
+        //
+        //   > <b>부품에 뭘 얹을 때 <c>transform.position</c> 을 믿지 마라.</b>
+        //   > 눈에 보이는 자리는 <c>renderer.bounds.center</c> 다.
+        Bounds wb = plate.bounds;
+        Vector3 local = t.InverseTransformPoint(wb.center);
+
+        // 이 판은 뒤벽에 붙어 있으니 <b>방 안쪽(+Z)</b>을 본다. 자리로 정하면
+        // 나중에 판을 다른 벽으로 옮겨도 글자가 따라온다.
+        Vector3 face = new Vector3(0f, 0f, local.z < 0f ? 1f : -1f);
+
+        // 판 크기에서 글자 크기를 뽑는다 — 판을 다시 만들어도 안 넘친다(현판에서 배운 것).
+        Vector3 ps = t.InverseTransformVector(wb.size);
+        float plateH = Mathf.Max(0.2f, Mathf.Abs(ps.y));
+        float plateW = Mathf.Max(0.2f, Mathf.Abs(ps.x));
+
+        // ★ <b>높이만 보면 안 된다.</b> «12,000» 은 여섯 자라 높이의 2.3배로 퍼져서
+        //   판(0.76m)보다 넓어진다 — 재 보고 잡았다. <b>폭에서도 깎아 더 작은 쪽</b>을 쓴다.
+        //   한 글자 폭 ≈ 높이 × 0.42 로 어림한다(숫자와 쉼표는 한글보다 좁아서 <b>작게 잡히는 쪽</b>으로 틀린다).
+        float digits = Mathf.Max(1, TourismTarget.Length);
+        float glyph = plateH * 0.36f;
+        glyph = Mathf.Min(glyph, plateW * 0.90f / (digits * 0.42f));
+
+        // ★ 원래 적혀 있던 «— 명» 을 가린다. 글자만 얹으면 둘이 겹쳐 보인다.
+        //   덮개는 판 <b>앞</b>, 글자는 그보다 <b>더 앞</b> — 층을 뒤에서 앞으로 쌓는다.
+        var cover = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        Destroy(cover.GetComponent<Collider>());
+        cover.name = "InTargetCover";
+        cover.transform.SetParent(t, false);
+        cover.transform.localPosition = local + face * 0.08f;
+        cover.transform.localRotation = Quaternion.LookRotation(face, Vector3.up);
+        cover.transform.localScale = new Vector3(plateW * 0.94f, glyph * 1.7f, 0.03f);
+        cover.GetComponent<MeshRenderer>().sharedMaterial =
+            FlatMaterial.Get(new Color32(0xFD, 0xF8, 0xEC, 0xFF));
+
+        var go = new GameObject("InTargetNumber");
+        go.transform.SetParent(t, false);
+        go.transform.localPosition = local + face * 0.12f;
+        // ★ 180도 돌려서 단다 — TextMesh 를 그대로 붙이면 <b>좌우가 뒤집힌다</b>.
+        //   이 프로젝트에서 거울상으로 다섯 번 틀렸다(현판·진열장 숫자·시계·화장실 칸·문).
+        go.transform.localRotation = Quaternion.LookRotation(face, Vector3.up)
+                                   * Quaternion.Euler(0f, 180f, 0f);
+
+        var tm = go.AddComponent<TextMesh>();
+        tm.text = TourismTarget;
+        tm.font = Resources.Load<Font>("HudFont");
+        tm.fontSize = 120;
+        // 판 높이의 36% — 판에서 거꾸로 뽑으니 판을 다시 만들어도 안 넘친다
+        tm.characterSize = glyph * 10f / 120f;
+        tm.anchor = TextAnchor.MiddleCenter;
+        tm.alignment = TextAlignment.Center;
+        tm.color = new Color32(0x4A, 0x3A, 0x2C, 0xFF);
+
+        var mr = go.GetComponent<MeshRenderer>();
+        if (tm.font != null) mr.sharedMaterial = BuildingSign.TextMaterial(tm.font);
+
+        Debug.Log($"[곰누리관] 목표 숫자 '{TourismTarget}' 를 상황판에 얹었다 · " +
+                  $"판 local z {local.z:0.00} · 글자가 보는 쪽 {face.z:+0;-0}");
+    }
+    const string StoryFolder = "Assets/My blender/StoryHalls/";
+    const string GomnuriFolder = "Assets/My blender/Gomnuri/";
+
+    /// <summary>
+    /// ★★ 2026-10-07 수연이 만든 <b>웅성관 전용 열 점.</b> 방송국이면서 <b>증거가 제일 많은 방</b>이다 —
+    /// 광고 심의 서류에 「골든베어 승인」이 붙어 있고, 테이프 하나는 라벨을 <b>고쳐 붙였다</b>.
+    /// 전에는 상자로 흉내 낸 부스 하나뿐이라 «방송국» 이라는 말만 있고 물건이 없었다.
+    /// </summary>
+    const string WoongFolder = "Assets/My blender/Woongseong_/";
+
+    /// <summary>
+    /// 네 관이 다 18 × 12m 안팎이라 <b>한 배율로 충분하다.</b> 소품이 이미 실물 크기고
+    /// (2.2~2.9m 높이) 방 천장이 8~9m 라, 1.10 이면 <b>조금 커 보이는 쪽</b>으로 맞는다 —
+    /// 달리면서 보는 게 아니라 <b>걸어 들어와서 읽는</b> 물건들이다.
+    /// </summary>
+    const float StoryScale = 1.10f;
+
+    /// <summary>
+    /// ★ 앞면 표식. <b>«앞에 놓인 것» 만 쓴다.</b>
+    ///
+    /// 이 묶음에서 쓰면 안 되는 것 둘을 재서 걸러냈다:
+    /// <c>Structure</c> 는 카트 리프트에서 <b>−0.76</b>(공구벽이 뒤에 선다)이고,
+    /// <c>Screen_01~03</c> 은 송출대에서 <b>−0.33</b>(모니터가 책상 안쪽에 선다)이다.
+    /// 둘을 넣으면 제일 센 신호가 되어 <b>열 점이 통째로 등을 돌린다</b> —
+    /// 지붕 상징물에서 변기 뚜껑·팔레트 붓을 뺀 것과 같은 이유야(2026-09-28).
+    /// </summary>
+    static readonly string[] StoryMarks =
+        { "Controller_", "Panel_", "Ledgers", "Trophy_", "Wheel_F",
+          // 곰누리관 — 지도 핀 6개와 여행가방 3개가 제일 센 신호다
+          "Map_Pin_", "Suitcase_", "Target_Number",
+          // 웅성관 — <b>ON AIR 등</b>이 제일 세다(쏠림 0.995). 「Clip」은 종이 <b>윗단</b>에
+          // 붙은 집게라 앞뒤와 상관이 없어서 뺐다 — 뒤쪽 부품을 넣으면 열 점이 통째로 돌아선다.
+          "ON_AIR_Light", "Correction_Copy", "GoldenBear_Approval",
+          "Control_Panel", "Return_Stamp" };
+
+    /// <summary>
+    /// 자리표 — 파일 · 이름 · <b>어느 관</b> · 벽 · (x, z) · 앞면이 향할 각 · 실제 폭 · 깊이.
+    /// 크기는 제작자가 준 실측값 그대로다(README 표).
+    /// </summary>
+    static readonly (string folder, string file, string label, string hall, Wall wall,
+                     float x, float z, float yaw, float w, float d)[]
+        StoryLayout =
+    {
+        // ── 웅성관(방송) : 결승이 생중계되는 방. 수집품 7번 「중계 기록 장치」의 출처
+        (StoryFolder, "S01_Live_Broadcast_Console",    "생중계송출대", "웅성관",   Wall.뒤,   0f, 0f,   0f, 3.70f, 1.45f),
+        (StoryFolder, "S02_Local_News_Board",          "지역뉴스판",   "웅성관",   Wall.뒤,   0f, 0f,   0f, 4.02f, 1.05f),
+        (StoryFolder, "S03_Corrected_Broadcast_Scripts","수정원고",    "웅성관",   Wall.오른, 0f, 0f, 270f, 2.45f, 1.35f),
+        // ★ 2026-10-07 수연의 웅성관 열 점 중 <b>바닥에 서는 일곱.</b> 나머지 셋(원본 테이프 ·
+        //   팩스 보고서 · 출입증)은 20~50cm 짜리 <b>책상 위 물건</b>이라 바닥에 두면
+        //   «흘린 쓰레기» 로 보인다 — <see cref="OnTop"/> 로 따로 얹는다.
+        (WoongFolder, "W03_Advertising_Review_Cabinet", "광고심의장",  "웅성관",  Wall.뒤,    0f,   0f,    0f, 2.80f, 0.60f),
+        (WoongFolder, "W04_Antenna_Control_Station",   "안테나제어대","웅성관",  Wall.왼,    0f,   0f,   90f, 1.60f, 0.80f),
+        (WoongFolder, "W05_One_Record_Shelf",          "기록보관선반","웅성관",  Wall.왼,    0f,   0f,   90f, 1.40f, 0.50f),
+        // 부스는 <b>방 가운데</b>다. 실제 방송국 부스가 그렇고, 벽에 붙이면 뒷벽 자리를
+        // 3.3m 나 먹어서 심의장이 들어갈 데가 없어진다(계산으로 확인했다).
+        (WoongFolder, "W06_Radio_Booth",               "라디오부스",  "웅성관",  Wall.가운데, -4.8f,  0.8f,  90f, 3.40f, 3.00f),
+        (WoongFolder, "W07_Tape_Editing_Desk",         "테이프편집대","웅성관",  Wall.가운데,  1.2f, -1.0f,   0f, 2.60f, 1.10f),
+        (WoongFolder, "W01_Broadcast_Logbook_Stand",   "방송일지대",  "웅성관",  Wall.가운데,  4.4f,  1.2f, 200f, 2.20f, 0.90f),
+        // 반송된 홍보물은 <b>구석에 쌓여</b> 있어야 «아무도 안 치운 것» 으로 읽힌다
+        (WoongFolder, "W02_Returned_Publicity_Parcels","반송홍보물",  "웅성관",  Wall.가운데,  5.2f,  3.8f, 150f, 1.80f, 1.20f),
+
+        // ── 곰머리관(인문·연구) : 1·2장 떡밥. 빠진 장부 한 권과 비어 있는 3년
+        // ★ 자리를 <b>손으로 찍는다</b>(Wall.가운데). 이 방에는 유저 가구 열 점이 이미 서 있어서
+        //   Seat 가 벽을 따라 자동으로 재면 <b>그 가구들과 겹친다</b> — 배치모드로 재서 잡았다
+        //   (성찰칠판·강학대가 뒤벽을, 서책장·기록장이 왼벽을 이미 쓰고 있다).
+        (StoryFolder, "S04_Visitor_Ledger_Shelf",      "관람객장부",   "곰머리관", Wall.가운데, -6.10f, -4.90f,   0f, 3.41f, 0.73f),
+        (StoryFolder, "S06_Microfilm_Reader",          "필름열람기",   "곰머리관", Wall.가운데, -6.00f, -1.50f,  90f, 1.56f, 1.12f),
+
+        // ── 곰테크관(공학·카트) : 「왜 카트인가」에 물리적 답을 주는 방
+        (StoryFolder, "S08_Wooden_Controller_Cabinet", "조종기보관장", "곰테크관", Wall.뒤,   0f, 0f,   0f, 3.85f, 0.82f),
+        (StoryFolder, "S07_Kart_Service_Lift",         "카트정비대",   "곰테크관", Wall.왼,   0f, 0f,  90f, 3.85f, 3.00f),
+        // 가운데 — 만들다 만 카트는 <b>길 한가운데</b>에 있어야 «작업 중» 으로 읽힌다
+        (StoryFolder, "S09_Prototype_Kart_Frame",      "시제품카트",   "곰테크관", Wall.가운데, 2.6f, -1.4f, 200f, 2.66f, 2.66f),
+
+        // ── 참잘했어요관(시상) : 한 자리만 비어 있다. 끝까지 설명하지 않는다
+        // ★ <b>연혁판이 여기로 왔다</b>(곰머리관이 꽉 차서). 오히려 이게 맞는 자리다 —
+        //   <b>둘 다 «비어 있는 것» 에 대한 물건</b>이라 한 방에 서면 서로를 설명한다:
+        //   트로피 한 자리가 비고, 연혁 최근 3년이 비었다.
+        (StoryFolder, "S10_Missing_Trophy_Cabinet",    "트로피진열장", "참잘했어요관", Wall.뒤, 0f, 0f, 0f, 4.59f, 0.89f),
+        (StoryFolder, "S05_Museum_History_Wall",       "박물관연혁",   "참잘했어요관", Wall.뒤, 0f, 0f, 0f, 4.92f, 1.05f),
+
+        // ── 곰누리관(관광·외국어) : <b>«왜 하필 이 땅인가» 에 답하는 유일한 방</b>이다.
+        //   골든베어는 리조트, 즉 <b>관광 개발</b>이라 그 답을 가질 수 있는 과가 여기뿐이야.
+        //   ★ 상황판의 숫자가 1장의 «열 배 차이» 와 이어진다 — <see cref="TourismTarget"/> 참고.
+        (GomnuriFolder, "N01_Tourism_Target_Board",      "관광상황판",   "곰누리관", Wall.뒤,    0f,    0f,    0f, 4.96f, 1.05f),
+        (GomnuriFolder, "N09_International_Culture_Wall","문화전시벽",   "곰누리관", Wall.뒤,    0f,    0f,    0f, 5.21f, 1.19f),
+        (GomnuriFolder, "N03_Sister_Museum_Map",         "자매박물관지도","곰누리관", Wall.왼,    0f,    0f,   90f, 5.08f, 1.05f),
+        (GomnuriFolder, "N04_Foreign_Guide_Credenza",    "안내책자대",   "곰누리관", Wall.왼,    0f,    0f,   90f, 3.09f, 0.96f),
+        (GomnuriFolder, "N07_Travel_Luggage_Rack",       "여행가방장",   "곰누리관", Wall.오른,  0f,    0f,  270f, 3.50f, 1.21f),
+        (GomnuriFolder, "N10_Language_Listening_Booth",  "청취부스",     "곰누리관", Wall.오른,  0f,    0f,  270f, 3.31f, 2.02f),
+        // 가운데 셋 — 문에서 들어오는 길(가운데)을 비우려고 지구본을 안쪽으로 물렸다
+        (GomnuriFolder, "N06_Grand_Globe_Display",       "대형지구본",   "곰누리관", Wall.가운데,  0.0f, -2.6f,   0f, 2.40f, 2.23f),
+        (GomnuriFolder, "N08_Tourism_Route_Diorama",     "관광동선모형", "곰누리관", Wall.가운데, -4.8f,  1.2f,   0f, 4.25f, 2.57f),
+        (GomnuriFolder, "N05_Translation_Workstation",   "번역작업대",   "곰누리관", Wall.가운데,  4.8f,  1.2f, 180f, 3.35f, 2.46f),
+        // 입간판은 <b>들어오자마자 보이는 자리</b>에. 문 정면(x 0)은 비워 둔다
+        (GomnuriFolder, "N02_Past_Community_Meeting",    "주민설명회판", "곰누리관", Wall.가운데,  3.6f,  4.6f,  200f, 2.14f, 1.44f),
+    };
+
+    /// <summary>
+    /// 한 관의 몫만 골라 세운다. 네 관이 같은 표를 나눠 쓰니 <b>표 한 줄만 옮기면</b>
+    /// 소품이 다른 관으로 이사한다 — 관마다 표를 따로 두면 그때 반드시 하나가 어긋난다.
+    /// </summary>
+    void StoryHall(Transform t, string hall, float w, float d, float scale = StoryScale, float seed = StorySignSeed)
+    {
+        var rows = new System.Collections.Generic.List<int>();
+        for (int i = 0; i < StoryLayout.Length; i++)
+            if (StoryLayout[i].hall == hall) rows.Add(i);
+        if (rows.Count == 0) return;
+
+        var box = new (Wall, float, float, float, float)[rows.Count];
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var p = StoryLayout[rows[i]];
+            box[i] = (p.wall, p.x, p.z, p.w, p.d);
+        }
+        var at = Seat(box, hall, w, d, scale);
+
+        // 건물이 yaw 로 돌아가 있으면 <b>월드 AABB 폭이 실제 폭보다 넓게</b> 잡힌다.
+        // MyModel 은 그 AABB 로 배율을 맞추니, 돌아간 만큼을 미리 먹여 보낸다.
+        float byaw = t.eulerAngles.y * Mathf.Deg2Rad;
+        float cw = Mathf.Abs(Mathf.Cos(byaw)), sw = Mathf.Abs(Mathf.Sin(byaw));
+
+        var placed = new Transform[rows.Count];
+        int made = 0;
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var p = StoryLayout[rows[i]];
+            float seen = Mathf.Max(p.w * cw + p.d * sw, p.w * sw + p.d * cw);
+            placed[i] = MyModel(t, p.folder + p.file + ".fbx", "In_" + p.label,
+                                at[i], seen * scale);
+            if (placed[i] != null) made++;
+        }
+
+        // ★ 앞면은 <b>씬에서 잰다.</b> 블렌더 축이 유니티에서 어느 쪽이 되는지는 이 프로젝트에서
+        // 두 번 틀렸다. 관마다 따로 재지 않고 <see cref="storySign"/> 에 캐시해서
+        // <b>열 점이 같은 방향</b>을 쓰게 한다 — 신호가 약한 방(참잘했어요관은 소품이 하나뿐)이
+        // 혼자 거꾸로 서는 걸 막는다.
+        // ★ 묶음마다 <b>제 씨앗</b>에서 시작한다. 곰누리관은 한 관에 열 점이 다 모여 있어서
+        //   (지도 핀 6개 · 여행가방 3개) 신호가 세니 <b>0 에서 재도 안전</b>하다.
+        // ★★ 2026-10-07 — <b>앞면 신호는 묶음(폴더)마다 따로 잰다.</b>
+        // 웅성관에 수연의 새 열 점이 들어오면서 <b>한 방에 두 묶음</b>이 섞였는데,
+        // 블렌더 익스포트가 다르면 축도 다를 수 있다 — 하나로 묶어 재면 센 쪽이 약한 쪽을
+        // 끌고 가서 <b>한 묶음이 통째로 등을 돌린다</b>(곰머리관에서 이미 그렇게 틀렸다).
+        var sign = new System.Collections.Generic.Dictionary<string, float>();
+        for (int i = 0; i < rows.Count; i++)
+        {
+            if (placed[i] == null) continue;
+            string folder = StoryLayout[rows[i]].folder;
+            // 씨앗은 <b>StoryHalls 묶음만</b> 쓴다. 그 묶음은 관마다 한두 점뿐이라 신호가 약해서
+            // 실측값에서 출발해야 하고, 다른 묶음은 한 방에 다 모여 있어 0 에서 재도 안전하다.
+            float cur = sign.TryGetValue(folder, out var v) ? v
+                      : (folder == StoryFolder ? seed : 0f);
+            float e = FrontEvidence(placed[i], StoryMarks);
+            if (Mathf.Abs(e) > Mathf.Abs(cur)) cur = e;
+            sign[folder] = cur;
+        }
+        if (seed != 0f && sign.TryGetValue(StoryFolder, out var ss)) storySign = ss;
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            if (placed[i] == null) continue;
+            var p = StoryLayout[rows[i]];
+            float extra = sign.TryGetValue(p.folder, out var g) && g < 0f ? 180f : 0f;
+            storyExtra[p.folder] = extra;
+            placed[i].localRotation = Quaternion.Euler(0f, p.yaw + extra, 0f) * placed[i].localRotation;
+        }
+
+        foreach (var kv in sign)
+            Debug.Log($"[{hall}] {kv.Key.Split('/')[^2]} 묶음 · 앞면 신호 {kv.Value:+0.000;-0.000}m → " +
+                      $"{(kv.Value < 0f ? "180도 돌려" : "그대로")} 세웠다");
+        Debug.Log($"[{hall}] 이야기 소품 {made}/{rows.Count}");
+    }
+
+    /// <summary>
+    /// 묶음 전체가 같은 방향을 쓰게 들고 있는 값.
+    ///
+    /// ★★ <b>0 에서 시작하면 안 된다.</b> 관을 짓는 순서가 곰머리관 → 곰테크관인데,
+    /// 곰머리관 몫은 장부 선반(<c>Ledgers</c>, 쏠림 0.12)뿐이라 <b>신호가 약하다</b> —
+    /// 그 약한 값으로 세워 버리고, 뒤에 오는 곰테크관이 −1.01 을 읽어 180도로 바꾼다.
+    /// 결과는 <b>곰머리관 둘만 거꾸로</b>. 배치모드로 재서 잡았다.
+    ///
+    /// 그래서 <b>실측값에서 시작</b>한다(조종기 보관장 −1.010m). 더 센 값이 나오면 그때 바뀌니,
+    /// 모델을 다시 내보내서 축이 뒤집혀도 로그에 그 값이 찍힌다.
+    /// </summary>
+    const float StorySignSeed = -1.010f;
+
+    float storySign = StorySignSeed;
+
+    /// <summary>묶음마다 «180도 돌렸나». <see cref="OnTop"/> 이 책상 위 자리를 같이 돌릴 때 쓴다.</summary>
+    readonly System.Collections.Generic.Dictionary<string, float> storyExtra = new();
+
+    /// <summary>
+    /// ★ <b>책상 위에 얹는다.</b> 20~50cm 짜리 소품을 바닥에 두면 «흘린 쓰레기» 로 보이고,
+    /// 웅성관의 증거 셋(원본 테이프 · 팩스 보고서 · 출입증)은 <b>누군가 놓아둔 것</b>이어야 한다.
+    ///
+    /// 높이는 <b>받침이 될 물건에서 읽지 않는다</b> — 그 물건의 바운즈 꼭대기는 모니터나
+    /// 펼친 장부라서, 거기 얹으면 공중에 뜬다. <paramref name="surfaceY"/> 로
+    /// <b>실측한 상판 높이</b>를 직접 준다(편집대 0.86 · 일지대 1.00, 블렌더에서 쟀다).
+    ///
+    /// 자리는 받침의 <b>제 좌표계</b>로 적는다. 받침이 180도 돌아 서면 얹힌 것도 같이 돈다.
+    /// </summary>
+    void OnTop(Transform t, string host, string asset, string label,
+               Vector2 localOff, float surfaceY, float width, float yaw)
+    {
+        var h = t.Find("In_" + host);
+        if (h == null) { Debug.LogWarning($"[웅성관] 받침 'In_{host}' 가 없어 '{label}' 을 못 얹었다."); return; }
+
+        float extra = storyExtra.TryGetValue(WoongFolder, out var e) ? e : 0f;
+        float a = (yawOf(host) + extra) * Mathf.Deg2Rad;
+        float cs = Mathf.Cos(a), sn = Mathf.Sin(a);
+        // 유니티 y 회전: (x, z) → (x·cos + z·sin, −x·sin + z·cos)
+        var off = new Vector3(localOff.x * cs + localOff.y * sn, 0f,
+                             -localOff.x * sn + localOff.y * cs) * StoryScale;
+
+        float byaw = t.eulerAngles.y * Mathf.Deg2Rad;
+        float cw = Mathf.Abs(Mathf.Cos(byaw)), sw = Mathf.Abs(Mathf.Sin(byaw));
+        float seen = width * Mathf.Max(cw + sw * 0.6f, sw + cw * 0.6f);
+
+        var m = MyModel(t, asset, "In_" + label,
+                        h.localPosition + off + Vector3.up * (surfaceY * StoryScale),
+                        seen * StoryScale);
+        if (m != null)
+            m.localRotation = Quaternion.Euler(0f, yawOf(host) + extra + yaw, 0f) * m.localRotation;
+    }
+
+    /// <summary>자리표에 적어 둔 그 소품의 yaw. 받침 위에 뭘 얹을 때 같이 돌리려고 본다.</summary>
+    static float yawOf(string label)
+    {
+        foreach (var p in StoryLayout) if (p.label == label) return p.yaw;
+        return 0f;
+    }
     const string LeadershipFolder = "Assets/My blender/Leadership/";
 
     /// <summary>
@@ -2005,6 +2394,258 @@ public class CampusBuilder : MonoBehaviour
         for (int s = -1; s <= 1; s += 2)
             Block(t, $"InPillarSlip_{s}", new Vector3(s * (inX - 0.32f), 4.2f, -inZ + 2.6f),
                   Quaternion.identity, new Vector3(0.06f, 3.4f, 0.46f), ColCream, noCollider: true);
+
+        SteelDoor(t, inX);
+    }
+
+    /// <summary>
+    /// ★★ 2026-10-06 <b>웅지관 안쪽, 끝까지 안 열리는 철제 문.</b>
+    ///
+    /// 행정동을 가리키는 <b>세 번째 신호</b>다 — 딱지가 안 붙고, 판자도 안 박히고,
+    /// 밤새 불이 켜져 있고, 그리고 <b>안에 안 열리는 문이 하나 있다.</b>
+    ///
+    /// <b>한옥 건물에 철제 문</b>인 게 요점이다. 캠퍼스의 다른 문 열다섯은 전부
+    /// 나무 장지문인데 여기만 철판이야 — 나중에 끼워 넣은 것이고, 나중에 끼울 만한
+    /// 이유가 있었다는 뜻이다. 글자로는 한 마디도 설명 안 한다.
+    ///
+    /// 자리는 <b>왼쪽 벽 뒤쪽 구석</b>이다. <see cref="Seat"/> 가 왼벽 소품을
+    /// z −6.79 부터 놓으니 −10.4 ~ −6.79 가 비어 있다 — 거기 3.6m 를 쓴다.
+    /// <see cref="HingedDoor.lockedNote"/> 가 차 있으면 <see cref="HingedDoor.Start"/> 가
+    /// 문짝을 안 찾고 돌아가므로 경고도 안 뜬다.
+    /// </summary>
+    void SteelDoor(Transform hall, float inX)
+    {
+        var door = new GameObject("SteelDoor").transform;
+        door.SetParent(hall, false);
+        door.localPosition = new Vector3(-inX + 0.10f, 0f, -8.6f);
+        door.localRotation = Quaternion.Euler(0f, 90f, 0f);   // 로컬 +Z 가 방 안쪽을 본다
+
+        // 문틀 — 틀이 있어야 «뚫린 데» 로 읽힌다(벽에 칠한 자국으로 안 보이게)
+        for (int s = -1; s <= 1; s += 2)
+            Block(door, $"Jamb_{s}", new Vector3(s * 1.04f, 1.38f, 0.06f), Quaternion.identity,
+                  new Vector3(0.16f, 2.76f, 0.30f), ColTrimDark, noCollider: true);
+        Block(door, "Lintel", new Vector3(0f, 2.84f, 0.06f), Quaternion.identity,
+              new Vector3(2.24f, 0.20f, 0.30f), ColTrimDark, noCollider: true);
+        Block(door, "Sill", new Vector3(0f, 0.05f, 0.08f), Quaternion.identity,
+              new Vector3(2.24f, 0.10f, 0.34f), ColStoneWall, noCollider: true);
+
+        // 철판 두 짝. 금속 마감이라 나무 장지문 옆에서 <b>재질부터 다르게</b> 보인다
+        for (int s = -1; s <= 1; s += 2)
+        {
+            Block(door, $"Leaf_{s}", new Vector3(s * 0.47f, 1.40f, 0.10f), Quaternion.identity,
+                  new Vector3(0.94f, 2.60f, 0.08f), ColRock, noCollider: true);
+            // 가로 보강대 — 민짜 철판은 벽처럼 보인다
+            for (int k = 0; k < 2; k++)
+                Block(door, $"Rib_{s}_{k}", new Vector3(s * 0.47f, 0.85f + k * 1.10f, 0.15f),
+                      Quaternion.identity, new Vector3(0.86f, 0.10f, 0.04f), ColBearDark,
+                      noCollider: true);
+        }
+
+        Block(door, "Handle_L", new Vector3(-0.10f, 1.25f, 0.17f), Quaternion.identity,
+              new Vector3(0.06f, 0.44f, 0.06f), ColBearDark, noCollider: true);
+        Block(door, "Handle_R", new Vector3(0.10f, 1.25f, 0.17f), Quaternion.identity,
+              new Vector3(0.06f, 0.44f, 0.06f), ColBearDark, noCollider: true);
+
+        // 잠금 걸쇠 — 밖에서 걸어 잠근 게 아니라 <b>안에서</b> 잠겼다는 건 대사 몫이다.
+        // 여기서는 «잠겨 있다» 만 보이면 된다
+        Block(door, "Latch", new Vector3(0f, 1.25f, 0.16f), Quaternion.identity,
+              new Vector3(0.30f, 0.16f, 0.07f), ColRock, noCollider: true);
+
+        var hinged = door.gameObject.AddComponent<HingedDoor>();
+        hinged.label = "철제 문";
+        hinged.lockedNote = "안에서 잠겨 있다";
+        hinged.boardable = false;
+        hinged.canClose = false;
+    }
+
+    const string CouncilFolder = "Assets/My blender/StudentCouncil/";
+
+    /// <summary>
+    /// 곰생회관 소품 배율. 방이 17 × 12m(안쪽 15.8 × 10.8)로 <b>이 캠퍼스에서 작은 편</b>인데
+    /// 열 점의 가로를 다 더하면 24.6m 라, 계산상 상한이 1.11 이다(뒷벽이 병목).
+    ///
+    /// 그런데 <b>키울 이유가 애초에 없다.</b> 여기 물건은 전부 <b>사람이 쓰는 가구</b>라
+    /// 치수가 고정돼 있고, 그래서 보는 사람이 <b>방 크기를 재는 자</b>로 쓴다 —
+    /// 전시실에서 벤치와 신발장을 안 키운 것과 같은 기준이야(간판 성격인 물건만 키운다).
+    /// </summary>
+    const float CouncilScale = 1.00f;
+
+    /// <summary>
+    /// 곰생회관 소품 — 파일 · 이름 · 벽 · 자리(가운데일 때만) · 앞면이 향할 방향 · 실제 폭·깊이(m).
+    ///
+    /// 네 구역이다 — <b>앞벽(안내와 대기) · 뒷벽(정보와 살림) · 왼벽(발언) · 오른벽(접수와 안내)</b>,
+    /// 그리고 <b>가운데에 회의 탁자</b>. 가운데를 비우면 «복도» 고, 앉을 자리가 있어야
+    /// <b>«회의하는 방»</b> 이 된다(웅지관에서 배운 것).
+    ///
+    /// 앞벽 둘은 <b>문 양옆</b>으로 갈라진다 — <see cref="Seat"/> 가 n개를 벽 양끝에 붙이고
+    /// 남는 길이를 가운데로 몰아 주기 때문에, 문(폭 3.6m)이 저절로 비워진다.
+    /// 측정: 안내데스크 오른끝 −2.30 · 벤치 왼끝 +3.86 → 문턱(±1.80)에서 0.50m / 2.06m.
+    /// </summary>
+    static readonly (string file, string label, Wall wall, float x, float z,
+                     float yaw, float w, float d)[]
+        CouncilLayout =
+    {
+        // 앞벽(문) — 들어오면 왼쪽이 안내, 오른쪽이 기다리는 자리
+        ("SU_01_Information_Desk",     "안내데스크", Wall.앞,   0f,  0f,  180f, 3.300f, 1.170f),
+        ("SU_04_Waiting_Bench",        "대기벤치",   Wall.앞,   0f,  0f,  180f, 2.650f, 0.680f),
+        // 뒷벽 — 들어와서 마주 보는 면. 정보와 살림을 한 줄로 모은다
+        ("SU_02_Notice_Board",         "공지게시판", Wall.뒤,   0f,  0f,    0f, 2.448f, 0.700f),
+        ("SU_05_Mail_Station",         "우편수령함", Wall.뒤,   0f,  0f,    0f, 2.180f, 0.699f),
+        ("SU_07_Supply_Cabinet",       "물품수납장", Wall.뒤,   0f,  0f,    0f, 2.220f, 0.754f),
+        ("SU_09_Tea_Station",          "차물코너",   Wall.뒤,   0f,  0f,    0f, 2.230f, 0.815f),
+        // 왼벽 — 발언하는 자리. 뒤쪽에 서서 탁자를 내려다본다
+        ("SU_06_Event_Stage",          "행사연단",   Wall.왼,   0f,  0f,   90f, 3.220f, 1.755f),
+        // 오른벽 — 안쪽이 접수, 문 가까운 쪽이 안내 지도
+        ("SU_08_Suggestion_Reception", "건의접수대", Wall.오른, 0f,  0f,  270f, 1.750f, 0.840f),
+        ("SU_10_Village_Map",          "안내지도대", Wall.오른, 0f,  0f,  270f, 2.091f, 0.680f),
+        // 가운데 — 회의 탁자와 의자 여섯. 문에서 3.2m 떨어져 있어 들어오는 길을 안 막는다
+        ("SU_03_Meeting_Set",          "회의세트", Wall.가운데, 0f, -0.4f,   0f, 2.620f, 2.490f),
+    };
+
+    /// <summary>
+    /// 곰생회관 가구 열 점의 <b>앞면 쏠림</b> — 블렌더 헤드리스로 미리 재 둔 값이다.
+    /// 양수면 +Z 가 앞이라 안 돌려도 된다.
+    ///
+    /// ★★ <b>처음에는 런타임에 <c>mesh.vertices</c> 로 쟀는데 그게 틀렸다.</b>
+    /// 정점은 임포터의 <c>Read/Write Enabled</c> 가 꺼져 있으면 <b>런타임에 못 읽는다</b> —
+    /// 트랙 씬은 <c>buildOnAwake</c> 라 캠퍼스를 <b>실행 중에</b> 짓기 때문에 여기가 런타임 코드고,
+    /// 모델 수만큼 «Not allowed to access vertices on mesh» 가 쏟아졌다.
+    /// (2026-09-30 따라 그리기에서 이미 겪은 함정인데 또 밟았다.)
+    ///
+    /// 다시 재려면: 블렌더에서 FBX 열 점을 불러 <c>평균(y) − (min(y)+max(y))/2</c> 를 합한다.
+    /// 블렌더 +Y 가 유니티 +Z 다. 실측(2026-10-06):
+    /// <code>
+    /// 안내데스크 +0.049  공지게시판 +0.086  회의세트 +0.003  대기벤치 −0.071
+    /// 우편수령함 +0.116  행사연단 −0.039  물품수납장 +0.084  건의접수대 +0.022
+    /// 차물코너  +0.103  안내지도대 +0.081          합계 +0.384
+    /// </code>
+    /// 벤치만 등받이 때문에 뒤로 쏠리는데 <b>한 점의 사고를 아홉이 덮는다.</b>
+    /// </summary>
+    const float CouncilSkew = +0.384f;
+
+    /// <summary>
+    /// 부품 이름이 없는 묶음의 앞면 — <b>정점 무게중심</b>으로 잰다.
+    /// <b>에디터 전용</b>(위 <see cref="CouncilSkew"/> 설명 참고). 런타임에서 부르지 마라.
+    ///
+    /// ★ 이 열 점은 <b>한 파일이 메시 한 덩이</b>라(블렌더에서 합쳐서 내보냈다)
+    /// <see cref="FrontEvidence"/> 가 쓰는 «앞면에만 있는 부품» 이 아예 없다.
+    /// 대신 <b>앞쪽에 기하가 더 많다</b>는 성질을 쓴다 — 수령함의 칸막이, 게시판의 판,
+    /// 수납장의 문, 지도대의 지도는 전부 앞면에 붙어 있다.
+    ///
+    /// 반환값은 <b>정점 무게중심 − 바운즈 한가운데</b>의 부모(건물) 기준 z. 양수면 +Z 가 앞.
+    /// 월드로 재면 안 된다 — 건물이 yaw 로 돌아가 있어서 거짓말한다(네 번 걸린 함정).
+    /// </summary>
+#if UNITY_EDITOR
+    static float FrontSkew(Transform m)
+    {
+        if (m == null || m.parent == null || Application.isPlaying) return 0f;
+
+        double sum = 0.0; int n = 0;
+        float lo = float.MaxValue, hi = float.MinValue;
+
+        foreach (var mf in m.GetComponentsInChildren<MeshFilter>())
+        {
+            var mesh = mf.sharedMesh;
+            if (mesh == null) continue;
+            var vs = mesh.vertices;                       // 에디터 전용 — 런타임에는 안 읽힌다
+            for (int i = 0; i < vs.Length; i++)
+            {
+                float z = m.parent.InverseTransformPoint(mf.transform.TransformPoint(vs[i])).z;
+                sum += z; n++;
+                if (z < lo) lo = z;
+                if (z > hi) hi = z;
+            }
+        }
+        if (n == 0) return 0f;
+        return (float)(sum / n) - (lo + hi) * 0.5f;
+    }
+#endif
+
+    /// <summary>
+    /// 곰생회관 — 학생회. 유저가 만든 가구 열 점(<b>6,238쿼드 · 15,859 tris · 전부 바닥 원점 ·
+    /// 실물 크기 · 텍스처 0</b>)으로 짓는다.
+    ///
+    /// ★ <b>앞면은 묶음 열 점을 합쳐서 정한다.</b> 한 점만 보면 거짓말하는 게 섞여 있어서다 —
+    /// 블렌더에서 재 보면 벤치만 <b>등받이 때문에 −0.10</b> 으로 뒤로 쏠린다(나머지 아홉은
+    /// 앞으로). 합을 보면 +0.38m 로 뚜렷하니, <b>한 점의 사고를 아홉이 덮는다.</b>
+    /// 철곰관·웅지관이 «제일 센 신호 하나» 를 쓴 것보다 이쪽이 안전하다.
+    /// </summary>
+    void StudentCouncil(Transform t, float w, float d, float h)
+    {
+        var box = new (Wall, float, float, float, float)[CouncilLayout.Length];
+        for (int i = 0; i < CouncilLayout.Length; i++)
+        {
+            var p = CouncilLayout[i];
+            box[i] = (p.wall, p.x, p.z, p.w, p.d);
+        }
+        var at = Seat(box, "곰생회관", w, d, CouncilScale);
+
+        // 건물이 yaw 로 돌아가 있으면 <b>월드 AABB 폭이 실제 폭보다 넓게</b> 잡힌다.
+        // MyModel 은 그 AABB 로 배율을 맞추니, 돌아간 만큼을 미리 먹여 보낸다.
+        float byaw = t.eulerAngles.y * Mathf.Deg2Rad;
+        float cw = Mathf.Abs(Mathf.Cos(byaw)), sw = Mathf.Abs(Mathf.Sin(byaw));
+
+        var placed = new Transform[CouncilLayout.Length];
+        int made = 0;
+        float signal = 0f;
+
+        for (int i = 0; i < CouncilLayout.Length; i++)
+        {
+            var p = CouncilLayout[i];
+            float seen = Mathf.Max(p.w * cw + p.d * sw, p.w * sw + p.d * cw);
+            placed[i] = MyModel(t, CouncilFolder + p.file + ".fbx", "In_" + p.label,
+                                at[i], seen * CouncilScale);
+            if (placed[i] == null) continue;
+            made++;
+#if UNITY_EDITOR
+            // 에디터에서 씬을 구울 때만 실제로 잰다. 재 보고 CouncilSkew 와 다르면 아래에서 알려준다.
+            signal += FrontSkew(placed[i]);   // 아직 안 돌린 상태에서 잰다 — 열 점이 같은 자세다
+#endif
+        }
+
+        // ★ 런타임(트랙 씬의 Awake 빌드)에서는 못 잰다 — 미리 재 둔 값을 쓴다.
+        if (made > 0 && Mathf.Abs(signal) < 0.001f) signal = CouncilSkew;
+
+        float extra = signal >= 0f ? 0f : 180f;
+        for (int i = 0; i < placed.Length; i++)
+            if (placed[i] != null)
+                placed[i].localRotation =
+                    Quaternion.Euler(0f, CouncilLayout[i].yaw + extra, 0f) * placed[i].localRotation;
+
+        if (made == 0)
+            Debug.LogWarning("[곰생회관] 가구 FBX 를 하나도 못 찾았다 — "
+                           + CouncilFolder + " 에 SU_01~SU_10 이 있는지 확인해라.");
+#if UNITY_EDITOR
+        else if (Mathf.Abs(signal - CouncilSkew) > 0.08f)
+            Debug.LogWarning($"[곰생회관] 가구 {made}/10 · 잰 쏠림 {signal:+0.000;-0.000}m 가 "
+                           + $"적어 둔 값 {CouncilSkew:+0.000}m 과 다르다 — 모델을 다시 내보냈다면 "
+                           + "CampusBuilder.CouncilSkew 를 그 값으로 고쳐라.");
+#endif
+
+        // ---- 벽 마감 — 모서리 기둥과 굽도리 ----
+        // 가구를 들여놓으면 <b>빈 벽이 더 눈에 띈다.</b> 통짜 크림색 벽 넉 장은
+        // 레고 상자의 정체 그대로라, 캠퍼스 외벽에서 쓴 둘을 그대로 가져온다.
+        float inX = w * 0.5f - 0.6f, inZ = d * 0.5f - 0.6f;
+
+        for (int sx = -1; sx <= 1; sx += 2)
+            for (int sz = -1; sz <= 1; sz += 2)
+                Block(t, $"InCorner_{sx}_{sz}",
+                      new Vector3(sx * (inX - 0.15f), h * 0.5f, sz * (inZ - 0.15f)),
+                      Quaternion.identity, new Vector3(0.28f, h, 0.28f), ColTrimDark, noCollider: true);
+
+        for (int sx = -1; sx <= 1; sx += 2)
+            Block(t, $"InSkirt_{sx}", new Vector3(sx * (inX - 0.05f), 0.42f, 0f),
+                  Quaternion.identity, new Vector3(0.10f, 0.84f, d - 1.8f), ColWallFoot, noCollider: true);
+        Block(t, "InSkirtBack", new Vector3(0f, 0.42f, -inZ + 0.05f), Quaternion.identity,
+              new Vector3(w - 1.8f, 0.84f, 0.10f), ColWallFoot, noCollider: true);
+
+        // 천장 — 대들보 둘과 서까래. 민짜 반자는 «아직 안 지은 방» 으로 보인다
+        for (int s = -1; s <= 1; s += 2)
+            Block(t, $"InGirder_{s}", new Vector3(s * 3.9f, h - 0.70f, 0f), Quaternion.identity,
+                  new Vector3(0.40f, 0.40f, d - 1.6f), ColWoodRail, noCollider: true);
+        for (int i = 0; i < 7; i++)
+            Block(t, $"InRafter_{i}", new Vector3(0f, h - 0.32f, -4.2f + i * 1.4f), Quaternion.identity,
+                  new Vector3(w - 1.6f, 0.20f, 0.16f), ColWood, noCollider: true);
     }
 
     /// <summary>
@@ -2520,6 +3161,11 @@ public class CampusBuilder : MonoBehaviour
             // 되살리고 싶으면 이 case 하나만 되돌리면 된다.
             case "곰머리관":
                 Gommeori(t, w, d, h);
+                // ★★ 2026-10-06 — 1·2장 떡밥 셋이 여기 선다: <b>빠진 장부 한 권</b>,
+                //   <b>비어 있는 최근 3년</b>, 그리고 그걸 들여다보는 필름 열람기.
+                //   조건이 다른 세 관과 달리 <b>기존 인테리어를 안 걷어낸다</b> —
+                //   곰머리관은 내가 이미 제대로 지어 놓은 방이라 소품만 얹으면 된다.
+                StoryHall(t, "곰머리관", w, d);
                 break;
 
             // ★★ 2026-09-28 <b>유저가 만든 경호·안전 대형 소품 열 점으로 다시 지었다.</b>
@@ -2541,87 +3187,60 @@ public class CampusBuilder : MonoBehaviour
                 Jaeju(t, w, d, h);
                 break;
 
-            case "곰테크관":   // 공학·카트 — 정비대와 부품
-                Block(t, "InLift", new Vector3(0f, 0.55f, 0f), Quaternion.identity,
-                      new Vector3(3.4f, 1.1f, 2f), ColStoneWall, noCollider: true);
-                for (int i = 0; i < 4; i++)
-                    Block(t, $"InTire_{i}", new Vector3(halfW - 1f, 0.35f + i * 0.35f, -2f + i * 0.2f),
-                          Quaternion.identity, new Vector3(1f, 0.32f, 1f), ColBearDark, noCollider: true);
-                Block(t, "InToolWall", new Vector3(-halfW + 0.3f, 2f, 0f), Quaternion.identity,
-                      new Vector3(0.2f, 2f, d - 4f), ColWallTile, noCollider: true);
+            // ★★ 2026-10-06 <b>유저가 만든 이야기 단서 소품으로 다시 지었다.</b>
+            //   상자로 흉내 낸 리프트·타이어·공구벽은 걷어낸다 — 진짜 정비대가 들어온 이상
+            //   그건 가구를 가리는 짐이다(대충기념관·곰생회관과 같은 판단).
+            //   ★ <b>조종기 보관장이 이 방의 핵심</b>이다: 「곰이 밖에 못 나가서 카트만
+            //   내보낸다」를 대사 한 줄 없이 설명하는 유일한 물건이야.
+            case "곰테크관":
+                StoryHall(t, "곰테크관", w, d);
                 break;
 
-            case "곰누리관":   // 관광·외국어 — 지구본과 안내대
-                Disc(t, "InGlobe", new Vector3(-2.5f, 1.4f, 0f), new Vector3(1.6f, 0.8f, 1.6f), ColWater);
-                Block(t, "InGlobeStand", new Vector3(-2.5f, 0.4f, 0f), Quaternion.identity,
-                      new Vector3(0.3f, 0.8f, 0.3f), ColWood, noCollider: true);
-                Block(t, "InCounter", new Vector3(2.5f, 0.55f, 1f), Quaternion.identity,
-                      new Vector3(3.4f, 1.1f, 1f), ColWoodRail, noCollider: true);
-                Block(t, "InMap", new Vector3(0f, 2.4f, -halfD - 0.05f), Quaternion.identity,
-                      new Vector3(w - 4f, 2f, 0.1f), ColMint, noCollider: true);
+            // ★★ 2026-10-07 <b>유저가 만든 관광·외국어 소품 열 점으로 다시 지었다.</b>
+            //   상자로 그린 지구본·안내대·지도는 걷어낸다 — 진짜 지구본(N06)과 세계지도(N03)가
+            //   들어온 이상 그건 <b>같은 물건이 둘</b>이 되는 것이다.
+            //   ★ 이 방이 <b>«왜 하필 이 땅인가» 에 답하는 유일한 방</b>이다.
+            case "곰누리관":
+                StoryHall(t, "곰누리관", w, d, GomnuriScale, 0f);
+                TourismNumber(t, w, d);
                 break;
 
-            case "웅성관":     // 방송 — 부스와 콘솔
-                Block(t, "InBooth", new Vector3(-halfW + 2.2f, 1.4f, 0f), Quaternion.identity,
-                      new Vector3(3.4f, 2.8f, 3.4f), ColWallTile, noCollider: true);
-                Block(t, "InGlass", new Vector3(-halfW + 2.2f, 1.8f, halfD - 2.2f), Quaternion.identity,
-                      new Vector3(2.6f, 1.4f, 0.08f), ColWindow, noCollider: true);
-                Block(t, "InConsole", new Vector3(2f, 0.5f, 0f), Quaternion.identity,
-                      new Vector3(3f, 1f, 1.2f), ColBearDark, noCollider: true);
+            // ★★ 2026-10-06 이야기 단서 소품. <b>결승이 생중계되는 방</b>이다 —
+            //   수집품 7번 「중계 기록 장치」가 어디서 나왔는지가 여기 서 있다.
+            //   부스와 유리창은 남긴다(방을 나누는 역할이라 소품과 안 겹친다).
+            case "웅성관":
+                // ★ 2026-10-07 <b>상자로 흉내 낸 부스를 걷어냈다.</b> 수연이 진짜 라디오 부스를
+                //   만들어 왔으니(`W06`, ON AIR 등까지 달려 있다) 상자는 그걸 가리는 짐이다 —
+                //   학생회관·철곰관에서 내린 것과 같은 판단이야.
+                StoryHall(t, "웅성관", w, d);
+
+                // 증거 셋은 <b>책상 위</b>에. 상판 높이는 블렌더에서 쟀다(일지대 1.00 · 편집대 0.86) —
+                // 바운즈 꼭대기를 쓰면 펼친 장부(1.10)와 모니터(1.45) 위에 뜬다.
+                // 일지대는 가운데를 펼친 장부가 차지해서(x ±0.63) <b>양 끝</b>에만 자리가 있다.
+                OnTop(t, "테이프편집대", WoongFolder + "W08_Relabelled_Original_Tape.fbx",
+                      "원본테이프",  new Vector2( 0.05f,  0.34f), 0.86f, 0.30f,  18f);
+                OnTop(t, "방송일지대", WoongFolder + "W09_Fax_Transmission_Report.fbx",
+                      "팩스보고서",  new Vector2( 0.86f,  0.02f), 1.00f, 0.45f, -14f);
+                OnTop(t, "방송일지대", WoongFolder + "W10_Press_Access_Pass.fbx",
+                      "출입증",      new Vector2(-0.86f, -0.04f), 1.00f, 0.50f,  26f);
                 break;
 
-            // ★★ 2026-09-29 <b>밖에 나와 있던 학생회 물건을 안으로 들였다</b>
-            // (유저: *"학생회에서 쓸 관련 에셋들이 밖에 나와있는데 안으로 좀 넣어주지 않으련."*).
-            // 게시판이 마당에 서 있으니 «치우다 만 것» 으로 보였고, 정작 방 안은
-            // <b>긴 탁자 하나와 의자 다섯</b>뿐이라 회의실로도 안 읽혔다.
-            case "곰생회관":   // 학생회 — 회의 탁자 · 게시판 · 안건함
-            {
-                float inZ = d * 0.5f - 0.6f;
-
-                // 회의 탁자와 의자 — 양쪽에 앉는다. 한쪽만 있으면 «발표» 지 «회의» 가 아니다
-                Block(t, "InTable", new Vector3(0f, 0.45f, 0f), Quaternion.identity,
-                      new Vector3(w - 6f, 0.9f, 1.8f), ColWoodRail, noCollider: true);
-                for (int i = -2; i <= 2; i++)
-                    for (int s = -1; s <= 1; s += 2)
-                        Block(t, $"InChair_{i}_{s}", new Vector3(i * 1.7f, 0.3f, s * 1.7f),
-                              Quaternion.identity, new Vector3(0.5f, 0.6f, 0.5f), ColWood,
-                              noCollider: true);
-
-                // ---- 게시판 — 밖에서 들여온 것. 뒷벽에 <b>건다</b> ----
-                // 마당에 서 있을 때는 발이 달린 입간판이었는데, 실내로 오면 벽에 거는 게 맞다.
-                // 층을 뒤에서 앞으로 쌓는다(테두리 → 판 → 종이) — 겹치면 지지직거리고,
-                // 테두리를 앞에 두면 종이가 묻힌다(입간판에서 이미 한 번 겪었다).
-                Block(t, "InBoardFrame", new Vector3(-3.4f, 2.05f, -inZ + 0.10f), Quaternion.identity,
-                      new Vector3(6.2f, 2.9f, 0.10f), ColWood, noCollider: true);
-                // 판은 <b>가라앉은 색</b>, 종이는 크림. 판까지 크림이면 공고가 안 보인다
-                // (색을 새로 지어내지 않는다 — 팔레트에 있는 둘로 대비를 만든다).
-                Block(t, "InBoardFace", new Vector3(-3.4f, 2.05f, -inZ + 0.17f), Quaternion.identity,
-                      new Vector3(5.8f, 2.5f, 0.05f), ColTrimDark, noCollider: true);
-                // 붙어 있는 공고 여섯 장. 조금씩 비뚤어야 «붙인 것» 으로 보인다
-                for (int i = 0; i < 6; i++)
-                    Block(t, $"InNotice_{i}",
-                          new Vector3(-5.6f + (i % 3) * 2.2f, 2.55f - (i / 3) * 1.05f, -inZ + 0.21f),
-                          Quaternion.Euler(0f, 0f, (i % 2 == 0 ? 2.5f : -3f)),
-                          new Vector3(1.5f, 0.85f, 0.03f), ColCream, noCollider: true);
-                Block(t, "InBoardTape", new Vector3(-3.4f, 3.36f, -inZ + 0.22f), Quaternion.identity,
-                      new Vector3(6.0f, 0.14f, 0.04f), ColRibbon, noCollider: true);
-
-                // ---- 안건함과 확성기 받침 — 지붕 상징물(확성기)과 같은 말을 하게 ----
-                Block(t, "InBallotStand", new Vector3(4.6f, 0.45f, -inZ + 0.8f), Quaternion.identity,
-                      new Vector3(1.1f, 0.9f, 0.8f), ColWood, noCollider: true);
-                Block(t, "InBallotBox", new Vector3(4.6f, 1.15f, -inZ + 0.8f), Quaternion.identity,
-                      new Vector3(0.8f, 0.5f, 0.6f), ColWoodRail, noCollider: true);
-                Block(t, "InBallotSlot", new Vector3(4.6f, 1.41f, -inZ + 0.8f), Quaternion.identity,
-                      new Vector3(0.5f, 0.04f, 0.1f), ColBearDark, noCollider: true);
+            // ★★ 2026-10-02 <b>유저가 만든 학생회 가구 열 점으로 다시 지었다.</b>
+            // (유저: *"학생회·마을 회관용 큰 에셋이 준비됬어 넣어."*)
+            //
+            // 전에 있던 건 <b>상자로 흉내 낸 것</b>이다 — 탁자 한 장에 의자 열, 벽에 그린
+            // 게시판, 뚜껑에 홈 판 안건함. 진짜 가구가 들어온 이상 그건 가구를 가리는 짐이야
+            // (대충기념관에서 「안 푼 상자」를 걷어낸 것과 같은 판단).
+            // 되살리려면 이 case 를 되돌리면 된다.
+            case "곰생회관":
+                StudentCouncil(t, w, d, h);
                 break;
-            }
 
-            case "참잘했어요관":  // 시상 — 진열장과 트로피
-                Block(t, "InCase", new Vector3(0f, 1.2f, -halfD + 1f), Quaternion.identity,
-                      new Vector3(w - 4f, 2.4f, 0.8f), ColWindow, noCollider: true);
-                for (int i = -2; i <= 2; i++)
-                    Block(t, $"InTrophy_{i}", new Vector3(i * 1.5f, 1.6f, -halfD + 1f), Quaternion.identity,
-                          new Vector3(0.3f, 0.7f, 0.3f), ColLantern, noCollider: true);
+            // ★★ 2026-10-06 진짜 진열장이 들어왔다. 상자로 그린 유리장과 노란 막대는 걷어낸다.
+            //   ★ <b>한 자리가 비어 있고 먼지 자국만 남아 있다.</b> 왜 비었는지는
+            //   게임이 끝까지 설명하지 않는다 — 그게 이 물건의 전부다.
+            case "참잘했어요관":
+                StoryHall(t, "참잘했어요관", w, d);
                 break;
 
             // ★★ 2026-09-29 <b>유저가 만든 전시물 열 점으로 다시 지었다.</b>
@@ -3704,14 +4323,28 @@ public class CampusBuilder : MonoBehaviour
                 break;
 
             case "웅성관":   // 방송·언론 — 지붕 위 안테나와 확성기
-                Block(t, "Mast", new Vector3(0f, h + 4f, -d * 0.15f), Quaternion.identity,
-                      new Vector3(0.3f, 6f, 0.3f), ColBearDark, noCollider: true);
+                // ★ 2026-10-06 유저: *"달릴 때 웅성관이 비비빅 거린다."* 원인 둘을 같이 잡았다.
+                //
+                // ① <b>확성기 색이 발광이었다.</b> <c>ColLantern</c>(#F5C069)은
+                //    <see cref="Surfaces"/> 표에서 <b>석등 색</b>이라 무엇에 칠하든 발광이 된다.
+                //    1.1m 짜리 발광 상자 둘이 건물 정면에 붙어 있으니, 달리면서 보면
+                //    Bloom 이 화소 경계에서 들쑥날쑥해져 <b>깜빡이는 것처럼</b> 보인다.
+                //    (화장실 바가지가 전구처럼 빛나던 것과 같은 함정 — 2026-09-22)
+                //    → 발광이 아닌 <c>ColMapleGold</c>(#C9933E).
+                //
+                // ② <b>안테나가 지붕 상징물 속에 박혀 있었다.</b> 기둥이 z −1.8 인데
+                //    상징물(방송 마이크, 깊이 4.25)이 지붕 한가운데라 z ±2.1 을 먹는다.
+                //    면이 스치면서 깊이값이 뒤집힌다 → 뒤쪽(z −0.34d)으로 물렸다.
                 for (int i = 0; i < 3; i++)
-                    Block(t, $"Cross_{i}", new Vector3(0f, h + 5.4f + i * 0.9f, -d * 0.15f), Quaternion.identity,
+                    Block(t, $"Cross_{i}", new Vector3(0f, h + 5.4f + i * 0.9f, -d * 0.34f), Quaternion.identity,
                           new Vector3(3.2f - i * 0.7f, 0.16f, 0.16f), ColBearDark, noCollider: true);
+                Block(t, "Mast", new Vector3(0f, h + 4f, -d * 0.34f), Quaternion.identity,
+                      new Vector3(0.3f, 6f, 0.3f), ColBearDark, noCollider: true);
+                // 확성기 뒷면이 <b>벽 안쪽 면(d/2 − 0.6)</b>과 정확히 같은 평면이었다.
+                // 0.45 만큼 내서 벽 두께 한가운데에 묻힌다 — 어느 면과도 안 겹친다.
                 for (int s = -1; s <= 1; s += 2)
-                    Block(t, $"Horn_{s}", new Vector3(s * side * 0.6f, h + 1.2f, front), Quaternion.identity,
-                          new Vector3(1.1f, 1.1f, 1.4f), ColLantern, noCollider: true);
+                    Block(t, $"Horn_{s}", new Vector3(s * side * 0.6f, h + 1.2f, front + 0.45f), Quaternion.identity,
+                          new Vector3(1.1f, 1.1f, 1.4f), ColMapleGold, noCollider: true);
                 break;
 
             case "곰생회관":  // 학생회 — 현수막만
@@ -3858,6 +4491,47 @@ public class CampusBuilder : MonoBehaviour
         for (int i = 0; i < 3; i++)
             Block(t, $"Step_{i}", new Vector3(0f, 0.25f + i * 0.3f, front + 3.4f - i * 1.1f),
                   Quaternion.identity, new Vector3(12f, 0.6f, 3.2f - i * 0.4f), ColStoneWall);
+
+        // ★★ 2026-10-06 <b>캠퍼스에서 유일하게 불이 켜져 있는 건물.</b>
+        //
+        // 이 건물은 이미 둘을 숨기고 있다 — <b>폐과 딱지가 안 붙고</b>
+        // (<see cref="CampusMood.neverClosed"/>), <b>판자도 안 박힌다</b>
+        // (<see cref="CampusBoarding.alwaysOpen"/>). 거기에 셋째를 얹는다:
+        // 0/8 에 열두 동이 판자로 막혀 캄캄할 때도 <b>여기만 등이 켜져 있다.</b>
+        // 셋이 같은 건물을 가리키는데 <b>아무도 말해주지 않는다</b> — 그게 복선이야.
+        var lit = new GameObject("LateShift").transform;
+        lit.SetParent(t, false);
+        lit.localPosition = new Vector3(0f, 0f, front);
+
+        for (int i = -1; i <= 1; i += 2)
+        {
+            // 처마 밑 제등. ColLantern 은 <b>색이 곧 발광</b>이라 조명을 안 써도 켜 보인다
+            Block(lit, $"Lantern_{i}", new Vector3(i * 7.5f, 7.0f, 0.5f), Quaternion.identity,
+                  new Vector3(0.9f, 1.3f, 0.9f), ColLantern, noCollider: true);
+            Block(lit, $"LanternCap_{i}", new Vector3(i * 7.5f, 7.74f, 0.5f), Quaternion.identity,
+                  new Vector3(1.1f, 0.16f, 1.1f), ColBearDark, noCollider: true);
+            Block(lit, $"LanternCord_{i}", new Vector3(i * 7.5f, 8.5f, 0.5f), Quaternion.identity,
+                  new Vector3(0.06f, 1.4f, 0.06f), ColBearDark, noCollider: true);
+        }
+
+        // ★ 「창에서 새는 빛」은 <b>넣었다가 뺐다.</b> 한옥 문의 한지는 이미 발광이라
+        //   어느 건물이든 문이 따뜻하게 빛나고 있고, 거기에 ColWindow 판을 더 붙이니
+        //   <b>하얗게 날아가서</b> 살창과 겹친 고장처럼 보였다. 렌더를 안 봤으면 몰랐다.
+        //   구분은 <b>제등</b>이 만든다 — 입구에 등을 단 건물은 캠퍼스에 여기뿐이다.
+
+        // ★ 실시간 조명 하나. <b>발광 재질은 제 몸만 빛나지 바닥을 못 밝힌다</b> —
+        //   「여기만 불이 켜져 있다」가 보이려면 <b>계단에 빛 웅덩이</b>가 깔려야 한다.
+        //   기획서 §7.6 의 «실시간 그림자는 주요 조명 하나만» 은 그림자 얘기고,
+        //   이건 그림자를 안 만든다(캠퍼스 광원: 태양 + 이것 = 2개).
+        var lamp = new GameObject("LateShiftLight");
+        lamp.transform.SetParent(lit, false);
+        lamp.transform.localPosition = new Vector3(0f, 5.5f, 1.8f);
+        var light = lamp.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.color = new Color(1f, 0.88f, 0.68f);
+        light.intensity = 3.2f;
+        light.range = 24f;
+        light.shadows = LightShadows.None;
     }
 
     /// <summary>한옥 정문 — 기둥 넷에 청록 기와를 얹은 삼문.</summary>

@@ -344,7 +344,7 @@ public static class LobbySceneBuilder
         var west = new Vector3(-HallWidth * 0.5f + 0.25f, 0f, 8f);
         doorSpots.Add(west);
         var westDoor = HanokDoor.Build(root, west, Quaternion.Euler(0f, 90f, 0f), 3.6f, 4.4f, mat,
-                                       plaque: true, buildingName: "캠퍼스", department: "곰밥마당 · 별관",
+                                       plaque: true, buildingName: "캠퍼스", department: "철거 예정 구역",
                                        openable: true);
 
         Openable(westDoor, "캠퍼스");

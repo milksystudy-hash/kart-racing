@@ -28,15 +28,40 @@ public static class KartSpec
         public float grip;
         /// <summary>나중에 넣을 한 줄 소개. 지금은 전부 비어 있다.</summary>
         public string tagline;
+
+        /// <summary>
+        /// ★★ 2026-10-06 유저: *"캐릭터를 설정하면 왼쪽에 흰 편지지 느낌으로 각자의 색을
+        /// 포인트를 줘서 기획에 맞게 캐릭터 설정을 간단하게 써 보는 건 어떨까."* <b>좋다.</b>
+        /// 강사님이 «누가 누군지 모르겠다» 고 한 데 대한 <b>가장 직접적인 답</b>이기도 하다 —
+        /// 고르는 자리에서 세 줄이면 관계·성격·역할이 다 들어간다.
+        /// 한 줄 24자 안쪽, <b>세 줄까지.</b> 네 줄이면 고르기 전에 안 읽는다.
+        /// </summary>
+        public string[] profile;
     }
 
     // 기준값(KartController 기본값): 중량 13.0 · 최고 17.0 · 가속 22.0 · 접지 16.0
     static readonly Spec[] All =
     {
-        new Spec { castId = "이감", mass = 12.4f, topSpeed = 17.3f, acceleration = 22.8f, grip = 15.4f },
-        new Spec { castId = "시우", mass = 14.2f, topSpeed = 16.3f, acceleration = 20.6f, grip = 17.5f },
-        new Spec { castId = "세운", mass = 13.1f, topSpeed = 17.0f, acceleration = 21.7f, grip = 16.3f },
-        new Spec { castId = "세진", mass = 11.7f, topSpeed = 18.0f, acceleration = 23.4f, grip = 14.6f },
+        new Spec { castId = "이감", mass = 12.4f, topSpeed = 17.3f, acceleration = 22.8f, grip = 15.4f,
+                   tagline = "인간 · 삼형제의 주인",
+                   profile = new[] { "곰인형 셋과 십 년째 같이 산다.",
+                                     "셋이 변하는 건 늘 봤지만,",
+                                     "박물관이 있는 줄은 몰랐다." } },
+        new Spec { castId = "시우", mass = 14.2f, topSpeed = 16.3f, acceleration = 20.6f, grip = 17.5f,
+                   tagline = "한씨 삼형제 장남 · 반장",
+                   profile = new[] { "말로 직접 타이르는 쪽.",
+                                     "이감을 제일 많이 챙기고,",
+                                     "박물관 얘기를 숨긴 것도 이쪽이다." } },
+        new Spec { castId = "세운", mass = 13.1f, topSpeed = 17.0f, acceleration = 21.7f, grip = 16.3f,
+                   tagline = "한씨 삼형제 차남 · 요리학과",
+                   profile = new[] { "소심해서 말은 못 하고",
+                                     "대신 밥을 차려 놓는다.",
+                                     "여기 살던 때를 제일 많이 기억한다." } },
+        new Spec { castId = "세진", mass = 11.7f, topSpeed = 18.0f, acceleration = 23.4f, grip = 14.6f,
+                   tagline = "한씨 삼형제 막내 · 체육학과",
+                   profile = new[] { "말보다 몸이 먼저 나간다.",
+                                     "사고는 대개 여기서 시작되고,",
+                                     "돌파구도 대개 여기서 나온다." } },
     };
 
     public static bool TryGet(string castId, out Spec spec)

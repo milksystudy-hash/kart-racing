@@ -22,6 +22,21 @@ public class CampusMood : MonoBehaviour
     [Tooltip("이 이름이 든 건물에는 폐과 딱지를 안 붙인다")]
     public string neverClosed = "웅지관";
 
+    /// <summary>
+    /// ★★ 2026-10-06 <b>여덟 개를 다 모아도 이 한 동은 끝내 안 열린다.</b>
+    ///
+    /// 전에는 8/8 이면 열두 장이 전부 떨어졌다 — 깔끔한 승리고, 그래서 <b>아무것도 안 남는다.</b>
+    /// 한 장을 남기면 「이겼지만 전부는 아니다」가 <b>기하를 하나도 안 만들고</b> 생긴다.
+    ///
+    /// 하필 <b>기념관</b>인 게 요점이다. 캠퍼스는 살렸는데 <b>그걸 기억하는 자리</b>가 안 돌아왔다 —
+    /// 안에 들어가면 「환웅의 발자취」 수첩이 그대로 있는데 바깥 현판에는 딱지가 붙어 있다.
+    /// 설명은 한 줄도 안 한다. 끝까지 안 떨어지는 딱지 한 장이 그 말을 대신한다.
+    ///
+    /// 비워 두면 전처럼 전부 떨어진다.
+    /// </summary>
+    [Tooltip("여덟 개를 다 모아도 이 건물의 폐과 딱지는 끝내 안 떨어진다 — 비우면 전부 떨어진다")]
+    public string neverReopens = "대충기념관";
+
     [Header("철거 위기 — 수집품 0개")]
     [Tooltip("탁하고 서늘한 쪽. 어둡게는 하지 않는다 — 어두우면 안 보일 뿐 슬프지 않다")]
     public Color coldFog = new Color(0.52f, 0.52f, 0.52f);
@@ -105,7 +120,12 @@ public class CampusMood : MonoBehaviour
             // <b>경계에서부터 퍼져 나가게</b> 순서를 준다 — 방금 살아난 건물이 먼저 떨어지고
             // 멀리 있는 것이 나중이라, 눈이 «어디서 시작됐는지» 를 따라갈 수 있다.
             float delay = animate ? Mathf.Abs(i - alive) * Reveal.Step : -1f;
-            signs[i].SetClosed(i >= alive, delay);
+
+            // ★ 한 동은 끝내 안 열린다 — <see cref="neverReopens"/> 참고
+            bool closed = i >= alive
+                       || (!string.IsNullOrEmpty(neverReopens)
+                           && signs[i].buildingName == neverReopens);
+            signs[i].SetClosed(closed, delay);
         }
     }
 }

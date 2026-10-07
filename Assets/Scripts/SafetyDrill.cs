@@ -454,6 +454,9 @@ public class SafetyDrill : MonoBehaviour
                 Hits++;
                 hitAt[i] = Time.time;
                 lamp[i] = Lamp.꺼짐;
+                // ★ 연달아 눌러도 겹쳐 나는 게 맞다 — 그게 «연타» 로 들린다.
+                //   음악은 안 비킨다(duckMusic). 0.4초짜리가 초당 두 번이면 음악이 계속 숙인다.
+                Sfx.Play("DrillGood", 0.85f, duckMusic: false);
                 break;
 
             case Lamp.빨강:
@@ -463,6 +466,8 @@ public class SafetyDrill : MonoBehaviour
                 SlipAt = Time.time;
                 lamp[i] = Lamp.꺼짐;
                 frozenUntil = Time.time + FreezeSeconds;
+                // 0.88초짜리라 <b>정지 시간(0.8초)과 거의 같다</b> — 소리가 끝나면 다시 눌린다.
+                Sfx.Play("DrillStop", 0.95f);
                 break;
 
             default:

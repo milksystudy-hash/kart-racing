@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// <b>열리는 문짝.</b> 걸어가서 E 를 누르면 두 짝이 밖으로 젖혀진다.
@@ -76,6 +76,18 @@ public class HingedDoor : MonoBehaviour
     [Tooltip("열려 있을 때도 표시를 띄울지. 끄면 한 번 열면 끝")]
     public bool canClose = true;
 
+    /// <summary>
+    /// ★ 2026-10-06 <b>비어 있지 않으면 이 문은 영영 안 열린다</b> — 누르면 이 문구만 뜬다.
+    ///
+    /// <see cref="Barred"/>(판자)와 다르다. 판자는 <b>수집품을 모으면 걷히는</b> 연출이고,
+    /// 이건 <b>끝까지 안 열리는 문</b>이다. 「안 열리는 문」은 고장이 아니라 <b>복선</b>이라,
+    /// 왜 안 열리는지 화면에 적어 줘야 플레이어가 버그로 안 읽는다.
+    /// </summary>
+    [Tooltip("비어 있지 않으면 영영 안 열린다 — 누르면 이 문구가 뜬다")]
+    public string lockedNote = "";
+
+    public bool Locked => !string.IsNullOrEmpty(lockedNote);
+
     public static HingedDoor Nearest { get; private set; }
 
     /// <summary>그 문의 점수(작을수록 앞). <see cref="CampusHUD"/> 가 종류끼리 비교한다.</summary>
@@ -123,6 +135,9 @@ public class HingedDoor : MonoBehaviour
         //
         // <b>이미 꽂혀 있으면 그대로 쓴다.</b> 자동 찾기는 «안 꽂혔을 때» 의 구제책이지
         // 꽂힌 걸 갈아치우는 장치가 아니야.
+        // 잠긴 문은 움직일 일이 없으니 문짝을 안 찾는다 — 찾으면 «못 찾았어» 경고만 뜬다
+        if (Locked) return;
+
         bool wired = leaves != null && leaves.Length > 0 && leaves[0] != null
                   && (leaves.Length == 1 || leaves[1] != null);
 
@@ -143,7 +158,7 @@ public class HingedDoor : MonoBehaviour
             return;
         }
 
-        if (doorDebug)
+        if (Dev.Enabled && doorDebug)
             Debug.Log($"[문] '{label}' 문짝 {leaves.Length}짝 [{leaves[0].name}]"
                     + (leaves.Length > 1 && leaves[1] != null ? $" / [{leaves[1].name}]" : ""), this);
 
@@ -206,7 +221,7 @@ public class HingedDoor : MonoBehaviour
             if (travel < 0.2f) travel = 1.6f;
             swung[i] = shut[i] + new Vector3(dir * travel, 0f, 0f);
 
-            if (doorDebug)
+            if (Dev.Enabled && doorDebug)
                 Debug.Log($"[문] '{label}' {leaves[i].name} 닫힘 x {shut[i].x:F2} → 열림 x {swung[i].x:F2} " +
                           $"(폭 {width:F2} × 비율 {slideRatio:F2} = {travel:F2}m)", this);
         }
@@ -252,8 +267,14 @@ public class HingedDoor : MonoBehaviour
 
         if (Barred)
         {
-            if (doorDebug) Debug.Log($"[문] '{label}' 판자가 박혀 있어서 안 열린다", this);
+            if (Dev.Enabled && doorDebug) Debug.Log($"[문] '{label}' 판자가 박혀 있어서 안 열린다", this);
             Toast.Show($"{label} — 판자가 박혀 있다");
+            return;
+        }
+
+        if (Locked)
+        {
+            Toast.Show($"{label} — {lockedNote}");
             return;
         }
 
@@ -261,7 +282,7 @@ public class HingedDoor : MonoBehaviour
         {
             // Start 가 문짝을 못 찾고 돌아간 경우. 여기서 한 번 더 시도한다 —
             // 씬을 다시 굽지 않아도 고쳐지게.
-            if (doorDebug) Debug.LogWarning($"[문] '{label}' 문짝이 없어서 다시 찾는다", this);
+            if (Dev.Enabled && doorDebug) Debug.LogWarning($"[문] '{label}' 문짝이 없어서 다시 찾는다", this);
             SendMessage("Start");
             if (shut == null) return;
         }
@@ -274,14 +295,16 @@ public class HingedDoor : MonoBehaviour
         movedAt = Time.time;
         Sfx.Play("DoorSlide");
 
-        if (doorDebug) Debug.Log($"[문] '{label}' {(Open ? "연다" : "닫는다")}", this);
+        if (Dev.Enabled && doorDebug) Debug.Log($"[문] '{label}' {(Open ? "연다" : "닫는다")}", this);
     }
 
     /// <summary>화면에 띄울 말. 상태에 따라 달라야 한다 — 늘 "문 열기" 면 닫는 법을 모른다.</summary>
-    public string Action => Barred ? "판자가 박혀 있다" : (Open ? "문 닫기" : "문 열기");
+    public string Action => Barred ? "판자가 박혀 있다"
+                          : Locked ? lockedNote
+                          : (Open ? "문 닫기" : "문 열기");
 
     /// <summary>눌러서 뭔가 되나. HUD 가 키를 보여줄지 결정한다.</summary>
-    public bool Actionable => !Barred;
+    public bool Actionable => !Barred && !Locked;
 
     /// <summary>
     /// 문짝을 <b>옆으로 민다.</b> 한옥 장지문은 여닫이가 아니라 미닫이야

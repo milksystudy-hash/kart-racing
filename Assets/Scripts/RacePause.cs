@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// <b>레이스 일시정지.</b> 2026-09-18 유저: *"ESC 누르면 속력이 0으로 줄어드는데 일시정지
@@ -48,9 +48,21 @@ public static class RacePause
     }
 
     /// <summary>씬을 옮길 때 안전망. 멈춘 채로 넘어가면 다음 씬이 얼어 있다.</summary>
+    /// <summary>
+    /// ★★ 2026-10-06 <b>조건 없이 되돌린다.</b> 전에는 <c>if (On)</c> 였는데,
+    /// <see cref="On"/> 과 <see cref="Physics.simulationMode"/> 가 <b>어긋나 있으면</b>
+    /// 영영 못 푼다 — 그리고 <c>simulationMode</c> 는 <b>씬을 넘어 살아남는 전역값</b>이라
+    /// 한 번 어긋나면 <b>다음 레이스가 통째로 멈춘 채로 시작한다</b>
+    /// (유저: *"레이싱 시작 누르면 화면이 먹통이 되고 일시 정지가 된다"*).
+    ///
+    /// 이 프로젝트는 <c>FixedUpdate</c> 말고 다른 모드를 쓸 일이 없으니
+    /// <b>저장값을 믿지 말고 그냥 제자리로</b> 돌려놓는 게 맞다.
+    /// </summary>
     public static void Clear()
     {
-        if (On) Physics.simulationMode = saved;
         On = false;
+        saved = SimulationMode.FixedUpdate;
+        if (Physics.simulationMode != SimulationMode.FixedUpdate)
+            Physics.simulationMode = SimulationMode.FixedUpdate;
     }
 }

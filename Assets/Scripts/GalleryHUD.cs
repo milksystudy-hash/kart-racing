@@ -39,12 +39,26 @@ public class GalleryHUD : MonoBehaviour
             return;
         }
 
-        if (!debugKeys || selector == null) return;
+        if (!Dev.Enabled || !debugKeys || selector == null) return;
 
+        // ★★ 2026-10-06 유저: *"계속 전시관 껐다 켰다 할 때 자꾸 개발업자랑 시의원이랑
+        //   한판 붙어야 해서 시간 다 잡아먹네."* <b>맞다 — F9 가 반만 해 주고 있었다.</b>
+        //   전시실·캠퍼스의 «다 끝난 모습» 은 <b>수집품 8개가 아니라 결승 클리어</b>가 기준이라
+        //   (판자·광고판·동상이 거기서 걷힌다), F9 로 수집품만 채우면 <b>결승을 또 달려야</b> 했다.
+        //   이제 F9 는 «끝까지 깬 상태» 를 한 번에 만든다.
         if (Keyboard.current.f9Key.wasPressedThisFrame)
         {
             foreach (var c in selector.cases)
                 if (c != null) CollectionState.Collect(c.itemId);
+            GrandFinal.MarkCleared();
+            selector.RecountCollected();
+        }
+
+        // F11 — <b>결승만</b> 켜고 끈다. «8개는 모았지만 아직 결승 전» 을 보려면 이쪽.
+        if (Keyboard.current.f11Key.wasPressedThisFrame)
+        {
+            if (GrandFinal.Cleared) GrandFinal.Reset(); else GrandFinal.MarkCleared();
+            Toast.Show(GrandFinal.Cleared ? "결승 클리어 ON" : "결승 클리어 OFF");
             selector.RecountCollected();
         }
         if (Keyboard.current.f10Key.wasPressedThisFrame)

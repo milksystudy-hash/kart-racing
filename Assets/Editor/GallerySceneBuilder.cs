@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -240,6 +240,169 @@ public static class GallerySceneBuilder
     }
 
     /// <summary>
+    /// <b>개관 기념 단체 사진.</b> 전시실 뒷벽에 거는 큰 액자 한 장.
+    ///
+    /// ★★ 복선은 「곰이 많다」가 아니다 — 곰은 지금도 급식실에도 있고 코스에도 서 있다.
+    /// 복선은 <b>곰과 사람이 나란히 찍혀 있다</b>는 것이다:
+    /// <list type="number">
+    /// <item>지금 이 박물관에는 <b>사람이 한 명도 없다.</b> 제1장 제목이 「사라진 관람객」이야</item>
+    /// <item>그리고 <b>곰은 사람 앞에서 움직이면 안 된다</b> — 경기에 무인 카트를 내보내는
+    ///       이유가 그거다. 그런데 사진에서는 <b>같이 서서 찍었다.</b> 예전엔 그래도 됐다는 뜻</item>
+    /// </list>
+    /// 설명은 한 줄도 안 한다. 플레이어가 이미 배운 규칙 둘이 사진 한 장과 안 맞을 뿐이야.
+    ///
+    /// 글자는 안 쓴다 — 실루엣만으로 사람과 곰이 갈려야 한다(사람은 키가 크고 귀가 없다).
+    /// </summary>
+    static void MakeOpeningPhoto(Transform parent, Vector3 at)
+    {
+        const float fw = 6.0f, fh = 2.4f;
+
+        var root = new GameObject("OpeningPhoto").transform;
+        root.SetParent(parent, false);
+        root.localPosition = at;
+
+        // 층은 <b>뒤에서 앞으로</b> 쌓는다. 액자판은 통짜 상자라 그림을 뒤에 두면 안 보인다
+        // (바로 위 Frame_0~5 가 그 실수를 하고 있었다 — 같이 고쳤다).
+        TestSceneBuilder.Cube(root, "Frame", Vector3.zero,
+                              new Vector3(fw + 0.20f, fh + 0.20f, 0.10f), ColWoodDark,
+                              keepCollider: false, finish: Finish.나무);
+        // ★ 2026-10-06 처음에 <b>ColNotice / ColNoticeInk 를 거꾸로</b> 썼다 —
+        //   그 둘은 「철거 통지서」의 <b>빨강 바탕과 그 위의 크림 글씨</b>지 종이와 잉크가 아니다.
+        //   그래서 액자에 빨간 테가 둘리고 사람들이 <b>허옇게</b> 떴다. 색은 이름이 아니라
+        //   <b>값을 보고</b> 골라야 한다(ColNotice = #C23B2E).
+        TestSceneBuilder.Cube(root, "Mat", new Vector3(0f, 0f, 0.055f),
+                              new Vector3(fw, fh, 0.03f), ColDustCloth,
+                              keepCollider: false, finish: Finish.무광);
+        TestSceneBuilder.Cube(root, "Paper", new Vector3(0f, 0.05f, 0.075f),
+                              new Vector3(fw - 0.34f, fh - 0.50f, 0.02f), ColBearFace,
+                              keepCollider: false, finish: Finish.무광);
+
+        // 줄마다 조금씩 앞으로 — 뒷줄이 앞줄에 가려야 «줄 서서 찍은 사진» 이 된다
+        for (int row = 0; row < 3; row++)
+        {
+            int count = row == 0 ? 11 : 10;
+            float y = 0.50f - row * 0.44f;
+            float z = 0.090f + row * 0.006f;
+            float span = fw - 1.0f;
+
+            for (int i = 0; i < count; i++)
+            {
+                float x = -span * 0.5f + span * i / (count - 1f);
+                string tag = $"{row}_{i}";
+
+                // 서른한 중 일곱이 사람이다. 한 덩어리로 몰리지 않게 줄마다 어긋나게 섞는다
+                if ((row * 7 + i * 3) % 5 == 0)
+                {
+                    // 사람 — <b>머리 하나가 더 크다.</b> 귀가 없는 것만으로는 안 갈린다
+                    FacingDisc(root, $"P_{tag}_Head", new Vector3(x, y + 0.145f, z), 0.17f, ColWoodDark);
+                    TestSceneBuilder.Cube(root, $"P_{tag}_Body", new Vector3(x, y - 0.075f, z - 0.002f),
+                                          new Vector3(0.26f, 0.34f, 0.016f), ColWoodDark,
+                                          keepCollider: false, finish: Finish.무광);
+                }
+                else
+                {
+                    // 곰 — 낮고 둥글다. ★ 귀는 <b>머리 밖으로 확실히 나와야</b> 곰으로 읽힌다
+                    //   (처음엔 ±0.085 라 2.5cm 밖에 안 나와서 그냥 동그란 머리였다)
+                    FacingDisc(root, $"B_{tag}_Ear_L", new Vector3(x - 0.105f, y + 0.095f, z - 0.004f),
+                               0.110f, ColWoodDark);
+                    FacingDisc(root, $"B_{tag}_Ear_R", new Vector3(x + 0.105f, y + 0.095f, z - 0.004f),
+                               0.110f, ColWoodDark);
+                    FacingDisc(root, $"B_{tag}_Head", new Vector3(x, y, z), 0.215f, ColWoodDark);
+                    TestSceneBuilder.Cube(root, $"B_{tag}_Body", new Vector3(x, y - 0.165f, z - 0.002f),
+                                          new Vector3(0.23f, 0.20f, 0.016f), ColWoodDark,
+                                          keepCollider: false, finish: Finish.무광);
+                }
+            }
+        }
+
+        // 아래 여백의 손글씨 — 글자는 안 쓴다. <b>적혀 있다는 것</b>만 보이면 된다
+        for (int i = 0; i < 2; i++)
+            TestSceneBuilder.Cube(root, $"Caption_{i}",
+                                  new Vector3(-0.7f + i * 1.5f, -0.80f, 0.095f),
+                                  new Vector3(i == 0 ? 1.2f : 0.8f, 0.035f, 0.014f), ColWoodDark,
+                                  keepCollider: false, finish: Finish.무광);
+
+        // 액자 조명 — 다른 액자와 같은 갓. 이 사진은 <b>불이 들어와 있어야</b> 눈이 간다
+        var lamp = TestSceneBuilder.Cube(root, "PhotoLamp",
+                                         new Vector3(0f, fh * 0.5f + 0.26f, 0.18f),
+                                         new Vector3(1.8f, 0.08f, 0.22f), ColFixture,
+                                         keepCollider: false, finish: Finish.금속);
+        lamp.transform.localRotation = Quaternion.Euler(28f, 0f, 0f);
+
+        // ★ 갓 안쪽 발광 띠. 이 사진은 <b>1판부터 읽혀야 하는 복선</b>이라
+        //   방이 어두운 동안에도 여기만 밝아야 한다. ColLantern 은 색이 곧 발광이라
+        //   실시간 조명을 하나도 안 쓴다(§7.6).
+        TestSceneBuilder.Cube(root, "PhotoBulb", new Vector3(0f, fh * 0.5f + 0.20f, 0.21f),
+                              new Vector3(1.7f, 0.05f, 0.09f), ColLantern,
+                              keepCollider: false, finish: Finish.발광);
+    }
+
+    /// <summary>
+    /// <b>아홉 번째 진열장.</b> 번호는 9 인데 <b>이름표가 비어 있고, 영영 안 채워진다.</b>
+    ///
+    /// ★★ 수집품은 여덟 개다. 그런데 칸이 아홉이면 플레이어는 <b>센다.</b>
+    /// 「내가 하나 못 찾았나」로 안 읽히게 신호를 셋 겹쳐 뒀다:
+    /// <list type="bullet">
+    /// <item><b>덮개가 바닥에 벗겨져 떨어져 있다</b> — 나머지 일곱은 쓰고 있는데.
+    ///       «아직 안 열었다» 가 아니라 <b>«누가 이미 열었다»</b></item>
+    /// <item><b>조명이 없다.</b> 8/8 에 방 전체가 켜져도 이 칸만 안 켜진다</item>
+    /// <item><b>명판에 글자가 없다.</b> 여덟 칸은 다 이름과 장이 적혀 있다</item>
+    /// </list>
+    /// 마우스로 집히지도 않는다(콜라이더 없음) — 전시 목록에 없는 칸이야.
+    /// 바로 위 개관 사진 아래에 세운다. 둘을 잇는 건 플레이어 몫이다.
+    /// </summary>
+    static void MakeNinthCase(Transform parent, Vector3 at)
+    {
+        var go = new GameObject("Case_9_empty");
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = at;          // 뒷벽 쪽이라 그대로 방 한가운데를 본다
+        var t = go.transform;
+
+        MakeNumberSticker(t, 9);
+
+        TestSceneBuilder.Cube(t, "Base", new Vector3(0f, 0.5f, 0f),
+                              new Vector3(1.1f, 1f, 1.1f), ColWoodDark,
+                              keepCollider: false, finish: Finish.나무);
+        TestSceneBuilder.Cube(t, "Base_Cap", new Vector3(0f, 1.02f, 0f),
+                              new Vector3(1.2f, 0.06f, 1.2f), ColStone,
+                              keepCollider: false, finish: Finish.석재);
+
+        for (int side = 0; side < 4; side++)
+        {
+            float a = side * 90f * Mathf.Deg2Rad;
+            var pane = TestSceneBuilder.Cube(t, $"Glass_{side}",
+                                             new Vector3(Mathf.Sin(a) * 0.5f, 1.62f, Mathf.Cos(a) * 0.5f),
+                                             new Vector3(1.0f, 1.24f, 0.02f), ColCaseGlass,
+                                             keepCollider: false, finish: Finish.유리);
+            pane.transform.localRotation = Quaternion.Euler(0f, side * 90f, 0f);
+        }
+
+        for (int sx = -1; sx <= 1; sx += 2)
+            for (int sz = -1; sz <= 1; sz += 2)
+                TestSceneBuilder.Cube(t, $"Post_{sx}_{sz}", new Vector3(sx * 0.5f, 1.62f, sz * 0.5f),
+                                      new Vector3(0.05f, 1.26f, 0.05f), ColFixture,
+                                      keepCollider: false, finish: Finish.금속);
+
+        TestSceneBuilder.Cube(t, "CaseTop", new Vector3(0f, 2.28f, 0f),
+                              new Vector3(1.1f, 0.08f, 1.1f), ColFixture,
+                              keepCollider: false, finish: Finish.금속);
+
+        TestSceneBuilder.Cube(t, "Plaque", new Vector3(0f, 0.28f, 0.58f),
+                              new Vector3(0.8f, 0.22f, 0.06f), ColWallPanel,
+                              keepCollider: false, finish: Finish.금속);
+
+        // 벗겨져 바닥에 떨어진 덮개. 조금 비뚤어야 «벗겨진 것» 으로 보인다
+        var cloth = TestSceneBuilder.Cube(t, "DustCover_Fallen", new Vector3(0.95f, 0.07f, 0.30f),
+                                          new Vector3(1.20f, 0.14f, 0.95f), ColDustCloth,
+                                          keepCollider: false, finish: Finish.무광);
+        cloth.transform.localRotation = Quaternion.Euler(0f, 24f, 0f);
+        var fold = TestSceneBuilder.Cube(t, "DustCover_Fold", new Vector3(0.78f, 0.16f, 0.52f),
+                                         new Vector3(0.72f, 0.12f, 0.52f), ColDustFold,
+                                         keepCollider: false, finish: Finish.무광);
+        fold.transform.localRotation = Quaternion.Euler(0f, -14f, 0f);
+    }
+
+    /// <summary>
     /// 계산기 숫자처럼 막대 일곱 개로 1~8 을 그린다.
     ///   a 위 · b 오른위 · c 오른아래 · d 아래 · e 왼아래 · f 왼위 · g 가운데
     /// </summary>
@@ -254,6 +417,7 @@ public static class GallerySceneBuilder
             5 => new[] { true,  false, true,  true,  false, true,  true  },
             6 => new[] { true,  false, true,  true,  true,  true,  true  },
             7 => new[] { true,  true,  true,  false, false, false, false },
+            9 => new[] { true,  true,  true,  true,  false, true,  true  },
             _ => new[] { true,  true,  true,  true,  true,  true,  true  },   // 8
         };
 
@@ -399,17 +563,25 @@ public static class GallerySceneBuilder
 
             Place(root, $"Frame_{i}", at, rot, new Vector3(fw + 0.16f, fh + 0.16f, 0.09f),
                   ColWoodDark, Finish.나무);
-            Place(root, $"Mat_{i}", at + rot * new Vector3(0f, 0f, -0.05f),
+            // ★ 2026-10-06 <b>부호가 반대였다.</b> 액자판은 속이 빈 테두리가 아니라
+            //   <b>두께 0.09 의 통짜 상자</b>인데, 그림을 로컬 −Z(벽 쪽)에 뒀으니
+            //   <b>여섯 장이 전부 판 뒤에 숨어</b> 있었다. 벽에 나무 판때기 여섯 장만 걸려 있던 거야.
+            Place(root, $"Mat_{i}", at + rot * new Vector3(0f, 0f, 0.05f),
                   rot, new Vector3(fw, fh, 0.03f), ColCaseGlass, Finish.무광);
-            Place(root, $"Art_{i}", at + rot * new Vector3(0f, 0f, -0.07f),
+            Place(root, $"Art_{i}", at + rot * new Vector3(0f, 0f, 0.07f),
                   rot, new Vector3(fw - 0.24f, fh - 0.24f, 0.02f),
                   i % 3 == 0 ? ColRibbon : (i % 3 == 1 ? ColRoofTeal : ColBearFur), Finish.무광);
 
             // 액자 조명 — 그림 위에 얹은 작은 갓
-            Place(root, $"ArtLamp_{i}", at + rot * new Vector3(0f, fh * 0.5f + 0.24f, -0.16f),
+            Place(root, $"ArtLamp_{i}", at + rot * new Vector3(0f, fh * 0.5f + 0.24f, 0.16f),
                   rot * Quaternion.Euler(28f, 0f, 0f), new Vector3(fw * 0.5f, 0.07f, 0.2f),
                   ColFixture, Finish.금속);
         }
+
+        // ★★ 2026-10-06 ── 복선 둘 ──────────────────────────────────────
+        // 진열장 키가 2.3m 라 사진을 낮게 걸면 <b>덮개 쓴 칸에 아랫줄이 가린다</b>(렌더로 잡았다)
+        MakeOpeningPhoto(root, new Vector3(0f, 3.25f, -halfD + 0.35f));
+        MakeNinthCase(root, new Vector3(-3.2f, 0f, -halfD + 1.8f));
 
         // ---- 안내 배너 : 문 옆에 세운 입간판 ----
         var bannerAt = new Vector3(-3.4f, 0f, halfD - 2.2f);
@@ -670,8 +842,11 @@ public static class GallerySceneBuilder
     /// 전시품 FBX 를 칸에 세운다. 없으면 null 을 돌려주고 임시 도형이 그대로 쓰인다.
     /// 임포트 설정도 여기서 맞춘다 — 유저에게 인스펙터를 시키지 않는다(기획서 §9.3).
     /// </summary>
-    static GameObject MakeExhibitModel(Transform caseRoot, string id)
+    static GameObject MakeExhibitModel(Transform caseRoot, string id,
+                                       out Quaternion viewRotation, out bool isFlat)
     {
+        viewRotation = Quaternion.identity;
+        isFlat = false;
         if (!ExhibitModels.TryGetValue(id, out string path)) return null;
 
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
@@ -719,58 +894,138 @@ public static class GallerySceneBuilder
         //   FBX 축 변환이 모델마다 달리 들어와서, 같은 각도가 같은 자세를 만들지 않는다.
         //   후보 각도를 다 돌려 보고 <b>보는 사람 쪽 넓이가 제일 큰 것</b>을 고른다 —
         //   이 프로젝트에서 «앞면은 짐작하지 말고 재라» 로 두 번 배운 그 방법이야.
+        // ★★ 2026-10-06 <b>세워 놓는 물건이 등을 돌리고 있었다</b>
+        //   (유저: *"전시실 오브젝트들 기본 상태가 뒤로 돌려져 있다"*).
+        //   납작한 서류는 윗면이 곧 «앞» 이라 상관없는데, 표식·녹음기처럼 <b>서 있는 물건</b>은
+        //   앞뒤가 있고 그게 <b>−Z(벽 쪽)</b> 를 보고 있었다. 각도를 찍지 말고 <b>재서</b> 돌린다 —
+        //   정점이 몰린 쪽이 앞이다(부품 이름이 없는 묶음에 쓰는 그 방법).
+        bool flat = IsFlatItem(go.transform, caseRoot);
+        if (!flat && FrontSkewZ(go.transform, caseRoot) < 0f)
+            go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f) * go.transform.localRotation;
+
+        // ★ 기울이기 <b>전</b> 자세를 적어 둔다 — 돋보기는 이걸 쓴다(GalleryCase.viewRotation)
+        viewRotation = go.transform.localRotation;
+        isFlat = flat;
+
         TiltFlatItem(go.transform, caseRoot);
+        CentreInGlass(go.transform, caseRoot);
         // 떠서 천천히 돈다 — 어두운 방에서 움직이는 건 이것뿐이라 눈이 여기로 온다
         go.AddComponent<ExhibitSpin>();
         return go;
     }
 
     /// <summary>
-    /// 납작한 전시품을 <b>보는 사람 쪽으로 세운다.</b> 두껍고 둥근 것은 그대로 둔다.
-    /// 각도 후보를 돌려 보고 «정면에서 본 넓이»가 제일 큰 자세를 고른다.
+    /// 진열장 기준 전시품 상자 — <b>정점을 직접 돌려서</b> 잰다.
+    ///
+    /// ★★ 2026-10-06 <b>여기가 진짜 범인이었다.</b> 전에는 <c>Renderer.bounds</c>(월드 AABB)의
+    /// 꼭짓점 여덟 개를 진열장 좌표로 내려 썼는데, 진열장이 <b>45도씩 돌아가 있어서</b>
+    /// 월드 AABB 가 이미 부풀어 있고 그걸 다시 내리면 <b>두 번 부푼다.</b>
+    /// 측정값이 그걸 그대로 보여줬다 — 장부가 0.772 × 0.102 × 0.566 인데
+    /// <b>1.337 × 0.102 × 1.337</b> 로 나왔다(0.772 + 0.566 = 1.338, 45도의 교과서 증상).
+    ///
+    /// 그래서 «유리를 넘친다» 는 판정이 <b>멀쩡한 자세를 전부 떨어뜨렸고</b>, 남은 자세 중에
+    /// 제일 넓은 걸 고르다 보니 여덟 개가 제각각 뒤집혀 섰다.
+    /// 월드 AABB 는 회전한 오브젝트에서 언제나 거짓말한다 — 이 프로젝트에서 다섯 번째다.
+    /// </summary>
+    static Bounds LocalBox(Transform item, Transform caseRoot)
+    {
+        Vector3 lo = Vector3.one * 1e9f, hi = -Vector3.one * 1e9f;
+        foreach (var mf in item.GetComponentsInChildren<MeshFilter>(true))
+        {
+            var mesh = mf.sharedMesh;
+            if (mesh == null) continue;
+            foreach (var v in mesh.vertices)
+            {
+                Vector3 p = caseRoot.InverseTransformPoint(mf.transform.TransformPoint(v));
+                lo = Vector3.Min(lo, p); hi = Vector3.Max(hi, p);
+            }
+        }
+        var box = new Bounds(); box.SetMinMax(lo, hi);
+        return box;
+    }
+
+    /// <summary>
+    /// 납작한 전시품만 <b>보는 사람 쪽으로 눕혀 세운다.</b> 나머지는 <b>손도 안 댄다.</b>
+    ///
+    /// ★★ 2026-10-06 <b>여덟 개가 전부 거꾸로 섰다</b>(유저: *"전시실에 전시된 모든
+    /// 오브젝트들이 거꾸로 뒤집혀져 있다"*). 앞 판은 후보 각도에 <b>±90 과 Z축 굴리기</b>를
+    /// 넣어 두고 «정면에서 본 넓이가 제일 큰 자세» 를 골랐는데, 그 점수는
+    /// <b>위아래를 구분하지 않는다</b> — 뒤집힌 자세가 더 넓으면 뒤집힌 게 이긴다.
+    /// 동전은 −50도가 제일 넓어서 바닥을 보이며 기울었고, 두꺼운 것들도 다 끌려갔다.
+    ///
+    /// 고치는 방향은 <b>후보를 늘리는 게 아니라 줄이는 것</b>이다:
+    /// <list type="bullet">
+    /// <item><b>굴리기(Z축)를 없앤다.</b> 전시품을 옆으로 눕힐 이유가 하나도 없다</item>
+    /// <item><b>뒤로 넘기지 않는다.</b> X축 <b>양수</b>로만 — 윗면이 보는 사람 쪽으로 온다
+    ///       (음수로 돌리면 바닥을 보여주게 된다. 여덟 중 다섯이 그랬다)</item>
+    /// <item><b>납작한 것만 건드린다.</b> 두께가 가로의 45% 를 넘으면 그냥 세워 둔다</item>
+    /// </list>
+    ///
+    /// 블렌더에서 재 보면 여덟 개 전부 <b>바닥이 z = 0</b> 이다 — 즉 임포트한 그대로가
+    /// 이미 바로 선 자세고, 그게 <c>home</c> 이다. 건드릴수록 나빠지는 쪽이었어.
     /// </summary>
     static void TiltFlatItem(Transform item, Transform caseRoot)
     {
-        var rs = item.GetComponentsInChildren<Renderer>(true);
-        if (rs.Length == 0) return;
+        if (item.GetComponentsInChildren<Renderer>(true).Length == 0) return;
 
         Quaternion home = item.localRotation;
-        float[] candidates = { 0f, 50f, -50f, 70f, -70f, 90f, -90f };
 
-        float best = -1f;
-        Quaternion bestRot = home;
+        // 두껍거나 키가 있는 것(동전·표식·녹음기)은 그대로 세워 둔다
+        if (!IsFlatItem(item, caseRoot)) return;
 
-        foreach (float a in candidates)
-            foreach (int axis in new[] { 0, 1 })   // X 로 눕히기 / Z 로 눕히기
-            {
-                item.localRotation = (axis == 0 ? Quaternion.Euler(a, 0f, 0f)
-                                                : Quaternion.Euler(0f, 0f, a)) * home;
+        // 세울수록 잘 보이지만 유리를 넘으면 안 된다 — 큰 각도부터 보고 처음 들어가는 것을 쓴다
+        foreach (float a in new[] { 68f, 55f, 42f, 30f })
+        {
+            item.localRotation = Quaternion.Euler(a, 0f, 0f) * home;
+            Vector3 s = LocalBox(item, caseRoot).size;
+            if (s.x <= 0.92f && s.y <= 1.05f) return;
+        }
 
-                // 진열장 기준으로 잰다. 정면은 +Z 고, 보이는 넓이는 가로 × 높이다.
-                Vector3 lo = Vector3.one * 1e9f, hi = -Vector3.one * 1e9f;
-                foreach (var r in rs)
-                {
-                    var b = r.bounds;
-                    for (int c = 0; c < 8; c++)
-                    {
-                        var corner = new Vector3(
-                            (c & 1) == 0 ? b.min.x : b.max.x,
-                            (c & 2) == 0 ? b.min.y : b.max.y,
-                            (c & 4) == 0 ? b.min.z : b.max.z);
-                        Vector3 p = caseRoot.InverseTransformPoint(corner);
-                        lo = Vector3.Min(lo, p); hi = Vector3.Max(hi, p);
-                    }
-                }
+        item.localRotation = home;   // 어느 각도도 안 들어가면 눕힌 채로 둔다
+    }
 
-                Vector3 size = hi - lo;
-                // 유리 안쪽(0.95 × 1.1)을 넘으면 안 된다 — 넘치는 자세는 후보에서 뺀다
-                if (size.x > 0.92f || size.y > 1.05f) continue;
+    /// <summary>
+    /// <b>납작한가</b> — 두께가 가로의 45% 를 못 넘으면 서류로 본다.
+    /// 세우는 것(<see cref="TiltFlatItem"/>)과 돋보기 자세가 같은 판정을 써야 어긋나지 않는다.
+    /// </summary>
+    static bool IsFlatItem(Transform item, Transform caseRoot)
+    {
+        Vector3 s = LocalBox(item, caseRoot).size;
+        return s.y < 0.45f * Mathf.Max(s.x, s.z);
+    }
 
-                float seen = size.x * size.y;
-                if (seen > best) { best = seen; bestRot = item.localRotation; }
-            }
+    /// <summary>
+    /// 정점 무게중심이 상자 한가운데에서 <b>앞뒤(진열장 z)로 얼마나 쏠렸나</b>.
+    /// 양수면 지금 앞(방 안쪽, +Z)을 보고 있는 것. 이 묶음은 한 파일이 메시 한 덩이라
+    /// «앞면에만 있는 부품» 이 없어서 이 방법밖에 없다.
+    /// </summary>
+    static float FrontSkewZ(Transform item, Transform caseRoot)
+    {
+        double sum = 0.0; int n = 0;
+        foreach (var mf in item.GetComponentsInChildren<MeshFilter>(true))
+        {
+            if (mf.sharedMesh == null) continue;
+            foreach (var v in mf.sharedMesh.vertices)
+            { sum += caseRoot.InverseTransformPoint(mf.transform.TransformPoint(v)).z; n++; }
+        }
+        if (n == 0) return 0f;
+        return (float)(sum / n) - LocalBox(item, caseRoot).center.z;
+    }
 
-        item.localRotation = bestRot;
+    /// <summary>
+    /// 전시품을 <b>유리 한가운데에 띄운다.</b> 유리 안쪽이 1.00~2.24 라 가운데가 1.62 다.
+    ///
+    /// 자리를 «바닥에서 얼마» 로 잡으면 물건마다 높이가 달라 <b>어떤 건 박히고 어떤 건 뜬다</b>
+    /// (유저: *"코인이 안에 박힌 것 같다"*). 세워서 기울이면 더 벌어진다 —
+    /// 기울인 뒤 <b>실제 상자의 한가운데</b>를 재서 거기에 맞추면 여덟 개가 같은 높이에 뜬다.
+    /// </summary>
+    const float GlassMid = 1.62f;
+
+    static void CentreInGlass(Transform item, Transform caseRoot)
+    {
+        Bounds b = LocalBox(item, caseRoot);
+        if (b.size == Vector3.zero) return;
+        item.localPosition += new Vector3(0f, GlassMid, 0f) - b.center;
     }
 
     static GalleryCase[] MakeCases()
@@ -842,7 +1097,7 @@ public static class GallerySceneBuilder
             anchor.localPosition = new Vector3(0f, 1.15f, 0f);
 
             var placeholder = MakePlaceholder(anchor, item.shape);
-            var realModel = MakeExhibitModel(go.transform, item.id);
+            var realModel = MakeExhibitModel(go.transform, item.id, out var viewRot, out var viewFlat);
 
             var display = go.AddComponent<GalleryCase>();
             display.itemId = item.id;
@@ -852,6 +1107,8 @@ public static class GallerySceneBuilder
             display.itemAnchor = anchor;
             display.placeholder = placeholder;
             display.realModel = realModel;
+            display.viewRotation = viewRot;
+            display.itemIsFlat = viewFlat;
             display.itemRenderer = placeholder.GetComponent<Renderer>();
             display.plaqueRenderer = plaque.GetComponent<Renderer>();
             display.caseLight = caseLight;
