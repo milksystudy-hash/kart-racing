@@ -662,7 +662,10 @@ public class CampusBuilder : MonoBehaviour
         if (assetByName == null || !assetByName.ContainsKey(want))
         {
             assetByName = new System.Collections.Generic.Dictionary<string, string>();
-            foreach (var dir in new[] { "Assets/My blender", "Assets/NPC_bear" })
+            // ★ 2026-10-08 — <b>«My blender» 밖에 넣어도 찾는다.</b> 참잘했어요관 소품이
+            //   `Assets/Awards_Hall_/` 로 왔다. 폴더를 하나씩 적으면 새 묶음이 올 때마다 또 고쳐야 해서,
+            //   <b>Assets 를 통째로 훑는다</b> — 150개 남짓이라 한 번 도는 비용이 공짜다.
+            foreach (var dir in new[] { "Assets" })
             {
                 if (!System.IO.Directory.Exists(dir)) continue;
                 foreach (var f in System.IO.Directory.GetFiles(dir, "*.fbx",
@@ -2016,6 +2019,13 @@ public class CampusBuilder : MonoBehaviour
     const string WoongFolder = "Assets/My blender/Woongseong_/";
 
     /// <summary>
+    /// ★ 2026-10-08 수연의 <b>참잘했어요관 열 점.</b> 시상관인데 트로피 진열장 하나뿐이라
+    /// «한 자리가 비어 있다» 는 농담이 <b>빈 방 때문에 안 보였다</b> — 시상대와 기념 아치가
+    /// 서야 그 빈자리가 눈에 띈다.
+    /// </summary>
+    const string AwardsFolder = "Assets/Awards_Hall_/";
+
+    /// <summary>
     /// 네 관이 다 18 × 12m 안팎이라 <b>한 배율로 충분하다.</b> 소품이 이미 실물 크기고
     /// (2.2~2.9m 높이) 방 천장이 8~9m 라, 1.10 이면 <b>조금 커 보이는 쪽</b>으로 맞는다 —
     /// 달리면서 보는 게 아니라 <b>걸어 들어와서 읽는</b> 물건들이다.
@@ -2038,7 +2048,11 @@ public class CampusBuilder : MonoBehaviour
           // 웅성관 — <b>ON AIR 등</b>이 제일 세다(쏠림 0.995). 「Clip」은 종이 <b>윗단</b>에
           // 붙은 집게라 앞뒤와 상관이 없어서 뺐다 — 뒤쪽 부품을 넣으면 열 점이 통째로 돌아선다.
           "ON_AIR_Light", "Correction_Copy", "GoldenBear_Approval",
-          "Control_Panel", "Return_Stamp" };
+          "Control_Panel", "Return_Stamp",
+          // 참잘했어요관 — 설명 패널(Caption_02, 쏠림 0.710)이 제일 세다.
+          // ★ <b>`Backdrop`(시상대 뒤판 −1.018)과 `Backrest`(벤치 등받이 −0.372)는 넣지 마라</b> —
+          //   둘 다 <b>뒤쪽</b> 부품이라 넣는 순간 열 점이 통째로 등을 돌린다.
+          "Caption_", "Front_Plaque", "Certificate_", "Controls", "Medals", "Laurel" };
 
     /// <summary>
     /// 자리표 — 파일 · 이름 · <b>어느 관</b> · 벽 · (x, z) · 앞면이 향할 각 · 실제 폭 · 깊이.
@@ -2085,6 +2099,26 @@ public class CampusBuilder : MonoBehaviour
         //   트로피 한 자리가 비고, 연혁 최근 3년이 비었다.
         (StoryFolder, "S10_Missing_Trophy_Cabinet",    "트로피진열장", "참잘했어요관", Wall.뒤, 0f, 0f, 0f, 4.59f, 0.89f),
         (StoryFolder, "S05_Museum_History_Wall",       "박물관연혁",   "참잘했어요관", Wall.뒤, 0f, 0f, 0f, 4.92f, 1.05f),
+
+        // ★ 2026-10-08 수연의 시상관 열 점. <b>이 방만 배율이 1.0</b>(StoryHall 호출 참고) —
+        //   16 × 12m 에 시상대가 5.8m 라, 1.10 을 먹이면 가운데에 길이 안 남는다.
+        //
+        //   ★ <b>앞벽은 비운다.</b> 거기가 문이고, <see cref="Seat"/> 는 문이 어디인지 모른다 —
+        //     벽을 따라 고르게 펴다가 <b>출입구 한가운데</b>에 소품을 세운다(곰누리관과 같은 판단).
+        (AwardsFolder, "A02_Ceremonial_Lectern",   "시상연단",     "참잘했어요관", Wall.왼,   0f, 0f,  90f, 1.25f, 0.95f),
+        (AwardsFolder, "A09_Honor_Banner_Stand",   "명예현수막",   "참잘했어요관", Wall.왼,   0f, 0f,  90f, 2.60f, 0.80f),
+        (AwardsFolder, "A03_Medal_Display_Wall",   "메달진열벽",   "참잘했어요관", Wall.오른, 0f, 0f, 270f, 3.30f, 0.65f),
+        (AwardsFolder, "A04_Certificate_Screen",   "상장게시판",   "참잘했어요관", Wall.오른, 0f, 0f, 270f, 3.60f, 0.80f),
+
+        // 가운데 여섯 — <b>시상대가 문을 마주 본다.</b> 들어오면 정면이 단상이라야 시상관이다.
+        (AwardsFolder, "A01_Ceremony_Dais",        "시상대",       "참잘했어요관", Wall.가운데, -1.0f, -2.6f,   0f, 5.80f, 2.50f),
+        // 월계 아치는 단상 앞 <b>기념 촬영 자리</b>. 문 정면(|x| &lt; 2.2)은 비워 둔다
+        (AwardsFolder, "A06_Laurel_Photo_Arch",    "월계아치",     "참잘했어요관", Wall.가운데, -1.0f,  0.4f,   0f, 3.50f, 0.90f),
+        (AwardsFolder, "A05_Presentation_Table",   "수여탁자",     "참잘했어요관", Wall.가운데,  4.6f, -2.8f,   0f, 2.60f, 1.05f),
+        (AwardsFolder, "A08_Modular_Display_Island","전시섬",      "참잘했어요관", Wall.가운데,  3.6f,  1.6f,   0f, 3.20f, 1.80f),
+        // 벤치는 등받이가 문 쪽 — 앉으면 단상을 본다
+        (AwardsFolder, "A07_Exhibition_Bench",     "관람벤치",     "참잘했어요관", Wall.가운데, -3.6f,  2.1f, 180f, 3.60f, 0.95f),
+        (AwardsFolder, "A10_Exhibition_Guide_Kiosk","안내키오스크", "참잘했어요관", Wall.가운데,  5.3f,  4.2f, 200f, 1.40f, 0.85f),
 
         // ── 곰누리관(관광·외국어) : <b>«왜 하필 이 땅인가» 에 답하는 유일한 방</b>이다.
         //   골든베어는 리조트, 즉 <b>관광 개발</b>이라 그 답을 가질 수 있는 과가 여기뿐이야.
@@ -3240,7 +3274,9 @@ public class CampusBuilder : MonoBehaviour
             //   ★ <b>한 자리가 비어 있고 먼지 자국만 남아 있다.</b> 왜 비었는지는
             //   게임이 끝까지 설명하지 않는다 — 그게 이 물건의 전부다.
             case "참잘했어요관":
-                StoryHall(t, "참잘했어요관", w, d);
+                // ★ <b>배율 1.0.</b> 16 × 12m 방에 시상대가 5.8m 라, 다른 방처럼 1.10 을 먹이면
+                //   가운데에 지나다닐 길이 안 남는다. 소품이 이미 실물 크기라 그대로가 맞다.
+                StoryHall(t, "참잘했어요관", w, d, 1.0f);
                 break;
 
             // ★★ 2026-09-29 <b>유저가 만든 전시물 열 점으로 다시 지었다.</b>

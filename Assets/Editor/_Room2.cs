@@ -12,10 +12,8 @@ public static class _Room2
 {
     static readonly (string hall, Vector3 at, Vector3 look, float fov)[] Takes =
     {
-        ("웅성관",   new Vector3( 0f, 2.0f,  4.6f), new Vector3(-0.6f, 1.3f, -4.0f), 62f),
-        ("웅성관",   new Vector3( 6.0f, 1.7f, 4.2f), new Vector3(-4.0f, 1.4f, -1.0f), 62f),
-        ("곰밥마당", new Vector3( 4.0f, 2.1f,  7.0f), new Vector3(-8.0f, 1.3f, -2.0f), 64f),
-        ("곰밥마당", new Vector3(-2.0f, 1.8f, -6.0f), new Vector3( 2.0f, 1.5f,  7.0f), 64f),
+        ("참잘했어요관", new Vector3( 0.5f, 2.0f,  4.3f), new Vector3(-1.0f, 1.4f, -3.0f), 66f),
+        ("참잘했어요관", new Vector3(-5.5f, 1.8f,  4.6f), new Vector3( 4.0f, 1.3f, -1.0f), 66f),
     };
 
     public static void Run()
