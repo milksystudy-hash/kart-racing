@@ -118,6 +118,56 @@ public static class Hud
         GUI.DrawTexture(Inner(r), PaperTex);
     }
 
+    // ── 나무 장난감 리모컨 ─────────────────────────────────────────────────────
+    //
+    //  ★★ 2026-10-08 — 수연이 만든 그림(<c>Resources/UI/Remote.png</c>)을 그대로 쓴다.
+    //  2026-09-16 에 정한 방향이 <b>「박물관 기념품점의 나무 장난감 리모컨」</b> 이었는데,
+    //  여태 그걸 <see cref="Panel"/>(나무 상자 + 종이 라벨)로 <b>흉내만</b> 내고 있었다.
+    //
+    //  ★ 그림이 없으면 <see cref="Panel"/> 로 떨어진다 — 파일을 빼도 HUD 가 안 깨진다.
+
+    static Texture2D remoteTex;
+    static bool remoteTried;
+
+    /// <summary>리모컨 그림. 없으면 <c>null</c>.</summary>
+    public static Texture2D RemoteTex
+    {
+        get
+        {
+            if (!remoteTried) { remoteTried = true; remoteTex = Resources.Load<Texture2D>("UI/Remote"); }
+            return remoteTex;
+        }
+    }
+
+    /// <summary>
+    /// 리모컨을 그린다. <b>그림이 정사각형이라 <c>r</c> 도 정사각으로 줘라</b> —
+    /// 가로로 늘이면 나무결이 늘어나서 바로 티가 난다.
+    /// </summary>
+    public static void Remote(Rect r)
+    {
+        if (RemoteTex != null) GUI.DrawTexture(r, RemoteTex, ScaleMode.StretchToFill, true);
+        else Panel(r);
+    }
+
+    //  아래 넷은 <b>그림에서 재서</b> 적은 값이다(1254px 기준). 그림을 새로 받으면 다시 재라 —
+    //  <c>scratchpad/panel.py</c> 가 크림색 구간을 훑어서 뱉는다.
+    const float PaperX0 = 0.155f, PaperX1 = 0.855f;
+    const float PaperY0 = 0.495f, PaperY1 = 0.800f;
+
+    /// <summary>리모컨의 <b>종이판 안쪽</b>. 글씨는 전부 여기 안에만 — 나무 테를 넘으면 잘려 보인다.</summary>
+    public static Rect RemotePaper(Rect r) => new Rect(
+        r.x + r.width * PaperX0, r.y + r.height * PaperY0,
+        r.width * (PaperX1 - PaperX0), r.height * (PaperY1 - PaperY0));
+
+    /// <summary>초록(왼쪽) · 빨강(오른쪽) 버튼 자리. 불을 얹으면 «눌렸다» 로 보인다.</summary>
+    public static Rect RemoteButton(Rect r, bool right)
+    {
+        float cx = right ? 0.662f : 0.337f;
+        const float cy = 0.757f, bw = 0.118f, bh = 0.064f;
+        return new Rect(r.x + r.width * (cx - bw * 0.5f), r.y + r.height * (cy - bh * 0.5f),
+                        r.width * bw, r.height * bh);
+    }
+
     /// <summary>한 가지 색으로 칠한다. 알파가 있는 색도 그대로 먹는다.</summary>
     public static void Fill(Rect r, Color c)
     {

@@ -614,36 +614,90 @@ public class TestHUD : MonoBehaviour
     }
 
     // ---- 속도와 태엽 ----
+    /// <summary>
+    /// ★★ 2026-10-08 — <b>속도판이 나무 장난감 리모컨이 됐다</b>(수연 그림).
+    /// 2026-09-16 에 정해 둔 방향을 여태 <see cref="Hud.Panel"/> 로 흉내만 내고 있었다.
+    ///
+    /// 그림이 <b>정사각형</b>이라 칸도 정사각이다 — 가로로 늘이면 나무결이 늘어나 티가 난다.
+    /// 글씨는 전부 <see cref="Hud.RemotePaper"/> 안에만 — 나무 테를 넘으면 잘려 보인다.
+    /// 「SHIFT 로 태엽 감기」 같은 안내는 <b>뺐다.</b> 종이판이 좁아서 넣으면 겹치고,
+    /// 상태는 <b>초록 버튼에 불이 들어오는 것</b>으로 대신한다 — 글자보다 빨리 읽힌다.
+    /// </summary>
     void DrawSpeedPanel(float w, float h)
     {
         if (kart == null) return;
 
-        var p = new Rect(w - 206f, h - 124f, 190f, 108f);
-        Hud.Panel(p);
+        float side = RemoteSide(h);
+        var p = new Rect(w - side - 12f, h - side - 8f, side, side);
+        Hud.Remote(p);
+
+        Rect paper = Hud.RemotePaper(p);
+
+        // ★ 종이판 안은 전부 <b>비례</b>로. 고정크기로 두면 리모컨이 줄어든 화면에서
+        //   속도 숫자와 태엽 바가 <b>18px 겹친다</b>(계산으로 잡았다).
+        float k = side / 208f;
+        float row = paper.height * 0.56f;
 
         int kph = Mathf.Abs(Mathf.RoundToInt(kart.SpeedKph));
-        GUI.Label(new Rect(p.x + 10f, p.y + 8f, 112f, 46f), kph.ToString(), Hud.Big);
-        GUI.Label(new Rect(p.x + 128f, p.y + 28f, 50f, 20f), "km/h", Hud.Label);
+        var big = Hud.Resize(Hud.Big, Mathf.RoundToInt(34f * k), TextAnchor.MiddleLeft);
+        GUI.Label(new Rect(paper.x + 4f * k, paper.y, paper.width * 0.62f, row), kph.ToString(), big);
+        GUI.Label(new Rect(paper.xMax - 48f * k, paper.y, 46f * k, row), "km/h",
+                  Hud.Resize(Hud.Label, Mathf.RoundToInt(13f * k), TextAnchor.LowerRight));
 
         // 태엽 — 드리프트로 감고, 놓으면 풀리며 튀어나간다
         float charge01 = kart.boostChargeMax > 0f ? kart.BoostCharge / kart.boostChargeMax : 0f;
         float fill = kart.IsBoosting ? kart.BoostRemaining01 : charge01;
         bool hot = kart.IsBoosting || charge01 > 0.85f;
 
-        // 돌아가는 태엽 열쇠. "태엽" 이라는 낱말을 몰라도 감기고 풀리는 게 눈에 보인다.
-        WindKey(new Rect(p.x + 14f, p.y + 58f, 28f, 28f), fill * 1.5f,
+        float keyS = paper.height * 0.34f;
+        WindKey(new Rect(paper.x, paper.yMax - keyS, keyS, keyS), fill * 1.5f,
                 hot ? Hud.BrassTex : Hud.WoodDarkTex);
 
-        var bar = new Rect(p.x + 50f, p.y + 60f, 126f, 11f);
+        var bar = new Rect(paper.x + keyS + 6f * k, paper.yMax - keyS * 0.62f,
+                           paper.width - keyS - 8f * k, Mathf.Max(5f, 9f * k));
         GUI.DrawTexture(bar, Hud.WoodDarkTex);
         if (fill > 0.01f)
             GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * fill, bar.height),
                             hot ? Hud.BrassTex : Hud.PaperTex);
 
-        var state = Hud.Resize(Hud.Label, 13);
-        if (hot) state.normal.textColor = Hud.Brass;
-        GUI.Label(new Rect(bar.x, p.y + 75f, 126f, 18f),
-                  kart.IsBoosting ? "태엽 작동!" : (kart.IsDrifting ? "감는 중" : "SHIFT 로 태엽 감기"), state);
+        // ★ 버튼에 불. 초록 = 태엽이 찼다 · 빨강 = 방금 벽에 부딪혔다.
+        //   그림에 이미 버튼이 그려져 있으니 <b>위에 반투명 빛만</b> 얹으면 된다 — 공짜다.
+        Glow(Hud.RemoteButton(p, false), hot ? 0.55f : 0f, new Color(0.45f, 1f, 0.55f));
+        Glow(Hud.RemoteButton(p, true), WallFlash, new Color(1f, 0.45f, 0.40f));
+    }
+
+    /// <summary>
+    /// ★ 리모컨 한 변. <b>창이 낮으면 줄어든다</b> — 208 고정으로 두면 지도(오른쪽 열)가
+    /// 설 자리가 없어져 <b>짧은 화면에서 통째로 접힌다.</b> 지도가 2026-09-22 에
+    /// 딱 그 이유로 임무 판 내내 안 뗴던 적이 있다 — <b>고정 좌표를 쓰지 마라.</b>
+    /// </summary>
+    static float RemoteSide(float h) => Mathf.Clamp(h * 0.29f, 150f, 208f);
+
+    /// <summary>지도가 비워 두어야 하는 아래쪽 높이. 리모컨 + 아래 여백 + 틈.</summary>
+    static float RemoteReserve(float h) => RemoteSide(h) + 8f + 10f;
+
+    /// <summary>벽에 부딪힌 직후 0.45초 동안 1 → 0. 빨간 버튼이 그만큼 밝아진다.</summary>
+    float WallFlash
+    {
+        get
+        {
+            if (kart == null) return 0f;
+            if (kart.WallHits != lastWallHits) { lastWallHits = kart.WallHits; wallHitAt = Time.unscaledTime; }
+            float k = 1f - (Time.unscaledTime - wallHitAt) / 0.45f;
+            return Mathf.Clamp01(k) * 0.7f;
+        }
+    }
+
+    int lastWallHits = -1;
+    float wallHitAt = -99f;
+
+    static void Glow(Rect r, float a, Color c)
+    {
+        if (a <= 0.01f) return;
+        var was = GUI.color;
+        GUI.color = new Color(c.r, c.g, c.b, a);
+        GUI.DrawTexture(r, Hud.PaperTex);
+        GUI.color = was;
     }
 
     /// <summary>
@@ -1121,7 +1175,9 @@ public class TestHUD : MonoBehaviour
         // (y h−124~h−16), 그 사이가 전부 빈칸이다. 거기로 옮기면 수집품 패널과 <b>영영
         // 안 만난다.</b> 자리를 다투게 두지 말고 <b>다른 열로 보내는 것</b>이 답이었다.
         float top = (standings.RacerCount > 1 ? 104f : 16f) + 10f;
-        float side = Mathf.Min(132f, h - 134f - top);
+        // ★ 2026-10-08 — 속도판이 리모컨으로 바뀜면서 <b>두 배 높아졌다.</b>
+        //   134 는 옆 속도계(108) 기준이라 그대로 두면 지도가 리모컨 위로 고친다.
+        float side = Mathf.Min(132f, h - RemoteReserve(h) - top);
         if (side < 70f) return;
 
         var box = new Rect(w - 16f - side, top, side, side);
