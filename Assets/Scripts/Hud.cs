@@ -154,6 +154,27 @@ public static class Hud
     const float PaperX0 = 0.155f, PaperX1 = 0.855f;
     const float PaperY0 = 0.495f, PaperY1 = 0.800f;
 
+
+    static Texture2D stickTex;
+    static bool stickTried;
+
+    /// <summary>조종 레버 그림. 없으면 <c>null</c> — 리모컨만 그려진다.</summary>
+    public static Texture2D StickTex
+    {
+        get
+        {
+            if (!stickTried) { stickTried = true; stickTex = Resources.Load<Texture2D>("UI/RemoteStick"); }
+            return stickTex;
+        }
+    }
+
+    /// <summary>
+    /// 레버의 <b>경첩</b> 위치(그림 위에서부터의 비율). 그림을 훑어서 재었다 —
+    /// 머리(폭 573~605px) → 경첩(165~190) → 손잡이(115) 로 줄어드는 자리가 0.42 다.
+    /// <b>여기를 축으로 돌려야 레버로 보인다</b> — 밑동을 잡으면 부채질하는 것 같다.
+    /// </summary>
+    public const float StickHinge = 0.42f;
+
     /// <summary>리모컨의 <b>종이판 안쪽</b>. 글씨는 전부 여기 안에만 — 나무 테를 넘으면 잘려 보인다.</summary>
     public static Rect RemotePaper(Rect r) => new Rect(
         r.x + r.width * PaperX0, r.y + r.height * PaperY0,

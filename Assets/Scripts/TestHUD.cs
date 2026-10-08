@@ -231,6 +231,7 @@ public class TestHUD : MonoBehaviour
         DrawToast(w, h);
         DrawCorner(h);
         if (InKart) DrawMiniMap(w, h);
+        if (InKart) DrawRemote(w, h);
         if (showControls) DrawControls(w, h);
         // ESC 를 누르면 <b>그 패널만</b> 보여준다. 실패·완주 패널이 뒤에 그대로 있으면
         // 두 장이 겹쳐서 어느 쪽 글씨인지 알 수가 없다(2026-09-18 유저 제보).
@@ -614,67 +615,89 @@ public class TestHUD : MonoBehaviour
     }
 
     // ---- 속도와 태엽 ----
-    /// <summary>
-    /// ★★ 2026-10-08 — <b>속도판이 나무 장난감 리모컨이 됐다</b>(수연 그림).
-    /// 2026-09-16 에 정해 둔 방향을 여태 <see cref="Hud.Panel"/> 로 흉내만 내고 있었다.
-    ///
-    /// 그림이 <b>정사각형</b>이라 칸도 정사각이다 — 가로로 늘이면 나무결이 늘어나 티가 난다.
-    /// 글씨는 전부 <see cref="Hud.RemotePaper"/> 안에만 — 나무 테를 넘으면 잘려 보인다.
-    /// 「SHIFT 로 태엽 감기」 같은 안내는 <b>뺐다.</b> 종이판이 좁아서 넣으면 겹치고,
-    /// 상태는 <b>초록 버튼에 불이 들어오는 것</b>으로 대신한다 — 글자보다 빨리 읽힌다.
-    /// </summary>
     void DrawSpeedPanel(float w, float h)
     {
         if (kart == null) return;
 
-        float side = RemoteSide(h);
-        var p = new Rect(w - side - 12f, h - side - 8f, side, side);
-        Hud.Remote(p);
-
-        Rect paper = Hud.RemotePaper(p);
-
-        // ★ 종이판 안은 전부 <b>비례</b>로. 고정크기로 두면 리모컨이 줄어든 화면에서
-        //   속도 숫자와 태엽 바가 <b>18px 겹친다</b>(계산으로 잡았다).
-        float k = side / 208f;
-        float row = paper.height * 0.56f;
+        var p = new Rect(w - 206f, h - 124f, 190f, 108f);
+        Hud.Panel(p);
 
         int kph = Mathf.Abs(Mathf.RoundToInt(kart.SpeedKph));
-        var big = Hud.Resize(Hud.Big, Mathf.RoundToInt(34f * k), TextAnchor.MiddleLeft);
-        GUI.Label(new Rect(paper.x + 4f * k, paper.y, paper.width * 0.62f, row), kph.ToString(), big);
-        GUI.Label(new Rect(paper.xMax - 48f * k, paper.y, 46f * k, row), "km/h",
-                  Hud.Resize(Hud.Label, Mathf.RoundToInt(13f * k), TextAnchor.LowerRight));
+        GUI.Label(new Rect(p.x + 10f, p.y + 8f, 112f, 46f), kph.ToString(), Hud.Big);
+        GUI.Label(new Rect(p.x + 128f, p.y + 28f, 50f, 20f), "km/h", Hud.Label);
 
         // 태엽 — 드리프트로 감고, 놓으면 풀리며 튀어나간다
         float charge01 = kart.boostChargeMax > 0f ? kart.BoostCharge / kart.boostChargeMax : 0f;
         float fill = kart.IsBoosting ? kart.BoostRemaining01 : charge01;
         bool hot = kart.IsBoosting || charge01 > 0.85f;
 
-        float keyS = paper.height * 0.34f;
-        WindKey(new Rect(paper.x, paper.yMax - keyS, keyS, keyS), fill * 1.5f,
+        // 돌아가는 태엽 열쇠. "태엽" 이라는 낱말을 몰라도 감기고 풀리는 게 눈에 보인다.
+        WindKey(new Rect(p.x + 14f, p.y + 58f, 28f, 28f), fill * 1.5f,
                 hot ? Hud.BrassTex : Hud.WoodDarkTex);
 
-        var bar = new Rect(paper.x + keyS + 6f * k, paper.yMax - keyS * 0.62f,
-                           paper.width - keyS - 8f * k, Mathf.Max(5f, 9f * k));
+        var bar = new Rect(p.x + 50f, p.y + 60f, 126f, 11f);
         GUI.DrawTexture(bar, Hud.WoodDarkTex);
         if (fill > 0.01f)
             GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * fill, bar.height),
                             hot ? Hud.BrassTex : Hud.PaperTex);
 
-        // ★ 버튼에 불. 초록 = 태엽이 찼다 · 빨강 = 방금 벽에 부딪혔다.
-        //   그림에 이미 버튼이 그려져 있으니 <b>위에 반투명 빛만</b> 얹으면 된다 — 공짜다.
-        Glow(Hud.RemoteButton(p, false), hot ? 0.55f : 0f, new Color(0.45f, 1f, 0.55f));
-        Glow(Hud.RemoteButton(p, true), WallFlash, new Color(1f, 0.45f, 0.40f));
+        var state = Hud.Resize(Hud.Label, 13);
+        if (hot) state.normal.textColor = Hud.Brass;
+        GUI.Label(new Rect(bar.x, p.y + 75f, 126f, 18f),
+                  kart.IsBoosting ? "태엽 작동!" : (kart.IsDrifting ? "감는 중" : "SHIFT 로 태엽 감기"), state);
     }
 
-    /// <summary>
-    /// ★ 리모컨 한 변. <b>창이 낮으면 줄어든다</b> — 208 고정으로 두면 지도(오른쪽 열)가
-    /// 설 자리가 없어져 <b>짧은 화면에서 통째로 접힌다.</b> 지도가 2026-09-22 에
-    /// 딱 그 이유로 임무 판 내내 안 뗴던 적이 있다 — <b>고정 좌표를 쓰지 마라.</b>
-    /// </summary>
-    static float RemoteSide(float h) => Mathf.Clamp(h * 0.29f, 150f, 208f);
+    // ── 왼쪽 아래: 조종기 ──────────────────────────────────────────────────────
+    //
+    //  ★★ 2026-10-08 — <b>무인 모형 카트를 누가 몬다는 걸 화면이 말해 준다.</b>
+    //  2026-09-16 에 「카트는 무인이고 곰들이 밖에서 조종한다」로 정했는데, 여태 그걸
+    //  <b>대사로만</b> 설명하고 화면에는 아무 흔적이 없었다.
+    //
+    //  ★ 레버가 <b>핸들을 따라 꺾인다.</b> 가만히 있는 그림이면 스티커고,
+    //    움직이면 «저쪽에서 누가 쥐고 있다» 가 된다 — 곰 NPC 를 숨 쉬게 한 것과 같은 이유.
+    //  ★ 속도계(오른쪽 나무판)는 <b>안 건드린다.</b> 저건 계기판이고 이건 조종기다.
 
-    /// <summary>지도가 비워 두어야 하는 아래쪽 높이. 리모컨 + 아래 여백 + 틈.</summary>
-    static float RemoteReserve(float h) => RemoteSide(h) + 8f + 10f;
+    void DrawRemote(float w, float h)
+    {
+        var tex = Hud.RemoteTex;
+        if (tex == null) return;
+
+        // 위로는 수집품 패널(y 152~336), 아래로는 구석 칩(h−54). 남는 만큼만 쓴다 —
+        // <b>고정 좌표로 두면 낮은 창에서 패널을 뚫는다</b>(지도에서 이미 겪었다).
+        float side = Mathf.Min(190f, h - 400f);
+        if (side < 96f) return;
+
+        float stickW = side * 0.34f;
+        float baseY = h - 64f;
+
+        var box = new Rect(24f + stickW + 6f, baseY - side, side, side);
+        GUI.DrawTexture(box, tex, ScaleMode.StretchToFill, true);
+
+        // 버튼에 불 — 초록은 태엽이 찼다, 빨강은 방금 벽에 부딪혔다
+        bool hot = kart != null && (kart.IsBoosting ||
+                   (kart.boostChargeMax > 0f && kart.BoostCharge / kart.boostChargeMax > 0.85f));
+        Glow(Hud.RemoteButton(box, false), hot ? 0.55f : 0f, new Color(0.45f, 1f, 0.55f));
+        Glow(Hud.RemoteButton(box, true), WallFlash, new Color(1f, 0.45f, 0.40f));
+
+        // ── 레버 ──
+        var stick = Hud.StickTex;
+        if (stick == null) return;
+
+        // ★ x 16 에 두고 15° 까지 꾴으면 레버 머리가 <b>화면 밖으로 3px 나간다</b>(계산으로 잡았다)
+        var sr = new Rect(24f, baseY - side * 0.95f, stickW, side * 0.95f);
+        float steer = kart != null ? kart.SteerInput : 0f;
+        shownSteer = Mathf.Lerp(shownSteer, steer, 1f - Mathf.Exp(-9f * Time.unscaledDeltaTime));
+
+        // 경첩을 축으로 돈다. 손잡이 한가운데를 잡으면 머리만 까딱이는 걸로 보인다.
+        var pivot = new Vector2(sr.center.x, sr.y + sr.height * Hud.StickHinge);
+        var saved = GUI.matrix;
+        GUIUtility.RotateAroundPivot(shownSteer * 13f, pivot * Hud.ScaleFactor);
+        GUI.DrawTexture(sr, stick, ScaleMode.StretchToFill, true);
+        GUI.matrix = saved;
+    }
+
+    /// <summary>레버가 따라오는 값. 입력을 날것으로 쓰면 <b>딱딱 끊겨서</b> 손이 아니라 스위치로 보인다.</summary>
+    float shownSteer;
 
     /// <summary>벽에 부딪힌 직후 0.45초 동안 1 → 0. 빨간 버튼이 그만큼 밝아진다.</summary>
     float WallFlash
@@ -1177,7 +1200,7 @@ public class TestHUD : MonoBehaviour
         float top = (standings.RacerCount > 1 ? 104f : 16f) + 10f;
         // ★ 2026-10-08 — 속도판이 리모컨으로 바뀜면서 <b>두 배 높아졌다.</b>
         //   134 는 옆 속도계(108) 기준이라 그대로 두면 지도가 리모컨 위로 고친다.
-        float side = Mathf.Min(132f, h - RemoteReserve(h) - top);
+        float side = Mathf.Min(132f, h - 134f - top);
         if (side < 70f) return;
 
         var box = new Rect(w - 16f - side, top, side, side);
