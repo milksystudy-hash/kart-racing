@@ -88,6 +88,8 @@ public static class CampusSceneBuilder
         MuseumLook.ApplyToOpenScene();
 
         // 건물이 다시 선 뒤에 되돌린다 — 유저가 건물 <b>안에</b> 놓았으면 그 부모를 찾아야 하니까
+        MakeCampusBears(player.controller.transform, track);
+
         MyProps.Restore(mine);
 
         EditorSceneManager.SaveScene(scene, CampusPath);
@@ -105,6 +107,130 @@ public static class CampusSceneBuilder
     /// <b>코스 위에 놓지 마라.</b> 한 번 그렇게 놨다가 레이스 직선 한가운데에 현관이 서 있었다.
     /// 코스는 <c>TrackBuilder.Path</c> 의 점들이고 폭이 7~12m 다 — 자리를 잡기 전에 그 표를 봐라.
     /// </summary>
+
+    /// <summary>캠퍼스 곰 — 모델 키가 0.45m 라 사람 눈높이에 맞추려면 이만큼 키운다(≈1.05m).</summary>
+    const float HanbokBearScale = 2.3f;
+
+    /// <summary>
+    /// ★★ 2026-10-08 — <b>캠퍼스에 곰 여섯.</b> 여태 화장실 곰 하나뿐이라
+    /// 걸어 다닐 이유가 약했다(수연: *"캠퍼스가 상호작용 할 게 없다"*).
+    ///
+    /// ★ <b>자리를 손으로 찍지 않는다.</b> 로비 곰에서 두 번 틀린 그 실수다 —
+    /// 처음엔 조각상 안에, 고친 뒤엔 석등 위에 세웠다. 캠퍼스는 200m 짜리라 더 위험하다.
+    /// 격자를 깔고 <b>코스에서 멀고 · 물건에서 멀고 · 담장 안</b>인 칸만 남겨서 고른다.
+    ///
+    /// ★ <b>콜라이더가 아니라 Renderer 바운즈로 잰다.</b> 석등·나무처럼 콜라이더가 없는
+    /// 장식은 콜라이더만 보면 «비었다» 로 나오고, 곰이 그 위에 선다.
+    /// </summary>
+    static void MakeCampusBears(Transform visitor, TrackBuilder track)
+    {
+        var models = new System.Collections.Generic.List<string>();
+        foreach (var g in AssetDatabase.FindAssets("HanbokBear t:Model", new[] { "Assets/NPC_bear" }))
+            models.Add(AssetDatabase.GUIDToAssetPath(g));
+        models.Sort(System.StringComparer.Ordinal);
+        if (models.Count == 0)
+        {
+            Debug.Log("[캠퍼스] Assets/NPC_bear 에 HanbokBear FBX 가 없어서 곰은 건너뛴다.");
+            return;
+        }
+
+        // 이미 선 것들의 «눈에 보이는» 크기
+        var blocks = new System.Collections.Generic.List<Bounds>();
+        foreach (var r in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include,
+                                                             FindObjectsSortMode.None))
+        {
+            var b = r.bounds;
+            if (b.max.y < 0.35f) continue;             // 바닥 무늬는 물건이 아니다
+            if (b.min.y > 3.0f) continue;              // 지붕·들보는 머리 위다
+            if (b.size.x > 40f || b.size.z > 40f) continue;  // 담장 통짜는 따로 본다
+            blocks.Add(b);
+        }
+
+        // 코스 중심선 — 여기서 멀어야 한다. 걸어다니는 곰이 길 위에 서면 레이스에 끼어든다
+        var lane = new System.Collections.Generic.List<Vector3>();
+        for (int i = 0; i < 400; i++)
+            lane.Add(track.transform.position + track.PointOnPath(i / 400f));
+
+        const float Half = 96f;        // 담장 안쪽. 담장에 바싹 붙으면 아무도 안 지나간다
+        const float Clear = 3.4f;      // 물건에서 띄울 거리
+        const float NearLane = 11f;    // 코스에서 이만큼은 떨어진다 — 길 위에 서면 레이스에 낀다
+        const float FarLane = 34f;     // ★ 너무 멀어도 안 된다. 사람이 안 가는 구석에 서 있으면 없는 것과 같다
+
+        // ① 설 수 있는 칸을 전부 모은다
+        var ok = new System.Collections.Generic.List<Vector3>();
+        for (float x = -Half; x <= Half; x += 4f)
+        for (float z = -Half; z <= Half; z += 4f)
+        {
+            float best = float.MaxValue;
+            foreach (var p in lane)
+            {
+                float d2 = (p.x - x) * (p.x - x) + (p.z - z) * (p.z - z);
+                if (d2 < best) best = d2;
+            }
+            best = Mathf.Sqrt(best);
+            if (best < NearLane || best > FarLane) continue;
+
+            bool free = true;
+            foreach (var b in blocks)
+            {
+                var e = b; e.Expand(new Vector3(Clear * 2f, 0f, Clear * 2f));
+                if (e.Contains(new Vector3(x, Mathf.Clamp(1f, e.min.y, e.max.y), z))) { free = false; break; }
+            }
+            if (free) ok.Add(new Vector3(x, 0f, z));
+        }
+
+        // ② ★ <b>제일 먼 곳부터 고른다.</b> 격자를 그냥 훑으면 구석부터 차서
+        //    여섯이 전부 서쪽 담장에 붙어 섰다(측정: x 전부 −104). 이미 고른 자리에서
+        //    <b>가장 멀리 떨어진 칸</b>을 하나씩 집으면 캠퍼스에 고르게 퍼진다.
+        var spots = new System.Collections.Generic.List<Vector3>();
+        if (ok.Count > 0)
+        {
+            spots.Add(ok[ok.Count / 2]);   // 가운데쯤에서 시작한다
+            while (spots.Count < models.Count && spots.Count < ok.Count)
+            {
+                Vector3 pick = ok[0]; float far = -1f;
+                foreach (var c in ok)
+                {
+                    float near = float.MaxValue;
+                    foreach (var s in spots) near = Mathf.Min(near, (s - c).sqrMagnitude);
+                    if (near > far) { far = near; pick = c; }
+                }
+                spots.Add(pick);
+            }
+        }
+        Debug.Log($"[캠퍼스] 설 수 있는 칸 {ok.Count}개 중 {spots.Count}개를 골랐다");
+
+        if (spots.Count == 0) { Debug.LogWarning("[캠퍼스] 곰을 세울 빈자리를 못 찾았다."); return; }
+
+        var root = new GameObject("BearNpcs").transform;
+        for (int i = 0; i < spots.Count; i++)
+        {
+            var t = CampusBuilder.MyModel(root, models[i % models.Count], $"BearNpc_{i + 1}",
+                                          spots[i], 0f);
+            if (t == null) continue;
+            t.localScale = Vector3.one * HanbokBearScale;
+            // 캠퍼스 가운데를 보게 — 담장을 보고 서 있으면 등만 보인다
+            Vector3 toward = -spots[i]; toward.y = 0f;
+            if (toward.sqrMagnitude > 0.01f)
+                t.rotation = Quaternion.LookRotation(toward, Vector3.up) * t.rotation;
+
+            var npc = t.gameObject.AddComponent<BearNpc>();
+            // ★ 몸이 있으니 «거리» 로 말을 건다 — 카메라 시선 방식은 걸어다니는 아바타가
+            //   없을 때만 쓰는 임시방편이었다(2026-09-17 로비). 역할(대사)은 BearNpc 가
+            //   씬 안의 순번으로 알아서 고른다.
+            npc.lookTarget = visitor;
+            npc.noticeRange = 9f;
+            npc.patrolRadius = 9f;
+            npc.walkSpeed = 0.55f;
+
+            var box = t.gameObject.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.22f, 0f);
+            box.size = new Vector3(0.34f, 0.45f, 0.26f);   // 로컬이라 스케일을 따라간다
+        }
+        Debug.Log($"[캠퍼스] 곰 {spots.Count}마리 — " +
+                  string.Join(" ", spots.ConvertAll(p => $"({p.x:0},{p.z:0})")));
+    }
+
     static void MakeReturnDoor(Vector3 at, float yaw)
     {
         var root = new GameObject("ReturnDoor").transform;

@@ -12,9 +12,9 @@ public static class _Room2
 {
     static readonly (string hall, Vector3 at, Vector3 look, float fov)[] Takes =
     {
-        ("재주관",   new Vector3(-3.2f, 1.6f,  6.4f), new Vector3(-6.5f, 0.5f,  3.0f), 52f),
-        ("재주관",   new Vector3(-6.5f, 1.5f, -0.4f), new Vector3(-6.5f, 0.5f,  3.0f), 52f),
-        ("곰짝박수마당", new Vector3( 4.4f, 1.9f,  3.6f), new Vector3(-2.5f, 1.2f, -3.6f), 66f),
+        ("BearNpc_1", new Vector3(0f, 1.0f, -2.6f), new Vector3(0f, 0.55f, 0f), 38f),
+        ("BearNpc_4", new Vector3(0f, 1.0f, -2.6f), new Vector3(0f, 0.55f, 0f), 38f),
+        ("BearNpc_6", new Vector3(0f, 0.75f, -1.5f), new Vector3(0f, 0.80f, 0f), 34f),
     };
 
     public static void Run()
@@ -37,8 +37,12 @@ public static class _Room2
             var hall = Find(t.hall);
             if (hall == null) { Debug.LogError($"[방] '{t.hall}' 을 못 찾았다"); continue; }
 
-            cam.transform.position = hall.TransformPoint(t.at);
-            cam.transform.LookAt(hall.TransformPoint(t.look));
+            // ★ 곰은 <b>월드 기준</b>으로 잡는다. 임포트한 FBX 루트는 축 회전(−90° X)과
+            //   배율(2.3)을 들고 있어서 TransformPoint 가 로컬 오프셋을 엉뚱한 데로 보낸다 —
+            //   한 번은 카메라가 곰 안에 들어가서 화면이 통째로 갈색이었다.
+            bool world = t.hall.StartsWith("BearNpc");
+            cam.transform.position = world ? hall.position + t.at : hall.TransformPoint(t.at);
+            cam.transform.LookAt(world ? hall.position + t.look : hall.TransformPoint(t.look));
             cam.fieldOfView = t.fov;
 
             var rt = new RenderTexture(900, 560, 24);
