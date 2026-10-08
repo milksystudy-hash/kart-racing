@@ -664,36 +664,39 @@ public class TestHUD : MonoBehaviour
 
         // 위로는 수집품 패널(y 152~336), 아래로는 구석 칩(h−54). 남는 만큼만 쓴다 —
         // <b>고정 좌표로 두면 낮은 창에서 패널을 뚫는다</b>(지도에서 이미 겪었다).
-        float side = Mathf.Min(190f, h - 400f);
+        float side = Mathf.Min(196f, h - 392f);
         if (side < 96f) return;
 
-        float stickW = side * 0.34f;
-        float baseY = h - 64f;
-
-        var box = new Rect(24f + stickW + 6f, baseY - side, side, side);
+        var box = new Rect(16f, h - 60f - side, side, side);
         GUI.DrawTexture(box, tex, ScaleMode.StretchToFill, true);
 
-        // 버튼에 불 — 초록은 태엽이 찼다, 빨강은 방금 벽에 부딪혔다
+        // ── 조이스틱 — <b>패드 «안»에 꽂혀 있다</b> ──
+        //  ★ 축은 <b>밑동</b>이다. 한가운데를 축으로 잡으면 막대가 통째로 흔들려서
+        //    «꽂힌 레버» 가 아니라 <b>장난감 팻말</b>처럼 보인다.
+        //  ★ 각도는 ±10°. 더 주면 운전 조향이 아니라 «쓰러지는 막대» 가 된다.
+        var stick = Hud.StickTex;
+        if (stick != null)
+        {
+            float sw = side * 0.33f, sh = side * 0.56f;
+            float baseY = box.y + side * 0.80f;              // 종이판 아랫단 — 여기에 박혀 있다
+            var sr = new Rect(box.center.x - sw * 0.5f, baseY - sh, sw, sh);
+
+            float steer = kart != null ? kart.SteerInput : 0f;
+            shownSteer = Mathf.Lerp(shownSteer, steer, 1f - Mathf.Exp(-9f * Time.unscaledDeltaTime));
+
+            var pivot = new Vector2(sr.center.x, baseY);
+            var saved = GUI.matrix;
+            GUIUtility.RotateAroundPivot(shownSteer * 10f, pivot * Hud.ScaleFactor);
+            GUI.DrawTexture(sr, stick, ScaleMode.StretchToFill, true);
+            GUI.matrix = saved;
+        }
+
+        // 버튼에 불 — 초록은 태엽이 찼다, 빨강은 방금 벽에 부딪혔다.
+        // <b>스틱 뒤가 아니라 위에</b> 그린다 — 가려지면 불이 들어와도 안 보인다.
         bool hot = kart != null && (kart.IsBoosting ||
                    (kart.boostChargeMax > 0f && kart.BoostCharge / kart.boostChargeMax > 0.85f));
         Glow(Hud.RemoteButton(box, false), hot ? 0.55f : 0f, new Color(0.45f, 1f, 0.55f));
         Glow(Hud.RemoteButton(box, true), WallFlash, new Color(1f, 0.45f, 0.40f));
-
-        // ── 레버 ──
-        var stick = Hud.StickTex;
-        if (stick == null) return;
-
-        // ★ x 16 에 두고 15° 까지 꾴으면 레버 머리가 <b>화면 밖으로 3px 나간다</b>(계산으로 잡았다)
-        var sr = new Rect(24f, baseY - side * 0.95f, stickW, side * 0.95f);
-        float steer = kart != null ? kart.SteerInput : 0f;
-        shownSteer = Mathf.Lerp(shownSteer, steer, 1f - Mathf.Exp(-9f * Time.unscaledDeltaTime));
-
-        // 경첩을 축으로 돈다. 손잡이 한가운데를 잡으면 머리만 까딱이는 걸로 보인다.
-        var pivot = new Vector2(sr.center.x, sr.y + sr.height * Hud.StickHinge);
-        var saved = GUI.matrix;
-        GUIUtility.RotateAroundPivot(shownSteer * 13f, pivot * Hud.ScaleFactor);
-        GUI.DrawTexture(sr, stick, ScaleMode.StretchToFill, true);
-        GUI.matrix = saved;
     }
 
     /// <summary>레버가 따라오는 값. 입력을 날것으로 쓰면 <b>딱딱 끊겨서</b> 손이 아니라 스위치로 보인다.</summary>
