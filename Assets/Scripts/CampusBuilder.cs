@@ -2031,6 +2031,117 @@ public class CampusBuilder : MonoBehaviour
     /// <summary>★ 2026-10-08 수연의 <b>곰짝박수마당 열 점.</b> 무대 뒤 장비 묶음이다.</summary>
     const string GomjjakFolder = "Assets/Gomjjak_/";
 
+    // ──────────────────────────────────────────────────────────────────────────
+    //  이야기 단서 열 점 — 「읽으면 알게 되는 것」
+    //
+    //  ★★ 2026-10-08 수연: *"너무 대놓고 떡밥을 주지 말고 유추할 수 있는 수준으로."*
+    //     그래서 <b>받침대에 올려 조명을 주지 않았다.</b> 전부 <b>바닥에 놓는다</b> —
+    //     문에서 보이는 자리가 아니라 <b>그 방의 물건 옆</b>에, 걸어 들어가서 돌아봐야 보이게.
+    //     철거 심사를 받는 건물에 <b>굴러다니는 서류</b>라는 설정과도 맞는다.
+    //
+    //  ★ 열 점이 한 묶음이라 <b>방향을 한 번만 재서 같이 쓴다.</b> 관마다 재면
+    //    신호가 약한 방(종이 한 장짜리는 쏠림이 7cm 다)이 혼자 거꾸로 선다.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// <summary>★ 폴더 이름의 «–» 는 <b>붙임표가 아니라 en-dash</b>(U+2013)다.</summary>
+    const string ClueFolder = "Assets/Clue 001–010/";
+
+    /// <summary>
+    /// 앞면 표식. <b>`Front_` 로 시작하는 넷만</b> 쓴다 — 나머지(도장·클립·종이집게)는
+    /// 물건 가운데에 놓여서 쏠림이 거의 0 이라 방향을 못 가른다.
+    /// </summary>
+    static readonly string[] ClueMarks =
+        { "Front_Overdue_Notice", "Front_Lost_Box_Label", "Front_Photo_Caption", "Front_Bear_Drawing" };
+
+    /// <summary>
+    /// ★ <b>−0.15 에서 시작한다.</b> 이 프로젝트에 들어온 묶음 넷이 전부 블렌더 +Y 를
+    /// 앞면이라 적어 놓고 유니티에서 <b>음수</b>로 측정됐다(StoryHalls −1.010 · 웅성관 −1.094 ·
+    /// 참잘했어요관 −0.592). 단서는 종이 한 장이라 신호가 약해서(최대 0.20) 0 에서 재면
+    /// <b>약한 양수 하나에 열 점이 통째로 뒤돌아설 수 있다.</b> 더 센 값이 나오면 그때 바뀐다.
+    /// </summary>
+    const float ClueSignSeed = -0.15f;
+
+    float clueSign = ClueSignSeed;
+
+    /// <summary>
+    /// 자리표 — 파일 · 이름 · <b>어느 관</b> · (x, y, z) · 앞면이 향할 각 · 실제 폭(m).
+    /// y 는 바닥(0)이 기본이고, 벽에 거는 것만 높이를 준다.
+    /// </summary>
+    static readonly (string hall, string file, string label,
+                     float x, float y, float z, float yaw, float w)[] ClueLayout =
+    {
+        // 웅지관(행정) — <b>관장이 왜 서명했나.</b> 변호가 아니라 사정이다
+        ("웅지관", "C01_Overdue_Utility_Drawer",      "공과금서랍", -10.5f, 0f, -6.2f,  20f, 0.66f),
+        ("웅지관", "C02_First_Demolition_Decision",   "기각결정문",  16.3f, 0f,  1.6f, 270f, 0.39f),
+
+        // 곰생회관(학생회) — <b>주인 없는 곰은 밖에 못 나간다</b>를 서류 한 장으로
+        ("곰생회관", "C03_Rejected_Exit_Application", "외출신청서",  -6.4f, 0f,  4.2f, 150f, 0.61f),
+        ("곰생회관", "C04_Unclaimed_Teddy_Box",       "분실물함",     4.8f, 0f, -3.4f, 200f, 0.58f),
+
+        // 곰손관(봉제) — 세 형제가 어떻게 「한」 성을 받았나 · 십 년이 흘렀다
+        ("곰손관", "C05_Han_Family_Adoption_Ledger",  "입양기록부",  -8.2f, 0f,  4.2f, 110f, 0.68f),
+        ("곰손관", "C06_Ten_Year_Repair_Ticket",      "수선대기표",  -8.2f, 0f,  1.4f, 100f, 0.43f),
+
+        // 대충기념관 — 1장의 «열 배 차이» 가 사진 한 장으로 보인다
+        ("대충기념관", "C07_Opening_Day_Photograph",  "개관식사진",   2.6f, 0f, -3.4f,   0f, 0.76f),
+
+        // 곰밥마당 — <b>벽에 건다</b>(걸이 쇠가 달려 있다). 연혁의 빈 3년과 같은 구멍
+        ("곰밥마당", "C08_Missing_Meal_Years",        "급식추이표",  14.3f, 1.0f, 3.0f, 270f, 0.63f),
+
+        // 철곰관 — 2장 서류 조작의 출처
+        ("철곰관", "C09_Safety_Inspection_Original",  "점검일지",    -2.8f, 0f,  3.6f, 150f, 0.56f),
+
+        // 재주관 — ★ 뒷면에 한마디가 적혀 있다. <b>그림이 문 쪽을 보게</b> 세운다.
+        //   플레이어는 귀여운 그림을 먼저 보고, <b>돌아가야</b> 뒷면을 읽는다.
+        //   ⚠ 렌더로 확인하고 180도 돌렸다 — 종이 한 장이라 앞면 쏠림이 7mm 뿐이라
+        //   자동 측정으로는 앞뒤를 못 가린다. <b>이 한 줄만은 눈으로 보고 정한 값</b>이다.
+        ("재주관", "C10_Bears_Museum_Drawing",        "곰의그림",    -6.5f, 0f,  3.0f,  20f, 0.62f),
+    };
+
+    /// <summary>이 관 몫의 단서를 세운다. 관마다 <see cref="Interior"/> 끝에서 한 번 부른다.</summary>
+    void Clues(Transform t, string hall)
+    {
+        var rows = new System.Collections.Generic.List<int>();
+        for (int i = 0; i < ClueLayout.Length; i++)
+            if (ClueLayout[i].hall == hall) rows.Add(i);
+        if (rows.Count == 0) return;
+
+        // 건물이 yaw 로 돌아가 있으면 월드 AABB 가 실제보다 넓게 잡힌다(MyModel 이 그걸로 잰다)
+        float byaw = t.eulerAngles.y * Mathf.Deg2Rad;
+        float cw = Mathf.Abs(Mathf.Cos(byaw)), sw = Mathf.Abs(Mathf.Sin(byaw));
+
+        var placed = new Transform[rows.Count];
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var p = ClueLayout[rows[i]];
+            // ★ 실물보다 <b>1.25배</b>. 종이 한 장은 실물 크기면 바닥에서 안 보이고,
+            //   두 배를 넘기면 «전시물» 이 되어 대놓고 가리키는 꼴이 된다.
+            float seen = p.w * 1.25f * Mathf.Max(cw + sw * 0.5f, sw + cw * 0.5f);
+            placed[i] = MyModel(t, ClueFolder + p.file + ".fbx", "In_단서_" + p.label,
+                                new Vector3(p.x, p.y, p.z), seen);
+        }
+
+        foreach (var m in placed)
+        {
+            if (m == null) continue;
+            float e = FrontEvidence(m, ClueMarks);
+            if (Mathf.Abs(e) > Mathf.Abs(clueSign)) clueSign = e;
+        }
+        float extra = clueSign < 0f ? 180f : 0f;
+
+        int made = 0;
+        for (int i = 0; i < rows.Count; i++)
+        {
+            if (placed[i] == null) continue;
+            made++;
+            placed[i].localRotation =
+                Quaternion.Euler(0f, ClueLayout[rows[i]].yaw + extra, 0f) * placed[i].localRotation;
+        }
+        Debug.Log($"[{hall}] 단서 {made}/{rows.Count} · 앞면 신호 {clueSign:+0.000;-0.000}m → " +
+                  $"{(extra > 0f ? "180도 돌려" : "그대로")} 세웠다");
+    }
+
+
     /// <summary>
     /// 네 관이 다 18 × 12m 안팎이라 <b>한 배율로 충분하다.</b> 소품이 이미 실물 크기고
     /// (2.2~2.9m 높이) 방 천장이 8~9m 라, 1.10 이면 <b>조금 커 보이는 쪽</b>으로 맞는다 —
@@ -2790,6 +2901,10 @@ public class CampusBuilder : MonoBehaviour
 
         Block(t, "InBase", new Vector3(0f, 0.28f, -halfD - 0.1f), Quaternion.identity,
               new Vector3(w - 1.2f, 0.46f, 0.18f), ColWood, noCollider: true);
+
+        // ★ 이야기 단서. <b>관을 가리지 않고 방마다 한두 점</b>씩 바닥에 놓인다 —
+        //   자리표(<see cref="ClueLayout"/>)에 없는 관은 아무 일도 안 일어난다.
+        Clues(t, name);
 
         switch (name)
         {
