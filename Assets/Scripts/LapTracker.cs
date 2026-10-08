@@ -66,6 +66,10 @@ public class LapTracker : MonoBehaviour
 
         // 씬에 들어올 때는 <b>브리핑부터</b>. 처음 보는 임무면 카드를 띄우고, 이미 본 임무면
         // 그대로 카운트다운으로 넘어간다 (RaceBriefing 이 알아서 고른다).
+        // ★ <b>지난 판의 값을 먼저 버린다.</b> 안 그러면 2차 진입 첫 프레임에
+        //   카운트다운의 바닥값이 «7초 전» 과 비교되어 즉시 터지고, 숫자가 0.7초 만에
+        //   지나간 뒤 Begin() 이 그걸 지운다 — 화면에는 아무것도 안 뜬 걸로 보인다.
+        RaceCountdown.Forget();
         RaceCountdown.Arm();   // 35초 안전장치의 기준 시각
         RaceBriefing.Begin();
     }

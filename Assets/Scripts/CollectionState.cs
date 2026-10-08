@@ -55,6 +55,7 @@ public static class CollectionState
         Loaded.Clear();
         Save();
         GrandFinal.Reset();
+        ClueBoard.ClearAll();   // 단서만 읽은 채로 남으면 상태가 어긋난다
 
         // ★ 2026-09-28 <b>장 번호와 본 장면도 같이 되돌린다.</b> 전에는 수집품만 비워서
         // «장 4 · 수집품 0» 이라는 있을 수 없는 상태가 남았고, 그 조합에서

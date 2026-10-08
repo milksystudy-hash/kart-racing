@@ -64,6 +64,7 @@ public static class RaceCountdown
         startedAt = -99f;      // 아직 안 센다 — 화면에 처음 그려지는 프레임이 0초다
         drawn = false;
         beganAt = Time.unscaledTime;
+        pendingSince = Time.frameCount;
         // ★ 22초 안전장치의 기준도 <b>여기서</b> 다시 잡는다. 카드와 티키타카를 천천히 읽으면
         //   씬을 연 시각 기준으로는 이미 22초가 지나 <b>카운트 없이 출발</b>해 버린다.
         Arm();
@@ -75,12 +76,22 @@ public static class RaceCountdown
     static float beganAt = -99f;
 
     /// <summary>
-    /// 화면이 숫자를 못 그릴 때의 바닥값(초). HUD 가 꺼져 있거나 <c>-nographics</c> 로 돌리면
+    /// 화면이 숫자를 못 그릴 때의 바닥값. HUD 가 꺼져 있거나 <c>-nographics</c> 로 돌리면
     /// <see cref="Shown"/> 이 영영 안 불려 <b>22초 안전장치가 걸릴 때까지 카트가 묶인다.</b>
-    /// 1.5초면 로딩 끊김은 다 지나가고 사람 눈에는 안 띈다 —
-    /// 문 바닥값 · 브리핑 25초 · 급식 4초와 같은 판단이야. <b>못 하는 게 제일 나쁘다.</b>
+    ///
+    /// ★★ 2026-10-08 — <b>초가 아니라 «프레임» 으로 센다.</b> 처음엔 1.5초로 뒀는데,
+    /// 그게 수연이 신고한 「두 번째 레이스에서 3·2·1 이 안 뜬다」의 진짜 원인이었다:
+    /// 씬을 새로 여는 <b>한 프레임이 7초</b>나 걸리니까(셰이더·에셋), 로딩이 끝나고
+    /// 돌아온 첫 프레임에서 «1.5초 지났다» 가 <b>무조건 참</b>이 되어 바닥값이 즉시 터진다.
+    /// 숫자가 눈 깜짝할 새 지나가고 화면에는 아무것도 안 뜬 걸로 보인다.
+    ///
+    /// <b>프레임은 로딩 중에 안 흐른다.</b> 90프레임이면 60fps 에서 1.5초고,
+    /// 끊김이 아무리 길어도 «한 프레임» 으로 센다 — 이게 이 바닥값이 원래 재려던 것이다.
     /// </summary>
-    const float ShowStop = 1.5f;
+    const int ShowStopFrames = 90;
+
+    /// <summary><c>running &amp;&amp; !drawn</c> 이 된 프레임. 바닥값을 프레임으로 센다.</summary>
+    static int pendingSince = -1;
 
     /// <summary>
     /// 화면에 <b>처음 그려지는 프레임</b>에 시계를 다시 맞춘다.
@@ -114,16 +125,46 @@ public static class RaceCountdown
     /// </summary>
     public static void Tick()
     {
-        // 화면이 못 그려도 1.5초 뒤엔 그냥 센다
+        // 화면이 못 그려도 90프레임 뒤엔 그냥 센다. ★ 초가 아니라 프레임이다 —
+        // 로딩 한 프레임이 7초씩 걸려서, 초로 재면 돌아오자마자 터진다.
         if (running && !drawn)
         {
-            if (Time.unscaledTime - beganAt > ShowStop) Shown();
+            if (pendingSince >= 0 && Time.frameCount - pendingSince > ShowStopFrames) Shown();
             return;
         }
 
         if (startedAt < 0f || Elapsed > Seconds + GoSeconds) return;
         float dt = Time.unscaledDeltaTime;
         if (dt > 0.25f) startedAt += dt - 1f / 60f;
+    }
+
+    /// <summary>
+    /// ★★ 2026-10-08 — <b>씬에 새로 들어왔다. 지난 판의 값을 전부 버린다.</b>
+    ///
+    /// 수연: *"스토리 보고 와서 다시 레이스에 들어가면 3·2·1 이 안 뜨고 소리도 안 난다.
+    /// 첫 판은 멀쩡하다."* 배치모드로 트랙을 두 번 들어가 재서 잡았다 —
+    /// 2차 진입 순간의 값이 <b><c>drawn false · beganAt 10.1</c></b>, 즉 <b>1차 때 찍힌 시각</b>이었다.
+    ///
+    /// 이 값들은 static 이라 <b>씬을 갈아타도 살아남는다.</b> 그래서 2차 진입 첫 프레임에
+    /// <c>Tick</c> 의 «1.5초 지나면 그냥 센다» 바닥값이 <b>7초 전 시각</b>과 비교되어
+    /// <b>즉시 터지고</b>, 숫자가 0.7초 만에 지나간 뒤 <see cref="Begin"/> 이 그걸 다시 지운다.
+    /// 화면에는 <b>아무것도 안 뜬 것</b>으로 보인다 — 측정값 그대로다:
+    /// <code>
+    /// 17.34s 2차 진입 · running True drawn False startedAt -99 beganAt 10.1   ← 1차 값
+    /// 17.34s 숫자 '' → '3'      ← 바닥값이 즉시 터진다
+    /// 18.04s 숫자 '3' → ''      ← Begin() 이 지운다. 0.7초
+    /// </code>
+    ///
+    /// <b>«지난 판의 시각» 과 «이번 판의 시각» 을 같은 변수로 쓰면 반드시 이렇게 된다.</b>
+    /// 씬이 바뀌는 자리에서 한 번 지우는 게 답이다(<see cref="LapTracker"/> 의 Start).
+    /// </summary>
+    public static void Forget()
+    {
+        running = false;
+        drawn = false;
+        startedAt = -99f;
+        beganAt = -99f;
+        pendingSince = -1;
     }
 
     /// <summary>검사용 — 카운트를 건너뛴다.</summary>

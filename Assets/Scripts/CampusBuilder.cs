@@ -2119,6 +2119,11 @@ public class CampusBuilder : MonoBehaviour
             float seen = p.w * 1.25f * Mathf.Max(cw + sw * 0.5f, sw + cw * 0.5f);
             placed[i] = MyModel(t, ClueFolder + p.file + ".fbx", "In_단서_" + p.label,
                                 new Vector3(p.x, p.y, p.z), seen);
+
+            // ★ 읽을 수 있게 만든다. 라벨이 곧 <see cref="ClueText"/> 의 id 라
+            //   글을 고치려면 그 파일 한 곳만 보면 된다.
+            if (placed[i] != null)
+                placed[i].gameObject.AddComponent<ClueBoard>().id = p.label;
         }
 
         foreach (var m in placed)

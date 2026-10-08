@@ -22,7 +22,8 @@ public class CampusHUD : MonoBehaviour
         //
         // ★ 안전 점검 훈련은 <b>숫자키 1~9</b> 를 쓴다. 여기서 안 막으면 H(조작법)와 E 가
         // 훈련 중에 같이 먹어서 판 위에 조작법 카드가 덮인다.
-        if (Canteen.Open || SafetyDrill.Open) return;
+        // 큰 패널은 한 번에 한 장 — 단서 카드가 떠 있으면 캠퍼스 안내는 한 줄도 안 그린다
+        if (Canteen.Open || SafetyDrill.Open || ClueBoard.Open) return;
 
         if (k.hKey.wasPressedThisFrame) showControls = !showControls;
 
@@ -35,12 +36,13 @@ public class CampusHUD : MonoBehaviour
                 case Target.수도:     Faucet.Nearest.Toggle();      break;
                 case Target.건물문:   HingedDoor.Nearest.Toggle();  break;
                 case Target.기록첩:   AlbumBook.Nearest.Turn();     break;
+                case Target.단서:     ClueBoard.Nearest.Read();     break;
                 case Target.곰:       BearNpc.Nearest.Talk();       break;
             }
         }
     }
 
-    enum Target { 없음, 씬문, 미니게임, 수도, 건물문, 기록첩, 곰 }
+    enum Target { 없음, 씬문, 미니게임, 수도, 건물문, 기록첩, 단서, 곰 }
 
     /// <summary>
     /// ★ <b>«무엇을 집을지» 는 종류 순서가 아니라 점수로 고른다</b>(2026-09-22).
@@ -73,6 +75,7 @@ public class CampusHUD : MonoBehaviour
         Try(Target.수도,     Faucet.Nearest != null,       Faucet.NearestScore);
         Try(Target.건물문,   HingedDoor.Nearest != null,   HingedDoor.NearestScore);
         Try(Target.기록첩,   AlbumBook.Nearest != null,    AlbumBook.NearestScore);
+        Try(Target.단서,     ClueBoard.Nearest != null,    ClueBoard.NearestScore);
 
         if (best == Target.없음 && BearNpc.Nearest != null) best = Target.곰;
         return best;
@@ -83,7 +86,8 @@ public class CampusHUD : MonoBehaviour
     void OnGUI()
     {
         // 미니게임 화면이 떠 있으면 캠퍼스 안내는 한 장도 안 그린다.
-        if (Canteen.Open || SafetyDrill.Open) return;
+        // 큰 패널은 한 번에 한 장 — 단서 카드가 떠 있으면 캠퍼스 안내는 한 줄도 안 그린다
+        if (Canteen.Open || SafetyDrill.Open || ClueBoard.Open) return;
 
         Rect screen = Hud.Begin(uiFont);
         float w = screen.width, h = screen.height;
@@ -127,6 +131,11 @@ public class CampusHUD : MonoBehaviour
                      ? HingedDoor.Nearest.Action
                      : $"{HingedDoor.Nearest.label} {HingedDoor.Nearest.Action}";
                 if (!HingedDoor.Nearest.Actionable) key = "";
+                break;
+
+            case Target.단서:
+                // 읽은 것과 안 읽은 것을 가른다 — 캠퍼스를 다 돌았는지 알 수 있어야 한다
+                what = ClueBoard.Nearest.Action;
                 break;
 
             case Target.기록첩:
