@@ -2025,6 +2025,9 @@ public class CampusBuilder : MonoBehaviour
     /// </summary>
     const string AwardsFolder = "Assets/Awards_Hall_/";
 
+    /// <summary>★ 2026-10-08 수연의 <b>곰테크관 열 점.</b> 「왜 카트인가」에 답하는 방이다.</summary>
+    const string GomtechFolder = "Assets/My blender/Gom_Gomtech/";
+
     /// <summary>
     /// 네 관이 다 18 × 12m 안팎이라 <b>한 배율로 충분하다.</b> 소품이 이미 실물 크기고
     /// (2.2~2.9m 높이) 방 천장이 8~9m 라, 1.10 이면 <b>조금 커 보이는 쪽</b>으로 맞는다 —
@@ -2052,7 +2055,11 @@ public class CampusBuilder : MonoBehaviour
           // 참잘했어요관 — 설명 패널(Caption_02, 쏠림 0.710)이 제일 세다.
           // ★ <b>`Backdrop`(시상대 뒤판 −1.018)과 `Backrest`(벤치 등받이 −0.372)는 넣지 마라</b> —
           //   둘 다 <b>뒤쪽</b> 부품이라 넣는 순간 열 점이 통째로 등을 돌린다.
-          "Caption_", "Front_Plaque", "Certificate_", "Controls", "Medals", "Laurel" };
+          "Caption_", "Front_Plaque", "Certificate_", "Controls", "Medals", "Laurel",
+          // 곰테크관 — 손잡이와 입력부. ★ <b>`Screen` 은 넣지 마라</b>(주행 시뮬레이터 −0.961):
+          //   화면은 <b>앉은 사람 쪽</b>을 보니까 밖에서 보면 뒤쪽 부품이다.
+          //   `Title` 도 뺐다 — 이름이 흔해서 다른 묶음에 같은 이름이 생기면 거기까지 흔든다.
+          "Crank", "Handwheels", "Inputs" };
 
     /// <summary>
     /// 자리표 — 파일 · 이름 · <b>어느 관</b> · 벽 · (x, z) · 앞면이 향할 각 · 실제 폭 · 깊이.
@@ -2089,9 +2096,25 @@ public class CampusBuilder : MonoBehaviour
 
         // ── 곰테크관(공학·카트) : 「왜 카트인가」에 물리적 답을 주는 방
         (StoryFolder, "S08_Wooden_Controller_Cabinet", "조종기보관장", "곰테크관", Wall.뒤,   0f, 0f,   0f, 3.85f, 0.82f),
-        (StoryFolder, "S07_Kart_Service_Lift",         "카트정비대",   "곰테크관", Wall.왼,   0f, 0f,  90f, 3.85f, 3.00f),
+        // 정비 리프트는 <b>작업장 한가운데</b>다. 벽에 붙이면 깊이 3m 가 뒷벽 자리를 먹어서
+        // 기계 열셋이 안 들어간다(계산으로 확인했다).
+        (StoryFolder, "S07_Kart_Service_Lift",         "카트정비대",   "곰테크관", Wall.가운데, -3.6f, -2.0f, 90f, 3.85f, 3.00f),
         // 가운데 — 만들다 만 카트는 <b>길 한가운데</b>에 있어야 «작업 중» 으로 읽힌다
-        (StoryFolder, "S09_Prototype_Kart_Frame",      "시제품카트",   "곰테크관", Wall.가운데, 2.6f, -1.4f, 200f, 2.66f, 2.66f),
+        (StoryFolder, "S09_Prototype_Kart_Frame",      "시제품카트",   "곰테크관", Wall.가운데, 2.0f, -2.3f, 200f, 2.66f, 2.66f),
+
+        // ★ 2026-10-08 수연의 곰테크관 열 점. <b>이 방도 배율 1.0</b> —
+        //   17 x 12m 에 기계 열셋이라 1.10 을 먹이면 지나다닐 길이 없다.
+        (GomtechFolder, "T10_Game_Logic_Lab_Wall",    "게임로직벽",   "곰테크관", Wall.뒤,   0f, 0f,   0f, 3.10f, 1.05f),
+        (GomtechFolder, "T07_Battery_Charging_Cabinet","충전함",      "곰테크관", Wall.뒤,   0f, 0f,   0f, 2.00f, 0.82f),
+        (GomtechFolder, "T09_Vertical_Milling_Machine","수직밀링",    "곰테크관", Wall.왼,   0f, 0f,  90f, 1.60f, 1.15f),
+        (GomtechFolder, "T05_Electronics_Workbench",  "전자작업대",   "곰테크관", Wall.왼,   0f, 0f,  90f, 2.60f, 1.20f),
+        (GomtechFolder, "T02_Additive_Printer",       "3D프린터",     "곰테크관", Wall.오른, 0f, 0f, 270f, 1.45f, 1.10f),
+        (GomtechFolder, "T06_Wheel_Balancer",         "휠밸런서",     "곰테크관", Wall.오른, 0f, 0f, 270f, 1.80f, 1.12f),
+        (GomtechFolder, "T03_Robot_Training_Cell",    "로봇실습실",   "곰테크관", Wall.오른, 0f, 0f, 270f, 2.00f, 1.65f),
+        // 가운데 — 시뮬레이터는 <b>문을 등지고</b> 앉는다(화면이 안쪽을 본다)
+        (GomtechFolder, "T01_Driving_Simulator",      "주행시뮬",     "곰테크관", Wall.가운데,  4.9f, -1.8f, 180f, 1.60f, 2.60f),
+        (GomtechFolder, "T08_Sensor_Test_Course",     "센서시험장",   "곰테크관", Wall.가운데, -3.0f,  1.6f,   0f, 3.10f, 1.95f),
+        (GomtechFolder, "T04_Gear_Teaching_Stand",    "기어실습대",   "곰테크관", Wall.가운데,  3.2f,  2.2f,   0f, 2.70f, 1.05f),
 
         // ── 참잘했어요관(시상) : 한 자리만 비어 있다. 끝까지 설명하지 않는다
         // ★ <b>연혁판이 여기로 왔다</b>(곰머리관이 꽉 차서). 오히려 이게 맞는 자리다 —
@@ -3227,7 +3250,8 @@ public class CampusBuilder : MonoBehaviour
             //   ★ <b>조종기 보관장이 이 방의 핵심</b>이다: 「곰이 밖에 못 나가서 카트만
             //   내보낸다」를 대사 한 줄 없이 설명하는 유일한 물건이야.
             case "곰테크관":
-                StoryHall(t, "곰테크관", w, d);
+                // ★ <b>배율 1.0.</b> 17 x 12m 에 기계 열셋이라 1.10 이면 길이 안 남는다.
+                StoryHall(t, "곰테크관", w, d, 1.0f);
                 break;
 
             // ★★ 2026-10-07 <b>유저가 만든 관광·외국어 소품 열 점으로 다시 지었다.</b>

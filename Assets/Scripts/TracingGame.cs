@@ -219,7 +219,37 @@ public class TracingGame : MonoBehaviour
             Covered[i] = true;
             CoveredCount++;
         }
+
+        Brush();
         return true;
+    }
+
+    float nextBrushAt;
+    int lastBrush = -1;
+
+    /// <summary>
+    /// ★ 2026-10-08 — <b>붓질 소리.</b> 그리는 18초 내내 나야 하는데, <see cref="Sfx.Play"/> 는
+    /// <b>한 번 나고 끝나는</b> 소리다. 그래서 <c>KartEngine</c> 처럼 전용 AudioSource 를 두거나,
+    /// <b>짧은 붓질을 이어 붙이거나</b> 둘 중 하나다 — 후자를 골랐다. 새 컴포넌트가 0개고,
+    /// 받아 온 음원이 <b>길이가 다른 붓질 여섯 개</b>라 이어 붙이면 저절로 변화가 생긴다.
+    ///
+    /// <list type="bullet">
+    /// <item><b>같은 것을 두 번 연달아 안 튼다.</b> 세 개뿐이라 반복이 금방 들린다</item>
+    /// <item><b>0.30초 간격.</b> 제일 짧은 토막이 0.33초라 조금 겹치는데, 그 겹침이
+    ///       <b>끊긴 소리를 이어 준다</b> — 간격을 길이보다 길게 잡으면 «사각 … 사각» 이 된다</item>
+    /// <item>음악은 안 비킨다. 1초에 서너 번 나는 소리에 음악이 숙이면 계속 눌려 있다</item>
+    /// </list>
+    /// </summary>
+    void Brush()
+    {
+        if (Time.unscaledTime < nextBrushAt) return;
+        nextBrushAt = Time.unscaledTime + 0.30f;
+
+        int pick = Random.Range(0, 3);
+        if (pick == lastBrush) pick = (pick + 1) % 3;
+        lastBrush = pick;
+
+        Sfx.Play($"Brush_{pick + 1}", 0.75f, duckMusic: false);
     }
 
     void Update()
