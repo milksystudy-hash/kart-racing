@@ -289,7 +289,9 @@ public static class BearLines
         var table = won ? CampusWon : Campus;
         int r = ((role % CampusRoles) + CampusRoles) % CampusRoles;
         var lines = table[r];
-        return lines[Random.Range(0, lines.Length)];
+        // ★ 이 클래스에 Random(int) 메서드가 있어서 UnityEngine.Random 이 가려진다 —
+        //   짧게 쓰면 CS0119 로 터지고 <b>유니티가 세이프 모드로 들어간다.</b>
+        return lines[UnityEngine.Random.Range(0, lines.Length)];
     }
 
     public static string Random(int role)
