@@ -112,6 +112,7 @@ public class CampusBuilder : MonoBehaviour
         BuildPerimeterWall();
 
         BuildOuterRoad();
+        BuildDemolitionYard();
 
         ScatterNature();
         ScatterLanterns();
@@ -141,6 +142,91 @@ public class CampusBuilder : MonoBehaviour
     /// <b>콜라이더가 전부 없다.</b> 담장이 이미 막고 있고, 길은 보라고 있는 거지
     /// 걸어가라고 있는 게 아니다 — 유저 지시대로 상호작용이 없다.
     /// </summary>
+
+    // ── 정문 밖 앞마당 — 철거가 «이미 와 있다» ────────────────────────────────────
+    //
+    //  ★★ 2026-10-08 수연이 열 종을 만들어 왔다. 자리는 <b>담장 밖, 정문과 인도 사이</b>다 —
+    //  캠퍼스 안에 놓으면 「우리 학교 안에 철거 사무소가 있다」가 되어 말이 안 되고,
+//  <b>쓸 수 있는 띠는 z 110~116 뿐이다</b> — 정문 지붕이 z 95~105 을 덮고,
+//  담장이 z 107~109, 인도가 116.2 부터다. 한 번 z 104~113 에 놨다가 <b>지붕 밑에
+//  숨고 담장을 걸쳤다</b>(렌더로 잡았다). 좌표를 적기 전에 재라.
+    //  <b>밖에서 들어오는 것</b>이라야 「저쪽에서 밀고 들어온다」가 된다.
+    //
+    //  셋은 <b>전/후 쌍</b>으로 왔다(공고문 · 현수막 · 서명). 나머지 일곱은 철거 준비물이라
+    //  <b>이기면 통째로 걷힌다</b> — <see cref="CampusVictory"/> 가 한 줄로 치운다.
+    //  건널목(x ±6)은 비운다. 걸어 나가는 길이다.
+    static readonly (string file, float x, float z, float yaw, float w)[] YardBefore =
+    {
+        ("D06_Tripod_Warning_Beacon",       -22.5f, 113.9f, 180f, 1.33f),   // ★ 경광등 둘과 자루는
+        ("D09_Temporary_Demolition_Office", -19.0f, 112.0f,   0f, 5.28f),   //   표지판이 반대쪽에 달려
+        ("D03_Temporary_Fence",             -17.8f, 114.4f,   0f, 3.20f),   //   있어 묶음 부호로는 안 잡힌다
+        ("D03_Temporary_Fence",             -14.4f, 114.4f,   0f, 3.20f),
+        ("D08_Seized_Electrical_Cabinet",   -13.5f, 110.6f,   0f, 1.13f),
+        ("D03_Temporary_Fence",             -11.0f, 114.4f,   0f, 3.20f),
+        ("D01_Notice_Before",                -9.5f, 111.5f,   0f, 2.48f),
+        ("D05_Returned_Complaint_Box",       -7.9f, 112.9f,   0f, 1.04f),
+        ("D10_Signatures_Before",             9.5f, 111.5f,   0f, 2.62f),
+        ("D06_Tripod_Warning_Beacon",        10.5f, 114.2f, 180f, 1.33f),
+        ("D04_Banner_Before",                16.5f, 111.2f,   0f, 5.52f),
+        ("D02_Survey_Stakes_Tape",           15.5f, 114.2f,   0f, 2.84f),
+        ("D07_Waste_Collection_Sacks",       21.5f, 113.6f, 180f, 1.95f),
+    };
+
+    //  ★ 이긴 뒤에 선다. <b>자리는 짝과 같다</b> — 같은 자리에서 바뀌어야 «저게 바뀌었다» 가 된다.
+    static readonly (string file, float x, float z, float yaw, float w)[] YardAfter =
+    {
+        ("D01_Notice_After",      -9.5f, 111.5f, 0f, 2.48f),
+        ("D10_Signatures_After",   9.5f, 111.5f, 0f, 2.62f),
+        ("D04_Banner_After",      16.5f, 111.2f, 0f, 5.52f),
+    };
+
+    const string YardFolder = "Assets/My blender/Campus_Demolition_/";
+
+    static readonly string[] YardMarks = { "Front_" };
+
+    void BuildDemolitionYard()
+    {
+        var root = new GameObject("DemolitionYard").transform;
+        root.SetParent(transform, false);
+        var before = new GameObject("Demo_Before").transform;
+        var after = new GameObject("Demo_After").transform;
+        before.SetParent(root, false);
+        after.SetParent(root, false);
+
+        var placed = new System.Collections.Generic.List<Transform>();
+        var rows = new System.Collections.Generic.List<(float yaw, Transform t)>();
+
+        int n = 0;
+        foreach (var (group, table) in new[] { (before, YardBefore), (after, YardAfter) })
+            foreach (var p in table)
+            {
+                var m = MyModel(group, YardFolder + p.file + ".fbx", $"Yard_{++n:00}_{p.file}",
+                                new Vector3(p.x, 0f, p.z), p.w);
+                if (m == null) continue;
+                placed.Add(m);
+                rows.Add((p.yaw, m));
+            }
+
+        // ★ 앞면은 <b>전부 놓은 뒤 한 번에</b> 정한다. 하나씩 물으면 신호가 약한 모델
+        //   (배전함은 스티커 한 장이 전부다)만 거꾸로 선다 — 지붕 상징물에서 겪은 그대로.
+        float best = 0f;
+        foreach (var m in placed)
+        {
+            float e = FrontEvidence(m, YardMarks);
+            if (Mathf.Abs(e) > Mathf.Abs(best)) best = e;
+        }
+        // 앞면이 <b>정문 쪽(−Z)</b>을 봐야 걸어 나오면서 읽는다
+        float extra = best >= 0f ? 180f : 0f;
+        foreach (var (yaw, t) in rows)
+            t.localRotation = Quaternion.Euler(0f, yaw + extra, 0f) * t.localRotation;
+
+        if (Mathf.Abs(best) < 0.01f)
+            Debug.LogWarning("[앞마당] 소품 앞면을 못 쟀다 — 부품 이름(Front_…)이 바뀌었는지 봐라.");
+        else
+            Debug.Log($"[앞마당] 소품 {placed.Count}개 (철거 {before.childCount} · 되찾은 뒤 {after.childCount}) · " +
+                      $"앞면 신호 {best:+0.000;-0.000}m → {extra:0}° 돌려 정문 쪽으로");
+    }
+
     void BuildOuterRoad()
     {
         var root = new GameObject("OuterRoad").transform;
@@ -198,6 +284,9 @@ public class CampusBuilder : MonoBehaviour
         }
     }
 
+    /// <summary>정문 구멍 폭. 처마(x ±11)보다 조금 넓게 — 딱 맞추면 모서리가 닿는다.</summary>
+    const float GateOpening = 24f;
+
     void BuildPerimeterWall()
     {
         var root = new GameObject("PerimeterWall").transform;
@@ -208,6 +297,14 @@ public class CampusBuilder : MonoBehaviour
         // (2026-09-17, 본관과 곰밥마당이 그랬다). 건물마다 손으로 구멍을 내면 건물을 옮길
         // 때마다 또 틀리니까, <b>담장이 알아서 끊기게</b> 만든다. 담장에 물린 건물은
         // 문간채라 어색하지도 않다.
+        // ★★ 2026-10-08 — <b>정문은 뚫어 둔다.</b> 여태 북쪽 담장이 x −116..30.5 로
+        //  <b>정문 축을 그대로 가로질렀다</b> — 레이캐스트로 재서 잘았다(y 0.6~3.6m 전부 막힘).
+        //  그러면 <b>걸어 나갈 수 없는 문</b>이라 밖에 세운 것(바깥 도로·철거 앞마당)을
+        //  영영 못 본다 — 담장이 4.2m 고 소품이 1.3~2.8m 라 넘어다볼 수도 없다.
+        //  건물 발자국과 같은 방식으로 넣는다 — <b>구멍을 손으로 내면 문을 옮길 때 또 틀린다.</b>
+        footprints.Add(new Bounds(new Vector3(0f, 2.1f, wallHalfZ),
+                                  new Vector3(GateOpening, 4.2f, 8f)));
+
         Side(root, "S", -wallHalfZ, alongX: true);
         Side(root, "N",  wallHalfZ, alongX: true);
         Side(root, "W", -wallHalfX, alongX: false);

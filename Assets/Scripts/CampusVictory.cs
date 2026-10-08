@@ -150,8 +150,23 @@ public class CampusVictory : MonoBehaviour
 
     // ---- 무엇이 바뀌나 -------------------------------------------------------
 
+    readonly System.Collections.Generic.List<Transform> yardBefore = new();
+    readonly System.Collections.Generic.List<Transform> yardAfter = new();
+
     void Gather()
     {
+        // ★ 정문 밖 앞마당 — 철거 준비물은 걷히고, 짝이 있는 셋은 제자리에서 바뀜다
+        var yard = GameObject.Find("DemolitionYard");
+        if (yard != null)
+        {
+            var b = yard.transform.Find("Demo_Before");
+            var a = yard.transform.Find("Demo_After");
+            if (b != null) foreach (Transform kid in b) yardBefore.Add(kid);
+            if (a != null) foreach (Transform kid in a) yardAfter.Add(kid);
+            yardBefore.Sort((x, y) => string.CompareOrdinal(x.name, y.name));
+            yardAfter.Sort((x, y) => string.CompareOrdinal(x.name, y.name));
+        }
+
         var boards = GameObject.Find("AdBoards");
         if (boards != null)
             foreach (Transform kid in boards.transform)
@@ -185,6 +200,10 @@ public class CampusVictory : MonoBehaviour
         if (won)
         {
             for (int i = 0; i < ads.Count; i++) Set(ads[i], false, animate, 0.15f + i * 0.22f, 2.4f);
+            // 앞마당은 광고판과 같은 박자로, 조금 늦게. 걸히는 것과 서는 것 사이에 틈을 둔다 —
+            // 같은 순간에 바뀌면 «교체» 가 아니라 «깜빡» 으로 보인다
+            for (int i = 0; i < yardBefore.Count; i++) Set(yardBefore[i], false, animate, 0.30f + i * 0.14f, 2.0f);
+            for (int i = 0; i < yardAfter.Count; i++) Set(yardAfter[i], true, animate, 2.40f + i * 0.20f, 2.0f);
             foreach (var g in gone) Set(g, false, animate, 1.55f, 1.6f);
             Set(bear, true, animate, 2.15f, 2.6f);
         }
@@ -192,6 +211,8 @@ public class CampusVictory : MonoBehaviour
         {
             Set(bear, false, animate, 0f, 2.6f);
             foreach (var g in gone) Set(g, true, animate, 0.25f, 1.6f);
+            for (int i = 0; i < yardAfter.Count; i++) Set(yardAfter[i], false, animate, 0f, 2.0f);
+            for (int i = 0; i < yardBefore.Count; i++) Set(yardBefore[i], true, animate, 0.40f + i * 0.12f, 2.0f);
             for (int i = 0; i < ads.Count; i++) Set(ads[i], true, animate, 0.5f + i * 0.18f, 2.4f);
         }
     }
