@@ -536,7 +536,10 @@ public class BearNpc : MonoBehaviour
 
         // ★ 곰마다 다른 풀에서 뽑는다. 셋이 같은 걸 말하면 <b>세 마리가 있을 이유가 없다</b> —
         // AI 실력 · 나무 · 급식 손님에서 계속 걸렸던 그 문제야.
-        LastLine = campus ? BearLines.RandomCampus(Role) : BearLines.Random(Role);
+        // ★ 결승까지 이겼으면 다른 말을 한다. <see cref="GrandFinal.FreeRun"/> 은 수집 기록만 보는
+        //   static 이라 컴포넌트도 씨을 다시 굽는 것도 필요 없다.
+        LastLine = campus ? BearLines.RandomCampus(Role, GrandFinal.FreeRun)
+                          : BearLines.Random(Role);
         Toast.Show(LastLine);
         waveUntil = Time.time + waveHold;
 
