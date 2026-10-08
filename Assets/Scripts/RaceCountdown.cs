@@ -60,6 +60,8 @@ public static class RaceCountdown
     // ★ unscaled — <see cref="RaceBriefing"/> 와 같은 이유. timeScale 이 0이면 숫자가 안 센다
     public static void Begin()
     {
+        if (Dev.Enabled && debugLog)
+            Debug.Log($"[카운트] Begin · 프레임 {Time.frameCount} · 카드 {RaceBriefing.Open} · 티키타카 {RaceBriefing.Chatting}");
         running = true;
         startedAt = -99f;      // 아직 안 센다 — 화면에 처음 그려지는 프레임이 0초다
         drawn = false;
@@ -88,10 +90,21 @@ public static class RaceCountdown
     /// <b>프레임은 로딩 중에 안 흐른다.</b> 90프레임이면 60fps 에서 1.5초고,
     /// 끊김이 아무리 길어도 «한 프레임» 으로 센다 — 이게 이 바닥값이 원래 재려던 것이다.
     /// </summary>
-    const int ShowStopFrames = 90;
+    /// ★★ 2026-10-08 — <b>90프레임(1.5초)은 너무 길었다.</b> 수연이 세 번째로 같은 걸 신고했다:
+    /// *"ESC 로 로비에 나왔다가 레이스를 다시 누르면 숫자도 소리도 아예 없다."*
+    /// <see cref="Shown"/> 을 <see cref="TestHUD"/> 의 OnGUI 하나에만 기대고 있었는데,
+    /// 그 경로가 막히는 길이 여럿이다 — 브리핑 카드가 떠 있으면 Update 가 Tick 전에
+    /// 돌아가고, <c>InKart</c> 가 아니면 DrawCountdown 자체를 안 부른다.
+    ///
+    /// <b>4프레임이면 충분하다.</b> 화면이 멀쩡하면 첫 OnGUI 가 같은 프레임에 Shown 을 부르고,
+    /// 안 그리면 0.07초 뒤에 스스로 센다. 프레임은 로딩 중엔 안 흐르니 끊김에도 안 속는다.
+    const int ShowStopFrames = 4;
 
     /// <summary><c>running &amp;&amp; !drawn</c> 이 된 프레임. 바닥값을 프레임으로 센다.</summary>
     static int pendingSince = -1;
+
+    /// <summary>제출 전에 끌 것. 출발이 막히면 <b>어디서 막혔는지</b>를 이게 알려준다.</summary>
+    public static bool debugLog = true;
 
     /// <summary>
     /// 화면에 <b>처음 그려지는 프레임</b>에 시계를 다시 맞춘다.
@@ -112,6 +125,7 @@ public static class RaceCountdown
         if (!running || drawn) return;
         drawn = true;
         startedAt = Time.unscaledTime;
+        if (Dev.Enabled && debugLog) Debug.Log($"[카운트] 보이기 시작 · 프레임 {Time.frameCount}");
     }
 
     /// <summary>
@@ -160,6 +174,8 @@ public static class RaceCountdown
     /// </summary>
     public static void Forget()
     {
+        if (Dev.Enabled && debugLog)
+            Debug.Log($"[카운트] Forget — 지난 판 값을 버린다 (running {running} drawn {drawn})");
         running = false;
         drawn = false;
         startedAt = -99f;

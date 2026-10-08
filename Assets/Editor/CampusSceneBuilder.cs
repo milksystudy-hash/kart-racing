@@ -109,7 +109,14 @@ public static class CampusSceneBuilder
     /// </summary>
 
     /// <summary>캠퍼스 곰 — 모델 키가 0.45m 라 사람 눈높이에 맞추려면 이만큼 키운다(≈1.05m).</summary>
-    const float HanbokBearScale = 2.3f;
+    /// <summary>★ 몇 마리를 세우나. 모델은 여섯이라 넷은 같은 옷이 한 번씩 더 나오는데,
+    /// 제일 먼 곳부터 고르는 방식이라 <b>같은 옷끼리 멀리 떨어진다.</b>
+    /// 여섯만 두면 200m 캠퍼스에서 너무 성겨서 수연이 넷밖에 못 찾았다(2026-10-08).</summary>
+    const int BearCount = 10;
+
+    const float HanbokBearScale = 4.6f;   // ★ 2026-10-08 수연: "크기가 다 작다. 좀 키워."
+                                          //    0.47m 모델 → 약 2.16m. 로비 곰(1.7m)보다 크게 잡는다 —
+                                          //    캠퍼스는 200m 짜리라 로비 기준으로 맞추면 점으로 보인다
 
     /// <summary>
     /// ★★ 2026-10-08 — <b>캠퍼스에 곰 여섯.</b> 여태 화장실 곰 하나뿐이라
@@ -146,6 +153,13 @@ public static class CampusSceneBuilder
             blocks.Add(b);
         }
 
+        // 건물 자리 — 곰은 건물 가까이에 세운다
+        var halls = new System.Collections.Generic.List<Vector3>();
+        foreach (var sign in Object.FindObjectsByType<BuildingSign>(FindObjectsInactive.Include,
+                                                                     FindObjectsSortMode.None))
+            if (sign.name == "Plaque" && sign.transform.parent != null)
+                halls.Add(sign.transform.parent.position);
+
         // 코스 중심선 — 여기서 멀어야 한다. 걸어다니는 곰이 길 위에 서면 레이스에 끼어든다
         var lane = new System.Collections.Generic.List<Vector3>();
         for (int i = 0; i < 400; i++)
@@ -154,7 +168,10 @@ public static class CampusSceneBuilder
         const float Half = 96f;        // 담장 안쪽. 담장에 바싹 붙으면 아무도 안 지나간다
         const float Clear = 3.4f;      // 물건에서 띄울 거리
         const float NearLane = 11f;    // 코스에서 이만큼은 떨어진다 — 길 위에 서면 레이스에 낀다
-        const float FarLane = 34f;     // ★ 너무 멀어도 안 된다. 사람이 안 가는 구석에 서 있으면 없는 것과 같다
+        const float FarLane = 30f;     // ★ 너무 멀어도 안 된다. 사람이 안 가는 구석에 서 있으면 없는 것과 같다
+        const float NearHall = 26f;    // ★ 2026-10-08 수연: "두 마리밖에 못 찾았어." 조건이
+                                       //   «코스에서 멀기» 뿐이라 담장 쪽 빈 들판이 전부 통과했다.
+                                       //   <b>건물 가까이</b>를 더한다 — 사람은 건물을 보러 걷는다
 
         // ① 설 수 있는 칸을 전부 모은다
         var ok = new System.Collections.Generic.List<Vector3>();
@@ -176,7 +193,15 @@ public static class CampusSceneBuilder
                 var e = b; e.Expand(new Vector3(Clear * 2f, 0f, Clear * 2f));
                 if (e.Contains(new Vector3(x, Mathf.Clamp(1f, e.min.y, e.max.y), z))) { free = false; break; }
             }
-            if (free) ok.Add(new Vector3(x, 0f, z));
+            if (!free) continue;
+
+            // 건물에서 너무 멀면 버린다. 「찾을 수 있는 곳」이어야 세우는 의미가 있다
+            float toHall = float.MaxValue;
+            foreach (var h in halls)
+                toHall = Mathf.Min(toHall, (new Vector2(h.x - x, h.z - z)).magnitude);
+            if (toHall > NearHall) continue;
+
+            ok.Add(new Vector3(x, 0f, z));
         }
 
         // ② ★ <b>제일 먼 곳부터 고른다.</b> 격자를 그냥 훑으면 구석부터 차서
@@ -186,7 +211,7 @@ public static class CampusSceneBuilder
         if (ok.Count > 0)
         {
             spots.Add(ok[ok.Count / 2]);   // 가운데쯤에서 시작한다
-            while (spots.Count < models.Count && spots.Count < ok.Count)
+            while (spots.Count < BearCount && spots.Count < ok.Count)
             {
                 Vector3 pick = ok[0]; float far = -1f;
                 foreach (var c in ok)
@@ -219,6 +244,8 @@ public static class CampusSceneBuilder
             //   없을 때만 쓰는 임시방편이었다(2026-09-17 로비). 역할(대사)은 BearNpc 가
             //   씬 안의 순번으로 알아서 고른다.
             npc.lookTarget = visitor;
+            npc.roleSeed = i % BearLines.CampusRoles;   // ★ 여섯 역할이 한 번씩은 나오게
+            npc.campus = true;   // ★ 캠퍼스 대사를 쓴다 — 로비 곰 셋의 화장실 얘기가 아니라
             npc.noticeRange = 9f;
             npc.patrolRadius = 9f;
             npc.walkSpeed = 0.55f;

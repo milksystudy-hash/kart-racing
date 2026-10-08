@@ -12,16 +12,17 @@ public static class _Room2
 {
     static readonly (string hall, Vector3 at, Vector3 look, float fov)[] Takes =
     {
-        ("BearNpc_1", new Vector3(0f, 1.0f, -2.6f), new Vector3(0f, 0.55f, 0f), 38f),
-        ("BearNpc_4", new Vector3(0f, 1.0f, -2.6f), new Vector3(0f, 0.55f, 0f), 38f),
-        ("BearNpc_6", new Vector3(0f, 0.75f, -1.5f), new Vector3(0f, 0.80f, 0f), 34f),
+        ("BearNpc_1", new Vector3(0f, 1.1f, -3.0f), new Vector3(0f, 0.85f, 0f), 40f),
+        ("BearNpc_2", new Vector3(0f, 1.1f, -3.0f), new Vector3(0f, 0.85f, 0f), 40f),
+        ("BearNpc_3", new Vector3(0f, 1.1f, -3.0f), new Vector3(0f, 0.85f, 0f), 40f),
     };
 
     public static void Run()
     {
         string dir = Arg("-out") ?? Path.Combine(Path.GetTempPath(), "Room2");
         Directory.CreateDirectory(dir);
-        EditorSceneManager.OpenScene("Assets/Scenes/Campus.unity", OpenSceneMode.Single);
+        string scene = System.Environment.GetEnvironmentVariable("ROOM_SCENE") ?? "Campus";
+        EditorSceneManager.OpenScene($"Assets/Scenes/{scene}.unity", OpenSceneMode.Single);
 
         var cam = Object.FindFirstObjectByType<Camera>();
         if (cam == null) { Debug.LogError("[방] 카메라가 없다"); return; }

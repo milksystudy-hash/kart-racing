@@ -152,6 +152,13 @@ public static class RaceBriefing
         int goal = (int)MissionManager.CurrentGoal;
 
         chatterCount = 0;
+        // ★★ 2026-10-08 — <b>카드가 뜨 있는 채로 ESC 로 나가면 <c>open</c> 이 그대로
+        //   남는다.</b> static 이라 씨을 갈아타도 살아남기 때문이고, 그러면 다음 판에서
+        //   <see cref="TestHUD"/> 의 Update 가 맨 앞에서 돌아가 <b>3·2·1 이 영영 안 뜰다.</b>
+        //   수연의 재현 경로가 정확히 이것이다 — 「레이스 → ESC 로 로비 → 다시 시작」.
+        //   <see cref="RaceCountdown.Forget"/> 과 같은 자리에서 같은 이유로 지운다.
+        open = false;
+        chatterShown = 0;
 
         // ★★ 2026-10-06 유저: *"다 끝내고 자유 플레이 들어가면 첫 판에 시우가 «놀러 온 거
         //   아니야» 하고 1판 대사가 나온다."* 맞다 — 전부 모으면 <c>NextReward()</c> 가

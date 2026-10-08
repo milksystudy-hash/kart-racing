@@ -1260,14 +1260,25 @@ public static class LobbySceneBuilder
         var renderer = model != null ? model.GetComponentInChildren<SkinnedMeshRenderer>(true) : null;
         var material = renderer != null ? renderer.sharedMaterial : null;
 
-        // 이미 색 텍스처가 붙어 있으면 손대지 않는다
-        if (material != null && material.HasProperty("_BaseMap") && material.GetTexture("_BaseMap") != null)
-            return;
-
         string home = Path.GetDirectoryName(path).Replace('\\', '/');
         string folder = home + "/Textures";
         if (!AssetDatabase.IsValidFolder(folder))
             AssetDatabase.CreateFolder(home, "Textures");
+
+        // ★★ 2026-10-08 — <b>«붙어 있나» 만 보면 안 된다.</b> FBX 임포터의
+        // <c>materialSearch</c> 가 <b>프로젝트 전체에서 이름으로</b> 텍스처를 찾는데,
+        // 이 곰의 텍스처 이름이 <c>base_color</c> 라는 흔한 이름이라
+        // <b>남의 폴더에 있는 같은 이름</b>을 물고 온다. 실제로 그렇게 됐다 —
+        // 한복 곰이 같은 이름으로 이 폴더를 덮었고, 그걸 지우니 이번엔
+        // <c>Assets/My blender/Textures/base_color.png</c> 를 물어서 곰이 얼룩덜룩해졌다.
+        //
+        // 그래서 <b>«이 폴더에 꺼내 둔 게 있나»</b> 를 본다. 비어 있으면 무조건 다시 꺼낸다 —
+        // 그래야 <b>제 텍스처가 제자리에</b> 생기고, 이름으로 찾아도 이게 먼저 걸린다.
+        bool mine = AssetDatabase.FindAssets("t:Texture2D", new[] { folder }).Length > 0;
+        if (mine && material != null && material.HasProperty("_BaseMap")
+                 && material.GetTexture("_BaseMap") != null)
+            return;
+
 
         if (!imp.ExtractTextures(folder))
         {

@@ -109,7 +109,9 @@ public class BearNpc : MonoBehaviour
         StartPatrol();
 
         ready = head != null || body != null;
-        if (!ready)
+        // ★ 캠퍼스 한복 곰은 통째 메시라 뼈가 없는 게 <b>맞다.</b> 경고를 띄우면
+        //   열 마리가 콘솔을 도배해서 진짜 경고를 묻는다.
+        if (!ready && !campus)
             Debug.LogWarning("[곰인형] 뼈를 못 찾았어. FBX 안의 Head/Body/Arm_L/Arm_R 을 " +
                              "인스펙터에 끌어다 넣어줘.", this);
     }
@@ -139,8 +141,6 @@ public class BearNpc : MonoBehaviour
 
     void Update()
     {
-        if (!ready) return;
-
         float now = Time.time;
         Transform target = lookTarget != null ? lookTarget
                          : (Camera.main != null ? Camera.main.transform : null);
@@ -162,10 +162,28 @@ public class BearNpc : MonoBehaviour
         Patrol(now);
         OfferTalk(target, target != null ? Vector3.Distance(target.position, transform.position) : 999f);
 
+        // ★★ 2026-10-08 — 한복 곰 여섯은 <b>뼈가 없는 통째 메시</b>다.
+        //   전에는 Update 맨 앞에서 돌아서 <b>걷지도 말하지도 않는 동상</b>이었다.
+        //   뼈 애니메이션만 건너뛰고 몸통째로 숨을 쉬게 한다.
+        if (!ready) { WholeBreathe(now); return; }
+
         Breathe(now);
         Look(target, near);
         Tilt(now);
         Wave(now);
+    }
+
+    Vector3 restScale = Vector3.zero;
+
+    /// <summary>뼈이 없는 모델의 숨쉼기. 가로세로를 <b>반대로</b> 움직여야
+    /// 부풀었다 꾸지는 것으로 보인다 — 같이 커지면 그냥 크기가 변하는 것이다.</summary>
+    void WholeBreathe(float now)
+    {
+        if (restScale == Vector3.zero) restScale = transform.localScale;
+        float t = Mathf.Sin(now * breathSpeed) * 0.5f + 0.5f;
+        float up = 1f + t * 0.016f;
+        transform.localScale = new Vector3(restScale.x / Mathf.Sqrt(up), restScale.y * up,
+                                           restScale.z / Mathf.Sqrt(up));
     }
 
 
@@ -200,10 +218,24 @@ public class BearNpc : MonoBehaviour
     float homeYaw;
     bool walking;
 
+    /// <summary>
+    /// ★★ 2026-10-08 — <b>임포트한 FBX 의 축 회전.</b> 블렌더 FBX 는 루트에
+    /// 축 변환(−90° X)을 실고 오는데, 걸을 때 <c>LookRotation(flat, up)</c> 으로
+    /// <b>통째로 덮어쓰면 그게 지워져서 고미 눔는다</b>(수연: *"왜 바닥을 기어다녔"*).
+    /// 요를 줄 때는 언제나 <b>이 값 앞에 곱한다</b> — CLAUDE.md 「축 보정을 0 으로
+    /// 만들지 마라」와 같은 규칙이고, 모델을 갈아끼워도 안 틀린다.
+    /// </summary>
+    Quaternion axisTilt = Quaternion.identity;
+
+    /// <summary>요 각도만 주면 축 회전을 살린 회전을 돌려준다.</summary>
+    Quaternion Facing(float yaw) => Quaternion.Euler(0f, yaw, 0f) * axisTilt;
+
     void StartPatrol()
     {
         home = transform.position;
         homeYaw = transform.eulerAngles.y;
+        // 축 회전만 떼어 적어 둔다. 요를 뺀 나머지가 곰이 서 있게 해 주는 값이다.
+        axisTilt = Quaternion.Euler(0f, -homeYaw, 0f) * transform.rotation;
         walkTarget = home;
         lastPlace = home;
         restUntil = Time.time + Random.Range(restEvery.x, restEvery.y);
@@ -233,7 +265,7 @@ public class BearNpc : MonoBehaviour
 
         transform.position += flat.normalized * walkSpeed * Time.deltaTime;
         transform.rotation = Quaternion.Slerp(transform.rotation,
-                                              Quaternion.LookRotation(flat, Vector3.up),
+                                              Facing(Quaternion.LookRotation(flat, Vector3.up).eulerAngles.y),
                                               1f - Mathf.Exp(-turnToWalkSpeed * Time.deltaTime));
 
         // 실제로 나아가고 있나. 뭔가에 막히면 위치가 안 변한다 —
@@ -428,10 +460,25 @@ public class BearNpc : MonoBehaviour
     /// 인스펙터 값을 쓰면 옛 씬에서 전부 0 이 되고, 만든 순서를 쓰면 켤 때마다 달라진다.
     /// 이름 순은 <b>씬을 안 구워도 되고 매번 같다</b>(폐과 딱지를 이름 순으로 떨어뜨린 것과 같은 이유).
     /// </summary>
+    /// <summary>
+    /// ★ 2026-10-08 — <b>캠퍼스 곰인가.</b> 로비 곰 셋은 정비·학생·어르신이고
+    /// 중앙홀 대사만 들고 있다. 캠퍼스에 여섯을 세우면서 그대로 쓰니
+    /// <b>전부 화장실 얘기</b>를 했다(수연 지적). 여기가 켜지면 캠퍼스 대사를 쓴다.
+    /// </summary>
+    public bool campus;
+
+    [Tooltip("어느 대사 묶음을 쓰나. -1 이면 씬 안의 순번으로 알아서 고른다")]
+    public int roleSeed = -1;
+
     int Role
     {
         get
         {
+            // ★ 2026-10-08 — 빌더가 박아 준 값이 이긴다. 이름 정렬 순번에 맡겼더니
+            //   "BearNpc_1 · _10 · _11 · _12 · _2 …" 로 섞여서 <b>역할 1·3·5 가 한 번도
+            //   안 나왔다</b>(측정: 0·2·4 만 나왔다). 순번은 곰이 몇 마리냐에 따라 또 바뀐다.
+            if (roleSeed >= 0) return roleSeed % (campus ? BearLines.CampusRoles : BearLines.Roles);
+
             if (role >= 0) return role;
 
             var all = FindObjectsByType<BearNpc>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -439,7 +486,7 @@ public class BearNpc : MonoBehaviour
 
             role = 0;
             for (int i = 0; i < all.Length; i++)
-                if (all[i] == this) { role = i % BearLines.Roles; break; }
+                if (all[i] == this) { role = i % (campus ? BearLines.CampusRoles : BearLines.Roles); break; }
 
             return role;
         }
@@ -489,7 +536,7 @@ public class BearNpc : MonoBehaviour
 
         // ★ 곰마다 다른 풀에서 뽑는다. 셋이 같은 걸 말하면 <b>세 마리가 있을 이유가 없다</b> —
         // AI 실력 · 나무 · 급식 손님에서 계속 걸렸던 그 문제야.
-        LastLine = BearLines.Random(Role);
+        LastLine = campus ? BearLines.RandomCampus(Role) : BearLines.Random(Role);
         Toast.Show(LastLine);
         waveUntil = Time.time + waveHold;
 
@@ -525,7 +572,7 @@ public class BearNpc : MonoBehaviour
                 float want = Quaternion.LookRotation(flat).eulerAngles.y;
                 want = homeYaw + Mathf.Clamp(Mathf.DeltaAngle(homeYaw, want), -bodyTurn, bodyTurn);
                 transform.rotation = Quaternion.Slerp(transform.rotation,
-                                                      Quaternion.Euler(0f, want, 0f),
+                                                      Facing(want),
                                                       1f - Mathf.Exp(-bodyTurnSpeed * Time.deltaTime));
             }
         }
