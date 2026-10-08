@@ -395,6 +395,11 @@ public class KartController : MonoBehaviour
 
         hopTimer = hopAirTime;
         hopCooldownTimer = hopAirTime + hopCooldown;
+
+        // ★ <b>여기서 낸다.</b> 입력(<c>HopPressed</c>)이 아니라 <b>실제로 뛴 자리</b>다 —
+        //   공중이거나 쿨다운이면 안 뛰는데 소리만 나면 «먹었는데 안 뛴다» 로 들린다.
+        // ★ 사람 카트에서만. AI 셋이 같이 뛰면 네 소리가 겹쳐서 누가 뛴 건지 모른다.
+        if (GetComponent<PlayerKart>() != null) Sfx.Play("Hop", 0.7f, duckMusic: false);
     }
 
     void ApplySuspension(float dt)

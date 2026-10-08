@@ -284,8 +284,26 @@ public class TracingGame : MonoBehaviour
     void NextRound()
     {
         Round++;
-        if (Round >= Tracing.Rounds) { Flow.Finish(); return; }
+        if (Round >= Tracing.Rounds) { Done(); return; }
         OpenRound();
+    }
+
+    /// <summary>
+    /// ★ 2026-10-08 — <b>네 판을 다 그렸다.</b> 끝나는 소리를 여기서 고른다.
+    ///
+    /// 수연은 «50점 이상이면 win» 이라고 했는데, 재 보니 <b>50 은 마구 칠해도 넘는 점수</b>다 —
+    /// 네 판 합이 400점 만점이고 <b>아무렇게나 칠한 손이 97점</b>이 나온다(자가점검 측정값).
+    /// 50 으로 두면 <b>이기는 소리가 항상</b> 난다.
+    ///
+    /// 그래서 <b>이미 화면에 뜨는 등급선</b>에 건다 — C 면 지는 소리, B 이상이면 이기는 소리.
+    /// B 가 170점이라 «절반쯤 그렸다» 와 거의 같은 자리고, 무엇보다 <b>플레이어가 보는 글자와
+    /// 들리는 소리가 같아진다.</b> 숫자를 따로 두면 「B 인데 왜 지는 소리지」가 생긴다.
+    /// </summary>
+    void Done()
+    {
+        bool won = Flow.Grade(Score) != "C";
+        Sfx.Play(won ? "DrawWin" : "DrawLose", won ? 0.85f : 0.8f);
+        Flow.Finish();
     }
 
     void Quit()

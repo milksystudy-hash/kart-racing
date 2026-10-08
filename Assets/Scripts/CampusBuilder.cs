@@ -2028,6 +2028,9 @@ public class CampusBuilder : MonoBehaviour
     /// <summary>★ 2026-10-08 수연의 <b>곰테크관 열 점.</b> 「왜 카트인가」에 답하는 방이다.</summary>
     const string GomtechFolder = "Assets/My blender/Gom_Gomtech/";
 
+    /// <summary>★ 2026-10-08 수연의 <b>곰짝박수마당 열 점.</b> 무대 뒤 장비 묶음이다.</summary>
+    const string GomjjakFolder = "Assets/Gomjjak_/";
+
     /// <summary>
     /// 네 관이 다 18 × 12m 안팎이라 <b>한 배율로 충분하다.</b> 소품이 이미 실물 크기고
     /// (2.2~2.9m 높이) 방 천장이 8~9m 라, 1.10 이면 <b>조금 커 보이는 쪽</b>으로 맞는다 —
@@ -2059,7 +2062,9 @@ public class CampusBuilder : MonoBehaviour
           // 곰테크관 — 손잡이와 입력부. ★ <b>`Screen` 은 넣지 마라</b>(주행 시뮬레이터 −0.961):
           //   화면은 <b>앉은 사람 쪽</b>을 보니까 밖에서 보면 뒤쪽 부품이다.
           //   `Title` 도 뺐다 — 이름이 흔해서 다른 묶음에 같은 이름이 생기면 거기까지 흔든다.
-          "Crank", "Handwheels", "Inputs" };
+          "Crank", "Handwheels", "Inputs",
+          // 곰짝박수마당 — `Front_Label` 이 열 점 중 일곱에 있고 전부 앞쪽이다(최대 +1.100).
+          "Front_Label" };
 
     /// <summary>
     /// 자리표 — 파일 · 이름 · <b>어느 관</b> · 벽 · (x, z) · 앞면이 향할 각 · 실제 폭 · 깊이.
@@ -2115,6 +2120,22 @@ public class CampusBuilder : MonoBehaviour
         (GomtechFolder, "T01_Driving_Simulator",      "주행시뮬",     "곰테크관", Wall.가운데,  4.9f, -1.8f, 180f, 1.60f, 2.60f),
         (GomtechFolder, "T08_Sensor_Test_Course",     "센서시험장",   "곰테크관", Wall.가운데, -3.0f,  1.6f,   0f, 3.10f, 1.95f),
         (GomtechFolder, "T04_Gear_Teaching_Stand",    "기어실습대",   "곰테크관", Wall.가운데,  3.2f,  2.2f,   0f, 2.70f, 1.05f),
+
+        // ★ 2026-10-08 수연의 곰짝박수마당 열 점. <b>객석이 아니라 무대 뒤 장비</b>다 —
+        //   접의자가 «카트에 실려» 있고 의상걸이와 플라이트 케이스가 있다. 그래서
+        //   상자로 흉내 낸 객석 열다섯을 걷어냈다(진짜 물건이 온 이상 그건 짐이다).
+        //   15 x 11m 라 <b>여기도 배율 1.0</b>.
+        (GomjjakFolder, "P02_Choir_Risers",           "합창단",       "곰짝박수마당", Wall.뒤,   0f, 0f,   0f, 3.60f, 2.20f),
+        (GomjjakFolder, "P01_Outdoor_Lighting_Tower", "조명타워",     "곰짝박수마당", Wall.뒤,   0f, 0f,   0f, 3.20f, 1.60f),
+        (GomjjakFolder, "P03_Vocal_Performance_Set",  "보컬세트",     "곰짝박수마당", Wall.뒤,   0f, 0f,   0f, 2.50f, 1.50f),
+        (GomjjakFolder, "P05_Acoustic_Guitar_Rack",   "기타걸이",     "곰짝박수마당", Wall.왼,   0f, 0f,  90f, 1.80f, 0.90f),
+        (GomjjakFolder, "P07_Backstage_Costume_Rail", "의상걸이",     "곰짝박수마당", Wall.왼,   0f, 0f,  90f, 2.20f, 1.05f),
+        (GomjjakFolder, "P08_Flight_Cases_Cable_Reel","장비케이스",   "곰짝박수마당", Wall.오른, 0f, 0f, 270f, 2.40f, 1.15f),
+        (GomjjakFolder, "P10_Applause_Cue_Tower",     "박수신호탑",   "곰짝박수마당", Wall.오른, 0f, 0f, 270f, 1.25f, 1.05f),
+        // 가운데 셋 — 무대 앞 펜스, 타악기, 실려 있는 접의자
+        (GomjjakFolder, "P09_Crowd_Barrier_Pair",     "관객펜스",     "곰짝박수마당", Wall.가운데, -2.6f, -1.4f,   0f, 3.30f, 0.80f),
+        (GomjjakFolder, "P04_Janggu_Jing_Station",    "장구징대",     "곰짝박수마당", Wall.가운데,  2.8f, -1.3f,   0f, 2.30f, 1.15f),
+        (GomjjakFolder, "P06_Folding_Chair_Cart",     "접의자수레",   "곰짝박수마당", Wall.가운데, -4.3f,  1.8f, 250f, 1.30f, 1.35f),
 
         // ── 참잘했어요관(시상) : 한 자리만 비어 있다. 끝까지 설명하지 않는다
         // ★ <b>연혁판이 여기로 왔다</b>(곰머리관이 꽉 차서). 오히려 이게 맞는 자리다 —
@@ -3315,14 +3336,14 @@ public class CampusBuilder : MonoBehaviour
                 BapMadang(t, w, d, h, halfW, halfD);
                 break;
 
-            case "곰짝박수마당":  // 행사 — 접의자와 현수막
-                for (int r = 0; r < 3; r++)
-                    for (int c = -2; c <= 2; c++)
-                        Block(t, $"InSeat_{r}_{c}", new Vector3(c * 1.3f, 0.28f, 1f + r * 1.3f),
-                              Quaternion.identity, new Vector3(0.55f, 0.56f, 0.55f),
-                              r % 2 == 0 ? ColWoodRail : ColWood, noCollider: true);
+            case "곰짝박수마당":  // 행사 — 무대 뒤 장비
+                // ★ 2026-10-08 <b>상자로 흉내 낸 객석 열다섯을 걷어냈다.</b> 수연의 열 점은
+                //   «객석» 이 아니라 <b>무대 뒤 장비</b>다 — 접의자가 수레에 실려 있고
+                //   의상걸이와 플라이트 케이스가 있다. 의자를 펴 놓으면 그 설정과 어긋나고,
+                //   무엇보다 15 x 11m 방에 상자 열다섯이 들어가면 장비가 설 자리가 없다.
                 Block(t, "InBanner", new Vector3(0f, 2.6f, -halfD - 0.05f), Quaternion.identity,
                       new Vector3(w - 4f, 1.4f, 0.1f), ColRibbon, noCollider: true);
+                StoryHall(t, "곰짝박수마당", w, d, 1.0f);
                 break;
 
             case "화장실":     // 2026-09-18 유저: "화장실 안에 왜 이리 빛나는 거 있어. 변기도 없고."
