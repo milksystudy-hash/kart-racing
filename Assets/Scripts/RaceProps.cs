@@ -138,27 +138,44 @@ public static class RaceProps
 
             // 4판 — 거대 철거 크레인 둘. 코스 <b>바깥</b>에서 쇠구슬이 느리게 흔들린다
             case MissionManager.Goal.전시품:
+                // ★★ 2026-10-12 유저: *"포크레인이 2대인데 4대로. 2대는 그대로 두고 나머지는
+                //   전투용이어서 달고 있는 회색 공이 플레이어에게 위협적이게 지나가거나."*
+                //
+                //   <b>먼 둘은 그대로 풍경</b>이고(26~28m 밖), 새 둘은 <b>갓길 9m</b> 에 세워
+                //   쇳덩이가 길을 가로질러 지나간다. 맞으면 <b>매단 곰인형 하나가 떨어진다</b> —
+                //   그 판에서만 통하는 위협이라 풍경이 처음으로 운전을 바꾼다.
+                //   목표가 여덟 중 여섯이라 <b>두 개는 잃어도 되고</b>, 떨어진 건
+                //   다음 바퀴에 주울 수 있다.
                 Side(track, "R03_Demolition_Crane", 0.17f, 26f, swing: true);
                 Side(track, "R03_Demolition_Crane", 0.63f, -28f, swing: true);
+
+                WreckingCrane(track, 0.40f, 9f, 3.9f);
+                WreckingCrane(track, 0.84f, -9.5f, 4.6f);
                 break;
 
             // 5판 — 서류 폭풍. 관장 도장이 <b>몇 초마다 쿵 찍고</b> 땅울림이 코스를 쓸고 간다.
             //   <see cref="StampSlam"/> · <see cref="RaceShock"/> 참고 — SPACE 로 넘는다.
             case MissionManager.Goal.제한시간:
-                // ★ 다섯 개로는 «어쩌다 한 번» 이라 사건이 안 된다(유저 지적).
-                //   <b>구간마다 하나씩</b> — 코스가 여섯 구간이니 여덟이면 한 바퀴 내내 만난다.
-                //   좌우를 번갈아 둬서 <b>늘 같은 쪽으로 피하면 되는 게 아니게</b> 한다.
-                for (int i = 0; i < 8; i++)
+                // ★★ 2026-10-12 — <b>맞으면 3초 멈춘다</b>(유저 요청). 그러면 개수를 줄여야 한다.
+                //   세어 보면: 땅울림이 28m 까지 퍼지고 도장이 갓길 14m 니 코스를 47m 쓸고 간다.
+                //   18m/s 로 지나가면 <b>그 구간에 2.6초</b> 있는다. 주기 5.6초면 <b>맞을 확률이
+                //   절반</b>이라, 여덟 개 × 세 바퀴 = 24번 중 <b>열두 번</b> 맞는다.
+                //   3초씩이면 36초를 길에 버리는 셈이라 어떤 제한시간으로도 못 깬다.
+                //
+                //   <b>다섯 개 · 주기 7.2초</b>로 줄였다 → 15번 중 <b>다섯 번</b>(36% × 15).
+                //   SPACE 로 넘으면 0 번이고, 그래서 뛰는 게 <b>처음으로 이득</b>이 된다.
+                //   제한시간도 94 → 108초로 같이 옮겼다(<see cref="MissionManager.timeLimit"/>).
+                for (int i = 0; i < 5; i++)
                 {
-                    var go = Side(track, "R04_Paper_Storm", 0.05f + i * 0.12f,
+                    var go = Side(track, "R04_Paper_Storm", 0.07f + i * 0.19f,
                                   (i % 2 == 0 ? 14f : -15f), drift: true);
                     if (go == null) continue;
 
                     var slam = go.AddComponent<StampSlam>();
-                    // 주기를 조금씩 다르게 준다. 똑같으면 여덟이 <b>한 박자로</b> 찍혀서
+                    // 주기를 조금씩 다르게 준다. 똑같으면 다섯이 <b>한 박자로</b> 찍혀서
                     // «쿵 쿵 쿵» 이 아니라 «쿵» 한 번이 된다.
-                    slam.period = 5.6f + i * 0.41f;
-                    slam.phase  = i * 1.37f;
+                    slam.period = 7.2f + i * 0.47f;
+                    slam.phase  = i * 1.63f;
                 }
                 break;
 
@@ -275,6 +292,28 @@ public static class RaceProps
         var e = go.AddComponent<PropEngine>();
         e.clipName = engine; e.volume = engineVolume;
         f.engine = e;
+    }
+
+    /// <summary>
+    /// ★ <b>전투용 크레인</b> — 쇳덩이가 길을 가로질러 지나간다.
+    /// <paramref name="period"/> 를 둘이 다르게 줘야 «한 박자로» 지나가지 않는다.
+    /// </summary>
+    static void WreckingCrane(TrackBuilder track, float t, float offset, float period)
+    {
+        var go = Side(track, "R03_Demolition_Crane", t, offset);
+        if (go == null) return;
+
+        var arm = go.transform.Find("Boom");
+        var ball = go.transform.Find("Ball");
+        if (arm == null || ball == null)
+        {
+            Debug.LogWarning("[풍경] 크레인 부품(Boom/Ball)을 못 찾았다 — R03 의 이름을 봐라.");
+            return;
+        }
+
+        var w = go.AddComponent<WreckingBall>();
+        w.arm = arm; w.ball = ball; w.period = period;
+        w.reach = Mathf.Abs(offset) + 3.2f;      // 길 가운데를 조금 넘어간다
     }
 
     /// <summary>코스 <b>바깥</b>에 고정. 자리를 손으로 안 찍는다 — 코스 t 와 옆거리로 적는다.</summary>
@@ -744,6 +783,69 @@ public class FlyingProp : MonoBehaviour
 }
 
 /// <summary>
+/// ★★ <b>철거 크레인의 쇳덩이</b>(2026-10-12). 길을 가로질러 왔다 갔다 하고,
+/// 맞으면 <b>매단 곰인형 하나가 떨어진다.</b>
+///
+/// <b>카트를 날려 보내지 않는다.</b> 코스 밖으로 날아가면 맞은 쪽이 레이스를 포기하게 되고
+/// 그건 재미가 아니라 벌이다(2026-09-17 카트 충돌에서 정한 선). 휘청하고 느려질 뿐이다.
+///
+/// 피할 수 있어야 기믹이다 — <b>일정한 박자</b>로 돈다. 둘의 주기를 다르게 줘서
+/// 한 박자로 지나가지 않게 하고, 그래서 외우는 게 아니라 보고 피하게 된다.
+/// </summary>
+public class WreckingBall : MonoBehaviour
+{
+    public Transform arm, ball;
+    public float period = 4.2f;
+
+    /// <summary>쇳덩이가 기둥에서 얼마나 멀리까지 나가나.</summary>
+    public float reach = 12f;
+
+    /// <summary>맞았다고 치는 거리.</summary>
+    public float hitRadius = 2.6f;
+
+    Vector3 armHome, ballHome;
+    KartCamera cam;
+    float lastHit = -9f;
+
+    void Start()
+    {
+        if (arm != null) armHome = arm.localPosition;
+        if (ball != null) ballHome = ball.localPosition;
+        cam = Object.FindFirstObjectByType<KartCamera>();
+    }
+
+    void Update()
+    {
+        if (RacePause.On || RaceCountdown.Blocked || ball == null) return;
+
+        // 기둥을 축으로 왔다 갔다. 끝에서 느려지는 진자 모양이라 «달려오는» 구간이 생긴다.
+        float u = Mathf.Sin(Time.time * (2f * Mathf.PI / Mathf.Max(0.5f, period)));
+        Vector3 out01 = transform.forward;            // Side() 가 코스 쪽을 보게 세워 준다
+
+        ball.position = transform.TransformPoint(ballHome) + out01 * (u * reach);
+        if (arm != null)
+            arm.localRotation = Quaternion.Euler(0f, 0f, -u * 16f);
+
+        var kart = PlayerKart.Current;
+        if (kart == null || Time.time - lastHit < 1.2f) return;
+
+        var body = kart.GetComponent<KartController>();
+        if (body == null) return;
+
+        Vector3 gap = kart.transform.position - ball.position;
+        gap.y = 0f;
+        if (gap.sqrMagnitude > hitRadius * hitRadius) return;
+
+        lastHit = Time.time;
+        body.Douse(0.55f, 0f);
+        if (cam != null) { cam.Jolt(0.4f); cam.Wobble(0.35f); }
+
+        if (ExhibitCargo.DropLast()) Toast.Show("쇳덩이에 맞았다 — 하나 떨어졌다");
+        else Toast.Show("쇳덩이에 맞았다");
+    }
+}
+
+/// <summary>
 /// ★★ <b>점검등</b>(2026-10-12). 안전점검 헬기가 코스를 비추고, <b>그 안에 있으면 느려진다.</b>
 ///
 /// 유저: *"헬기가 지켜보기만 하고 아무것도 안 하니 좀 그렇다."* 맞다 — 풍경은 판을 바꾸지만
@@ -1036,16 +1138,13 @@ public class StampSlam : MonoBehaviour
     public float period = 5.2f;
     [Tooltip("도장끼리 어긋나게 — 다 같이 찍으면 쿵쿵이 아니라 한 번이다")]
     public float phase = 0f;
-    [Tooltip("들어 올리는 높이")]
-    public float lift = 2.2f;
+    [Tooltip("들어 올리는 높이 — 솟았다 내려찍는 연출이라 높을수록 예고가 잘 보인다")]
+    public float lift = 4.6f;
 
     Transform stamp;
     Vector3 home;
     PaperDrift papers;
     float lastU = 1f;
-
-    /// <summary>도장 밑으로 쏘는 빨간 기둥. <b>이게 켜져 있으면 곧 찍힌다.</b></summary>
-    Transform beam;
 
     /// <summary>내리꽂기가 끝나는 지점(주기 안의 비율). 여기서 «쿵» 이 난다.</summary>
     const float Hit = 0.70f;
@@ -1063,17 +1162,9 @@ public class StampSlam : MonoBehaviour
         home = stamp.localPosition;
         papers = GetComponent<PaperDrift>();
 
-        // 레이저 기둥 — 도장과 바닥을 잇는다. 콜라이더 없음, 그림자 없음
-        var cyl = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        Destroy(cyl.GetComponent<Collider>());
-        cyl.name = "SlamBeam";
-        cyl.GetComponent<Renderer>().sharedMaterial =
-            FlatMaterial.Get(new Color32(0xC4, 0x45, 0x3E, 0xFF));
-        cyl.GetComponent<Renderer>().shadowCastingMode =
-            UnityEngine.Rendering.ShadowCastingMode.Off;
-        cyl.transform.SetParent(transform, false);
-        beam = cyl.transform;
-        beam.gameObject.SetActive(false);
+        // ★ 2026-10-12 — <b>빨간 경고 기둥을 뺐다</b>(유저: "빨간색 오브제가 촌스럽다").
+        //   대신 <b>도장 자신이 예고한다</b> — 양옆으로 흔들리다가 하늘로 쑥 솟고 내려찍는다.
+        //   경고를 다른 물건에 맡기면 그 물건을 또 설명해야 하지만, 동작은 설명이 필요 없다.
     }
 
     void Update()
@@ -1084,31 +1175,30 @@ public class StampSlam : MonoBehaviour
 
         // 천천히 올라갔다가 <b>짧게 내리꽂는다.</b> 올라가는 데 오래 걸려야
         // «지금 찍는다» 가 예고되고, 그래야 뛰어넘을 준비를 할 수 있다.
-        float h;
-        if (u < 0.62f) h = Mathf.Sin(u / 0.62f * Mathf.PI * 0.5f);
-        else if (u < Hit) { float k = (u - 0.62f) / (Hit - 0.62f); h = 1f - k * k; }
+        // ★★ 2026-10-12 — <b>쿵쿵이처럼</b>(유저 요청). 셋으로 나뉜다:
+        //   <b>흔들림</b>(0~0.50) 양옆으로 비틀거린다 — "곧 찍는다"
+        //   <b>솟음</b>(0.50~Hit−0.09) 하늘로 쑥. 높이가 경고고, 높을수록 눈에 띈다
+        //   <b>내리꽂기</b>(마지막 0.09) 짧고 빠르게. 떨어지는 시간이 짧아야 «쾅» 이다
+        float h, sway = 0f;
+        if (u < 0.50f)
+        {
+            h = u / 0.50f * 0.10f;                                   // 살짝 뜬 채로
+            sway = Mathf.Sin(u * 34f) * (u / 0.50f) * 0.55f;         // 점점 크게 비틀거린다
+        }
+        else if (u < Hit - 0.09f)
+        {
+            float k = (u - 0.50f) / (Hit - 0.09f - 0.50f);
+            h = 0.10f + Mathf.Sin(k * Mathf.PI * 0.5f) * 0.90f;      // 하늘로
+            sway = Mathf.Sin(u * 34f) * (1f - k) * 0.55f;
+        }
+        else if (u < Hit)
+        {
+            float k = (u - (Hit - 0.09f)) / 0.09f;
+            h = 1f - k * k;                                          // 떨어진다 — 끝에서 제일 빠르다
+        }
         else h = 0f;
 
-        stamp.localPosition = home + Vector3.up * (lift * h);
-
-        // ★ <b>찍히기 1.2초 전부터</b> 빨간 기둥이 켜진다. 경고 없이 때리면 회피가 운이 되고,
-        //   회피가 운이면 위력을 올릴 수가 없다 — 그래서 경고가 먼저다.
-        //   깜빡이는 간격이 <b>점점 빨라진다</b>: 리듬만 봐도 언제 떨어질지 안다.
-        float toHit = (Hit - u) * period;
-        bool arming = toHit > 0f && toHit < 1.2f;
-        if (beam != null)
-        {
-            bool on = arming && Mathf.Repeat(toHit * (6f + (1.2f - toHit) * 10f), 1f) > 0.42f;
-            if (beam.gameObject.activeSelf != on) beam.gameObject.SetActive(on);
-            if (on)
-            {
-                // 도장 밑면에서 바닥까지. 실린더는 2단위 높이라 스케일이 절반이다
-                float top = home.y + lift * h;
-                float len = Mathf.Max(0.5f, top);
-                beam.localPosition = new Vector3(home.x, top - len * 0.5f, home.z);
-                beam.localScale = new Vector3(0.9f, len * 0.5f, 0.9f);
-            }
-        }
+        stamp.localPosition = home + Vector3.up * (lift * h) + Vector3.right * sway;
 
         // 주기를 넘어가며 Hit 를 지나는 순간에만 한 번
         if (lastU < Hit && u >= Hit)
@@ -1116,7 +1206,6 @@ public class StampSlam : MonoBehaviour
             RaceShock.Boom(stamp.position);
             Sfx.Play("StampSlam", 0.8f, duckMusic: false);
             if (papers != null) papers.Gust();
-            if (beam != null) beam.gameObject.SetActive(false);
         }
         lastU = u;
     }
@@ -1178,6 +1267,15 @@ public static class RaceShock
 
         var holder = new GameObject("Shock").transform;
         holder.position = new Vector3(at.x, y + 0.06f, at.z);
+
+        // ★ 찍는 순간 <b>화면이 양옆으로 물결친다</b>(2026-10-12 유저 요청).
+        //   가까울수록 세다 — 멀리서 찍힌 것까지 화면을 흔들면 그건 «화면 상태» 가 된다.
+        if (cam == null) cam = Object.FindFirstObjectByType<KartCamera>();
+        if (cam != null && player != null)
+        {
+            float d = Vector3.Distance(player.transform.position, holder.position);
+            if (d < 46f) cam.Wobble(Mathf.Lerp(0.42f, 0.04f, d / 46f));
+        }
 
         var mat = FlatMaterial.Get(Warn);
         var puff = new Transform[Puffs];
@@ -1246,19 +1344,21 @@ public static class RaceShock
     {
         if (kart.IsHopping || !kart.IsGrounded)
         {
-            // 넘었다 — 작은 보상. 벌만 있고 상이 없으면 아무도 안 뛴다
+            // 넘었다 — 작은 보상. 벌만 있고 상이 없으면 아무도 안 뛴다.
+            // ★ 2026-10-12 — <b>«넘었다» 알림은 뺐다</b>(유저 요청). 부스트가 손에 느껴지니
+            //   글자가 필요 없고, 레이스 중에 뜨는 글자는 읽느라 한 박자를 잡아먹는다.
             kart.ApplyBoost(2.5f, 0.7f);
             if (cam != null) cam.Jolt(0.06f);
-            if (dodged++ < 2) Toast.Show("넘었다");
+            dodged++;
             return;
         }
 
-        // 맞았다 — <b>가볍게</b>. 94초 제한에 쫓기는 판이라 여기서 크게 깎으면 임무가 바뀐다
-        var rb = kart.GetComponent<Rigidbody>();
-        if (rb != null) rb.linearVelocity *= 0.86f;
-        if (cam != null) cam.Jolt(0.45f);
+        // ★★ 2026-10-12 — <b>3초 멈춘다</b>(유저 요청). 전에는 속도를 14% 깎고 말아서
+        //   «맞아도 되고 안 맞아도 되는» 상태였다 — 그러면 뛰어넘을 이유가 없다.
+        kart.Stall(3f);
+        if (cam != null) { cam.Jolt(0.5f); cam.Wobble(0.6f); }
 
-        if (!toldOnce) { toldOnce = true; Toast.Show("땅울림 — SPACE 로 뛰어넘는다"); }
+        if (!toldOnce) { toldOnce = true; Toast.Show("깔렸다 — SPACE 로 뛰어넘는다"); }
     }
 }
 

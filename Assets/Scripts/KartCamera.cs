@@ -55,6 +55,16 @@ public class KartCamera : MonoBehaviour
 
     /// <summary>바깥에서 한 번 때리는 충격. 도장 땅울림(<see cref="RaceShock"/>)이 쓴다.</summary>
     public void Jolt(float amount) => hitImpulse = Mathf.Max(hitImpulse, amount);
+
+    /// <summary>
+    /// ★ <b>양옆으로 물결치듯</b> 흔든다(2026-10-12 유저 요청, 도장이 내려찍을 때).
+    /// 좌우로 기우는 것(roll)이라 <see cref="Jolt"/> 의 «툭» 과 겹쳐도 서로 안 먹는다 —
+    /// 저건 자리를 흔들고 이건 <b>기울기</b>를 흔든다.
+    /// 0.25초쯤에 잦아든다: 9Hz 라 그 안에 두 번 반쯤 출렁인다.
+    /// </summary>
+    public void Wobble(float amount) => wobble = Mathf.Max(wobble, Mathf.Clamp01(amount));
+
+    float wobble, wobblePhase;
     int lastWallHits;
     float noiseSeed;
 
@@ -101,6 +111,15 @@ public class KartCamera : MonoBehaviour
                            + Vector3.up * lookHeight
                            + flatRotation * Vector3.forward * lookAhead;
         transform.rotation = Quaternion.LookRotation(lookTarget - transform.position, Vector3.up);
+
+        // 물결 — 기울기라 <b>회전에</b> 얹는다.
+        if (wobble > 0.002f)
+        {
+            wobblePhase += Time.deltaTime;
+            transform.rotation *= Quaternion.Euler(0f, 0f, Mathf.Sin(wobblePhase * 57f) * wobble * 11f);
+            wobble = Mathf.Lerp(wobble, 0f, 1f - Mathf.Exp(-13f * Time.deltaTime));
+        }
+        else { wobble = 0f; wobblePhase = 0f; }
 
         // 흔들림은 <b>맨 마지막에 더한다.</b> 목표 위치에 섞으면 부드럽게 만드는 lerp 가
         // 떨림을 먹어버려서 아무 일도 안 일어난다.

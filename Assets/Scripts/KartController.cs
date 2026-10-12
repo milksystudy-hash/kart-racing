@@ -348,6 +348,9 @@ public class KartController : MonoBehaviour
             if (KartInput.RespawnPressed) RespawnToCourse();
 
             if (RaceCountdown.Blocked) { throttleInput = 0f; driftHeld = false; hopQueued = false; }
+            // ★ 멈춰 있는 동안은 악셀이 안 먹는다. 조향은 남겨 둔다 —
+            //   아예 못 움직이면 그건 멈춤이 아니라 조작 불능이다.
+            if (IsStalled) { throttleInput = 0f; driftHeld = false; }
         }
 
         UpdateVisualLean();
@@ -431,6 +434,14 @@ public class KartController : MonoBehaviour
 
         Vector3 forward = transform.forward;
         float forwardSpeed = Vector3.Dot(rb.linearVelocity, forward);
+
+        // ★ 멈춤 — <b>힘으로 끌어서</b> 세운다. 속도를 직접 지우면 서스펜션이 튄다.
+        if (IsStalled)
+        {
+            Vector3 vv = rb.linearVelocity;
+            float kk = Mathf.Pow(0.02f, Time.fixedDeltaTime);
+            rb.linearVelocity = new Vector3(vv.x * kk, vv.y, vv.z * kk);
+        }
 
         if (Mathf.Abs(throttleInput) > 0.01f)
         {
@@ -542,6 +553,30 @@ public class KartController : MonoBehaviour
         Vector3 v = rb.linearVelocity;
         rb.linearVelocity = new Vector3(v.x * k, v.y, v.z * k);
     }
+
+    /// <summary>
+    /// ★★ <b>그 자리에 멈춘다</b>(2026-10-12). 유저: *"빨간 공에 닿으면 우리 차가 3초 정지."*
+    ///
+    /// <see cref="Douse"/> 와 다르다 — 저건 한 번 깎고 끝이라 바로 다시 가속된다.
+    /// 이건 <b>정해진 시간 동안 악셀이 안 먹는다.</b> 그래야 «깔렸다» 로 읽힌다.
+    ///
+    /// ⚠ <b>속도를 한 프레임에 0 으로 만들지 않는다.</b> 이 카트는 레이캐스트 서스펜션으로
+    /// 떠 있어서, 속도를 직접 지우면 튀어 오르거나 바닥을 뚫는다
+    /// (일시정지를 키네마틱으로 만들었다가 겪은 그 자리다). <b>세게 끌어서</b> 0.3초 안에 선다.
+    /// </summary>
+    public void Stall(float seconds)
+    {
+        stalledUntil = Mathf.Max(stalledUntil, Time.time + seconds);
+        CancelBoost();
+    }
+
+    /// <summary>멈춰 있는 중인가. HUD 와 카메라가 이걸 본다.</summary>
+    public bool IsStalled => Time.time < stalledUntil;
+
+    /// <summary>멈춤이 풀리기까지 남은 시간(초).</summary>
+    public float StallRemaining => Mathf.Max(0f, stalledUntil - Time.time);
+
+    float stalledUntil = -9f;
 
     const float DouseCooldown = 0.45f;
     float lastDouseAt = -9f;

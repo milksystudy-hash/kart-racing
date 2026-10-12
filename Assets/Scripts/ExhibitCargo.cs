@@ -48,6 +48,42 @@ public class ExhibitCargo : MonoBehaviour
         return all;
     }
 
+    /// <summary>
+    /// ★★ <b>제일 뒤에 매단 하나를 떨어뜨린다</b>(2026-10-12). 철거 크레인의 쇳덩이에
+    /// 맞으면 짐이 하나 빠진다 — 그 판에서만 통하는 위협이라 <b>풍경이 운전을 바꾼다.</b>
+    ///
+    /// <b>그 자리에 떨어진다.</b> 출발선으로 돌려보내면 사실상 영영 잃는 것이고,
+    /// 그건 벌이 너무 크다. 떨어진 자리에 있으면 <b>다음 바퀴에 주울 수 있다</b> —
+    /// 레이스를 거스르지 않으면서 손해가 남는다.
+    ///
+    /// 목표가 여덟 중 여섯이라 <b>두 개는 잃어도 된다.</b> 그 여유가 있어서 위협이
+    /// «조심하자» 가 되지 «망했다» 가 안 된다.
+    /// </summary>
+    public static bool DropLast()
+    {
+        for (int i = cargo.Count - 1; i >= 0; i--)
+        {
+            var c = cargo[i];
+            cargo.RemoveAt(i);
+            if (c == null) continue;
+
+            c.follow = null;
+            c.slot = -1;
+            c.blockedUntil = Time.time + 3.2f;   // 바로 다시 붙으면 떨어뜨린 게 아니다
+
+            var at = c.transform.position;
+            at.y = c.home.y;
+            c.transform.position = at;
+
+            for (int k = 0; k < cargo.Count; k++)
+                if (cargo[k] != null) cargo[k].slot = k;   // 줄 번호를 다시 매긴다
+            return true;
+        }
+        return false;
+    }
+
+    float blockedUntil = -9f;
+
     /// <summary>판을 다시 시작할 때. 전부 제자리로 돌려놓는다.</summary>
     public static void ResetAll()
     {
@@ -76,6 +112,7 @@ public class ExhibitCargo : MonoBehaviour
     {
         follow = null;
         slot = -1;
+        blockedUntil = -9f;
         transform.SetPositionAndRotation(home, homeRotation);
     }
 
@@ -102,6 +139,8 @@ public class ExhibitCargo : MonoBehaviour
 
     void WaitForKart()
     {
+        if (Time.time < blockedUntil) return;
+
         var kart = PlayerKart.Current;
         if (kart == null) return;
 
