@@ -143,7 +143,15 @@ public static class RaceCountdown
         // 로딩 한 프레임이 7초씩 걸려서, 초로 재면 돌아오자마자 터진다.
         if (running && !drawn)
         {
-            if (pendingSince >= 0 && Time.frameCount - pendingSince > ShowStopFrames) Shown();
+            // ★★ 2026-10-12 — <b>저절로 시작하지 않는다.</b> 전에는 네 프레임 안에 아무도
+            //   안 그리면 그려진 것으로 쳤는데, 그러면 <b>화면에 한 번도 안 뜬 채로 3초가
+            //   타버린다</b> — 수연이 세 번 신고한 «321 이 안 뜬다» 가 이것이다.
+            //   지금은 <see cref="Shown"/> 을 부르는 쪽이 없으면 시계가 아예 안 간다.
+            //   그래도 못 움직이는 건 더 나쁘니 <see cref="GaveUp"/>(22초)가 풀어 준다.
+            if (pendingSince >= 0 && Time.frameCount - pendingSince == ShowStopFrames + 1
+                && Dev.Enabled && debugLog)
+                Debug.LogWarning("[카운트] 네 프레임이 지나도 아무도 안 그렸다 — " +
+                                 "CountdownHUD 가 씬에 있는지 봐라.");
             return;
         }
 

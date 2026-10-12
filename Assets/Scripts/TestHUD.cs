@@ -39,7 +39,6 @@ public class TestHUD : MonoBehaviour
 
     bool showControls;
     bool confirmQuit;
-    string lastCountdown = "";
 
     /// <summary>
     /// 멈춘 걸 푼다. <b>timeScale 을 켜는 자리를 한 군데로 모은다</b> —
@@ -118,25 +117,9 @@ public class TestHUD : MonoBehaviour
 
         // TAB 으로 내려서 걷기. <b>개발용이다</b> — 플레이어가 걸어다니는 건 캠퍼스 씬(F4)이고,
         // 레이스 도중에 내리는 건 이상하다는 유저 판단(2026-09-17). 점검할 때만 쓴다.
-        // ★ 3 · 2 · 1 · 출발 소리. <b>OnGUI 가 아니라 Update 에서</b> 낸다 —
-        //   OnGUI 는 한 프레임에 두 번 돌아서 소리가 겹친다.
-        string cd = RaceCountdown.Label;
-        if (cd != lastCountdown)
-        {
-            string was = lastCountdown;
-            lastCountdown = cd;
-
-            // ★★ <b>숫자마다 한 번이 아니라, 셀 때 한 번이다.</b>
-            //   유저가 구한 음원이 «삐 · 삐 · 삐 · 빵» 이 <b>한 파일에 다 들어</b> 있다 —
-            //   숫자가 바뀔 때마다 틀면 넷이 겹쳐서 소리가 뭉갠다.
-            //   숫자마다 따로 울리고 싶으면 <c>CountdownTick</c> 이라는 짧은 파일을 넣으면 된다.
-            if (string.IsNullOrEmpty(was) && !string.IsNullOrEmpty(cd))
-                Sfx.Play("Countdown", 0.9f, duckMusic: false);
-            else if (!string.IsNullOrEmpty(cd) && cd != "출발!")
-                Sfx.Play("CountdownTick", 0.9f, duckMusic: false);
-
-            if (cd == "출발!") Sfx.Play("CountdownGo", 1f, duckMusic: false);
-        }
+        // ★★ 2026-10-12 — 3·2·1 숫자와 소리는 <see cref="CountdownHUD"/> 로 옮겼다.
+        //   여기 있으면 <c>InKart</c>·컴포넌트 활성·패널 우선순위에 전부 매달려서
+        //   «안 뜰 수 있는 길» 이 다섯 개였다. 수연이 세 번 신고한 자리다.
 
         if (Dev.Enabled && debugKeys && k.tabKey.wasPressedThisFrame && modeSwitcher != null && modeSwitcher.HasKart)
         {
@@ -226,7 +209,6 @@ public class TestHUD : MonoBehaviour
             DrawSpeedPanel(w, h);
         }
 
-        if (InKart) DrawCountdown(w, h);
         if (InKart) DrawChatter(w, h);
         DrawToast(w, h);
         DrawCorner(h);
@@ -860,43 +842,6 @@ public class TestHUD : MonoBehaviour
                   RaceBriefing.ChatterHasNext ? "다음  ▼" : "시작  ▼", next);
     }
 
-    // ---- 3 · 2 · 1 · 출발! ----
-    /// <summary>
-    /// 화면 <b>한가운데</b>에 크게. 구석에 작게 띄우면 출발선을 보고 있는 동안 못 본다.
-    /// 숫자가 <b>커졌다 작아지는</b> 게 중요해 — 3 에서 2 로 바뀌는 걸 놓치면
-    /// 카운트가 있으나 마나다.
-    /// </summary>
-    void DrawCountdown(float w, float h)
-    {
-        // ★ 숫자가 실제로 그려지는 첫 프레임을 0초로 삼는다 — 로딩 끊김에 3·2 를 뺏기지 않게
-        RaceCountdown.Shown();
-        string label = RaceCountdown.Label;
-        if (string.IsNullOrEmpty(label)) return;
-
-        bool go = label == "출발!";
-
-        // ★ 2026-09-18 유저(두 번째): *"임무가 하나 추가될 때마다 321 패널 뒤에 있어서
-        // 잘 안 보여."* 자리를 옮겨 봤자 <b>판이 있는 한</b> 뭔가는 가린다 —
-        // 임무 칸은 판이 길어지면 아래로 자라고, 카운트는 세로 가운데에 있으니까.
-        //
-        // <b>판을 없앤다.</b> 카운트는 3초짜리고 그동안 카트가 아예 안 움직이니
-        // 화면 한가운데를 통째로 써도 아무 손해가 없다. 대신 종이 판이 없으면 밝은 노면에서
-        // 묻히니까 <b>글자 뒤에 그림자를 깔아</b> 읽히게 한다 — 판보다 싸고 아무것도 안 가린다.
-        var style = Hud.Resize(Hud.Title, Mathf.RoundToInt((go ? 64 : 120) * RaceCountdown.Pop),
-                               TextAnchor.MiddleCenter);
-
-        var area = new Rect(0f, h * 0.5f - 80f, w, 160f);
-
-        // 그림자 넉 장 — 한 장만 깔면 한쪽만 읽히고, 넉 장이면 어느 배경에서도 테두리가 생긴다
-        var shade = Hud.Resize(Hud.Title, style.fontSize, TextAnchor.MiddleCenter);
-        shade.normal.textColor = new Color(0.12f, 0.09f, 0.07f, 0.75f);
-        for (int dx = -1; dx <= 1; dx += 2)
-            for (int dy = -1; dy <= 1; dy += 2)
-                GUI.Label(new Rect(area.x + dx * 3f, area.y + dy * 3f, area.width, area.height), label, shade);
-
-        style.normal.textColor = go ? Hud.Brass : new Color(0.98f, 0.95f, 0.88f);
-        GUI.Label(area, label, style);
-    }
 
     // ---- 주운 물건 안내 ----
     void DrawToast(float w, float h)
@@ -928,7 +873,7 @@ public class TestHUD : MonoBehaviour
             //   맞다 — 이 칩이 h−54~h−32 인데 발바닥 버튼이 <b>h−34</b> 에서 시작해서
             //   2px 물렸고, 눈에는 통째로 붙어 보였다. <b>12px 띄운다.</b>
             //   발바닥 버튼 자리를 옮기면 이 숫자도 같이 옮겨야 한다.
-            var dev = new Rect(16f, h - 68f, 236f, 22f);
+            var dev = new Rect(16f, h - 78f, 236f, 22f);
             Hud.Chip(dev);
             GUI.Label(new Rect(dev.x + 8f, dev.y + 4f, dev.width - 16f, 16f),
                       $"{SceneNavigator.CurrentSceneName} · {StoryProgress.CurrentName} · F7/F8", Hud.Tiny);
@@ -937,8 +882,9 @@ public class TestHUD : MonoBehaviour
         if (showControls) return;
         // ★ 곤 발바닥 버튼. H 로도 열리고 <b>마우스로도 눌린다</b> —
         //   키만 있으면 안 눌러본 사람에겐 없는 기능이다(G·TAB 에서 두 번 겉은 실수).
-        var chip = new Rect(16f, h - 34f, 98f, 28f);
-        if (Hud.PawChip(chip)) showControls = !showControls;
+        // 칸이 납작하면 발바닥도 납작해진다 — 98x28 이라 발이 16px 밖에 안 됐다.
+        var chip = new Rect(16f, h - 42f, 134f, 30f);
+        if (Hud.PawButton(chip, "조작법   H")) showControls = !showControls;
     }
 
     void DrawControls(float w, float h)

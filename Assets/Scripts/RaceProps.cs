@@ -592,8 +592,49 @@ public class FlyingProp : MonoBehaviour
     RaceProgress mine;
     KartCamera shakeCam;
 
+    /// <summary>
+    /// ★★★ <b>코가 어느 쪽인지 «재서» 정한다</b>(2026-10-12).
+    ///
+    /// 수연이 비행선(10-06)과 헬기(10-12) 두 번 다 *"꼬리부터 날아간다"* 고 신고했다.
+    /// 블렌더에서 재면 둘 다 <b>코가 +Y</b> 인데(탐조등이 앞, 프로펠러·꼬리로터가 뒤),
+    /// 비행선은 유니티에서 <c>noseBack: true</c> 를 줘야 맞았다 —
+    /// 즉 <b>블렌더 +Y 가 유니티 −Z 로 온다.</b> 그걸 헬기에는 안 줬던 것이다.
+    ///
+    /// 그러니 <b>축이 어떻게 변환되는지 외우지 말고 그 자리에서 재라.</b>
+    /// 이 프로젝트에서 「블렌더에서 이랬으니 유니티에서는 이럴 것」이 <b>세 번</b> 틀렸다
+    /// (곰이 누움 · 스피커가 뒤돎 · 이번). 앞에만 있는 부품과 뒤에만 있는 부품의
+    /// <b>로컬 Z</b> 를 보면 모델을 새로 뽑아도 안 틀린다.
+    /// </summary>
+    static readonly string[] FrontParts = { "Light_Lens", "Nose", "Cockpit", "Windshield" };
+    static readonly string[] BackParts  = { "Prop_", "Rotor_Tail", "Tail", "Fin_", "Exhaust" };
+
+    void MeasureNose()
+    {
+        float score = 0f;
+        int marks = 0;
+
+        foreach (var t in GetComponentsInChildren<Transform>(true))
+        {
+            if (t == transform) continue;
+            float z = transform.InverseTransformPoint(t.position).z;
+
+            foreach (var n in FrontParts)
+                if (t.name.StartsWith(n)) { score += z; marks++; break; }
+            foreach (var n in BackParts)
+                if (t.name.StartsWith(n)) { score -= z; marks++; break; }
+        }
+
+        if (marks == 0) return;               // 표식이 없으면 인스펙터 값을 믿는다
+        bool flip = score < 0f;
+        if (flip != noseBack)
+            Debug.Log($"[풍경] {name} 의 코가 {(flip ? "뒤" : "앞")}를 보고 있어 " +
+                      $"180도 {(flip ? "돌린다" : "안 돌린다")} (표식 {marks}개 · 점수 {score:0.00})");
+        noseBack = flip;
+    }
+
     void Start()
     {
+        MeasureNose();
         seed = Random.value * 10f;
 
         // 순회 비행은 <b>코스 어딘가에서 시작</b>한다. 0 에서 시작하면 출발선 바로 위에

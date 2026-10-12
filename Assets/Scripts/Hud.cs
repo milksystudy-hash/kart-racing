@@ -218,6 +218,7 @@ public static class Hud
     //  두면 한 번 고쳐 셋이 같이 바뀜다 — 팔레트를 <c>Hud</c> 에 모아 둔 것과 같은 이유다.
     //  ★ 그림이 없으면 전부 예전 모양으로 떨어진다.
 
+    static Texture2D pawDownTex;
     static Texture2D pawTex, earsTex, noteTex;
     static bool uiTried;
 
@@ -226,6 +227,8 @@ public static class Hud
         if (uiTried) return;
         uiTried = true;
         pawTex  = Resources.Load<Texture2D>("UI/Paw");
+        pawDownTex = Resources.Load<Texture2D>("UI/Paw_Pressed");
+        pawDownTex = Resources.Load<Texture2D>("UI/Paw_Pressed");
         earsTex = Resources.Load<Texture2D>("UI/Ears");
         noteTex = Resources.Load<Texture2D>("UI/Note");
     }
@@ -238,30 +241,70 @@ public static class Hud
     /// 조작법 칩. 곤 발바닥이 있으면 그걸 앞에 두고, 없으면 「H」 글자만.
     /// <b>마우스로도 눌린다</b> — 누른 것을 <c>true</c> 로 돌려준다.
     /// </summary>
-    public static bool PawChip(Rect r, string label = "조작법")
+    /// <summary>
+    /// 처처 <b>눌리는 곰 발바닥 버튼</b>(2026-10-12). 수연: *"막대로 하면 성의 없어 보이니까
+    /// UI 를 곰 발바닥으로. 마우스로 누르면 발바닥이 눌리게."*
+    ///
+    /// 누르는 동안 <b>그림이 «눌린 발바닥» 으로 바뀌고 판이 2px 가라앉는다.</b>
+    /// 그림만 바꾸면 «다른 그림» 으로 보이고, 판만 내리면 «흔들린다» 로 보인다 —
+    /// 둘이 같이 가야 «눌렸다» 가 된다.
+    ///
+    /// 처 발바닥은 <b>정사각으로</b> 그린다. 전에 98×28 칸에 그려서
+    ///   <b>높이가 16px 밖에 안 남아 뭉개졌다</b>(수연: "곰발바닥 UI 가 깨져 있어").
+    ///   <c>ScaleToFit</c> 이 있어도 <b>칸이 납작하면</b> 그만큼만 나온다 — 칸을 키워야 한다.
+    /// </summary>
+    public static bool PawButton(Rect r, string label, int size = 14)
     {
         LoadUi();
-        Chip(r);
-        float pad = 6f;
-        if (pawTex != null)
+
+        bool over = MouseOver(r);
+        var m = UnityEngine.InputSystem.Mouse.current;
+        bool held = over && m != null && m.leftButton.isPressed;
+
+        var box = held ? new Rect(r.x, r.y + 2f, r.width, r.height) : r;
+        Chip(box);
+
+        var tex = held && pawDownTex != null ? pawDownTex : pawTex;
+        const float pad = 4f;
+        float s = box.height - pad * 2f;
+
+        if (tex != null)
         {
-            float s = r.height - pad * 2f;
-            GUI.DrawTexture(new Rect(r.x + pad, r.y + pad, s, s), pawTex, ScaleMode.ScaleToFit, true);
-            GUI.Label(new Rect(r.x + pad + s + 5f, r.y + 3f, r.width - pad - s - 8f, 18f),
-                      label, Resize(Text, 13));
-        }
-        else
-        {
-            GUI.Label(new Rect(r.x + 9f, r.y + 3f, r.width - 14f, 18f), "H  " + label, Resize(Text, 13));
+            // 눌린 발바닥은 조금 퍼진다 — 실제로 누르면 그렇게 보인다
+            float grow = held ? 1.08f : 1f;
+            float off = s * (grow - 1f) * 0.5f;
+            GUI.DrawTexture(new Rect(box.x + pad - off, box.y + pad - off, s * grow, s * grow),
+                            tex, ScaleMode.ScaleToFit, true);
         }
 
-        // 마우스는 화면 좌표라 가상 1280×720 으로 내려야 한다(태엽 회전축과 같은 함정)
-        var m = UnityEngine.InputSystem.Mouse.current;
-        if (m == null || !m.leftButton.wasPressedThisFrame) return false;
-        Vector2 v = m.position.ReadValue();
-        v = new Vector2(v.x / ScaleFactor, (Screen.height - v.y) / ScaleFactor);
-        return r.Contains(v);
+        float lx = box.x + pad + s + 6f;
+        var style = Resize(Text, size, TextAnchor.MiddleLeft);
+        if (held) style.normal.textColor = Brass;
+        GUI.Label(new Rect(lx, box.y, box.xMax - lx - 8f, box.height), label, style);
+
+        return over && m != null && m.leftButton.wasPressedThisFrame;
     }
+
+    /// <summary>마우스가 이 칸 위에 있나. <b>화면 좌표를 가상 1280x720 으로 내린다</b> — 태엽 회전축과 같은 함정.</summary>
+    public static bool MouseOver(Rect r)
+    {
+        var m = UnityEngine.InputSystem.Mouse.current;
+        if (m == null) return false;
+        Vector2 v = m.position.ReadValue();
+        return r.Contains(new Vector2(v.x / ScaleFactor, (Screen.height - v.y) / ScaleFactor));
+    }
+
+    /// <summary>
+    /// ★ 이 글이 들어가려면 칸이 얼마나 넓어야 하나. <b>칸 크기를 손으로 적지 마라</b> —
+    /// 글이 길어지면 조용히 잘린다(HUD 에서 이미 여러 번 겪었다).
+    /// </summary>
+    public static float PawWidth(string label, int size, float height)
+    {
+        float paw = height - 8f;
+        return 4f + paw + 6f + Resize(Text, size).CalcSize(new GUIContent(label)).x + 10f;
+    }
+
+    public static bool PawChip(Rect r, string label = "조작법") => PawButton(r, label, 13);
 
     /// <summary>
     /// 손글씨 종이 카드. 그림이 있으면 한지 한 장, 없으면 <see cref="Panel"/>.

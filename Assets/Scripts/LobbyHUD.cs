@@ -69,23 +69,27 @@ public class LobbyHUD : MonoBehaviour
 
         // ★ 2026-10-02 — 이야기 다시 보기(T)를 여기 적는다. 「키가 있어도 화면에 없으면 없는 것」
         //   이 프로젝트에서 세 번째다(G 유령 · TAB 걷기 · 이번).
-        var story = new Rect(w - 214f, h - 68f, 198f, 24f);
-        Hud.Chip(story);
-        GUI.Label(story, "T  이야기 다시 보기", Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter));
-
-        var chip = new Rect(w - 214f, h - 40f, 198f, 24f);
-        Hud.Chip(chip);
-
-        var style = Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter);
-        if (walking) style.normal.textColor = Hud.Brass;
-
+        // 처처 2026-10-12 — 막대 칩을 <b>눌리는 발바닥 버튼</b>으로 바꿨다(수연 요청).
+        //   키로도 되고 <b>눌러도 된다</b> — 키만 있으면 안 눌러본 사람에겐 없는 기능이다.
+        //
         // 시계 앞에서는 «E 말 걸기» 가 거짓말이 된다 — 그 자리의 E 는 시계가 먹는다.
-        // 받침대 앞에서는 «E 말 걸기» 가 거짓말이 된다 — 그 자리의 E 는 캐릭터 고르기가 먹는다.
+        // 받침대 앞에서도 그렇다 — 그 자리의 E 는 캐릭터 고르기가 먹는다.
         var stand = NearStand();
-        string chipText = !walking ? "TAB 걸어다니기"
-                        : (DeskClock.Nearest != null || stand != null) ? "TAB 둘러보기로"
-                        : "TAB 둘러보기로   ·   E 말 걸기";
-        GUI.Label(chip, chipText, style);
+
+        const float Tall = 34f;
+        float sw = Mathf.Max(200f, Hud.PawWidth("이야기 다시 보기   T", 14, Tall));
+        var story = new Rect(w - 16f - sw, h - 84f, sw, Tall);
+        if (Hud.PawButton(story, "이야기 다시 보기   T") && StoryStage.Live != null)
+            StoryStage.Live.Replay();
+
+        string chipText = !walking ? "걸어다니기   TAB"
+                        : (DeskClock.Nearest != null || stand != null) ? "둘러보기로   TAB"
+                        : "둘러보기로   TAB  ·  E 말 걸기";
+
+        int size = walking ? 13 : 14;
+        float cw = Mathf.Max(200f, Hud.PawWidth(chipText, size, Tall));
+        var chip = new Rect(w - 16f - cw, h - 46f, cw, Tall);
+        if (Hud.PawButton(chip, chipText, size) && walk != null) walk.Toggle();
 
         // ★ 접수대 시계 앞에 서면 그 자리에서 알려준다.
         // <b>키가 있어도 화면에 없으면 없는 것이다</b> — 이 프로젝트에서 세 번째야(G, TAB, 이번).
@@ -125,6 +129,7 @@ public class LobbyHUD : MonoBehaviour
             DrawCorner(h);
             DrawWalkHint(w, h);
             if (showControls) DrawControls(w, h);
+            else if (showLore) DrawLore(w, h);
         }
 
         Hud.End();
@@ -162,13 +167,16 @@ public class LobbyHUD : MonoBehaviour
         //   <b>맞는 지적이고, 고칠 자리는 여기다.</b> 받침대를 고르는 화면은 플레이어가
         //   <b>레이스마다 한 번씩 반드시 지나가는</b> 자리라, 여기 한 줄이면 아홉 번 읽게 된다.
         //   이야기에 설명을 넣는 것보다 싸고, 프롤로그의 «몰랐다» 도 안 건드린다.
-        var p = new Rect(16f, 104f, 196f, 162f);
+        // 처 2026-10-12 수연: *"캐릭터 소개 패널도 키워줘."* 196x162 → <b>248x196</b>.
+        //   안의 자리(<see cref="Row"/> · 가로줄 · 한 줄 소개)도 같이 옮겨야 한다 —
+        //   판만 키우면 글자가 왼쪽 위에 몰려서 더 허전해 보인다.
+        var p = new Rect(16f, 104f, 248f, 196f);
         Hud.Panel(p);
 
         float x = p.x + 14f;
         // "제원" 이라고만 써두면 캐릭터가 달리는 줄 안다. 무인 모형 카트라는 걸 제목이 말해준다.
-        GUI.Label(new Rect(x, p.y + 10f, 160f, 18f), "전용 장난감 카트", Hud.Resize(Hud.Text, 13));
-        Hud.Rule(x, p.y + 30f, p.width - 28f);
+        GUI.Label(new Rect(x, p.y + 12f, p.width - 28f, 22f), "전용 장난감 카트", Hud.Resize(Hud.Text, 15));
+        Hud.Rule(x, p.y + 36f, p.width - 28f);
 
         // 항목 이름은 전문 용어를 안 쓴다. 중량/최고속도/가속도/접지력 은 뜻이 안 와닿는다는
         // 유저 지적(2026-09-16). 무슨 일이 일어나는지를 그대로 적었다.
@@ -180,10 +188,10 @@ public class LobbyHUD : MonoBehaviour
         // 누구인지 한 줄. 이름만 있으면 «세진» 이 사람 이름인지 카트 이름인지도 모른다
         if (string.IsNullOrEmpty(spec.tagline)) return;
 
-        Hud.Rule(x, p.y + 116f, p.width - 28f);
-        var who = Hud.Resize(Hud.Label, 11, TextAnchor.UpperLeft);
+        Hud.Rule(x, p.y + 142f, p.width - 28f);
+        var who = Hud.Resize(Hud.Label, 12, TextAnchor.UpperLeft);
         who.wordWrap = true;
-        GUI.Label(new Rect(x, p.y + 124f, p.width - 28f, 34f), spec.tagline, who);
+        GUI.Label(new Rect(x, p.y + 152f, p.width - 28f, 38f), spec.tagline, who);
 
         DrawProfile(p, castId, spec);
     }
@@ -225,16 +233,16 @@ public class LobbyHUD : MonoBehaviour
 
     void Row(Rect p, int index, string label, string value, float fill)
     {
-        float y = p.y + 38f + index * 19f;
-        GUI.Label(new Rect(p.x + 14f, y, 34f, 17f), label, Hud.Resize(Hud.Label, 13));
+        float y = p.y + 46f + index * 24f;
+        GUI.Label(new Rect(p.x + 14f, y, 42f, 20f), label, Hud.Resize(Hud.Label, 14));
 
         // 막대 — 숫자만 있으면 네 대를 머릿속에서 비교해야 한다. 막대가 있으면 눈으로 비교돼.
-        var bar = new Rect(p.x + 50f, y + 5f, 72f, 7f);
+        var bar = new Rect(p.x + 62f, y + 6f, 96f, 9f);
         GUI.DrawTexture(bar, Hud.WoodDarkTex);
         GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * Mathf.Clamp01(fill), bar.height), Hud.BrassTex);
 
-        GUI.Label(new Rect(p.x + 128f, y, 58f, 17f), value,
-                  Hud.Resize(Hud.Text, 13, TextAnchor.MiddleRight));
+        GUI.Label(new Rect(p.x + 166f, y, 68f, 20f), value,
+                  Hud.Resize(Hud.Text, 14, TextAnchor.MiddleRight));
     }
 
     // ---- 곰인형이 하는 혼잣말 ★임시 ----
@@ -377,10 +385,41 @@ public class LobbyHUD : MonoBehaviour
     void DrawCorner(float h)
     {
         if (showControls) return;
-        // ★ 곤 발바닥 버튼. H 로도 열리고 <b>마우스로도 눌린다</b> —
-        //   키만 있으면 안 눌러본 사람에겐 없는 기능이다(G·TAB 에서 두 번 겉은 실수).
-        var chip = new Rect(16f, h - 34f, 98f, 28f);
-        if (Hud.PawChip(chip)) showControls = !showControls;
+        // 처 곰 발바닥 버튼. H 로도 열리고 <b>마우스로도 눌린다</b> —
+        //   키만 있으면 안 눌러본 사람에겐 없는 기능이다(G·TAB 에서 두 번 겪은 실수).
+        var chip = new Rect(16f, h - 46f, 142f, 34f);
+        if (Hud.PawButton(chip, "조작법   H")) showControls = !showControls;
+
+        // 처처 <b>설정은 다 깨기 전에는 안 보인다</b>(2026-10-12 수연 결정).
+        //   세계관 설정이 들어갈 자리고, 임무를 도는 동안 띄우면
+        //   «아직 못 본 게 있나» 로 읽혀서 진행을 방해한다.
+        if (!GrandFinal.FreeRun) return;
+        var lore = new Rect(16f, h - 86f, 142f, 34f);
+        if (Hud.PawButton(lore, "설정   L")) showLore = !showLore;
+    }
+
+    /// <summary>
+    /// 처 <b>세계관 설정</b> — 다 깬 뒤에만 열린다(2026-10-12). 내용은 <see cref="Lore"/> 에 있고
+    /// <b>수연이 쓴다.</b> 14일까지 안 채워지면 소리 조절판으로 쓰면 된다 — 자리와 버튼은 이미 있다.
+    /// </summary>
+    bool showLore;
+
+    void DrawLore(float w, float h)
+    {
+        var box = new Rect(w * 0.5f - 240f, h * 0.5f - 175f, 480f, 350f);
+        Hud.NoteCard(box);
+        var inner = Hud.NoteInner(box);
+
+        GUI.Label(new Rect(inner.x, inner.y + 6f, inner.width, 28f), Lore.Title, Hud.Title);
+        Hud.Rule(inner.x + 14f, inner.y + 40f, inner.width - 28f);
+
+        var body = Hud.Resize(Hud.Text, 14, TextAnchor.UpperLeft);
+        body.wordWrap = true;
+        GUI.Label(new Rect(inner.x + 16f, inner.y + 54f, inner.width - 32f, inner.height - 96f),
+                  Lore.Text, body);
+
+        GUI.Label(new Rect(inner.x, inner.yMax - 30f, inner.width, 20f),
+                  "L · ESC   닫기", Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter));
     }
 
     void DrawControls(float w, float h)

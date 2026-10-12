@@ -68,7 +68,7 @@ public class StoryStage : MonoBehaviour
     public static string TalkingPlace =>
         Live != null && Live.runner != null && Live.runner.IsPlaying ? Live.runner.Place : "";
 
-    static StoryStage Live;
+    public static StoryStage Live;
 
     /// <summary>
     /// 첫 화면(<see cref="TitleScreen"/>) 때문에 미뤄 둔 장면. 타이틀이 로비 <b>안에서</b>
@@ -154,7 +154,12 @@ public class StoryStage : MonoBehaviour
         // 키가 고장 난 건지 조건이 안 맞는 건지 구분할 방법이 없었다.
         //
         // <b>디버그 키는 뭐라도 나와야 한다</b> — 못 고르면 프롤로그로 떨어진다.
-        if (k.tKey.wasPressedThisFrame)
+        if (k.tKey.wasPressedThisFrame) Replay();
+    }
+
+    /// <summary>이번 장 이야기를 다시 튼다. T 키와 로비의 발바닥 버튼이 같이 쓴다.</summary>
+    public void Replay()
+    {
         {
             string again = StoryScript.CurrentScene();
             if (string.IsNullOrEmpty(again))
