@@ -873,7 +873,7 @@ public class TestHUD : MonoBehaviour
             //   맞다 — 이 칩이 h−54~h−32 인데 발바닥 버튼이 <b>h−34</b> 에서 시작해서
             //   2px 물렸고, 눈에는 통째로 붙어 보였다. <b>12px 띄운다.</b>
             //   발바닥 버튼 자리를 옮기면 이 숫자도 같이 옮겨야 한다.
-            var dev = new Rect(16f, h - 78f, 236f, 22f);
+            var dev = new Rect(16f, h - 86f, 236f, 22f);
             Hud.Chip(dev);
             GUI.Label(new Rect(dev.x + 8f, dev.y + 4f, dev.width - 16f, 16f),
                       $"{SceneNavigator.CurrentSceneName} · {StoryProgress.CurrentName} · F7/F8", Hud.Tiny);
@@ -883,7 +883,7 @@ public class TestHUD : MonoBehaviour
         // ★ 곤 발바닥 버튼. H 로도 열리고 <b>마우스로도 눌린다</b> —
         //   키만 있으면 안 눌러본 사람에겐 없는 기능이다(G·TAB 에서 두 번 겉은 실수).
         // 칸이 납작하면 발바닥도 납작해진다 — 98x28 이라 발이 16px 밖에 안 됐다.
-        var chip = new Rect(16f, h - 42f, 134f, 30f);
+        var chip = new Rect(16f, h - 54f, 152f, 42f);
         if (Hud.PawButton(chip, "조작법   H")) showControls = !showControls;
     }
 

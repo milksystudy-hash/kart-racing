@@ -242,16 +242,21 @@ public static class Hud
     /// <b>마우스로도 눌린다</b> — 누른 것을 <c>true</c> 로 돌려준다.
     /// </summary>
     /// <summary>
-    /// 처처 <b>눌리는 곰 발바닥 버튼</b>(2026-10-12). 수연: *"막대로 하면 성의 없어 보이니까
-    /// UI 를 곰 발바닥으로. 마우스로 누르면 발바닥이 눌리게."*
+    /// ★★ <b>곰 발바닥 버튼</b>(2026-10-12). 수연: *"나무 판이 아니라 곰발바닥 자체를
+    /// UI 아이콘으로. 기껏 귀엽게 만들어 놨는데."* <b>맞는 말이다</b> — 발바닥을 네모 판
+    /// 안에 넣으면 그건 «발바닥 아이콘이 붙은 버튼» 이지 «발바닥 버튼» 이 아니다.
     ///
-    /// 누르는 동안 <b>그림이 «눌린 발바닥» 으로 바뀌고 판이 2px 가라앉는다.</b>
-    /// 그림만 바꾸면 «다른 그림» 으로 보이고, 판만 내리면 «흔들린다» 로 보인다 —
-    /// 둘이 같이 가야 «눌렸다» 가 된다.
+    /// <b>판을 통째로 없앴다.</b> 남은 건 발바닥 하나와 글자뿐이다.
     ///
-    /// 처 발바닥은 <b>정사각으로</b> 그린다. 전에 98×28 칸에 그려서
-    ///   <b>높이가 16px 밖에 안 남아 뭉개졌다</b>(수연: "곰발바닥 UI 가 깨져 있어").
-    ///   <c>ScaleToFit</c> 이 있어도 <b>칸이 납작하면</b> 그만큼만 나온다 — 칸을 키워야 한다.
+    /// ★ 글자가 읽히는 건 <b>종이 테두리</b> 덕이다. 판이 없으면 크림색 벽에서도 어두운
+    ///   노면에서도 글자가 묻히는데, <b>글자 둘레에 종이색을 여덟 번 깔면</b> 어느 배경에서도
+    ///   테두리가 생긴다. 카운트다운 숫자가 쓰는 방법과 같고(그쪽은 반대로 어두운 그림자),
+    ///   <b>판보다 싸고 아무것도 안 가린다.</b> 본문 색은 <see cref="Ink"/> 그대로라
+    ///   7.7:1 대비 규칙도 안 깨진다.
+    ///
+    /// ★ 눌린 그림은 <b>같은 정사각 칸에 그대로 그린다.</b> 그린 사람이 128×128 안에
+    ///   이미 납작하게(세로 81 → 54) 그리고 아래로 내려 그려 놨다 —
+    ///   비율을 내가 다시 계산하면 그 의도가 지워진다. <b>칸은 정사각 하나면 된다.</b>
     /// </summary>
     public static bool PawButton(Rect r, string label, int size = 14)
     {
@@ -260,27 +265,34 @@ public static class Hud
         bool over = MouseOver(r);
         var m = UnityEngine.InputSystem.Mouse.current;
         bool held = over && m != null && m.leftButton.isPressed;
+        float sink = held ? 2f : 0f;
 
-        var box = held ? new Rect(r.x, r.y + 2f, r.width, r.height) : r;
-        Chip(box);
+        float s = r.height;
+        float lx = r.x + s + 2f;
 
+        // ★ 글자 <b>뒤에만</b> 종이를 깐다. 칸 전체를 덮으면 그게 판이고,
+        //   글자만큼만 깔면 <b>발바닥이 꼬리표를 물고 있는</b> 모양이 된다.
+        //   재 봤다(스크래치패드 <c>paw_ab.png</c>): 종이 없이 테두리만 두르면
+        //   크림 벽에서는 멀쩡한데 <b>어두운 노면에서 글자가 뭉갠다.</b>
+        var face = Resize(Text, size, TextAnchor.MiddleLeft);
+        float tw = face.CalcSize(new GUIContent(label)).x;
+        // 꼬리표를 발바닥 <b>밑으로 밀어 넣는다</b>. 떨어뜨려 놓으면 물건이 둘로 보이고,
+        //   겹쳐 놓으면 발이 꼬리표를 물고 있는 하나가 된다.
+        float tagX = r.x + s * 0.58f;
+        var tag = new Rect(tagX, r.y + r.height * 0.5f - 13f + sink, lx + tw + 8f - tagX, 26f);
+        GUI.color = new Color(1f, 1f, 1f, 0.96f);
+        GUI.DrawTexture(tag, PaperTex);
+        GUI.color = Color.white;
+
+        // 발바닥은 꼬리표 <b>위에</b> 그린다 — 앞에 있어야 «발이 들고 있다» 로 읽힌다.
         var tex = held && pawDownTex != null ? pawDownTex : pawTex;
-        const float pad = 4f;
-        float s = box.height - pad * 2f;
+        float grow = held ? 1f : (over ? 1.08f : 1f);
+        float off = s * (grow - 1f) * 0.5f;
+        var paw = new Rect(r.x - off, r.y - off + sink, s * grow, s * grow);
+        if (tex != null) GUI.DrawTexture(paw, tex, ScaleMode.ScaleToFit, true);
 
-        if (tex != null)
-        {
-            // 눌린 발바닥은 조금 퍼진다 — 실제로 누르면 그렇게 보인다
-            float grow = held ? 1.08f : 1f;
-            float off = s * (grow - 1f) * 0.5f;
-            GUI.DrawTexture(new Rect(box.x + pad - off, box.y + pad - off, s * grow, s * grow),
-                            tex, ScaleMode.ScaleToFit, true);
-        }
-
-        float lx = box.x + pad + s + 6f;
-        var style = Resize(Text, size, TextAnchor.MiddleLeft);
-        if (held) style.normal.textColor = Brass;
-        GUI.Label(new Rect(lx, box.y, box.xMax - lx - 8f, box.height), label, style);
+        face.normal.textColor = held ? Brass : Ink;
+        GUI.Label(new Rect(lx, tag.y, tag.width, tag.height), label, face);
 
         return over && m != null && m.leftButton.wasPressedThisFrame;
     }
@@ -295,14 +307,32 @@ public static class Hud
     }
 
     /// <summary>
+    /// 판 없이 읽히는 글자. 종이색을 여덟 방향으로 깔아 <b>글자마다 테두리</b>를 만든다.
+    /// 한 장만 깔면 한쪽만 읽히고, 여덟이면 어느 배경에서도 떨어져 보인다.
+    /// </summary>
+    public static void HaloLabel(Rect r, string text, int size, Color color,
+                                 TextAnchor anchor = TextAnchor.MiddleLeft)
+    {
+        var halo = Resize(Text, size, anchor);
+        halo.normal.textColor = new Color(Paper.r, Paper.g, Paper.b, 0.92f);
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0) continue;
+                GUI.Label(new Rect(r.x + dx * 2f, r.y + dy * 2f, r.width, r.height), text, halo);
+            }
+
+        var ink = Resize(Text, size, anchor);
+        ink.normal.textColor = color;
+        GUI.Label(r, text, ink);
+    }
+
+    /// <summary>
     /// ★ 이 글이 들어가려면 칸이 얼마나 넓어야 하나. <b>칸 크기를 손으로 적지 마라</b> —
     /// 글이 길어지면 조용히 잘린다(HUD 에서 이미 여러 번 겪었다).
     /// </summary>
     public static float PawWidth(string label, int size, float height)
-    {
-        float paw = height - 8f;
-        return 4f + paw + 6f + Resize(Text, size).CalcSize(new GUIContent(label)).x + 10f;
-    }
+        => height + 2f + Resize(Text, size).CalcSize(new GUIContent(label)).x + 10f;
 
     public static bool PawChip(Rect r, string label = "조작법") => PawButton(r, label, 13);
 

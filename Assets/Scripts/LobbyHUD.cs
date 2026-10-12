@@ -76,9 +76,10 @@ public class LobbyHUD : MonoBehaviour
         // 받침대 앞에서도 그렇다 — 그 자리의 E 는 캐릭터 고르기가 먹는다.
         var stand = NearStand();
 
-        const float Tall = 34f;
+        // 발바닥이 칸 높이만큼 정사각으로 그려진다 — 낮으면 발이 작아 보인다.
+        const float Tall = 44f;
         float sw = Mathf.Max(200f, Hud.PawWidth("이야기 다시 보기   T", 14, Tall));
-        var story = new Rect(w - 16f - sw, h - 84f, sw, Tall);
+        var story = new Rect(w - 16f - sw, h - 108f, sw, Tall);
         if (Hud.PawButton(story, "이야기 다시 보기   T") && StoryStage.Live != null)
             StoryStage.Live.Replay();
 
@@ -88,7 +89,7 @@ public class LobbyHUD : MonoBehaviour
 
         int size = walking ? 13 : 14;
         float cw = Mathf.Max(200f, Hud.PawWidth(chipText, size, Tall));
-        var chip = new Rect(w - 16f - cw, h - 46f, cw, Tall);
+        var chip = new Rect(w - 16f - cw, h - 56f, cw, Tall);
         if (Hud.PawButton(chip, chipText, size) && walk != null) walk.Toggle();
 
         // ★ 접수대 시계 앞에 서면 그 자리에서 알려준다.
@@ -387,14 +388,14 @@ public class LobbyHUD : MonoBehaviour
         if (showControls) return;
         // 처 곰 발바닥 버튼. H 로도 열리고 <b>마우스로도 눌린다</b> —
         //   키만 있으면 안 눌러본 사람에겐 없는 기능이다(G·TAB 에서 두 번 겪은 실수).
-        var chip = new Rect(16f, h - 46f, 142f, 34f);
+        var chip = new Rect(16f, h - 56f, 158f, 44f);
         if (Hud.PawButton(chip, "조작법   H")) showControls = !showControls;
 
         // 처처 <b>설정은 다 깨기 전에는 안 보인다</b>(2026-10-12 수연 결정).
         //   세계관 설정이 들어갈 자리고, 임무를 도는 동안 띄우면
         //   «아직 못 본 게 있나» 로 읽혀서 진행을 방해한다.
         if (!GrandFinal.FreeRun) return;
-        var lore = new Rect(16f, h - 86f, 142f, 34f);
+        var lore = new Rect(16f, h - 108f, 158f, 44f);
         if (Hud.PawButton(lore, "설정   L")) showLore = !showLore;
     }
 
