@@ -76,6 +76,30 @@ public class StoryStage : MonoBehaviour
     /// </summary>
     string pending;
 
+    /// <summary>
+    /// ★★ <b>한 방문에 장면 둘까지 연달아 튼다.</b> (2026-10-12)
+    ///
+    /// 전에는 <b>로비에 한 번 들어오면 장면이 하나</b>였다. 그런데 판마다 후기 장면
+    /// (<c>after1</c> 같은 것)을 쓰기 시작하면 <b>장 장면(ch1·ch2·ch3)이 밀린다</b> —
+    /// 장 장면이 뜨는 자리가 하필 <b>1·3·5판을 깬 직후</b>라 <c>after</c> 와 정면으로 겹친다.
+    /// 로비 → 레이스 → 로비 로만 다니면 ch1 이 영영 차례가 안 온다.
+    ///
+    /// 그래서 장면이 끝나면 <b>그 자리에서 다음 것을 한 번 더 묻는다.</b>
+    /// «후기 → 장 이야기» 가 이어 붙고, 둘째가 없으면 그냥 로비로 나간다.
+    ///
+    /// <b>한 번만 잇는다</b>(최대 두 장면). 셋을 이어 붙이면 레이스 끝나고
+    /// 읽을 게 너무 길어져서 «다음 판» 으로 못 넘어간다.
+    /// </summary>
+    const int MaxChain = 1;
+    int chained;
+
+    /// <summary>바깥에서 장면을 시작한다 — 이어 붙인 횟수를 0 으로 되돌리고 들어간다.</summary>
+    void EnterFresh(string sceneId)
+    {
+        chained = 0;
+        Enter(sceneId);
+    }
+
     void Start()
     {
         Live = this;
@@ -101,7 +125,7 @@ public class StoryStage : MonoBehaviour
         if (TitleScreen.Up) { pending = sceneId; return; }
 
         if (StoryProgress.HasSeen(sceneId)) return;
-        Enter(sceneId);
+        EnterFresh(sceneId);
     }
 
     void Update()
@@ -113,7 +137,7 @@ public class StoryStage : MonoBehaviour
         {
             string queued = pending;
             pending = null;
-            Enter(queued);
+            EnterFresh(queued);
             return;
         }
 
@@ -139,7 +163,7 @@ public class StoryStage : MonoBehaviour
                 Debug.Log($"[이야기] 지금 장({StoryProgress.CurrentChapter})에 걸린 장면이 없어 " +
                           $"프롤로그를 튼다. 수집품 {CollectionState.Count}/8");
             }
-            Enter(again);
+            EnterFresh(again);
         }
     }
 
@@ -167,6 +191,24 @@ public class StoryStage : MonoBehaviour
     void OnFinished(string sceneId)
     {
         StoryProgress.MarkSeen(sceneId);
+
+        // ★ 아직 안 본 게 하나 더 있으면 <b>로비로 나가지 않고</b> 바로 이어 튼다.
+        //   <see cref="StoryScript.CurrentScene"/> 는 방금 본 것을 빼고 다시 고르니,
+        //   «after3 → ch2» 처럼 저절로 순서가 잡힌다.
+        // 이어 붙이는 건 <b>후기 장면 뒤에서만</b>이다. 결승 뒷이야기 다음에 에필로그가
+        // 바로 붙으면 «다음 방문에 결말» 이라는 간격이 사라진다.
+        if (chained < MaxChain && sceneId.StartsWith("after"))
+        {
+            string next = StoryScript.CurrentScene();
+            if (!string.IsNullOrEmpty(next) && next != sceneId && !StoryProgress.HasSeen(next))
+            {
+                chained++;
+                Enter(next);
+                return;
+            }
+        }
+
+        chained = 0;
         Leave();
     }
 
