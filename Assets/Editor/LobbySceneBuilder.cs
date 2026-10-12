@@ -914,7 +914,6 @@ public static class LobbySceneBuilder
             if (album != null)
             {
                 album.localRotation = Quaternion.Euler(0f, 90f, 0f) * album.localRotation;
-                album.gameObject.AddComponent<StoryAlbum>();
             }
             else Debug.LogWarning("[로비] 곰 기억 앨범 FBX 를 못 찾았다 — My blender/StoryHalls/");
         }

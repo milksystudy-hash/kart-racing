@@ -2319,7 +2319,7 @@ public class CampusBuilder : MonoBehaviour
     /// 자리표 — 파일 · 이름 · <b>어느 관</b> · (x, y, z) · 앞면이 향할 각 · 실제 폭(m).
     /// y 는 바닥(0)이 기본이고, 벽에 거는 것만 높이를 준다.
     /// </summary>
-    static readonly (string hall, string file, string label,
+    public static readonly (string hall, string file, string label,
                      float x, float y, float z, float yaw, float w)[] ClueLayout =
     {
         // 웅지관(행정) — <b>관장이 왜 서명했나.</b> 변호가 아니라 사정이다
@@ -2386,6 +2386,23 @@ public class CampusBuilder : MonoBehaviour
         }
         float extra = clueSign < 0f ? 180f : 0f;
 
+        // ★★ 2026-10-12 수연: *"단서 1이 바닥에 폭 박혀 있다."*
+        //   <see cref="MyModel"/> 이 바운즈 최저점을 바닥에 맞추는데, 그건 <b>돌리기 전</b>이다.
+        //   아래에서 yaw 를 더 돌리면 바운즈가 바뀌어서 다시 묻힌다.
+        //   <b>돌린 뒤에 한 번 더 재서 바닥에 앉힌다</b> — 열 개가 한꺼번에 맞는다.
+        //   (벽에 거는 급식추이표처럼 y 를 적어 둔 것은 그 높이를 유지한다.)
+        void SitOnFloor(Transform m, float wantY)
+        {
+            float low = float.MaxValue;
+            foreach (var r in m.GetComponentsInChildren<Renderer>())
+                low = Mathf.Min(low, r.bounds.min.y);
+            if (low == float.MaxValue) return;
+
+            float floor = t.position.y + wantY;
+            if (low < floor - 0.002f || low > floor + 0.05f)
+                m.position += Vector3.up * (floor - low);
+        }
+
         int made = 0;
         for (int i = 0; i < rows.Count; i++)
         {
@@ -2393,6 +2410,7 @@ public class CampusBuilder : MonoBehaviour
             made++;
             placed[i].localRotation =
                 Quaternion.Euler(0f, ClueLayout[rows[i]].yaw + extra, 0f) * placed[i].localRotation;
+            SitOnFloor(placed[i], ClueLayout[rows[i]].y);
         }
         Debug.Log($"[{hall}] 단서 {made}/{rows.Count} · 앞면 신호 {clueSign:+0.000;-0.000}m → " +
                   $"{(extra > 0f ? "180도 돌려" : "그대로")} 세웠다");
@@ -4763,7 +4781,12 @@ public class CampusBuilder : MonoBehaviour
                 for (int i = 0; i < 6; i++)
                     Block(t, $"Slat_{i}", new Vector3(-side * 0.45f, 0.6f + i * 0.72f, front + 0.12f),
                           Quaternion.identity, new Vector3(w * 0.34f, 0.42f, 0.08f), ColStoneWall, noCollider: true);
-                Disc(t, "Gear", new Vector3(side - 2f, h + 1.4f, front - 0.2f),
+                // ★ 2026-10-12 수연: *"톱니가 천장을 통과해 마구 돌아간다."*
+                //   <b>돌려서 생긴 일이 아니라 원래 벽 속에 박혀 있었다</b> —
+                //   <c>front - 0.2f</c> 라 정면보다 <b>뒤</b>다(다른 장식은 전부 <c>front + …</c>).
+                //   멈춰 있을 땐 안 보이다가 돌기 시작하니 드러난 것이다.
+                //   <b>장식을 벽에 붙일 때는 바깥쪽 부호를 확인해라.</b>
+                Disc(t, "Gear", new Vector3(side - 2f, h + 1.4f, front + 0.35f),
                      new Vector3(2.8f, 0.3f, 2.8f), ColWood, Quaternion.Euler(90f, 0f, 0f));
                 break;
 

@@ -25,7 +25,7 @@ using UnityEngine;
 /// </summary>
 public class RoomLife : MonoBehaviour
 {
-    public enum Kind { 돌기, 끄덕, 흔들, 떨기 }
+    public enum Kind { 돌기, 끄덕, 흔들, 떨기, 왕복 }
 
     /// <summary>
     /// 이름에 이 낱말이 들어가면 그렇게 움직인다. <b>여기 한 줄이 열세 관에 다 듣는다.</b>
@@ -42,6 +42,16 @@ public class RoomLife : MonoBehaviour
         ("Turntable",  Kind.돌기, 18f,  0f),
         ("Mill",       Kind.돌기, 26f,  0f),
         ("Pinwheel",   Kind.돌기, 150f, 0f),
+        ("Turbine",    Kind.돌기, 90f,  0f),
+
+        // 앞뒤로 오가는 것 — 시험 주행 카트 · 리프트 · 미끄럼대
+        // ★ 2026-10-12 수연: *"곰테크관의 시험 주행 자동차도 움직이게 해 줘."*
+        ("Car",        Kind.왕복, 0.5f, 0.55f),
+        ("Kart",       Kind.왕복, 0.6f, 0.55f),
+        ("Cart",       Kind.왕복, 0.5f, 0.45f),
+        ("Vehicle",    Kind.왕복, 0.5f, 0.5f),
+        ("Slider",     Kind.왕복, 0.7f, 0.3f),
+        ("Pointer",    Kind.왕복, 0.9f, 0.12f),
 
         // 위아래로 — 바늘 · 도장 · 다리미 · 발판
         ("Needle",     Kind.끄덕, 7.2f, 0.055f),
@@ -81,6 +91,12 @@ public class RoomLife : MonoBehaviour
         public Vector3 home;
         public Quaternion rest;
         public Vector3 scale;
+
+        /// <summary>돌아갈 축(로컬). <b>재서 정한다</b> — 손으로 적으면 모델마다 틀린다.</summary>
+        public Vector3 axis;
+
+        /// <summary>왕복할 방향(로컬).</summary>
+        public Vector3 along;
     }
 
     readonly List<Part> parts = new();
@@ -103,6 +119,7 @@ public class RoomLife : MonoBehaviour
                     t = t, kind = m.kind, speed = m.speed, amount = m.amount,
                     phase = Random.value * 10f,
                     home = t.localPosition, rest = t.localRotation, scale = t.localScale,
+                    axis = SpinAxis(t), along = LongAxis(t),
                 });
                 break;                      // 한 부품은 한 가지 움직임만
             }
@@ -132,7 +149,12 @@ public class RoomLife : MonoBehaviour
             switch (p.kind)
             {
                 case Kind.돌기:
-                    p.t.Rotate(Vector3.up, p.speed * life * Time.deltaTime, Space.Self);
+                    p.t.Rotate(p.axis, p.speed * life * Time.deltaTime, Space.Self);
+                    break;
+
+                case Kind.왕복:
+                    p.t.localPosition = p.home +
+                        p.along * (Mathf.Sin((t + p.phase) * p.speed) * p.amount * life);
                     break;
 
                 case Kind.끄덕:
@@ -151,6 +173,35 @@ public class RoomLife : MonoBehaviour
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// ★ <b>돌아갈 축은 재서 정한다.</b> 수연: *"톱니가 천장을 통과해 마구 돌아간다."*
+    ///
+    /// 납작한 원반을 <b>제 축이 아닌 쪽</b>으로 돌리면 프로펠러처럼 휘저어서 벽을 뚫는다.
+    /// 원반은 <b>제일 얇은 축</b>이 곧 돌아갈 축이다 — 모델이 어떻게 생겼든 안 틀린다.
+    /// </summary>
+    static Vector3 SpinAxis(Transform t)
+    {
+        var r = t.GetComponent<Renderer>();
+        Vector3 s = r != null ? t.InverseTransformVector(r.bounds.size) : Vector3.one;
+        s = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+
+        if (s.x <= s.y && s.x <= s.z) return Vector3.right;
+        if (s.y <= s.x && s.y <= s.z) return Vector3.up;
+        return Vector3.forward;
+    }
+
+    /// <summary>왕복할 방향 — <b>제일 긴 축</b>. 시험 주행대는 길이 쪽으로 오간다.</summary>
+    static Vector3 LongAxis(Transform t)
+    {
+        var r = t.GetComponent<Renderer>();
+        Vector3 s = r != null ? t.InverseTransformVector(r.bounds.size) : Vector3.forward;
+        s = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+
+        if (s.x >= s.y && s.x >= s.z) return Vector3.right;
+        if (s.z >= s.x && s.z >= s.y) return Vector3.forward;
+        return Vector3.up;
     }
 
     /// <summary>
