@@ -25,40 +25,39 @@ using UnityEngine;
 /// </summary>
 public class RoomLife : MonoBehaviour
 {
-    public enum Kind { 돌기, 끄덕, 흔들, 떨기, 왕복 }
+    public enum Kind { 돌기, 끄덕, 흔들, 떨기 }
 
     /// <summary>
     /// 이름에 이 낱말이 들어가면 그렇게 움직인다. <b>여기 한 줄이 열세 관에 다 듣는다.</b>
     /// </summary>
+    /// <summary>
+    /// 이름에 이 낱말이 들어가면 그렇게 움직인다.
+    ///
+    /// ★★ 2026-10-12 — <b>표를 절반으로 줄였다.</b> 수연: *"운전대가 움직이면 안 되잖아.
+    /// 곰솥관에서 뭔가 위아래로 날아다닌다."* <b>내가 너무 넓게 잡았다.</b>
+    /// <c>Wheel</c> 은 카트 바퀴와 운전대를 같이 잡고, <c>Car</c>·<c>Cart</c>·<c>Slider</c> 는
+    /// 부엌 수레와 선반까지 잡는다. <b>한 낱말이 열세 관에 다 듣는다는 건
+    /// 잘못 잡으면 열세 관이 다 망가진다는 뜻</b>이기도 하다.
+    ///
+    /// 남긴 것은 <b>그 낱말이 붙으면 반드시 움직이는 물건</b>뿐이다.
+    /// 새 낱말을 더하기 전에 <b>그 이름을 쓰는 다른 물건이 없는지</b> 먼저 찾아봐라.
+    /// </summary>
     static readonly (string word, Kind kind, float speed, float amount)[] Motions =
     {
-        // 돌아가는 것 — 톱니 · 물레 · 실패 · 환풍기
+        // 돌아가는 것 — 이 이름이 붙으면 돌지 않는 물건이 없다
         ("Gear",       Kind.돌기, 52f,  0f),
-        ("Wheel",      Kind.돌기, 80f,  0f),
         ("Spool",      Kind.돌기, 140f, 0f),
         ("Bobbin",     Kind.돌기, 160f, 0f),
         ("Vent",       Kind.돌기, 120f, 0f),
         ("Fan",        Kind.돌기, 200f, 0f),
-        ("Turntable",  Kind.돌기, 18f,  0f),
-        ("Mill",       Kind.돌기, 26f,  0f),
-        ("Pinwheel",   Kind.돌기, 150f, 0f),
         ("Turbine",    Kind.돌기, 90f,  0f),
+        ("Pinwheel",   Kind.돌기, 150f, 0f),
+        ("Turntable",  Kind.돌기, 18f,  0f),
 
-        // 앞뒤로 오가는 것 — 시험 주행 카트 · 리프트 · 미끄럼대
-        // ★ 2026-10-12 수연: *"곰테크관의 시험 주행 자동차도 움직이게 해 줘."*
-        ("Car",        Kind.왕복, 0.5f, 0.55f),
-        ("Kart",       Kind.왕복, 0.6f, 0.55f),
-        ("Cart",       Kind.왕복, 0.5f, 0.45f),
-        ("Vehicle",    Kind.왕복, 0.5f, 0.5f),
-        ("Slider",     Kind.왕복, 0.7f, 0.3f),
-        ("Pointer",    Kind.왕복, 0.9f, 0.12f),
-
-        // 위아래로 — 바늘 · 도장 · 다리미 · 발판
-        ("Needle",     Kind.끄덕, 7.2f, 0.055f),
-        ("Pedal",      Kind.끄덕, 7.2f, 0.022f),
-        ("StampHandle",Kind.끄덕, 1.5f, 0.05f),
-        ("Press",      Kind.끄덕, 2.2f, 0.04f),
-        ("InIron",     Kind.끄덕, 1.1f, 0.03f),
+        // 위아래로 — 재봉 바늘과 발판. <b>제 크기에 비례</b>해서 움직인다
+        ("Needle",     Kind.끄덕, 7.2f, 0.30f),
+        ("Pedal",      Kind.끄덕, 7.2f, 0.10f),
+        ("StampHandle",Kind.끄덕, 1.5f, 0.18f),
 
         // 흔들리는 것 — 천 · 현수막 · 등 · 풍경
         ("Banner",     Kind.흔들, 0.8f, 5.5f),
@@ -68,16 +67,22 @@ public class RoomLife : MonoBehaviour
         ("Curtain",    Kind.흔들, 0.7f, 4f),
         ("Chime",      Kind.흔들, 1.6f, 9f),
         ("Lantern",    Kind.흔들, 0.9f, 5f),
-        ("Awning",     Kind.흔들, 0.6f, 2.2f),
-        ("Canopy",     Kind.흔들, 0.6f, 2.2f),
         ("Pendant",    Kind.흔들, 1.4f, 8f),
-        ("Swing",      Kind.흔들, 0.7f, 7f),
 
-        // 자잘하게 떠는 것 — 북 · 종 · 솜 · 바늘꽂이
+        // 자잘하게 떠는 것
         ("Drum",       Kind.떨기, 3.4f, 0.016f),
         ("Bell",       Kind.떨기, 5.0f, 0.012f),
-        ("PinCushion", Kind.떨기, 4.2f, 0.018f),
-        ("StuffPuff",  Kind.떨기, 2.6f, 0.02f),
+    };
+
+    /// <summary>
+    /// ★ <b>이 낱말이 들어가면 무슨 일이 있어도 안 움직인다.</b>
+    /// 위 표가 먼저 걸려도 여기서 걸러낸다 — <c>Steering_Wheel</c> 처럼
+    /// «움직이는 낱말 + 안 움직이는 물건» 인 이름이 실제로 있다.
+    /// </summary>
+    static readonly string[] Never =
+    {
+        "Steering", "Structure", "Frame", "Base", "Stand", "Shelf", "Cabinet",
+        "Wall", "Floor", "Ceiling", "Body", "Table", "Desk", "Panel", "Board",
     };
 
     [Tooltip("이 거리 안에 들어오면 움직이기 시작한다")]
@@ -95,8 +100,6 @@ public class RoomLife : MonoBehaviour
         /// <summary>돌아갈 축(로컬). <b>재서 정한다</b> — 손으로 적으면 모델마다 틀린다.</summary>
         public Vector3 axis;
 
-        /// <summary>왕복할 방향(로컬).</summary>
-        public Vector3 along;
     }
 
     readonly List<Part> parts = new();
@@ -111,15 +114,23 @@ public class RoomLife : MonoBehaviour
         foreach (var t in GetComponentsInChildren<Transform>(true))
         {
             if (t == transform) continue;
+            bool banned = false;
+            foreach (var n in Never)
+                if (t.name.IndexOf(n, System.StringComparison.OrdinalIgnoreCase) >= 0) { banned = true; break; }
+            if (banned) continue;
+
             foreach (var m in Motions)
             {
                 if (t.name.IndexOf(m.word, System.StringComparison.OrdinalIgnoreCase) < 0) continue;
                 parts.Add(new Part
                 {
-                    t = t, kind = m.kind, speed = m.speed, amount = m.amount,
+                    t = t, kind = m.kind, speed = m.speed,
                     phase = Random.value * 10f,
                     home = t.localPosition, rest = t.localRotation, scale = t.localScale,
-                    axis = SpinAxis(t), along = LongAxis(t),
+                    axis = SpinAxis(t),
+                    // ★ 흔드는 양을 <b>미터로 적지 않는다.</b> 0.05m 는 재봉 바늘에는 맞고
+                    //   작은 소품에는 «날아다니는» 양이다. <b>제 크기의 몇 할</b>로 잡는다.
+                    amount = m.kind == Kind.끄덕 ? m.amount * Height(t) : m.amount,
                 });
                 break;                      // 한 부품은 한 가지 움직임만
             }
@@ -152,10 +163,6 @@ public class RoomLife : MonoBehaviour
                     p.t.Rotate(p.axis, p.speed * life * Time.deltaTime, Space.Self);
                     break;
 
-                case Kind.왕복:
-                    p.t.localPosition = p.home +
-                        p.along * (Mathf.Sin((t + p.phase) * p.speed) * p.amount * life);
-                    break;
 
                 case Kind.끄덕:
                     p.t.localPosition = p.home +
@@ -192,16 +199,13 @@ public class RoomLife : MonoBehaviour
         return Vector3.forward;
     }
 
-    /// <summary>왕복할 방향 — <b>제일 긴 축</b>. 시험 주행대는 길이 쪽으로 오간다.</summary>
-    static Vector3 LongAxis(Transform t)
+
+    /// <summary>그 부품의 키(로컬). 흔드는 양을 여기서 뽑는다.</summary>
+    static float Height(Transform t)
     {
         var r = t.GetComponent<Renderer>();
-        Vector3 s = r != null ? t.InverseTransformVector(r.bounds.size) : Vector3.forward;
-        s = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
-
-        if (s.x >= s.y && s.x >= s.z) return Vector3.right;
-        if (s.z >= s.x && s.z >= s.y) return Vector3.forward;
-        return Vector3.up;
+        if (r == null) return 0.2f;
+        return Mathf.Max(0.02f, Mathf.Abs(t.InverseTransformVector(r.bounds.size).y));
     }
 
     /// <summary>
