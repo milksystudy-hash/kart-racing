@@ -639,6 +639,11 @@ public class CampusBuilder : MonoBehaviour
         Hollow(t, width, depth, height, doorWidth + 0.5f, doorHeight);
         Interior(t, name, width, depth, height);
 
+        // ★★ 2026-10-12 — 결승을 이긴 뒤, <b>가까이 가면 방이 살아난다</b>(수연 요청).
+        //   어느 부품이 움직일지는 <see cref="RoomLife"/> 의 낱말 표가 정한다 —
+        //   열세 관의 부품을 여기 적으면 소품을 하나 더할 때마다 여기도 고쳐야 한다.
+        t.gameObject.AddComponent<RoomLife>();
+
         // 처마가 벽보다 넉넉히 나오는 게 한옥 지붕의 인상
         Block(t, "Eaves", new Vector3(0f, height + 0.35f, 0f), Quaternion.identity,
               new Vector3(width + 4.5f, 0.7f, depth + 4.5f), ColRoof, noCollider: true);
