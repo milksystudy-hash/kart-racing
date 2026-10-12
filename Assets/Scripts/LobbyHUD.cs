@@ -44,6 +44,8 @@ public class LobbyHUD : MonoBehaviour
             if (SceneDoor.Nearest != null) SceneDoor.Nearest.Enter();
             else if (HingedDoor.Nearest != null) HingedDoor.Nearest.Toggle();
             else if (DeskClock.Nearest != null) { /* 시계가 직접 연다 */ }
+            // ★ 앨범도 제 E 를 직접 듣는다 — 여기서 또 처리하면 한 번 눌러 둘이 반응한다.
+            else if (StoryAlbum.Nearest != null) { /* 앨범이 직접 연다 */ }
             else if (NearStand() is CharacterStand pick) Choose(pick);
             else if (BearNpc.Nearest != null) BearNpc.Nearest.Talk();
         }
@@ -63,7 +65,7 @@ public class LobbyHUD : MonoBehaviour
         // 큰 패널이 떠 있으면 <b>한 장도 안 그린다.</b> 2026-09-18 유저: *"UI 가 겹쳐서
         // 좀 드러워 보인다."* 레이스 HUD 에서 이미 배운 규칙이야 — `if` 를 나열하면
         // 둘 다 그려지고, 반투명이 아니라서 겹친 걸 바로 못 알아챈다.
-        if (DeskClock.PanelOpen) return;
+        if (DeskClock.PanelOpen || StoryAlbum.Open) return;
 
         // ★ 인스펙터가 비어 있어도 찾는다 — 씬이 빌더보다 오래됐으면 안 꽂혀 있다.
         if (walk == null) walk = FindFirstObjectByType<WalkMode>();
@@ -88,7 +90,7 @@ public class LobbyHUD : MonoBehaviour
         // ★ 이름을 <b>«걸어다니기»</b> 로 못박는다(2026-10-12 수연 요청) —
         //   키가 아니라 <b>하는 일</b>이 먼저 읽혀야 한다. TAB 도 그대로 먹는다.
         string chipText = !walking ? "걸어다니기"
-                        : (DeskClock.Nearest != null || stand != null) ? "둘러보기"
+                        : (DeskClock.Nearest != null || stand != null || StoryAlbum.Nearest != null) ? "둘러보기"
                         : "둘러보기  ·  E 말 걸기";
 
         int size = walking ? 13 : 14;
@@ -112,6 +114,14 @@ public class LobbyHUD : MonoBehaviour
             var big = Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter);
             big.normal.textColor = Hud.Brass;
             GUI.Label(hint, $"E   {DeskClock.Nearest.Action}", big);
+        }
+        else if (walking && StoryAlbum.Nearest != null)
+        {
+            var hint = new Rect(w * 0.5f - 110f, h - 92f, 220f, 26f);
+            Hud.Chip(hint);
+            var big = Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter);
+            big.normal.textColor = Hud.Brass;
+            GUI.Label(hint, StoryAlbum.Prompt, big);
         }
     }
 

@@ -27,6 +27,28 @@ public static class RaceCountdown
     /// </summary>
     const float GoSeconds = 1.5f;
 
+    /// <summary>
+    /// ★★★ <b>벽시계가 아니라 프레임마다 쌓은 시간</b>(2026-10-12, 다섯 번째 고침).
+    ///
+    /// 전에는 <c>Time.unscaledTime - startedAt</c> 이었다. 그런데 씬을 불러오면
+    /// <c>Start()</c> 가 끝난 뒤 <b>첫 프레임이 그려지기까지 몇 초</b>가 걸린다
+    /// (셰이더 컴파일 · 지오메트리 생성). 그 사이 <b>벽시계는 흘러가고</b>,
+    /// 첫 OnGUI 때는 이미 <c>Elapsed</c> 가 5초라 <b>3·2·1 이 통째로 지나가 있다.</b>
+    ///
+    /// 수연 콘솔이 그걸 그대로 보여줬다 — 같은 1초 안에 Begin · "3" · "" · 끝이
+    /// 다 찍히고 <b>화면에 그려진 프레임 1</b>.
+    ///
+    /// 끊김 보정(<c>dt &gt; 0.25f</c>)이 못 잡은 이유는 <b><c>Time.unscaledDeltaTime</c> 을
+    /// 유니티가 0.333초로 잘라서 주기 때문</b>이다. 5초가 날아가도 0.333초만 보정된다.
+    ///
+    /// 이제 <see cref="Tick"/> 이 <b>한 프레임에 0.1초까지만</b> 쌓는다.
+    /// 5초가 멈춰 있어도 카운트는 0.1초만 간다 — <b>불러오는 시간에 안 흔들린다.</b>
+    /// </summary>
+    static float elapsed;
+
+    /// <summary>한 프레임에 이보다 많이는 안 센다. 긴 멈춤을 통째로 먹지 않게.</summary>
+    const float MaxStep = 0.1f;
+
     static float startedAt = -99f;
 
     /// <summary>
@@ -76,6 +98,7 @@ public static class RaceCountdown
         //   원래 그렇게 만든 이유는 «로딩 끊김에 3·2 를 뺏기지 않게» 였는데,
         //   그 일은 <see cref="Tick"/> 의 <b>끊긴 프레임 보정</b>이 이미 하고 있다.
         //   <b>한 가지 일에 장치가 둘이면 하나는 반드시 어긋난다</b> — 하나를 지운다.
+        elapsed = 0f;
         startedAt = Time.unscaledTime;
         drawn = true;
         beganAt = Time.unscaledTime;
@@ -176,9 +199,8 @@ public static class RaceCountdown
             return;
         }
 
-        if (startedAt < 0f || Elapsed > Seconds + GoSeconds) return;
-        float dt = Time.unscaledDeltaTime;
-        if (dt > 0.25f) startedAt += dt - 1f / 60f;
+        if (!running) return;
+        elapsed += Mathf.Min(Time.unscaledDeltaTime, MaxStep);
     }
 
     /// <summary>
@@ -207,6 +229,7 @@ public static class RaceCountdown
             Debug.Log($"[카운트] Forget — 지난 판 값을 버린다 (running {running} drawn {drawn})");
         running = false;
         drawn = false;
+        elapsed = 0f;
         startedAt = -99f;
         beganAt = -99f;
         pendingSince = -1;
@@ -217,7 +240,7 @@ public static class RaceCountdown
     {
         running = true;
         drawn = true;
-        startedAt = Time.unscaledTime - 99f;   // 이미 다 끝난 것으로 친다
+        elapsed = 99f;                         // 이미 다 끝난 것으로 친다
     }
 
     /// <summary>
@@ -226,9 +249,7 @@ public static class RaceCountdown
     /// 앞의 둘은 <c>Label</c> 이 빈 문자열이고 <c>Blocked</c> 는 참이다
     /// (카트는 묶여 있고 숫자는 안 보인다 — 브리핑 카드가 떠 있는 동안의 모습 그대로다).
     /// </summary>
-    static float Elapsed => !running ? -999f
-                          : !drawn ? -1f
-                          : Time.unscaledTime - startedAt;
+    static float Elapsed => !running ? -999f : elapsed;
 
     /// <summary>
     /// 아직 못 움직이나.

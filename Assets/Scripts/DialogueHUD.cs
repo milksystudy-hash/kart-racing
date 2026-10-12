@@ -158,7 +158,10 @@ public class DialogueHUD : MonoBehaviour
             return;
         }
 
-        var chip = new Rect(w - 158f * k, 16f * k, 142f * k, 32f * k);
+        // ★ 2026-10-12 수연: *"통지서 뒤에 막혔어."* 장면 제목이 <b>오른쪽 위</b>에 있는데
+        //   여기도 오른쪽 위에 뒀다 — 칩이 제목에 가려 안 보였다.
+        //   <b>왼쪽 위</b>로 옮긴다. 거기는 통째로 비어 있다.
+        var chip = new Rect(16f * k, 16f * k, 142f * k, 32f * k);
         Hud.Chip(chip);
         GUI.Label(chip, "건너뛰기   ESC",
                   Hud.Resize(Hud.Label, Mathf.RoundToInt(13 * k), TextAnchor.MiddleCenter));

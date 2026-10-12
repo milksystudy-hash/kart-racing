@@ -904,6 +904,21 @@ public static class LobbySceneBuilder
 
         // ── 좌우 벽: 받침대 원호(z −4 ~ −8.5)를 마주 보고 쉬는 자리 ──
         // 석등이 (±13, ±7~8) 이라 그 사이 빈 구간에 놓는다.
+        // ★★ 곰 기억 앨범(2026-10-12) — 지나온 이야기를 다시 보는 자리.
+        //   <b>서벽 벤치 옆</b>이다: 캠퍼스 문으로 걸어 나가는 길목이라 반드시 지나고,
+        //   받침대(캐릭터 고르기)와 접수대 시계에서 멀어서 <b>E 가 안 겹친다.</b>
+        //   앉아서 읽는 물건이니 벤치 옆이 설정에도 맞는다.
+        {
+            var album = CampusBuilder.MyModel(root, Dir + "StoryHalls/Bear_Memory_Album.fbx",
+                                              "MemoryAlbum", new Vector3(-15.8f, 0.78f, 4.6f), 1.05f);
+            if (album != null)
+            {
+                album.localRotation = Quaternion.Euler(0f, 90f, 0f) * album.localRotation;
+                album.gameObject.AddComponent<StoryAlbum>();
+            }
+            else Debug.LogWarning("[로비] 곰 기억 앨범 FBX 를 못 찾았다 — My blender/StoryHalls/");
+        }
+
         Put("Museum_Bench.fbx", "Bench_W", new Vector3(-15.6f, 0f, 1.6f), 1.800f, 90f);
         Put("Museum_Bench.fbx", "Bench_E", new Vector3(15.6f, 0f, -1.8f), 1.800f, 270f);
 
