@@ -67,6 +67,9 @@ public class CountdownHUD : MonoBehaviour
 
         if (cd == "출발!") Sfx.Play("CountdownGo", 1f, duckMusic: false);
 
+        if (Dev.Enabled)
+            Debug.Log($"[카운트] 글자 \"{was}\" → \"{cd}\" · 프레임 {Time.frameCount}");
+
         if (string.IsNullOrEmpty(cd) && !string.IsNullOrEmpty(was) && !told)
         {
             told = true;
@@ -104,7 +107,9 @@ public class CountdownHUD : MonoBehaviour
         // ★ 판을 안 깐다. 카운트는 3초짜리고 그동안 카트가 아예 안 움직이니
         //   화면 한가운데를 통째로 써도 손해가 없다. 대신 종이 판이 없으면 밝은 노면에서
         //   묻히니까 <b>글자 뒤에 그림자를 넉 장</b> 깔아 어느 배경에서도 테두리가 생기게 한다.
-        var style = Hud.Resize(Hud.Title, Mathf.RoundToInt((go ? 64 : 120) * RaceCountdown.Pop),
+        // «출발!» 은 글자가 넷이라 숫자보다 작게 잡았었는데, 그러면 <b>제일 중요한 글자가
+        // 제일 작다.</b> 94 로 키웠다(2026-10-12).
+        var style = Hud.Resize(Hud.Title, Mathf.RoundToInt((go ? 94 : 120) * RaceCountdown.Pop),
                                TextAnchor.MiddleCenter);
         var area = new Rect(0f, h * 0.5f - 80f, w, 160f);
 

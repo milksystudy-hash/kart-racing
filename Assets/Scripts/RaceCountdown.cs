@@ -20,7 +20,12 @@ public static class RaceCountdown
     public const float Seconds = 3f;
 
     /// <summary>"출발!" 이 남아 있는 시간.</summary>
-    const float GoSeconds = 0.9f;
+    /// <summary>
+    /// «출발!» 이 떠 있는 시간. ★ 2026-10-12 수연: *"321 출발 글자가 안 나온다."*
+    /// 0.9초는 <b>출발선을 보고 있으면 놓친다</b> — 그 순간 카트가 막 움직이기 시작하니까.
+    /// <b>1.5초</b>로 늘렸다. 조작은 이미 풀려 있어서 늘려도 손해가 없다.
+    /// </summary>
+    const float GoSeconds = 1.5f;
 
     static float startedAt = -99f;
 

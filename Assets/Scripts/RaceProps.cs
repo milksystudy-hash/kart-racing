@@ -162,8 +162,12 @@ public static class RaceProps
                 Side(track, "R03_Demolition_Crane", 0.17f, 26f, swing: true);
                 Side(track, "R03_Demolition_Crane", 0.63f, -28f, swing: true);
 
-                WreckingCrane(track, 0.40f, 9f, 3.9f);
-                WreckingCrane(track, 0.84f, -9.5f, 4.6f);
+                // ★ 2026-10-12 수연: *"포크레인에 자동차가 바로 통과된다. 막아줘.
+                //   그리고 진로를 왔다 갔다 타이밍 맞게 막게 해줘 — 슈퍼마리오 파이프처럼."*
+                //   몸통에 콜라이더를 달고(장식이 아니라 <b>구조물</b>이다) 갓길로 더 물렸다.
+                //   쇳덩이는 길을 가로질러 <b>건너갔다 돌아온다</b> — 박자를 보고 지나가면 된다.
+                WreckingCrane(track, 0.40f, 13f, 3.9f);
+                WreckingCrane(track, 0.84f, -13.5f, 4.6f);
                 break;
 
             // 5판 — 서류 폭풍. 관장 도장이 <b>몇 초마다 쿵 찍고</b> 땅울림이 코스를 쓸고 간다.
@@ -227,6 +231,24 @@ public static class RaceProps
     }
 
     // ──────────────────────────────────────────────────────────── 만들기
+    /// <summary>
+    /// ★★★ 이름으로 부품 찾기 — <b>손자까지</b> 본다.
+    ///
+    /// <c>Transform.Find</c> 는 <b>직계 자식만</b> 본다. FBX 는 루트 빈 통 아래에 메시가
+    /// 들어오는 구조라 <c>Find("Ball")</c> 이 <b>조용히 null</b> 이었고, 그래서
+    /// 크레인 쇳덩이가 한 번도 안 흔들렸다(2026-10-12 수연: "포크레인이 안 움직여").
+    /// 콘솔에 경고가 둘 떠 있었는데 그게 이거였다.
+    ///
+    /// 이 프로젝트에서 <c>Find</c> 가 조용히 null 이었던 게 <b>두 번째</b>다
+    /// (2026-09-18 문짝 · 이번). <b>FBX 안의 부품은 이걸로 찾아라.</b>
+    /// </summary>
+    static Transform Deep(Transform root, string name)
+    {
+        foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            if (t != root && t.name == name) return t;
+        return null;
+    }
+
     static GameObject Load(string file)
     {
         var prefab = Resources.Load<GameObject>(Folder + file);
@@ -316,8 +338,8 @@ public static class RaceProps
         var go = Side(track, "R03_Demolition_Crane", t, offset);
         if (go == null) return;
 
-        var arm = go.transform.Find("Boom");
-        var ball = go.transform.Find("Ball");
+        var arm = Deep(go.transform, "Boom");
+        var ball = Deep(go.transform, "Ball");
         if (arm == null || ball == null)
         {
             Debug.LogWarning("[풍경] 크레인 부품(Boom/Ball)을 못 찾았다 — R03 의 이름을 봐라.");
@@ -326,7 +348,41 @@ public static class RaceProps
 
         var w = go.AddComponent<WreckingBall>();
         w.arm = arm; w.ball = ball; w.period = period;
-        w.reach = Mathf.Abs(offset) + 3.2f;      // 길 가운데를 조금 넘어간다
+        w.reach = Mathf.Abs(offset) + 3.0f;      // 길 가운데를 조금 넘어간다
+
+        // ★ 몸통은 <b>막는다.</b> 통과되면 그건 그림이지 장비가 아니다.
+        //   CLAUDE.md 규칙대로 <b>띠를 둘러</b> «부딪히는 것» 이라고 알린다.
+        Block(go, "Body", 0.9f);
+    }
+
+    /// <summary>
+    /// 이름이 맞는 부품에 <b>콜라이더와 경고 띠</b>를 단다.
+    /// 띠가 있으면 부딪히는 것, 없으면 장식 — 이 프로젝트의 규칙이다(2026-09-16).
+    /// </summary>
+    static void Block(GameObject go, string partName, float shrink)
+    {
+        Transform part = null;
+        foreach (var t in go.GetComponentsInChildren<Transform>(true))
+            if (t.name.StartsWith(partName)) { part = t; break; }
+        if (part == null) return;
+
+        var ren = part.GetComponent<Renderer>();
+        if (ren == null) return;
+
+        var box = part.gameObject.AddComponent<BoxCollider>();
+        var local = part.InverseTransformVector(ren.bounds.size);
+        box.size = new Vector3(Mathf.Abs(local.x), Mathf.Abs(local.y), Mathf.Abs(local.z)) * shrink;
+
+        // 경고 띠 — 몸통 바닥 둘레에 빨강·크림. 콜라이더는 안 단다(두 번 세지면 안 된다).
+        var stripe = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        Object.Destroy(stripe.GetComponent<Collider>());
+        stripe.name = "WarnStripe";
+        stripe.transform.SetParent(part, false);
+        stripe.transform.localPosition = new Vector3(0f, -Mathf.Abs(local.y) * 0.42f, 0f);
+        stripe.transform.localScale = new Vector3(Mathf.Abs(local.x) * 1.02f, 0.26f,
+                                                  Mathf.Abs(local.z) * 1.02f);
+        stripe.GetComponent<Renderer>().sharedMaterial =
+            FlatMaterial.Get(new Color32(0xC4, 0x45, 0x3E, 0xFF));
     }
 
     /// <summary>코스 <b>바깥</b>에 고정. 자리를 손으로 안 찍는다 — 코스 t 와 옆거리로 적는다.</summary>
@@ -344,11 +400,13 @@ public static class RaceProps
 
         if (swing)
         {
-            var ball = go.transform.Find("Ball") ?? go.transform.Find("Boom");
+            var ball = Deep(go.transform, "Ball") ?? Deep(go.transform, "Boom");
             if (ball != null)
             {
                 var sw = ball.gameObject.AddComponent<SwingPart>();
-                sw.degrees = 11f; sw.period = 4.5f;
+                // ★ 11도는 <b>멈춰 있는 것처럼</b> 보였다(2026-10-12 수연).
+                //   36도면 멀리서도 «움직인다» 가 보인다.
+                sw.degrees = 36f; sw.period = 3.6f;
             }
         }
         if (drift) go.AddComponent<PaperDrift>();
@@ -638,10 +696,18 @@ public class FlyingProp : MonoBehaviour
         }
 
         if (marks == 0) return;               // 표식이 없으면 인스펙터 값을 믿는다
-        bool flip = score < 0f;
-        if (flip != noseBack)
-            Debug.Log($"[풍경] {name} 의 코가 {(flip ? "뒤" : "앞")}를 보고 있어 " +
-                      $"180도 {(flip ? "돌린다" : "안 돌린다")} (표식 {marks}개 · 점수 {score:0.00})");
+
+        // ★★★ 부호는 <b>추론이 아니라 검증된 한 점</b>에 맞춘다(2026-10-12).
+        //   비행선은 2026-10-06 플레이테스트로 <c>noseBack: true</c> 가 맞다는 게 확인됐고,
+        //   그 모델의 점수는 <b>+9.75</b> 다. 그러니 «점수가 양수면 돌린다» 가 맞는 규칙이다.
+        //   헬기(+7.02)도 같은 쪽이라 같이 돌아간다 — 수연이 «헬기가 여전히 뒤로 간다» 고
+        //   한 게 이거다. <b>내가 처음에 부호를 거꾸로 적었다.</b>
+        //
+        //   ⚠ 캠퍼스 헬기가 «멀쩡해 보였다» 는 건 증거가 아니다 — 거기선 멀어지는 뒷모습만
+        //   보여서 코가 어디든 똑같이 보인다. <b>마주 오는 쪽에서만 드러난다.</b>
+        bool flip = score > 0f;
+        Debug.Log($"[풍경] {name} · 표식 {marks}개 · 점수 {score:0.00} → " +
+                  $"180도 {(flip ? "돌린다" : "안 돌린다")}" + (flip == noseBack ? " (인스펙터와 같음)" : " (인스펙터와 다름)"));
         noseBack = flip;
     }
 
@@ -917,20 +983,34 @@ public class SearchBeam : MonoBehaviour
 {
     public FlyingProp flyer;
 
-    /// <summary>잡히는 반지름. 길 반폭이 3.5~6m 라 4.4 면 길을 다 막지는 않는다.</summary>
-    public float radius = 4.4f;
+    /// <summary>
+    /// 잡히는 반지름. ★ 2026-10-12 수연: *"점검등이 너무 크고 요란하다."*
+    /// 4.4 → <b>2.8</b>. 길 반폭이 3.5~6m 라 2.8 이면 <b>한쪽으로 비키면 피해진다.</b>
+    /// </summary>
+    public float radius = 2.8f;
 
     /// <summary>기체보다 얼마나 앞을 비추나. 마주 오니 이만큼 먼저 온다.</summary>
     public float leadMetres = 20f;
 
     /// <summary>길 반폭의 몇 배까지 좌우로 쓸까. 1 이면 길을 통째로 막는다.</summary>
-    public float sweep = 0.58f;
+    public float sweep = 0.52f;
 
     /// <summary>좌우로 한 번 왕복하는 데 걸리는 시간.</summary>
     public float period = 2.8f;
 
     /// <summary>안에 있을 때 1초에 남는 속도. 0.42 면 1초에 58% 가 깎인다.</summary>
     public float keepPerSecond = 0.42f;
+
+    /// <summary>
+    /// ★★ 2026-10-12 수연: *"속도 느려지는 게 체감이 안 된다. 차라리 빔 맞았을 때
+    /// 잠시 휘청거리는 건 어떨까 — 눈뽕이라는 의미에서."* <b>맞는 요구인데 조건이 있다.</b>
+    ///
+    /// 이 판이 «담장 긁지 않기» 라, <b>조향을 건드리면 내가 플레이어를 벽에 밀어 놓고
+    /// 실패시키는 꼴</b>이 된다. 그래서 <b>화면만 때린다</b> — 하얗게 번쩍, 카메라가 기울고,
+    /// 속도는 그대로 깎는다. 눈은 놀라는데 차는 제 길을 간다.
+    /// </summary>
+    public float flash;
+    float flashAt = -9f;
 
     Transform shaft, ring;
     Material shaftMat, ringMat;
@@ -1021,10 +1101,21 @@ public class SearchBeam : MonoBehaviour
             // ★ <b>매 프레임 조금씩</b> 끌린다. 한 번에 깎으면 «벽에 부딪힌 것» 이고,
             //   그러면 담장을 안 긁었는데도 긁은 것 같은 손해로 느껴진다.
             player.Wade(keepPerSecond);
+
+            // ★ 들어간 <b>그 순간</b>에만 때린다. 계속 번쩍이면 그건 연출이 아니라 고장이다.
+            if (Time.time - flashAt > 1.1f)
+            {
+                flashAt = Time.time;
+                var cam = Object.FindFirstObjectByType<KartCamera>();
+                if (cam != null) { cam.Jolt(0.24f); cam.Wobble(0.5f); }
+                ScreenFlash.Hit(0.5f, new Color(1f, 0.97f, 0.86f));
+                Sfx.Play("WallHit", 0.35f, duckMusic: false);
+            }
+
             if (!toldOnce && player.SpeedKph > 12f)
             {
                 toldOnce = true;
-                Toast.Show("점검등 — 빛에 잡히면 느려진다");
+                Toast.Show("점검등 — 빛에 잡히면 눈이 먼다");
             }
         }
 

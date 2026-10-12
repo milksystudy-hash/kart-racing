@@ -211,7 +211,7 @@ public class TestHUD : MonoBehaviour
 
         if (InKart) DrawChatter(w, h);
         DrawToast(w, h);
-        DrawCorner(h);
+        DrawCorner(w, h);
         if (InKart) DrawMiniMap(w, h);
         if (InKart) DrawRemote(w, h);
         if (showControls) DrawControls(w, h);
@@ -327,28 +327,26 @@ public class TestHUD : MonoBehaviour
 
         // 글자 뒤 어두운 띠. <b>나무 판이 아니라 그늘</b>이다 — 판을 깔면 «UI 가 떴다» 가 되고
         // 아무것도 안 깔면 밝은 바닥 위에서 글자가 사라진다. 위아래로 사라지는 띠가 답이야.
-        float bandTop = cy + 18f + lift, bandH = 118f;
-        for (int i = 0; i < 12; i++)
-        {
-            float t = (i + 0.5f) / 12f;
-            // 처 2026-10-12 수연: *"배경에 가려져서 글씨가 아예 안 보인다."*
-            //   전시실 사진에서 <b>빛줄기가 꽂히는 자리가 제일 밝은데</b> 글자도 거기 있다.
-            //   띠를 0.46 → <b>0.80</b> 으로 올렸다 — 이 띠가 글자 받침이다.
-            float a = Mathf.Sin(t * Mathf.PI) * 0.80f;           // 가운데가 제일 짙다
-            float y0 = Mathf.Round(bandTop + bandH * i / 12f);
-            float y1 = Mathf.Round(bandTop + bandH * (i + 1) / 12f);
-            Hud.Fill(new Rect(0f, y0, w, y1 - y0), new Color(0.02f, 0.02f, 0.04f, a));
-        }
+        // ★★ 2026-10-12 수연(두 번째): *"글씨 테두리나 크기가 문제가 아니라
+        //   나무 패널 하나 만들어서 글씨 쓰면 더 잘 보이지 않을까."* <b>맞다.</b>
+        //   어두운 띠로는 밝은 배경을 못 이긴다 — 띠는 <b>반투명</b>이라 뒤가 비치고,
+        //   비치는 순간 글자와 배경이 섞인다. <b>종이는 안 비친다.</b>
+        //
+        //   «UI 가 떴다» 로 보일까 봐 판을 피했는데, <b>두 번 안 읽히면 그게 더 나쁘다.</b>
+        //   대신 화면 전체를 덮지 않고 <b>글자 자리만</b> — 전시실 그림은 그대로 보인다.
+        var plate = new Rect(w * 0.5f - 230f, cy + 14f + lift, 460f, 126f);
+        Hud.Panel(plate);
 
-        Glow(new Rect(0f, cy + 28f + lift, w, 24f), "증거를 찾았다",
-             Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter), new Color(1f, 0.93f, 0.78f));
+        // 종이 위라 <b>어두운 글씨</b>가 맞다 — 대비 7.7:1 규칙 그대로.
+        Glow(new Rect(plate.x, plate.y + 14f, plate.width, 22f), "증거를 찾았다",
+             Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter), Hud.InkSoft, light: true);
 
-        Glow(new Rect(0f, cy + 52f + lift, w, 44f), ItemReveal.ItemName,
-             Hud.Resize(Hud.Title, 32, TextAnchor.MiddleCenter), Color.white);
+        Glow(new Rect(plate.x, plate.y + 38f, plate.width, 46f), ItemReveal.ItemName,
+             Hud.Resize(Hud.Title, 34, TextAnchor.MiddleCenter), Hud.Ink, light: true);
 
-        Glow(new Rect(0f, cy + 98f + lift, w, 24f),
+        Glow(new Rect(plate.x, plate.y + 92f, plate.width, 24f),
              $"전시실 {ItemReveal.CaseNumber}번   ·   수집품 {ItemReveal.Have} / {ItemReveal.Total}",
-             Hud.Resize(Hud.Text, 16, TextAnchor.MiddleCenter), Hud.Brass);
+             Hud.Resize(Hud.Text, 16, TextAnchor.MiddleCenter), Hud.Brass, light: true);
 
         if (ItemReveal.CanSkip)
             Glow(new Rect(0f, h - 46f, w, 20f), "아무 키나 누르면 넘어간다",
@@ -365,10 +363,13 @@ public class TestHUD : MonoBehaviour
     /// IMGUI 에 글자 그림자가 없어서 <b>여덟 방향으로 어둡게 깔고 그 위에</b> 그린다.
     /// 네 방향만 깔면 대각선에서 테가 끊긴다.
     /// </summary>
-    static void Glow(Rect r, string text, GUIStyle style, Color colour)
+    static void Glow(Rect r, string text, GUIStyle style, Color colour, bool light = false)
     {
         var keep = style.normal.textColor;
-        style.normal.textColor = new Color(0.02f, 0.02f, 0.03f, 0.95f * GUI.color.a);
+        // 종이 위에 쓸 때는 테두리도 <b>밝아야</b> 한다 — 어두운 테를 두르면 글자가 더 뭉갠다.
+        style.normal.textColor = light
+            ? new Color(Hud.Paper.r, Hud.Paper.g, Hud.Paper.b, 0.9f * GUI.color.a)
+            : new Color(0.02f, 0.02f, 0.03f, 0.95f * GUI.color.a);
 
         for (int dx = -1; dx <= 1; dx++)
             for (int dy = -1; dy <= 1; dy++)
@@ -866,7 +867,7 @@ public class TestHUD : MonoBehaviour
     }
 
     // ---- 왼쪽 아래 구석: 조작법 힌트 + 개발용 ----
-    void DrawCorner(float h)
+    void DrawCorner(float w, float h)
     {
         if (Dev.Enabled && debugKeys)
         {
@@ -879,9 +880,10 @@ public class TestHUD : MonoBehaviour
             // ★ 2026-10-12 수연: *"패드 뒤에 나무 패널이 가려져 있다."*
             //   이 칩이다 — 조종기가 h−60−side 부터라 그 안에 깔려 있었다.
             //   <b>조종기 위로</b> 올린다. 칸 크기는 조종기와 같은 식에서 뽑는다.
-            float pad = Mathf.Min(196f, h - 392f);
-            float devY = pad < 96f ? h - 86f : h - 60f - pad - 26f;
-            var dev = new Rect(16f, devY, 236f, 22f);
+            // ★ 2026-10-12 수연(두 번째): *"패드 위에 있는 나무 패널이 임무 내용을 가린다."*
+            //   왼쪽 열은 위가 수집품 판, 아래가 조종기라 <b>낄 자리가 없다.</b>
+            //   <b>다른 열로 보낸다</b> — 아래 가운데는 통째로 비어 있다(지도에서 배운 방법).
+            var dev = new Rect(w * 0.5f - 118f, h - 28f, 236f, 22f);
             Hud.Chip(dev);
             GUI.Label(new Rect(dev.x + 8f, dev.y + 4f, dev.width - 16f, 16f),
                       $"{SceneNavigator.CurrentSceneName} · {StoryProgress.CurrentName} · F7/F8", Hud.Tiny);
