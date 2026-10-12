@@ -128,8 +128,67 @@ public class DialogueHUD : MonoBehaviour
         if (runner == null) runner = GetComponent<DialogueRunner>();
     }
 
+    /// <summary>건너뛸지 한 번 묻는 중.</summary>
+    bool askSkip;
+
+    /// <summary>
+    /// ★ <b>칩과 키를 둘 다 둔다.</b> 패널만 두면 키보드로 읽던 사람이 마우스를 집어야 하고,
+    /// 키만 두면 안 눌러본 사람에겐 없는 기능이다. 이 프로젝트가 이미 쓰는 방식이야
+    /// (조작법 H · 걷기 TAB · 설정 L 전부 칩 + 키).
+    ///
+    /// <b>한 번 묻는다.</b> 123줄짜리 프롤로그를 손이 미끄러져 날리면 되돌릴 방법이 없다.
+    /// </summary>
+    void DrawSkip(float w, float h)
+    {
+        if (runner == null || !runner.IsPlaying) return;
+
+        float k = Mathf.Clamp(h / 720f, 0.8f, 1.8f);
+
+        if (askSkip)
+        {
+            var box = new Rect(w * 0.5f - 210f * k, h * 0.5f - 70f * k, 420f * k, 140f * k);
+            Hud.Fill(new Rect(0f, 0f, w, h), new Color(0.03f, 0.03f, 0.05f, 0.62f));
+            Hud.Panel(box);
+            GUI.Label(new Rect(box.x, box.y + 22f * k, box.width, 30f * k),
+                      "이야기를 건너뛸까?", Hud.Resize(Hud.Title, Mathf.RoundToInt(22 * k), TextAnchor.MiddleCenter));
+            GUI.Label(new Rect(box.x, box.y + 64f * k, box.width, 24f * k),
+                      "ENTER   건너뛰기", Hud.Resize(Hud.Text, Mathf.RoundToInt(15 * k), TextAnchor.MiddleCenter));
+            GUI.Label(new Rect(box.x, box.y + 92f * k, box.width, 24f * k),
+                      "ESC   계속 보기", Hud.Resize(Hud.Label, Mathf.RoundToInt(14 * k), TextAnchor.MiddleCenter));
+            return;
+        }
+
+        var chip = new Rect(w - 158f * k, 16f * k, 142f * k, 32f * k);
+        Hud.Chip(chip);
+        GUI.Label(chip, "건너뛰기   ESC",
+                  Hud.Resize(Hud.Label, Mathf.RoundToInt(13 * k), TextAnchor.MiddleCenter));
+
+        var m = UnityEngine.InputSystem.Mouse.current;
+        if (m != null && m.leftButton.wasPressedThisFrame
+            && Event.current != null && Event.current.type == EventType.Repaint)
+        {
+            Vector2 v = m.position.ReadValue();
+            if (chip.Contains(new Vector2(v.x, Screen.height - v.y))) askSkip = true;
+        }
+    }
+
     void Update()
     {
+        // ★ 건너뛰기 키. 디버그 키보다 <b>앞</b>이다 — 플레이어 기능이니까.
+        var key = UnityEngine.InputSystem.Keyboard.current;
+        if (key != null && runner != null && runner.IsPlaying)
+        {
+            if (askSkip)
+            {
+                if (key.enterKey.wasPressedThisFrame || key.numpadEnterKey.wasPressedThisFrame
+                    || key.spaceKey.wasPressedThisFrame)
+                { askSkip = false; runner.SkipAll(); return; }
+                if (key.escapeKey.wasPressedThisFrame) { askSkip = false; return; }
+                return;                                  // 묻는 동안은 다른 키를 안 먹는다
+            }
+            if (key.escapeKey.wasPressedThisFrame) { askSkip = true; return; }
+        }
+
         if (!Dev.Enabled || !debugKeys || runner == null) return;
 
         var k = Keyboard.current;
@@ -318,6 +377,10 @@ public class DialogueHUD : MonoBehaviour
         if (runner.IsPlaying) DrawBackdrop(w, h, runner.Place);
 
         if (hasLine) DimBackdrop(w, h);
+
+        // ★ 건너뛰기는 <b>늘 보인다.</b> 「키가 있어도 화면에 없으면 없는 것」을
+        //   이 프로젝트에서 세 번 겪었다(G 유령 · TAB 걷기 · 설정).
+        if (hasLine) DrawSkip(w, h);
 
         DrawSceneTitle(w);
         if (!hasLine) return;

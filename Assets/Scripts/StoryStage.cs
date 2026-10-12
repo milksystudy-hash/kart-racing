@@ -202,7 +202,10 @@ public class StoryStage : MonoBehaviour
         //   «after3 → ch2» 처럼 저절로 순서가 잡힌다.
         // 이어 붙이는 건 <b>후기 장면 뒤에서만</b>이다. 결승 뒷이야기 다음에 에필로그가
         // 바로 붙으면 «다음 방문에 결말» 이라는 간격이 사라진다.
-        if (chained < MaxChain && sceneId.StartsWith("after"))
+        // 넘기려고 누른 사람에게 다음 장면을 이어 붙이면 두 번 눌러야 한다.
+        bool skipped = runner != null && runner.Skipped;
+
+        if (!skipped && chained < MaxChain && sceneId.StartsWith("after"))
         {
             string next = StoryScript.CurrentScene();
             if (!string.IsNullOrEmpty(next) && next != sceneId && !StoryProgress.HasSeen(next))

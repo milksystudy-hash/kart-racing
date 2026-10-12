@@ -88,6 +88,7 @@ public class DialogueRunner : MonoBehaviour
         SceneTitle = StoryScript.TitleOf(id);
         Place = id;                       // 장면 이름이 곧 첫 배경
 
+        Skipped = false;
         lines.Clear();
         lines.AddRange(StoryScript.Playable(id));   // ← 조건 판정은 여기서 한 번
 
@@ -150,6 +151,32 @@ public class DialogueRunner : MonoBehaviour
         Finished = true;
         onSceneFinished?.Invoke(sceneId);
     }
+
+    /// <summary>
+    /// ★★ <b>이야기를 통째로 건너뛴다</b>(2026-10-12).
+    ///
+    /// 프롤로그가 123줄이라 <b>첫 레이스까지 5분</b>이 걸린다. 줄이는 것도 했지만,
+    /// 줄여서 푸는 문제가 아니다 — 두 번째로 보는 사람에게는 <b>스무 줄도 길다.</b>
+    /// 처음 하는 사람은 다 읽고, 다시 하는 사람은 넘긴다. 심사하는 분도 넘길 수 있다.
+    ///
+    /// ★ <b>본 것으로 친다.</b> 넘긴 장면이 다음에 또 뜨면 그건 건너뛴 게 아니다.
+    /// ★ 넘긴 뒤에는 <b>다음 장면을 이어 붙이지 않는다</b>(<see cref="Skipped"/>) —
+    ///   넘기려고 눌렀는데 또 하나가 나오면 두 번 눌러야 한다.
+    /// </summary>
+    public void SkipAll()
+    {
+        if (lines.Count == 0) return;
+
+        Skipped = true;
+        index = lines.Count - 1;
+        revealed = 9999f;
+        IsPlaying = false;
+        Finished = true;
+        onSceneFinished?.Invoke(sceneId);
+    }
+
+    /// <summary>방금 끝난 장면을 <b>건너뛰어서</b> 끝냈나.</summary>
+    public bool Skipped { get; private set; }
 
     /// <summary>
     /// <b>빠르게 두 번 누르면 그 줄이 한꺼번에 나온다.</b>
