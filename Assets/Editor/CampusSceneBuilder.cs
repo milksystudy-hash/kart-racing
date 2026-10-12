@@ -249,7 +249,11 @@ public static class CampusSceneBuilder
             //   씬 안의 순번으로 알아서 고른다.
             npc.lookTarget = visitor;
             npc.roleSeed = i % BearLines.CampusRoles;   // ★ 여섯 역할이 한 번씩은 나오게
-            npc.campus = true;   // ★ 캠퍼스 대사를 쓴다 — 로비 곰 셋의 화장실 얘기가 아니라
+            npc.campus = true;
+            // ★ 2026-10-12 수연: *"캠퍼스 곰인형들이 다 뒤로 걷고 있어."*
+            //   한복 곰 FBX 는 앞면이 유니티 −Z 다(비행선·헬기와 같은 변환).
+            //   걷는 방향은 그대로 두고 <b>보이는 방향만</b> 뒤집는다.
+            npc.faceBack = true;   // ★ 캠퍼스 대사를 쓴다 — 로비 곰 셋의 화장실 얘기가 아니라
             npc.noticeRange = 9f;
             npc.patrolRadius = 9f;
             npc.walkSpeed = 0.55f;

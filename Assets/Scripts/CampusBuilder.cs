@@ -114,6 +114,7 @@ public class CampusBuilder : MonoBehaviour
         BuildOuterRoad();
         BuildDemolitionYard();
         BuildCampusYard();
+        BuildFreePlayYard();
 
         ScatterNature();
         ScatterLanterns();
@@ -308,6 +309,72 @@ public class CampusBuilder : MonoBehaviour
 
         Debug.Log($"[앞마당·캠퍼스] 소품 {placed.Count}개 · 앞면 신호 {best:+0.000;-0.000}m → " +
                   $"{extra:0}도 · 길에서 제일 가까운 것 {nearRoad:0.0}m");
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  ★★ 다 깬 뒤에 더 놓이는 열 점 (2026-10-12)
+    //
+    //  수연: *"레이싱 게임 클리어하면 추가로 캠퍼스에 배치할 물건. 기존 떡밥 에셋들도
+    //  그대로 놔줘. 다다익선이야."*
+    //
+    //  ★ 앞마당(<see cref="BuildCampusYard"/>)과 <b>마주 보는 줄</b>로 놓는다.
+    //    같은 줄에 더 끼우면 빽빽해 보이고, 멀리 흩뿌리면 늘어난 게 안 보인다.
+    //    두 줄이 마주 보면 그 사이가 <b>광장</b>이 된다 — 그게 «축제» 로 읽힌다.
+    //
+    //  ★ <b>지웠다 만들지 않고 켜고 끈다</b>(<see cref="CampusVictory"/> 와 같은 규칙).
+    //    기하는 한 번만 짓고 결승을 이기기 전에는 꺼 둔다.
+    // ══════════════════════════════════════════════════════════════════
+    const string FreePlayFolder = "Assets/free_play/";
+    static readonly string[] FreePlayMarks = { "Front_" };
+
+    static readonly (string file, float x, float w, float yaw)[] FreePlay =
+    {
+        ("F01_Bear_Photo_Stand",        -80f, 2.4f, 180f),
+        ("F02_Pyeongsang_Rest_Platform", -64f, 2.8f, 180f),
+        ("F03_Picnic_Set",               -49f, 2.4f, 180f),
+        ("F04_Tea_Sharing_Cart",         -34f, 2.0f, 180f),
+        ("F05_Garden_Care_Station",      -18f, 2.0f, 180f),
+        ("F06_Postcard_Corner",           -2f, 1.8f, 180f),
+        ("F07_Baduk_Rest_Corner",         14f, 2.2f, 180f),
+        ("F08_Pinwheel_Garden",           31f, 3.0f, 180f),
+        ("F09_Museum_Rubbing_Table",      48f, 2.4f, 180f),
+        ("F10_Two_Seat_Garden_Swing",     64f, 2.6f, 180f),
+    };
+
+    void BuildFreePlayYard()
+    {
+        var root = new GameObject("FreePlayYard").transform;
+        root.SetParent(transform, false);
+
+        const float z = -71f;      // 길(z −78, 반폭 6 → −72) 바로 북쪽
+
+        var placed = new System.Collections.Generic.List<Transform>();
+        var rows = new System.Collections.Generic.List<(float yaw, Transform t)>();
+
+        foreach (var p in FreePlay)
+        {
+            var m = MyModel(root, FreePlayFolder + p.file + ".fbx", "Free_" + p.file,
+                            new Vector3(p.x, 0f, z), p.w);
+            if (m == null) continue;
+            placed.Add(m);
+            rows.Add((p.yaw, m));
+        }
+
+        float best = 0f;
+        foreach (var m in placed)
+        {
+            float e = FrontEvidence(m, FreePlayMarks);
+            if (Mathf.Abs(e) > Mathf.Abs(best)) best = e;
+        }
+        float extra = best > 0f ? 180f : 0f;      // 광장 쪽(−Z)을 보게
+        foreach (var (yaw, t) in rows)
+            t.localRotation = Quaternion.Euler(0f, yaw + extra, 0f) * t.localRotation;
+
+        // ★ 결승을 이기기 전에는 안 보인다. 지웠다 만들지 않고 켜고 끈다.
+        root.gameObject.SetActive(GrandFinal.FreeRun);
+
+        Debug.Log($"[자유마당] 소품 {placed.Count}개 · 앞면 신호 {best:+0.000;-0.000}m → {extra:0}도 · " +
+                  $"지금 {(GrandFinal.FreeRun ? "켜짐" : "꺼짐")}");
     }
 
     void BuildOuterRoad()

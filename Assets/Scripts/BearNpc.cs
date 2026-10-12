@@ -228,7 +228,15 @@ public class BearNpc : MonoBehaviour
     Quaternion axisTilt = Quaternion.identity;
 
     /// <summary>요 각도만 주면 축 회전을 살린 회전을 돌려준다.</summary>
-    Quaternion Facing(float yaw) => Quaternion.Euler(0f, yaw, 0f) * axisTilt;
+    /// <summary>
+    /// ★ <b>모델의 앞면이 −Z 면 켠다</b>(2026-10-12). 수연: *"캠퍼스 곰인형들이 다 뒤로 걷고 있어."*
+    /// 비행선·헬기와 <b>같은 병</b>이다 — 이 FBX 들은 블렌더 +Y 가 유니티 −Z 로 온다.
+    /// 걷는 방향은 그대로 두고 <b>보이는 방향만</b> 180도 돌린다.
+    /// </summary>
+    public bool faceBack;
+
+    Quaternion Facing(float yaw) =>
+        Quaternion.Euler(0f, yaw + (faceBack ? 180f : 0f), 0f) * axisTilt;
 
     void StartPatrol()
     {

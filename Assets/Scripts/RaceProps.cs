@@ -84,8 +84,11 @@ public static class RaceProps
         //   여기서는 <b>하늘에 한 대만, 느리게</b>. 보이기는 하되 아무 일도 안 한다.
         if (SceneManager.GetActiveScene().name == "Campus")
         {
+            // ★ 2026-10-12 수연: *"캠퍼스에서 BGM 이 안 들리고 헬기 소리만 들린다."*
+            //   레이스는 엔진 소리가 사건이지만 <b>캠퍼스는 걸어 다니며 음악을 듣는 곳</b>이다.
+            //   0.5 → <b>0.14</b>, 들리기 시작하는 거리도 190 → 90m 로 줄였다.
             Patrol(track, "R02_Safety_Helicopter", 13f, 64f, lateral: -6f, bob: 0.5f, shadow: 6f,
-                   reverse: false, engine: "Heli_Rotor", engineVolume: 0.5f);
+                   noseBack: true, engine: "Heli_Rotor", engineVolume: 0.14f, engineFar: 90f);
             return;
         }
 
@@ -121,8 +124,23 @@ public static class RaceProps
                 //   소리도 같이 붙였다(유저 요청). 3D 음원이라 <b>가까워지면 커지고
                 //   멀어지면 사라진다</b> — 도플러까지 유니티가 해 준다. 보이기 전에
                 //   먼저 들리는 게 이 연출의 핵심이야.
-                Patrol(track, "R01_Director_Blimp", 11.5f, 24f, lateral: 0f, bob: 0.3f, shadow: 11f,
-                       noseBack: false, reverse: true, diveFromLap: 2, engine: "Blimp_Engine");
+                // ★★★ 2026-10-12 — 수연이 다섯 번 신고한 것을 그제야 제대로 읽었다:
+                //   *"앞으로 나아가고는 있는데 <b>꼬리쪽을 기준으로</b> 뒤로 나는 것처럼 보인다."*
+                //   그건 <b>경로가 거꾸로</b>인 게 아니라 <b>기수가 거꾸로</b>인 것이다.
+                //   내가 «경로를 뒤집기»(reverse)로 풀려고 해서 두 번 더 틀렸다.
+                //
+                //   축을 제대로 세우면: 이 FBX 들은 <b>블렌더 +Y 가 유니티 −Z</b> 로 온다.
+                //   비행선 코(Light_Lens)가 블렌더 +Y → 유니티 <b>−Z</b>,
+                //   헬기 꼬리(Rotor_Tail)가 블렌더 −Y → 유니티 <b>+Z</b>.
+                //   <see cref="FlyingProp"/> 는 <c>LookRotation(dir)</c> 로 <b>+Z 를 진행 방향</b>에
+                //   맞추니, 둘 다 <b>코가 −Z</b> 라 <c>noseBack: true</c> 가 맞다.
+                //   헬기에만 그걸 안 줬던 것이고, 비행선은 2026-10-06 에 이미 그래서 맞았다.
+                //
+                //   역주행(reverse)은 뺀다 — 수연 지시: «경로를 역주행시키는 게 아니라
+                //   기존 경로를 따라가면서 기수가 진행 방향을 보게». 대신 속도를 늦춰
+                //   <b>플레이어가 따라잡아 나란히 가는</b> 구간을 만든다(24 → 34초).
+                Patrol(track, "R01_Director_Blimp", 11.5f, 34f, lateral: 0f, bob: 0.3f, shadow: 11f,
+                       noseBack: true, diveFromLap: 2, engine: "Blimp_Engine");
                 break;
 
             // 3판 — 안전점검 헬기가 낮게 돈다 + 담장 위에 곰 관중이 처음 몇 마리
@@ -144,8 +162,8 @@ public static class RaceProps
                 //
                 //   ⚠ <b>밀거나 비틀지 않는다.</b> 이 판이 «담장 긁지 않기» 라, 조향을 건드리면
                 //   내가 플레이어를 벽에 밀어 놓고 실패시키는 꼴이 된다. <b>느려지기만</b> 한다.
-                Patrol(track, "R02_Safety_Helicopter", 9.5f, 19f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
-                       reverse: true, engine: "Heli_Rotor", engineVolume: 0.8f, beam: true);
+                Patrol(track, "R02_Safety_Helicopter", 9.5f, 24f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
+                       noseBack: true, engine: "Heli_Rotor", engineVolume: 0.8f, beam: true);
                 Crowd(track, 8);
                 break;
 
@@ -223,8 +241,8 @@ public static class RaceProps
             // 9판 결승 — 담장이 곰인형 관중으로 가득 차고 비행선 둘이 뜬다
             case MissionManager.Goal.결승:
                 Crowd(track, 26);
-                Patrol(track, "R01_Director_Blimp", 12.5f, 22f, lateral: 7f, bob: 0.25f, shadow: 10f,
-                       noseBack: false, engine: "Blimp_Engine", engineVolume: 0.7f);
+                Patrol(track, "R01_Director_Blimp", 12.5f, 30f, lateral: 7f, bob: 0.25f, shadow: 10f,
+                       noseBack: true, engine: "Blimp_Engine", engineVolume: 0.7f);
                 Patrol(track, "R02_Safety_Helicopter", 10.5f, 17f, lateral: -12f, bob: 0.7f, shadow: 6f);
                 break;
         }
@@ -307,7 +325,8 @@ public static class RaceProps
     static void Patrol(TrackBuilder track, string file, float height, float lapSeconds,
                        float lateral, float bob, float shadow, bool noseBack = false,
                        bool reverse = false, int diveFromLap = 0,
-                       string engine = null, float engineVolume = 0.9f, bool beam = false)
+                       string engine = null, float engineVolume = 0.9f, bool beam = false,
+                       float engineFar = 190f)
     {
         var go = Load(file);
         if (go == null) return;
@@ -325,7 +344,7 @@ public static class RaceProps
 
         if (string.IsNullOrEmpty(engine)) return;
         var e = go.AddComponent<PropEngine>();
-        e.clipName = engine; e.volume = engineVolume;
+        e.clipName = engine; e.volume = engineVolume; e.far = engineFar;
         f.engine = e;
     }
 
