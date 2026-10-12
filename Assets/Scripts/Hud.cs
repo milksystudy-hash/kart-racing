@@ -294,7 +294,13 @@ public static class Hud
         face.normal.textColor = held ? Brass : Ink;
         GUI.Label(new Rect(lx, tag.y, tag.width, tag.height), label, face);
 
-        return over && m != null && m.leftButton.wasPressedThisFrame;
+        // ★★ 2026-10-12 — <b>OnGUI 는 한 프레임에 두 번 돈다</b>(Layout · Repaint).
+        //   <c>wasPressedThisFrame</c> 은 그 프레임 내내 참이라 <b>true 가 두 번</b> 나오고,
+        //   받는 쪽이 토글이면 켰다 껐다 해서 <b>아무 일도 안 일어난다.</b>
+        //   수연: *"로비에서 클릭해도 걸어다니기가 안 된다."* — 이게 그거다.
+        //   그리는 패스에서만 한 번 돌려준다.
+        return over && m != null && m.leftButton.wasPressedThisFrame
+               && Event.current != null && Event.current.type == EventType.Repaint;
     }
 
     /// <summary>마우스가 이 칸 위에 있나. <b>화면 좌표를 가상 1280x720 으로 내린다</b> — 태엽 회전축과 같은 함정.</summary>

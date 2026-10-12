@@ -331,7 +331,10 @@ public class TestHUD : MonoBehaviour
         for (int i = 0; i < 12; i++)
         {
             float t = (i + 0.5f) / 12f;
-            float a = Mathf.Sin(t * Mathf.PI) * 0.46f;           // 가운데가 제일 짙다
+            // 처 2026-10-12 수연: *"배경에 가려져서 글씨가 아예 안 보인다."*
+            //   전시실 사진에서 <b>빛줄기가 꽂히는 자리가 제일 밝은데</b> 글자도 거기 있다.
+            //   띠를 0.46 → <b>0.80</b> 으로 올렸다 — 이 띠가 글자 받침이다.
+            float a = Mathf.Sin(t * Mathf.PI) * 0.80f;           // 가운데가 제일 짙다
             float y0 = Mathf.Round(bandTop + bandH * i / 12f);
             float y1 = Mathf.Round(bandTop + bandH * (i + 1) / 12f);
             Hud.Fill(new Rect(0f, y0, w, y1 - y0), new Color(0.02f, 0.02f, 0.04f, a));
@@ -365,7 +368,7 @@ public class TestHUD : MonoBehaviour
     static void Glow(Rect r, string text, GUIStyle style, Color colour)
     {
         var keep = style.normal.textColor;
-        style.normal.textColor = new Color(0.03f, 0.03f, 0.05f, 0.75f * GUI.color.a);
+        style.normal.textColor = new Color(0.02f, 0.02f, 0.03f, 0.95f * GUI.color.a);
 
         for (int dx = -1; dx <= 1; dx++)
             for (int dy = -1; dy <= 1; dy++)
@@ -873,7 +876,12 @@ public class TestHUD : MonoBehaviour
             //   맞다 — 이 칩이 h−54~h−32 인데 발바닥 버튼이 <b>h−34</b> 에서 시작해서
             //   2px 물렸고, 눈에는 통째로 붙어 보였다. <b>12px 띄운다.</b>
             //   발바닥 버튼 자리를 옮기면 이 숫자도 같이 옮겨야 한다.
-            var dev = new Rect(16f, h - 86f, 236f, 22f);
+            // ★ 2026-10-12 수연: *"패드 뒤에 나무 패널이 가려져 있다."*
+            //   이 칩이다 — 조종기가 h−60−side 부터라 그 안에 깔려 있었다.
+            //   <b>조종기 위로</b> 올린다. 칸 크기는 조종기와 같은 식에서 뽑는다.
+            float pad = Mathf.Min(196f, h - 392f);
+            float devY = pad < 96f ? h - 86f : h - 60f - pad - 26f;
+            var dev = new Rect(16f, devY, 236f, 22f);
             Hud.Chip(dev);
             GUI.Label(new Rect(dev.x + 8f, dev.y + 4f, dev.width - 16f, 16f),
                       $"{SceneNavigator.CurrentSceneName} · {StoryProgress.CurrentName} · F7/F8", Hud.Tiny);

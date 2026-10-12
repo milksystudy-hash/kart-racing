@@ -48,6 +48,9 @@ public class CountdownHUD : MonoBehaviour
 
     void Update()
     {
+        // 끊긴 프레임 보정 — TestHUD 가 꺼져 있어도 돌아야 한다.
+        RaceCountdown.Tick();
+
         // ★ 소리는 <b>Update 에서</b> 낸다 — OnGUI 는 한 프레임에 두 번 돌아 소리가 겹친다.
         string cd = RaceCountdown.Label;
         if (cd == lastLabel) return;
@@ -85,7 +88,12 @@ public class CountdownHUD : MonoBehaviour
         string label = RaceCountdown.Label;
         if (string.IsNullOrEmpty(label)) return;
 
-        if (Event.current.type == EventType.Repaint) drawnFrames++;
+        if (Event.current.type == EventType.Repaint)
+        {
+            if (drawnFrames == 0)
+                Debug.Log($"[카운트] 처음 그렸다 · 프레임 {Time.frameCount} · 글자 \"{label}\"");
+            drawnFrames++;
+        }
         told = false;
 
         var screen = Hud.Begin(Resources.Load<Font>("HudFont"));

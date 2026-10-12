@@ -63,8 +63,16 @@ public static class RaceCountdown
         if (Dev.Enabled && debugLog)
             Debug.Log($"[카운트] Begin · 프레임 {Time.frameCount} · 카드 {RaceBriefing.Open} · 티키타카 {RaceBriefing.Chatting}");
         running = true;
-        startedAt = -99f;      // 아직 안 센다 — 화면에 처음 그려지는 프레임이 0초다
-        drawn = false;
+
+        // 처처처 2026-10-12 — <b>바로 센다.</b> 전에는 «화면에 처음 그려지는 프레임» 을
+        //   0초로 삼았는데, 그 «그려졌다» 를 아무도 안 알려주면 <b>카운트가 통째로 사라진다.</b>
+        //   수연이 네 번 신고한 자리고, 두 번 고쳐도 또 나왔다.
+        //
+        //   원래 그렇게 만든 이유는 «로딩 끊김에 3·2 를 뺏기지 않게» 였는데,
+        //   그 일은 <see cref="Tick"/> 의 <b>끊긴 프레임 보정</b>이 이미 하고 있다.
+        //   <b>한 가지 일에 장치가 둘이면 하나는 반드시 어긋난다</b> — 하나를 지운다.
+        startedAt = Time.unscaledTime;
+        drawn = true;
         beganAt = Time.unscaledTime;
         pendingSince = Time.frameCount;
         // ★ 22초 안전장치의 기준도 <b>여기서</b> 다시 잡는다. 카드와 티키타카를 천천히 읽으면
@@ -119,14 +127,12 @@ public static class RaceCountdown
     /// 고치는 자리는 «언제 세기 시작하나» 가 아니라 <b>«언제 보이기 시작하나»</b> 다.
     /// 보이는 첫 프레임을 0초로 삼으면 어떤 로딩 지연에도 3 · 2 · 1 이 전부 보인다.
     /// </summary>
-    public static void Shown()
-    {
-        // ★ <b>시작 선언이 없으면 아무 일도 안 한다.</b> 이 한 줄이 «소리만 나고 또 한 번» 의 답이야.
-        if (!running || drawn) return;
-        drawn = true;
-        startedAt = Time.unscaledTime;
-        if (Dev.Enabled && debugLog) Debug.Log($"[카운트] 보이기 시작 · 프레임 {Time.frameCount}");
-    }
+    /// <summary>
+    /// ★ <b>이제 아무 일도 안 한다.</b> 2026-10-12 이전에는 이게 시계를 시작했고,
+    /// 아무도 안 부르면 카운트가 영영 안 떴다. 부르는 쪽을 다 찾아 고치는 것보다
+    /// <b>여기서 끝내는 게</b> 안 틀린다.
+    /// </summary>
+    public static void Shown() { }
 
     /// <summary>
     /// <b>길게 멈춘 프레임은 안 센다.</b> <see cref="Shown"/> 만으로는 모자랐다 —
@@ -137,8 +143,18 @@ public static class RaceCountdown
     /// 이라, 그만큼 시작 시각을 뒤로 민다. 그러면 <b>숫자 셋이 전부 보인다.</b>
     /// 매 프레임 <see cref="RaceBriefing.Tick"/> 가 부른다.
     /// </summary>
+    static int tickedFrame = -1;
+
+    /// <summary>
+    /// 끊긴 프레임을 안 센다. ★ <b>한 프레임에 한 번만</b> — 부르는 쪽이 둘이라
+    /// (<see cref="RaceBriefing"/> · <see cref="CountdownHUD"/>) 두 번 보정하면 카운트가 빨라진다.
+    /// 둘 다 두는 이유는 <b>한쪽이 안 돌아도 보정이 살아 있게</b> 하려고다.
+    /// </summary>
     public static void Tick()
     {
+        if (tickedFrame == Time.frameCount) return;
+        tickedFrame = Time.frameCount;
+
         // 화면이 못 그려도 90프레임 뒤엔 그냥 센다. ★ 초가 아니라 프레임이다 —
         // 로딩 한 프레임이 7초씩 걸려서, 초로 재면 돌아오자마자 터진다.
         if (running && !drawn)

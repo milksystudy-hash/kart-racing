@@ -76,6 +76,19 @@ public static class RaceProps
             return;
         }
 
+        // 처처 2026-10-12 수연: *"게임 깨기 전에 캠퍼스 나올 때 한정으로 헬기에게 빔을 쏘지 마.
+        //   미리 빔이 나오면 레이싱에서 나오기도 전에 스포일러야. 속도도 줄여서 느긋하게 산책."*
+        //   <b>맞다.</b> 캠퍼스는 걸어 다니는 씬인데 <c>TrackBuilder</c> 가 길로 남아 있어서
+        //   레이스용 풍경이 그대로 따라 들어왔다 — 점검등도 급강하도 자재도.
+        //
+        //   여기서는 <b>하늘에 한 대만, 느리게</b>. 보이기는 하되 아무 일도 안 한다.
+        if (SceneManager.GetActiveScene().name == "Campus")
+        {
+            Patrol(track, "R02_Safety_Helicopter", 13f, 64f, lateral: -6f, bob: 0.5f, shadow: 6f,
+                   reverse: false, engine: "Heli_Rotor", engineVolume: 0.5f);
+            return;
+        }
+
         switch (MissionManager.CurrentGoal)
         {
             // 1판 — <b>아무 것도 없다.</b> 기준점이 있어야 나머지가 «달라졌다» 가 된다

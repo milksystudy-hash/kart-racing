@@ -65,6 +65,8 @@ public class LobbyHUD : MonoBehaviour
         // 둘 다 그려지고, 반투명이 아니라서 겹친 걸 바로 못 알아챈다.
         if (DeskClock.PanelOpen) return;
 
+        // ★ 인스펙터가 비어 있어도 찾는다 — 씬이 빌더보다 오래됐으면 안 꽂혀 있다.
+        if (walk == null) walk = FindFirstObjectByType<WalkMode>();
         bool walking = walk != null && walk.Walking;
 
         // ★ 2026-10-02 — 이야기 다시 보기(T)를 여기 적는다. 「키가 있어도 화면에 없으면 없는 것」
@@ -83,9 +85,11 @@ public class LobbyHUD : MonoBehaviour
         if (Hud.PawButton(story, "이야기 다시 보기   T") && StoryStage.Live != null)
             StoryStage.Live.Replay();
 
-        string chipText = !walking ? "걸어다니기   TAB"
-                        : (DeskClock.Nearest != null || stand != null) ? "둘러보기로   TAB"
-                        : "둘러보기로   TAB  ·  E 말 걸기";
+        // ★ 이름을 <b>«걸어다니기»</b> 로 못박는다(2026-10-12 수연 요청) —
+        //   키가 아니라 <b>하는 일</b>이 먼저 읽혀야 한다. TAB 도 그대로 먹는다.
+        string chipText = !walking ? "걸어다니기"
+                        : (DeskClock.Nearest != null || stand != null) ? "둘러보기"
+                        : "둘러보기  ·  E 말 걸기";
 
         int size = walking ? 13 : 14;
         float cw = Mathf.Max(200f, Hud.PawWidth(chipText, size, Tall));
