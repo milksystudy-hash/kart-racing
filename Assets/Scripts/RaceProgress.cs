@@ -34,6 +34,21 @@ public class RaceProgress : MonoBehaviour
     public int FinishOrder { get; private set; }
 
     static int finishedSoFar;
+
+    /// <summary>
+    /// ★★ 2026-10-12 — <b>씨에 들어올 때 순서를 다시 0 부터 센다.</b>
+    ///
+    /// 수연: *"세 판 다 이겼는데 임무 실패로 뜨는데"* · *"두 판 져도 세판째에
+    /// 역전승으로 들어왔는데도 실패."* <c>finishedSoFar</c> 는 static 이라
+    /// <b>씨을 갈아타도 살아남는데</b>, 지우는 자리가 <see cref="ResetRace"/> 뿐이었다 —
+    /// 그건 <b>ENTER 로 다시 할 때만</b> 불린다. 로비를 거쳐 다시 들어오면
+    /// 지난 판의 숫자가 그대로 남아 1등으로 들어와도 <c>FinishOrder</c> 가 2·3·4 가 된다.
+    /// 결승 판정이 <c>PlayerFinishOrder() == 1</c> 이라 그대로 <b>진 것으로 처리</b>됐다.
+    ///
+    /// <see cref="LapTracker"/> 의 Start 에서 부른다 — <c>RaceCountdown.Forget()</c> 과 같은 자리,
+    /// 같은 이유다. <b>씨을 갈아타도 살아남는 static 은 씨에 들어오는 자리에서 지우라.</b>
+    /// </summary>
+    public static void ForgetOrder() => finishedSoFar = 0;
     public Checkpoint LastPassed { get; private set; }
 
     public string DisplayName => string.IsNullOrEmpty(racerName) ? name : racerName;

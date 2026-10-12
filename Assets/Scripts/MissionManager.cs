@@ -390,6 +390,12 @@ public class MissionManager : MonoBehaviour
         AdBoard.ResetAll();
         RoadDebris.ResetHits();
         RoadDebris.RestoreAll();
+        // ★★ 2026-10-12 — <b>드론이 떨굴 슬래브도 같이 치운다.</b>
+        //   수연: *"임무실패할때마다 전에 기록된 자재가 포함되서 새 자재도 같이
+        //   떨어뜨리고 있어. 이러면 게임 못깨."*
+        //   <see cref="RaceProps.Refresh"/> 가 <b>임무가 같으면 일찍 빠져나가</b>
+        //   <c>SkyDrop.Clear()</c> 까지 가지를 않는다 — 그래서 다시 하는 자리에서 직접 부른다.
+        SkyDrop.Clear();
         if (kart != null) kart.ResetWallHits();
 
         // 방금 여덟 번째를 받았으면 이 판부터 AI 가 나온다

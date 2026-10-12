@@ -24,6 +24,16 @@ public class RoadDebris : MonoBehaviour
 
     public static void ResetHits() => Hits = 0;
 
+    /// <summary>
+    /// ★ 2026-10-12 — <b>드론이 떨굴 슬래브에 맞은 것도 «자재» 다.</b>
+    /// 수연: *"드론이 떨어뜨리는 자재도 자재로 쳐야 하는데 기회 횟수가 안 줄어들어."*
+    /// 맞는 지적이다 — 화면에서는 둘 다 «길에 떨어진 철거 자재» 인데
+    /// 한쪽만 세면 플레이어는 규칙을 못 배운다.
+    /// (슬래브는 콜라이더가 없어서 <see cref="OnCollisionEnter"/> 를 안 타다 —
+    ///  떨어지는 순간 거리로 판정한다. <c>SkyDrop.Land</c> 가 이걸 부른다.)
+    /// </summary>
+    public static void CountSkyHit() => Hits++;
+
     static RoadDebris[] all;
 
     public static int CountInScene() => All().Length;

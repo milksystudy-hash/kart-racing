@@ -69,6 +69,7 @@ public class LapTracker : MonoBehaviour
         // ★ <b>지난 판의 값을 먼저 버린다.</b> 안 그러면 2차 진입 첫 프레임에
         //   카운트다운의 바닥값이 «7초 전» 과 비교되어 즉시 터지고, 숫자가 0.7초 만에
         //   지나간 뒤 Begin() 이 그걸 지운다 — 화면에는 아무것도 안 뜬 걸로 보인다.
+        RaceProgress.ForgetOrder();   // ★ 지난 판의 결승선 순서를 버린다
         RaceCountdown.Forget();
         RaceCountdown.Arm();   // 35초 안전장치의 기준 시각
         RaceBriefing.Begin();

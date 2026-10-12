@@ -1082,6 +1082,7 @@ public static class SkyDrop
         if (rb != null) rb.linearVelocity *= 0.72f;
         player.CancelBoost();
         if (cam != null) cam.Jolt(0.6f);
+        RoadDebris.CountSkyHit();   // ★ 길에 떨어진 자재와 같은 것으로 센다
 
         if (!told) { told = true; Toast.Show("위를 봐라 — 빨간 표적은 비켜라"); }
     }
