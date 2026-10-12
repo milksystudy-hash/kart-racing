@@ -923,7 +923,12 @@ public class TestHUD : MonoBehaviour
         if (Dev.Enabled && debugKeys)
         {
             // 가운데 위에 두면 랩 패널과 부딪힌다. 구석이 제자리야.
-            var dev = new Rect(16f, h - 54f, 236f, 22f);
+            //
+            // ★ 2026-10-12 유저: *"트랙 프롤로그 패널이랑 조작법 패널이 겹쳐져 있어."*
+            //   맞다 — 이 칩이 h−54~h−32 인데 발바닥 버튼이 <b>h−34</b> 에서 시작해서
+            //   2px 물렸고, 눈에는 통째로 붙어 보였다. <b>12px 띄운다.</b>
+            //   발바닥 버튼 자리를 옮기면 이 숫자도 같이 옮겨야 한다.
+            var dev = new Rect(16f, h - 68f, 236f, 22f);
             Hud.Chip(dev);
             GUI.Label(new Rect(dev.x + 8f, dev.y + 4f, dev.width - 16f, 16f),
                       $"{SceneNavigator.CurrentSceneName} · {StoryProgress.CurrentName} · F7/F8", Hud.Tiny);

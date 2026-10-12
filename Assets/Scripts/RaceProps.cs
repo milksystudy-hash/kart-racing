@@ -93,12 +93,46 @@ public static class RaceProps
                 //   아니라 «떠 있는 것» 으로 보인다. <b>24초</b>면 카트(29초)보다 빨라서
                 //   레이스 중 서너 번 <b>앞질러 지나간다</b> — 움직이는 게 눈에 들어온다.
                 //   높이도 15.5 → 11.5 로 낮췄다. 멀면 작아 보이고 작으면 안 움직여 보인다.
-                Patrol(track, "R01_Director_Blimp", 11.5f, 24f, lateral: 0f, bob: 0.3f, shadow: 11f, noseBack: true);
+                //
+                // ★★ 2026-10-12 유저: *"2번째 임무에 비행선이 안 나옴."* <b>재 보니 맞다.</b>
+                //   비행선 24초 · 카트 29초면 <b>한 바퀴를 따라잡는 데 139초</b>가 걸리는데
+                //   레이스가 87초다. 게다가 시작 자리가 무작위라, 반 바퀴 떨어진 데서
+                //   시작하면 <b>레이스 내내 한 번도 안 마주친다.</b> 「서너 번 지나간다」고
+                //   적어 둔 건 틀린 계산이었다.
+                //
+                //   <b>반대로 돌린다.</b> 그러면 상대 속도가 1/24 + 1/29 = 0.076 바퀴/초라
+                //   87초에 <b>6~7번 정면으로 스쳐 지나간다.</b> 속도를 올리는 것보다
+                //   이쪽이 낫다 — 비행선이 시속 130km 로 나는 건 말이 안 되고,
+                //   <b>마주 오는 것</b>이 따라오는 것보다 훨씬 위협적이다.
+                //
+                //   소리도 같이 붙였다(유저 요청). 3D 음원이라 <b>가까워지면 커지고
+                //   멀어지면 사라진다</b> — 도플러까지 유니티가 해 준다. 보이기 전에
+                //   먼저 들리는 게 이 연출의 핵심이야.
+                Patrol(track, "R01_Director_Blimp", 11.5f, 24f, lateral: 0f, bob: 0.3f, shadow: 11f,
+                       noseBack: true, reverse: true, diveFromLap: 2, engine: "Blimp_Engine");
                 break;
 
             // 3판 — 안전점검 헬기가 낮게 돈다 + 담장 위에 곰 관중이 처음 몇 마리
             case MissionManager.Goal.무충돌:
-                Patrol(track, "R02_Safety_Helicopter", 9.5f, 19f, lateral: -8f, bob: 0.6f, shadow: 6f);
+                //
+                // ★★ 2026-10-12 유저: *"헬기가 꼬리쪽을 중심으로 앞서 나가서 뒤로 걷는 것처럼
+                //   보인다."* <b>기수 방향은 멀쩡했다</b> — 블렌더로 재니 꼬리 로터가 −Y(= 유니티 −Z)
+                //   라 코가 +Z 고, 그건 <see cref="FlyingProp"/> 가 바라보게 하는 방향 그대로다.
+                //
+                //   진짜 원인은 <b>방향이 아니라 속도</b>였다. 19초/바퀴 · 카트 29초면 헬기가
+                //   <b>뒤에서 따라와 추월해 멀어진다</b> — 레이스 내내 <b>뒷모습만 보인다.</b>
+                //   꼬리만 보이니 «뒤로 걷는 것» 으로 읽힌 거야.
+                //   <b>거꾸로 돌린다</b>(비행선과 같은 처방): 마주 오니 코부터 보이고,
+                //   상대 속도가 1/19 + 1/29 라 87초에 <b>7~8번</b> 스쳐 간다.
+                //
+                // ★ 유저: *"지켜보기만 하고 아무것도 안 하니 좀 그렇다. 레이저빔이라도 쏴서
+                //   범위 안에 들어가면 느려지든가."* <b>점검등</b>으로 넣었다 — 안전점검 헬기라
+                //   서치라이트가 설정에 맞고, 동아줄과 달리 <b>어디가 위험한지 바닥에 보인다.</b>
+                //
+                //   ⚠ <b>밀거나 비틀지 않는다.</b> 이 판이 «담장 긁지 않기» 라, 조향을 건드리면
+                //   내가 플레이어를 벽에 밀어 놓고 실패시키는 꼴이 된다. <b>느려지기만</b> 한다.
+                Patrol(track, "R02_Safety_Helicopter", 9.5f, 19f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
+                       reverse: true, engine: "Heli_Rotor", engineVolume: 0.8f, beam: true);
                 Crowd(track, 8);
                 break;
 
@@ -155,7 +189,8 @@ public static class RaceProps
             // 9판 결승 — 담장이 곰인형 관중으로 가득 차고 비행선 둘이 뜬다
             case MissionManager.Goal.결승:
                 Crowd(track, 26);
-                Patrol(track, "R01_Director_Blimp", 12.5f, 22f, lateral: 7f, bob: 0.25f, shadow: 10f, noseBack: true);
+                Patrol(track, "R01_Director_Blimp", 12.5f, 22f, lateral: 7f, bob: 0.25f, shadow: 10f,
+                       noseBack: true, engine: "Blimp_Engine", engineVolume: 0.7f);
                 Patrol(track, "R02_Safety_Helicopter", 10.5f, 17f, lateral: -12f, bob: 0.7f, shadow: 6f);
                 break;
         }
@@ -218,7 +253,9 @@ public static class RaceProps
     /// 짧으면 뒤에서 따라잡힌다. <b>어느 쪽이든 가끔 마주치는 게 요점</b>이다.
     /// </summary>
     static void Patrol(TrackBuilder track, string file, float height, float lapSeconds,
-                       float lateral, float bob, float shadow, bool noseBack = false)
+                       float lateral, float bob, float shadow, bool noseBack = false,
+                       bool reverse = false, int diveFromLap = 0,
+                       string engine = null, float engineVolume = 0.9f, bool beam = false)
     {
         var go = Load(file);
         if (go == null) return;
@@ -226,6 +263,18 @@ public static class RaceProps
         var f = go.AddComponent<FlyingProp>();
         f.patrol = track; f.height = height; f.lapSeconds = lapSeconds;
         f.lateral = lateral; f.bob = bob; f.shadowRadius = shadow; f.noseBack = noseBack;
+        f.reverse = reverse; f.diveFromLap = diveFromLap;
+
+        if (beam)
+        {
+            var b = go.AddComponent<SearchBeam>();
+            b.flyer = f;
+        }
+
+        if (string.IsNullOrEmpty(engine)) return;
+        var e = go.AddComponent<PropEngine>();
+        e.clipName = engine; e.volume = engineVolume;
+        f.engine = e;
     }
 
     /// <summary>코스 <b>바깥</b>에 고정. 자리를 손으로 안 찍는다 — 코스 t 와 옆거리로 적는다.</summary>
@@ -481,6 +530,29 @@ public class FlyingProp : MonoBehaviour
     Renderer shadeRenderer;
     float seed;
 
+    /// <summary>코스를 <b>거꾸로</b> 돈다 — 마주 오면 자주 마주치고 더 위협적이다.</summary>
+    public bool reverse;
+
+    /// <summary>지금 코스 어디쯤(0~1). <see cref="SearchBeam"/> 이 이걸 보고 앞을 비춘다.</summary>
+    public float Lap => lap;
+
+    /// <summary>이 바퀴부터 <b>가끔 급강하</b>한다. 0 이면 안 내려온다.</summary>
+    public int diveFromLap;
+
+    /// <summary>엔진 소리. 급강하할 때 한 방 더 울린다.</summary>
+    public PropEngine engine;
+
+    /// <summary>급강하 한 번의 길이. <c>Blimp_Dive.wav</c> 와 같은 2.6초다.</summary>
+    const float DiveLen = 2.6f;
+
+    /// <summary>제일 낮게 내려왔을 때의 높이. 선체 밑이 여기 오니 카트 위로 지나간다.</summary>
+    const float DiveFloor = 6f;
+
+    float diveAt = -99f, nextDive;
+    bool jolted;
+    RaceProgress mine;
+    KartCamera shakeCam;
+
     void Start()
     {
         seed = Random.value * 10f;
@@ -490,8 +562,14 @@ public class FlyingProp : MonoBehaviour
         if (patrol != null) { lap = Random.value; Patrol(seed); }
 
         foreach (var k in Object.FindObjectsByType<KartController>(FindObjectsSortMode.None))
-            if (k.GetComponent<PlayerKart>() != null) { target = k.transform; break; }
+            if (k.GetComponent<PlayerKart>() != null)
+            {
+                target = k.transform;
+                mine = k.GetComponent<RaceProgress>();
+                break;
+            }
         if (target == null && Camera.main != null) target = Camera.main.transform;
+        if (Camera.main != null) shakeCam = Camera.main.GetComponent<KartCamera>();
 
         if (shadowRadius <= 0f) return;
 
@@ -521,7 +599,7 @@ public class FlyingProp : MonoBehaviour
 
         float t = Time.time + seed;
 
-        if (patrol != null) { Patrol(t); Shadow(); return; }
+        if (patrol != null) { TryDive(); Patrol(t); Shadow(); return; }
 
         // ★★ <b>앞쪽 비스듬히</b> 떠 있는다. 카메라가 <b>3인칭 백뷰</b>라 카트 뒤에 두면
         // 그건 곧 «카메라 뒤» 라서 <b>한 번도 화면에 안 들어온다</b> — 유저가 «비행선이 안 쫓아온다»
@@ -547,27 +625,93 @@ public class FlyingProp : MonoBehaviour
     /// <summary>코스를 따라 일정한 속도로 돈다. 기수는 <b>진행 방향</b>.</summary>
     void Patrol(float t)
     {
-        lap += Time.deltaTime / Mathf.Max(4f, lapSeconds);
+        lap += (reverse ? -Time.deltaTime : Time.deltaTime) / Mathf.Max(4f, lapSeconds);
         lap -= Mathf.Floor(lap);
 
         Vector3 fwd = patrol.TangentOnPath(lap);
+
+        // ★ <b>가는 방향</b>과 코스의 방향은 다를 수 있다. 기수는 가는 쪽을 봐야 한다 —
+        //   거꾸로 돌면서 코스 방향을 보면 그대로 «뒤로 걷는 비행선» 이 된다.
+        Vector3 dir = reverse ? -fwd : fwd;
+
         Vector3 at = patrol.transform.position + patrol.PointOnPath(lap)
                    + Vector3.Cross(Vector3.up, fwd) * lateral
-                   + Vector3.up * (height + Mathf.Sin(t * 0.5f) * bob * 3f);
+                   + Vector3.up * (height + Mathf.Sin(t * 0.5f) * bob * 3f - DiveDrop());
 
         transform.position = at;
 
         // 선회할 때 <b>안쪽으로 기운다.</b> 수평으로 미끄러지면 종이비행기로 보인다 —
         // 각속도에서 기울기를 뽑으니 코스 모양을 바꿔도 저절로 맞는다.
-        float turn = Vector3.SignedAngle(lastFwd == Vector3.zero ? fwd : lastFwd, fwd, Vector3.up);
-        lastFwd = fwd;
+        float turn = Vector3.SignedAngle(lastFwd == Vector3.zero ? dir : lastFwd, dir, Vector3.up);
+        lastFwd = dir;
         bank = Mathf.Lerp(bank, Mathf.Clamp(turn / Mathf.Max(0.0001f, Time.deltaTime) * 0.45f, -22f, 22f),
                           1f - Mathf.Exp(-2.5f * Time.deltaTime));
 
         transform.rotation = Quaternion.Slerp(transform.rotation,
-                                              Quaternion.LookRotation(fwd, Vector3.up)
-                                                  * Quaternion.Euler(0f, noseBack ? 180f : 0f, -bank),
+                                              Quaternion.LookRotation(dir, Vector3.up)
+                                                  * Quaternion.Euler(Mathf.Clamp(DiveTilt(), -14f, 14f),
+                                                                     noseBack ? 180f : 0f, -bank),
                                               1f - Mathf.Exp(-4f * Time.deltaTime));
+    }
+
+    /// <summary>
+    /// ★ <b>가끔 확 내려온다</b>(2026-10-12 유저 요청). 1바퀴째는 얌전히 돌고,
+    /// 2바퀴째부터 «위협하듯이» 내려오며, 3바퀴째는 더 자주 온다.
+    ///
+    /// <b>앞쪽에서만 시작한다</b> — 3인칭 백뷰라 뒤에서 내려오면 화면에 한 번도 안 들어온다.
+    /// 그건 비행선이 꼬리부터 날던 것과 같은 실수다.
+    /// </summary>
+    void TryDive()
+    {
+        if (diveFromLap <= 0 || target == null) return;
+        if (Time.time - diveAt < DiveLen + 0.4f) return;
+        if (Time.time < nextDive) return;
+
+        int lap = mine != null ? mine.Lap : 1;
+        if (lap < diveFromLap) return;
+
+        Vector3 to = transform.position - target.position;
+        to.y = 0f;
+        float far = to.magnitude;
+        if (far < 42f || far > 125f) return;
+        if (Vector3.Dot(to.normalized, target.forward) < 0.55f) return;
+
+        diveAt = Time.time;
+        jolted = false;
+
+        // 바퀴가 늘수록 자주. 3바퀴째가 제일 사납다.
+        float gap = lap > diveFromLap ? Random.Range(4.5f, 7.5f) : Random.Range(8f, 13f);
+        nextDive = Time.time + DiveLen + gap;
+
+        if (engine != null) engine.Boom("Blimp_Dive");
+    }
+
+    /// <summary>급강하한 만큼. 가운데에서 제일 낮고, 제곱이라 바닥에 조금 머문다.</summary>
+    float DiveDrop()
+    {
+        float p = (Time.time - diveAt) / DiveLen;
+        if (p <= 0f || p >= 1f) return 0f;
+
+        float s = Mathf.Sin(p * Mathf.PI);
+        float drop = (height - DiveFloor) * s * s;
+
+        // 제일 낮은 데를 지날 때 화면이 한 번 들린다 — 가까이 있을 때만.
+        if (!jolted && p > 0.46f && shakeCam != null && target != null &&
+            (transform.position - target.position).sqrMagnitude < 40f * 40f)
+        {
+            jolted = true;
+            shakeCam.Jolt(0.22f);
+        }
+        if (engine != null) engine.Strain(s);
+        return drop;
+    }
+
+    /// <summary>내려올 때 기수를 숙이고 올라갈 때 든다. 수평으로 내려오면 엘리베이터다.</summary>
+    float DiveTilt()
+    {
+        float p = (Time.time - diveAt) / DiveLen;
+        if (p <= 0f || p >= 1f) return 0f;
+        return Mathf.Sin(p * 2f * Mathf.PI) * 13f;
     }
 
     Vector3 lastFwd;
@@ -597,6 +741,227 @@ public class FlyingProp : MonoBehaviour
             shadeRenderer.sharedMaterial.SetColor("_BaseColor", c);
         }
     }
+}
+
+/// <summary>
+/// ★★ <b>점검등</b>(2026-10-12). 안전점검 헬기가 코스를 비추고, <b>그 안에 있으면 느려진다.</b>
+///
+/// 유저: *"헬기가 지켜보기만 하고 아무것도 안 하니 좀 그렇다."* 맞다 — 풍경은 판을 바꾸지만
+/// <b>기믹은 운전을 바꾼다.</b> 다만 이 판은 «담장 긁지 않기» 라 <b>밀거나 비틀면 안 된다</b> —
+/// 그건 내가 플레이어를 벽에 밀어 놓고 실패시키는 것이다. <b>느려지기만</b> 한다.
+///
+/// 피할 수 있어야 벌이 아니라 기믹이다. 그래서 셋을 지킨다:
+/// <list type="bullet">
+/// <item><b>바닥에 고리가 보인다.</b> 빛줄기만 있으면 어디가 닿는 데인지 모른다.</item>
+/// <item><b>기체보다 앞을 비춘다.</b> 마주 오는 헬기라, 고리가 먼저 와야 피할 틈이 생긴다.</item>
+/// <item><b>일정한 박자로 좌우로 쓴다.</b> 무작위면 외울 수가 없고, 외울 수 없으면 운이다.</item>
+/// </list>
+/// </summary>
+public class SearchBeam : MonoBehaviour
+{
+    public FlyingProp flyer;
+
+    /// <summary>잡히는 반지름. 길 반폭이 3.5~6m 라 4.4 면 길을 다 막지는 않는다.</summary>
+    public float radius = 4.4f;
+
+    /// <summary>기체보다 얼마나 앞을 비추나. 마주 오니 이만큼 먼저 온다.</summary>
+    public float leadMetres = 20f;
+
+    /// <summary>길 반폭의 몇 배까지 좌우로 쓸까. 1 이면 길을 통째로 막는다.</summary>
+    public float sweep = 0.58f;
+
+    /// <summary>좌우로 한 번 왕복하는 데 걸리는 시간.</summary>
+    public float period = 2.8f;
+
+    /// <summary>안에 있을 때 1초에 남는 속도. 0.42 면 1초에 58% 가 깎인다.</summary>
+    public float keepPerSecond = 0.42f;
+
+    Transform shaft, ring;
+    Material shaftMat, ringMat;
+    KartController player;
+    TrackBuilder track;
+    bool toldOnce;
+
+    static readonly Color Lamp = new Color(1.00f, 0.90f, 0.58f);
+    static readonly Color Caught = new Color(0.86f, 0.33f, 0.28f);
+
+    void Start()
+    {
+        if (flyer != null) track = flyer.patrol;
+        foreach (var k in Object.FindObjectsByType<KartController>(FindObjectsSortMode.None))
+            if (k.GetComponent<PlayerKart>() != null) { player = k; break; }
+
+        shaft = Make("BeamShaft", 0.30f, out shaftMat);
+        ring = Make("BeamRing", 0.62f, out ringMat);
+    }
+
+    Transform Make(string name, float alpha, out Material mat)
+    {
+        // 원기둥이다. Quad 는 한쪽 면만 있어서 «어느 쪽이 앞인가» 가 또 하나의 짐작거리가 된다.
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        Object.Destroy(go.GetComponent<Collider>());
+        go.name = name;
+
+        mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        mat.SetFloat("_Surface", 1f);
+        mat.SetFloat("_Blend", 0f);
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);   // 더하기 — 빛이다
+        mat.SetInt("_ZWrite", 0);
+        mat.renderQueue = 3100;
+        mat.EnableKeyword("_EMISSION");
+        mat.SetColor("_BaseColor", new Color(Lamp.r, Lamp.g, Lamp.b, alpha));
+        mat.SetColor("_EmissionColor", Lamp * 1.6f);
+        go.GetComponent<Renderer>().sharedMaterial = mat;
+        return go.transform;
+    }
+
+    void LateUpdate()
+    {
+        if (shaft == null || flyer == null || track == null) return;
+
+        bool off = RacePause.On || RaceCountdown.Blocked;
+        shaft.gameObject.SetActive(!off);
+        ring.gameObject.SetActive(!off);
+        if (off) return;
+
+        // 기체보다 <b>앞</b>을 비춘다. 미터를 바퀴 비율로 바꾸니 코스 길이를 바꿔도 안 고친다.
+        float lapLen = Mathf.Max(50f, track.LapLength);
+        float ahead = leadMetres / lapLen * (flyer.reverse ? -1f : 1f);
+        float t01 = Mathf.Repeat(flyer.Lap + ahead, 1f);
+
+        Vector3 fwd = track.TangentOnPath(t01);
+        Vector3 side = Vector3.Cross(Vector3.up, fwd);
+        float half = track.WidthOnPath(t01) * 0.5f;
+        float lateral = Mathf.Sin(Time.time * (2f * Mathf.PI / Mathf.Max(0.4f, period))) * half * sweep;
+
+        Vector3 ground = track.transform.position + track.PointOnPath(t01) + side * lateral;
+        if (Physics.Raycast(ground + Vector3.up * 40f, Vector3.down, out var hit, 90f, ~(1 << 2)))
+            ground = hit.point;
+
+        ring.position = ground + Vector3.up * 0.06f;
+        ring.rotation = Quaternion.identity;
+        ring.localScale = new Vector3(radius * 2f, 0.01f, radius * 2f);
+
+        // 빛줄기 — 기체에서 바닥까지. 유니티 원기둥은 Y 로 2 단위라 길이의 절반을 준다.
+        Vector3 from = transform.position;
+        Vector3 to = ground;
+        Vector3 dir = to - from;
+        float len = dir.magnitude;
+        if (len < 0.5f) return;
+
+        shaft.position = (from + to) * 0.5f;
+        shaft.rotation = Quaternion.FromToRotation(Vector3.up, dir / len);
+        shaft.localScale = new Vector3(radius * 1.35f, len * 0.5f, radius * 1.35f);
+
+        if (player == null) return;
+
+        Vector3 gap = player.transform.position - ground;
+        gap.y = 0f;
+        bool inside = gap.sqrMagnitude < radius * radius;
+
+        if (inside)
+        {
+            // ★ <b>매 프레임 조금씩</b> 끌린다. 한 번에 깎으면 «벽에 부딪힌 것» 이고,
+            //   그러면 담장을 안 긁었는데도 긁은 것 같은 손해로 느껴진다.
+            player.Wade(keepPerSecond);
+            if (!toldOnce && player.SpeedKph > 12f)
+            {
+                toldOnce = true;
+                Toast.Show("점검등 — 빛에 잡히면 느려진다");
+            }
+        }
+
+        var c = inside ? Caught : Lamp;
+        ringMat.SetColor("_BaseColor", new Color(c.r, c.g, c.b, inside ? 0.80f : 0.62f));
+        ringMat.SetColor("_EmissionColor", c * (inside ? 2.4f : 1.6f));
+        shaftMat.SetColor("_BaseColor", new Color(c.r, c.g, c.b, inside ? 0.40f : 0.30f));
+        shaftMat.SetColor("_EmissionColor", c * (inside ? 2.1f : 1.6f));
+    }
+
+    void OnDestroy()
+    {
+        if (shaft != null) Object.Destroy(shaft.gameObject);
+        if (ring != null) Object.Destroy(ring.gameObject);
+    }
+}
+
+/// <summary>
+/// ★★ <b>하늘에 뜬 것의 엔진 소리</b>(2026-10-12). 유저: *"가까이 올 때 쿠와앙 내고,
+/// 멀어지면 멀어지는 소리가 났으면."*
+///
+/// <b>다가오고 멀어지는 소리를 따로 만들지 않는다.</b> 3D 음원 하나를 물체에 붙이면
+/// 유니티가 거리 감쇠와 <b>도플러</b>를 둘 다 해 준다 — 마주 오면 음이 올라가고
+/// 지나가면 뚝 떨어진다. 손으로 만든 «멀어지는 소리» 는 플레이어가 어디 있느냐에 따라
+/// 늘 어긋나지만, 이건 <b>언제나 맞는다.</b>
+///
+/// 소리는 합성해서 만들었다(스크래치패드 <c>blimp_sfx.py</c>) —
+/// 프로펠러 둘을 2.5Hz 어긋나게 돌려 맥놀이를 만들고, 날개 지나가는 변조를 얹고,
+/// 선체 저역을 깔았다. <b>4초에 정수 주기로만</b> 만들어서 이음매가 안 들린다
+/// (측정: 이음매 단차 0.0088 &lt; 보통 단차 최대 0.0208).
+///
+/// 크기는 <see cref="Music.Volume"/> 을 따라간다 — 슬라이더 하나로 같이 움직여야 한다.
+/// </summary>
+public class PropEngine : MonoBehaviour
+{
+    public string clipName = "Blimp_Engine";
+    public float volume = 0.9f;
+
+    /// <summary>이 안에서는 안 작아진다. 선체가 20m 가 넘으니 그만큼은 줘야 한다.</summary>
+    public float near = 16f;
+
+    /// <summary>여기서부터는 더 안 작아진다 — 로그 감쇠라 0 이 되지는 않는다(16/190 = 8%).</summary>
+    public float far = 190f;
+
+    AudioSource src;
+    float strain;
+
+    void Start()
+    {
+        var clip = Resources.Load<AudioClip>("Sfx/" + clipName);
+        if (clip == null)
+        {
+            Debug.LogWarning($"[풍경] 엔진 소리 {clipName} 을 못 찾았다 — Resources/Sfx/");
+            return;
+        }
+
+        src = gameObject.AddComponent<AudioSource>();
+        src.clip = clip;
+        src.loop = true;
+        src.playOnAwake = false;
+        src.spatialBlend = 1f;                       // 3D — 자리로 들린다
+        src.rolloffMode = AudioRolloffMode.Logarithmic;
+        src.minDistance = near;
+        src.maxDistance = far;
+        src.dopplerLevel = 2.2f;                     // 1 이 현실. 조금 과장해야 레이스에서 읽힌다
+        src.time = Random.value * clip.length;       // 둘 이상 떠 있어도 겹쳐 들리지 않게
+        src.Play();
+    }
+
+    void Update()
+    {
+        if (src == null) return;
+
+        // 멈춰 있으면 소리도 멈춘다 — «멈춤» 은 그림도 소리도 멈추는 것이어야 한다.
+        if (RacePause.On || RaceCountdown.Blocked) { if (src.isPlaying) src.Pause(); return; }
+        if (!src.isPlaying) src.UnPause();
+
+        strain = Mathf.Lerp(strain, 0f, 1f - Mathf.Exp(-3f * Time.deltaTime));
+        src.volume = Mathf.Clamp01(Music.Volume * 1.5f) * volume * (1f + strain * 0.55f);
+        src.pitch = 1f + strain * 0.16f;
+    }
+
+    /// <summary>급강하 같은 사건에 한 방. <b>같은 음원에서</b> 나야 자리가 맞는다.</summary>
+    public void Boom(string name, float gain = 1f)
+    {
+        if (src == null) return;
+        var clip = Resources.Load<AudioClip>("Sfx/" + name);
+        if (clip == null) return;
+        src.PlayOneShot(clip, Mathf.Clamp01(Music.Volume * 1.9f) * gain);
+    }
+
+    /// <summary>엔진이 힘쓰는 중 — 0~1. 커지고 음이 조금 올라간다.</summary>
+    public void Strain(float amount) => strain = Mathf.Max(strain, Mathf.Clamp01(amount));
 }
 
 /// <summary>코스 <b>바깥</b> 길을 따라 같이 달리는 차. 코스 모양을 바꿔도 안 고친다.</summary>
