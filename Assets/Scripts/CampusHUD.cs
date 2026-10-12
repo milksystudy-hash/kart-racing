@@ -202,15 +202,16 @@ public class CampusHUD : MonoBehaviour
                   $"{state}  ·  F 날기  ·  F8 클리어 전/후  ·  F1 로비", tiny);
 
         if (showControls) return;
-        var chip = new Rect(16f, h - 28f, 88f, 22f);
-        Hud.Chip(chip);
-        GUI.Label(new Rect(chip.x + 9f, chip.y + 3f, 78f, 18f), "H  조작법", Hud.Resize(Hud.Text, 13));
+        // ★ 곤 발바닥 버튼. H 로도 열리고 <b>마우스로도 눌린다</b> —
+        //   키만 있으면 안 눌러본 사람에겐 없는 기능이다(G·TAB 에서 두 번 겉은 실수).
+        var chip = new Rect(16f, h - 34f, 98f, 28f);
+        if (Hud.PawChip(chip)) showControls = !showControls;
     }
 
     void DrawControls(float w, float h)
     {
         var box = new Rect(w * 0.5f - 190f, h * 0.5f - 130f, 380f, 260f);
-        Hud.Panel(box);
+        Hud.NoteCard(box);
 
         GUI.Label(new Rect(box.x, box.y + 16f, box.width, 26f), "조작법", Hud.Title);
         Hud.Rule(box.x + 20f, box.y + 46f, box.width - 40f);

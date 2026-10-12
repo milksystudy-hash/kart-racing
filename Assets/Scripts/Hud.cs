@@ -71,9 +71,13 @@ public static class Hud
         builtWith = font;
         built = true;
 
-        WoodTex     = Solid(Wood);
+        // ★★ 2026-10-12 — <b>그림이 있으면 그걸 쓴다.</b> 없으면 예전처럼 단색 한 점으로
+        //   떨어진다 — 파일을 빼도 HUD 가 안 깨진다.
+        //   이 두 줄이 <see cref="Panel"/> 을 지나는 <b>모든 패널</b>을 한꺼번에 바꾼다 —
+        //   레이스·로비·캐퍼스·조작법·완주·단서 카드까지.
+        WoodTex     = Resources.Load<Texture2D>("UI/Wood")  ?? Solid(Wood);
         WoodDarkTex = Solid(WoodDark);
-        PaperTex    = Solid(Paper);
+        PaperTex    = Resources.Load<Texture2D>("UI/Paper") ?? Solid(Paper);
         BrassTex    = Solid(Brass);
         RibbonTex   = Solid(Ribbon);
 
@@ -207,6 +211,80 @@ public static class Hud
         GUI.DrawTexture(r, PaperTex);
         GUI.DrawTexture(new Rect(r.x, r.yMax - 2f, r.width, 2f), WoodDarkTex);
     }
+
+    // ── 곤 발바닥 버튼·손글씨 종이·곤 귀 ─────────────────────────────────
+    //
+    //  ★★ 2026-10-12 — 세 HUD 가 <b>같은 칩과 같은 카드</b>를 그린다. 여기 한 군데에
+    //  두면 한 번 고쳐 셋이 같이 바뀜다 — 팔레트를 <c>Hud</c> 에 모아 둔 것과 같은 이유다.
+    //  ★ 그림이 없으면 전부 예전 모양으로 떨어진다.
+
+    static Texture2D pawTex, earsTex, noteTex;
+    static bool uiTried;
+
+    static void LoadUi()
+    {
+        if (uiTried) return;
+        uiTried = true;
+        pawTex  = Resources.Load<Texture2D>("UI/Paw");
+        earsTex = Resources.Load<Texture2D>("UI/Ears");
+        noteTex = Resources.Load<Texture2D>("UI/Note");
+    }
+
+    public static Texture2D PawTex  { get { LoadUi(); return pawTex;  } }
+    public static Texture2D EarsTex { get { LoadUi(); return earsTex; } }
+    public static Texture2D NoteTex { get { LoadUi(); return noteTex; } }
+
+    /// <summary>
+    /// 조작법 칩. 곤 발바닥이 있으면 그걸 앞에 두고, 없으면 「H」 글자만.
+    /// <b>마우스로도 눌린다</b> — 누른 것을 <c>true</c> 로 돌려준다.
+    /// </summary>
+    public static bool PawChip(Rect r, string label = "조작법")
+    {
+        LoadUi();
+        Chip(r);
+        float pad = 6f;
+        if (pawTex != null)
+        {
+            float s = r.height - pad * 2f;
+            GUI.DrawTexture(new Rect(r.x + pad, r.y + pad, s, s), pawTex, ScaleMode.ScaleToFit, true);
+            GUI.Label(new Rect(r.x + pad + s + 5f, r.y + 3f, r.width - pad - s - 8f, 18f),
+                      label, Resize(Text, 13));
+        }
+        else
+        {
+            GUI.Label(new Rect(r.x + 9f, r.y + 3f, r.width - 14f, 18f), "H  " + label, Resize(Text, 13));
+        }
+
+        // 마우스는 화면 좌표라 가상 1280×720 으로 내려야 한다(태엽 회전축과 같은 함정)
+        var m = UnityEngine.InputSystem.Mouse.current;
+        if (m == null || !m.leftButton.wasPressedThisFrame) return false;
+        Vector2 v = m.position.ReadValue();
+        v = new Vector2(v.x / ScaleFactor, (Screen.height - v.y) / ScaleFactor);
+        return r.Contains(v);
+    }
+
+    /// <summary>
+    /// 손글씨 종이 카드. 그림이 있으면 한지 한 장, 없으면 <see cref="Panel"/>.
+    /// 같이 <b>곤 귀</b>를 언어 — 카드 위에 귀가 빼꿜 나오면 «고문» 이 된다.
+    /// </summary>
+    public static void NoteCard(Rect r)
+    {
+        LoadUi();
+        if (earsTex != null)
+        {
+            float ew = r.width * 0.30f, eh = ew * 0.5f;
+            GUI.DrawTexture(new Rect(r.center.x - ew * 0.5f, r.y - eh * 0.62f, ew, eh),
+                            earsTex, ScaleMode.ScaleToFit, true);
+        }
+        if (noteTex != null) GUI.DrawTexture(r, noteTex, ScaleMode.StretchToFill, true);
+        else Panel(r);
+    }
+
+    /// <summary>종이 카드 안쪽. 한지 테두리가 있어 <see cref="Inner"/> 보다 좀 더 물러난다.</summary>
+    public static Rect NoteInner(Rect r) =>
+        noteTex != null ? new Rect(r.x + r.width * 0.055f, r.y + r.height * 0.055f,
+                                   r.width * 0.89f, r.height * 0.89f)
+                        : Inner(r);
 
     /// <summary>종이에 그은 옅은 칸막이 줄.</summary>
     public static void Rule(float x, float y, float width)
