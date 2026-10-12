@@ -139,7 +139,11 @@ public static class RaceProps
                 //   역주행(reverse)은 뺀다 — 수연 지시: «경로를 역주행시키는 게 아니라
                 //   기존 경로를 따라가면서 기수가 진행 방향을 보게». 대신 속도를 늦춰
                 //   <b>플레이어가 따라잡아 나란히 가는</b> 구간을 만든다(24 → 34초).
-                Patrol(track, "R01_Director_Blimp", 11.5f, 34f, lateral: 0f, bob: 0.3f, shadow: 11f,
+                // ★ 역주행을 뺀 뒤 <b>마주치는 횟수를 다시 셌다.</b> 34초면
+                //   1/29 − 1/34 = 0.0051바퀴/초 × 87초 = <b>0.44바퀴</b> — 한 번도 안 마주친다.
+                //   <b>58초</b>면 1.5바퀴라 레이스 중 한두 번 <b>천천히 따라잡아 지나간다.</b>
+                //   느린 비행선을 추월하는 그림이 «감시당하는 느낌» 에도 더 맞는다.
+                Patrol(track, "R01_Director_Blimp", 11.5f, 58f, lateral: 0f, bob: 0.3f, shadow: 11f,
                        noseBack: true, diveFromLap: 2, engine: "Blimp_Engine");
                 break;
 
@@ -162,7 +166,9 @@ public static class RaceProps
                 //
                 //   ⚠ <b>밀거나 비틀지 않는다.</b> 이 판이 «담장 긁지 않기» 라, 조향을 건드리면
                 //   내가 플레이어를 벽에 밀어 놓고 실패시키는 꼴이 된다. <b>느려지기만</b> 한다.
-                Patrol(track, "R02_Safety_Helicopter", 9.5f, 24f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
+                // ★ 24초는 0.62바퀴라 안 마주칠 수도 있다. <b>16초</b>면 3.2번 스쳐 간다 —
+                //   헬기는 빨라야 헬기답고, 점검등도 그만큼 자주 온다.
+                Patrol(track, "R02_Safety_Helicopter", 9.5f, 16f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
                        noseBack: true, engine: "Heli_Rotor", engineVolume: 0.8f, beam: true);
                 Crowd(track, 8);
                 break;
@@ -1610,7 +1616,9 @@ public static class SkyDrop
         cube.transform.SetParent(holder, false);
         cube.transform.localScale = new Vector3(2.3f, 1.1f, 1.7f);
         cube.transform.localPosition = new Vector3(0f, 34f, 0f);
-        cube.transform.localRotation = Random.rotation;
+        // ★ 2026-10-12 — 콜라이더를 남기면서 <b>마구잡이 회전은 위험해졌다.</b>
+        //   모서리가 위로 서면 카트를 띄우는 램프가 된다. <b>요만 돌린다.</b>
+        cube.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
 
         live.Add(new Drop { at = at, born = Time.time, mark = mark, outline = ring, block = cube.transform });
     }

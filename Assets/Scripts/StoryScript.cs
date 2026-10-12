@@ -314,7 +314,7 @@ Narrate("첫 번째 주행이 시작됐다."),
             Say("세운", "대충… 열 배 정도.").OnlyIf(When.Has("ledger")),
 
             Say("세진", "열 배를 실수로 빼먹는다고?").OnlyIf(When.Has("ledger")),
-            Say("세운", Mood.당황, "나도 그래서 다시 봤는데… 똑같은 것 같은데.").OnlyIf(When.Has("ledger")),
+            Say("세운", Mood.당황, "나도 그래서 두 번 세 봤는데… 그대로야.").OnlyIf(When.Has("ledger")),
 
             Say("시우", "그럼 적어도 숫자 하나는 잘못된 거잖아.").OnlyIf(When.Has("ledger")),
             Say("이감", "열 배는 계산기 탓하기도 힘든데.").OnlyIf(When.Has("ledger")),
