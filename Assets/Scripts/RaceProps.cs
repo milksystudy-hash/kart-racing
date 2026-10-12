@@ -122,7 +122,7 @@ public static class RaceProps
                 //   멀어지면 사라진다</b> — 도플러까지 유니티가 해 준다. 보이기 전에
                 //   먼저 들리는 게 이 연출의 핵심이야.
                 Patrol(track, "R01_Director_Blimp", 11.5f, 24f, lateral: 0f, bob: 0.3f, shadow: 11f,
-                       noseBack: true, reverse: true, diveFromLap: 2, engine: "Blimp_Engine");
+                       noseBack: false, reverse: true, diveFromLap: 2, engine: "Blimp_Engine");
                 break;
 
             // 3판 — 안전점검 헬기가 낮게 돈다 + 담장 위에 곰 관중이 처음 몇 마리
@@ -224,7 +224,7 @@ public static class RaceProps
             case MissionManager.Goal.결승:
                 Crowd(track, 26);
                 Patrol(track, "R01_Director_Blimp", 12.5f, 22f, lateral: 7f, bob: 0.25f, shadow: 10f,
-                       noseBack: true, engine: "Blimp_Engine", engineVolume: 0.7f);
+                       noseBack: false, engine: "Blimp_Engine", engineVolume: 0.7f);
                 Patrol(track, "R02_Safety_Helicopter", 10.5f, 17f, lateral: -12f, bob: 0.7f, shadow: 6f);
                 break;
         }
@@ -664,56 +664,21 @@ public class FlyingProp : MonoBehaviour
     KartCamera shakeCam;
 
     /// <summary>
-    /// ★★★ <b>코가 어느 쪽인지 «재서» 정한다</b>(2026-10-12).
+    /// ★★★ <b>코 방향은 손으로 적는다</b>(2026-10-12, 되돌림).
     ///
-    /// 수연이 비행선(10-06)과 헬기(10-12) 두 번 다 *"꼬리부터 날아간다"* 고 신고했다.
-    /// 블렌더에서 재면 둘 다 <b>코가 +Y</b> 인데(탐조등이 앞, 프로펠러·꼬리로터가 뒤),
-    /// 비행선은 유니티에서 <c>noseBack: true</c> 를 줘야 맞았다 —
-    /// 즉 <b>블렌더 +Y 가 유니티 −Z 로 온다.</b> 그걸 헬기에는 안 줬던 것이다.
+    /// 부품 이름으로 재서 자동으로 정하게 해 봤다가 <b>전부 뒤로 날았다.</b>
+    /// 수연: *"왜 모든 비행선과 헬리콥터가 다 뒤로 이동하지."* 내가 만든 회귀다.
     ///
-    /// 그러니 <b>축이 어떻게 변환되는지 외우지 말고 그 자리에서 재라.</b>
-    /// 이 프로젝트에서 「블렌더에서 이랬으니 유니티에서는 이럴 것」이 <b>세 번</b> 틀렸다
-    /// (곰이 누움 · 스피커가 뒤돎 · 이번). 앞에만 있는 부품과 뒤에만 있는 부품의
-    /// <b>로컬 Z</b> 를 보면 모델을 새로 뽑아도 안 틀린다.
+    /// 재는 게 틀린 게 아니라 <b>부호를 어디에 맞출지가 추론이었던 게</b> 틀렸다.
+    /// 2026-10-06 플레이테스트로 확인된 값은 «비행선은 안 뒤집는다» 하나뿐이고,
+    /// 지금은 거기에 맞춰 <b>둘 다 안 뒤집는다.</b>
+    ///
+    /// ⚠ <b>자동으로 정하지 마라.</b> 모델이 두 개뿐이라 손으로 적는 게 싸고 안 틀린다.
+    /// 거꾸로 보이면 <see cref="noseBack"/> 을 뒤집고 <b>달려서 확인</b>해라 —
+    /// 마주 오는 쪽에서만 드러난다.
     /// </summary>
-    static readonly string[] FrontParts = { "Light_Lens", "Nose", "Cockpit", "Windshield" };
-    static readonly string[] BackParts  = { "Prop_", "Rotor_Tail", "Tail", "Fin_", "Exhaust" };
-
-    void MeasureNose()
-    {
-        float score = 0f;
-        int marks = 0;
-
-        foreach (var t in GetComponentsInChildren<Transform>(true))
-        {
-            if (t == transform) continue;
-            float z = transform.InverseTransformPoint(t.position).z;
-
-            foreach (var n in FrontParts)
-                if (t.name.StartsWith(n)) { score += z; marks++; break; }
-            foreach (var n in BackParts)
-                if (t.name.StartsWith(n)) { score -= z; marks++; break; }
-        }
-
-        if (marks == 0) return;               // 표식이 없으면 인스펙터 값을 믿는다
-
-        // ★★★ 부호는 <b>추론이 아니라 검증된 한 점</b>에 맞춘다(2026-10-12).
-        //   비행선은 2026-10-06 플레이테스트로 <c>noseBack: true</c> 가 맞다는 게 확인됐고,
-        //   그 모델의 점수는 <b>+9.75</b> 다. 그러니 «점수가 양수면 돌린다» 가 맞는 규칙이다.
-        //   헬기(+7.02)도 같은 쪽이라 같이 돌아간다 — 수연이 «헬기가 여전히 뒤로 간다» 고
-        //   한 게 이거다. <b>내가 처음에 부호를 거꾸로 적었다.</b>
-        //
-        //   ⚠ 캠퍼스 헬기가 «멀쩡해 보였다» 는 건 증거가 아니다 — 거기선 멀어지는 뒷모습만
-        //   보여서 코가 어디든 똑같이 보인다. <b>마주 오는 쪽에서만 드러난다.</b>
-        bool flip = score > 0f;
-        Debug.Log($"[풍경] {name} · 표식 {marks}개 · 점수 {score:0.00} → " +
-                  $"180도 {(flip ? "돌린다" : "안 돌린다")}" + (flip == noseBack ? " (인스펙터와 같음)" : " (인스펙터와 다름)"));
-        noseBack = flip;
-    }
-
     void Start()
     {
-        MeasureNose();
         seed = Random.value * 10f;
 
         // 순회 비행은 <b>코스 어딘가에서 시작</b>한다. 0 에서 시작하면 출발선 바로 위에
@@ -998,8 +963,15 @@ public class SearchBeam : MonoBehaviour
     /// <summary>좌우로 한 번 왕복하는 데 걸리는 시간.</summary>
     public float period = 2.8f;
 
-    /// <summary>안에 있을 때 1초에 남는 속도. 0.42 면 1초에 58% 가 깎인다.</summary>
+    /// <summary>안에 있을 때 1초에 남는 속도.</summary>
     public float keepPerSecond = 0.42f;
+
+    /// <summary>
+    /// ★ 2026-10-12 수연: *"빔 맞으면 속도가 반으로 줄게 만들까."* <b>좋다 — 한 번에 반이면
+    /// 느려진 게 손에 잡힌다.</b> 조금씩 끌리는 것(<see cref="keepPerSecond"/>)은
+    /// «빛 안에 있는 동안» 이고, 이건 <b>들어가는 순간</b> 한 방이다.
+    /// </summary>
+    public float enterCut = 0.5f;
 
     /// <summary>
     /// ★★ 2026-10-12 수연: *"속도 느려지는 게 체감이 안 된다. 차라리 빔 맞았을 때
@@ -1106,6 +1078,7 @@ public class SearchBeam : MonoBehaviour
             if (Time.time - flashAt > 1.1f)
             {
                 flashAt = Time.time;
+                player.Douse(enterCut, 0f);          // 들어가는 순간 속도 반
                 var cam = Object.FindFirstObjectByType<KartCamera>();
                 if (cam != null) { cam.Jolt(0.24f); cam.Wobble(0.5f); }
                 ScreenFlash.Hit(0.5f, new Color(1f, 0.97f, 0.86f));
@@ -1609,8 +1582,10 @@ public static class SkyDrop
         var mark = Disc(holder, cream, Radius * 2f, 0.05f);
 
         // 떨어지는 자재 — 콜라이더 없음. 물리로 치면 카트가 날아가 레이스가 망가진다
+        // ★ 2026-10-12 수연: *"드론이 떨어뜨린 자재가 카트를 통과해."* 맞다 —
+        //   콜라이더를 떼고 <b>떨어지는 순간 반경으로만</b> 판정했더니, 쌓인 뒤로는 그림이었다.
+        //   <b>콜라이더를 남긴다.</b> 길에 떨어진 자재와 같은 물건이어야 규칙이 하나가 된다.
         var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        Object.Destroy(cube.GetComponent<Collider>());
         cube.name = "Slab";
         cube.GetComponent<Renderer>().sharedMaterial = stone;
         cube.transform.SetParent(holder, false);

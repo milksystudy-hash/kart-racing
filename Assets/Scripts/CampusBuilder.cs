@@ -113,6 +113,7 @@ public class CampusBuilder : MonoBehaviour
 
         BuildOuterRoad();
         BuildDemolitionYard();
+        BuildCampusYard();
 
         ScatterNature();
         ScatterLanterns();
@@ -225,6 +226,88 @@ public class CampusBuilder : MonoBehaviour
         else
             Debug.Log($"[앞마당] 소품 {placed.Count}개 (철거 {before.childCount} · 되찾은 뒤 {after.childCount}) · " +
                       $"앞면 신호 {best:+0.000;-0.000}m → {extra:0}° 돌려 정문 쪽으로");
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  ★★ 본관 앞 마당 — 수연이 만든 열 점 (2026-10-12)
+    //
+    //  수연: *"게임 클리어 전에 캠퍼스가 너무 허전해 보여서 에셋 10개를 더 넣었다."*
+    //
+    //  ★ 한 줄로 몰아 놓는다. 캠퍼스 전체에 흩뿌리면 <b>걸어가다 우연히 만나는 것</b>이
+    //    되는데, 그러면 열 개를 놓아도 «허전하다» 가 안 풀린다.
+    //    <b>본관 앞</b>은 복귀 문에서 걸어 내려오면 반드시 지나는 자리다.
+    //
+    //  ★ 자리 근거(숫자로): 남쪽 직선이 z -78, 길 반폭 6 → 가장자리 -84.
+    //    본관·곰솥관·곰밥마당의 앞면이 z -96(처마까지 -98). 그 사이 12m 가 빈 띠고
+    //    <b>z -89</b> 면 길에서 5m · 건물에서 7m 다.
+    //
+    //  ★ <b>클리어해도 안 치운다.</b> 폴더 이름이 before 지만 이건 대나무 정원 · 다리 ·
+    //    윷판 · 책 교환함이라 «살아 있는 캠퍼스» 쪽이다 — 이긴 뒤에 없어지면 거꾸로다.
+    // ══════════════════════════════════════════════════════════════════
+    const string CampusYardFolder = "Assets/My blender/Campus_before/";
+    static readonly string[] CampusYardMarks = { "Front_" };
+
+    static readonly (string file, float x, float w, float yaw)[] CampusYard =
+    {
+        ("W01_Bamboo_Garden",        -84f, 3.1f,   0f),
+        ("W02_Timber_Garden_Bridge", -68f, 2.6f,  90f),
+        ("W03_Stone_Water_Basin",    -53f, 1.5f,   0f),
+        ("W10_Millstone_Experience", -38f, 2.0f,   0f),
+        ("W05_Tuho_Game_Stand",      -22f, 1.9f,   0f),
+        ("W04_Yut_Play_Mat",          -5f, 2.7f,   0f),
+        ("W07_Book_Exchange",         12f, 1.2f,   0f),
+        ("W06_Fish_Wind_Chimes",      27f, 2.8f,   0f),
+        ("W08_Three_Waste_Bins",      43f, 2.3f,   0f),
+        ("W09_Kart_Parking_Bays",     60f, 3.4f,   0f),
+    };
+
+    void BuildCampusYard()
+    {
+        var root = new GameObject("CampusYard").transform;
+        root.SetParent(transform, false);
+
+        const float z = -89f;
+
+        var placed = new System.Collections.Generic.List<Transform>();
+        var rows = new System.Collections.Generic.List<(float yaw, Transform t)>();
+
+        foreach (var p in CampusYard)
+        {
+            var m = MyModel(root, CampusYardFolder + p.file + ".fbx", "Yard_" + p.file,
+                            new Vector3(p.x, 0f, z), p.w);
+            if (m == null) continue;
+            placed.Add(m);
+            rows.Add((p.yaw, m));
+        }
+
+        // 앞면은 전부 놓은 뒤 한 번에. 하나씩 물으면 신호가 약한 모델만 거꾸로 선다.
+        float best = 0f;
+        foreach (var m in placed)
+        {
+            float e = FrontEvidence(m, CampusYardMarks);
+            if (Mathf.Abs(e) > Mathf.Abs(best)) best = e;
+        }
+        float extra = best < 0f ? 180f : 0f;     // 길(+Z) 쪽을 보게
+        foreach (var (yaw, t) in rows)
+            t.localRotation = Quaternion.Euler(0f, yaw + extra, 0f) * t.localRotation;
+
+        // 재서 남긴다 — 배치모드를 못 돌리는 날이 많아서 로그가 유일한 자다.
+        var track = Object.FindFirstObjectByType<TrackBuilder>();
+        float nearRoad = 999f;
+        if (track != null)
+            foreach (var t in placed)
+                for (int i = 0; i < 240; i++)
+                {
+                    float u = i / 240f;
+                    Vector3 on = track.transform.position + track.PointOnPath(u);
+                    float d = Vector2.Distance(new Vector2(on.x, on.z),
+                                               new Vector2(t.position.x, t.position.z))
+                            - track.WidthOnPath(u) * 0.5f;
+                    if (d < nearRoad) nearRoad = d;
+                }
+
+        Debug.Log($"[앞마당·캠퍼스] 소품 {placed.Count}개 · 앞면 신호 {best:+0.000;-0.000}m → " +
+                  $"{extra:0}도 · 길에서 제일 가까운 것 {nearRoad:0.0}m");
     }
 
     void BuildOuterRoad()

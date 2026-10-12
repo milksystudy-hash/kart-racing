@@ -80,8 +80,11 @@ public class CountdownHUD : MonoBehaviour
 
     void OnGUI()
     {
-        // 제일 앞에 그린다. 숫자가 다른 판 뒤로 가면 없는 것과 같다.
-        GUI.depth = -50;
+        // ★★ 2026-10-12 — <b>GUI.depth 를 건드리지 않는다.</b> 이 값의 방향(낮은 쪽이
+        //   앞인지 뒤인지)이 유니티 버전마다 헷갈리고, 잘못 주면 <b>다른 판 뒤로 숨는다.</b>
+        //   기본값(0)이면 <see cref="TestHUD"/> 와 같은 층이고, 이 컴포넌트가 나중에 생기니
+        //   <b>나중에 그려져서 위에 온다.</b> 숫자가 안 보인다는 신고가 다섯 번 있었고,
+        //   남은 의심 가운데 이게 유일하게 «그렸는데 안 보인다» 를 설명한다.
 
         // 브리핑 카드나 티키타카가 떠 있는 동안은 <b>시계를 시작하지 않는다.</b>
         // 그때 시작하면 카드 뒤에서 3초가 타버린다.
@@ -104,6 +107,12 @@ public class CountdownHUD : MonoBehaviour
 
         bool go = label == "출발!";
 
+        // ★ <b>나무 판을 깐다.</b> 그림자만으로는 밝은 노면에서 묻힌다 —
+        //   전시 연출에서 같은 결론이 났다(2026-10-12). 3초짜리라 화면을 가려도 손해가 없다.
+        float pw = go ? 380f : 230f;
+        var plate = new Rect(w * 0.5f - pw * 0.5f, h * 0.5f - 74f, pw, 148f);
+        Hud.Panel(plate);
+
         // ★ 판을 안 깐다. 카운트는 3초짜리고 그동안 카트가 아예 안 움직이니
         //   화면 한가운데를 통째로 써도 손해가 없다. 대신 종이 판이 없으면 밝은 노면에서
         //   묻히니까 <b>글자 뒤에 그림자를 넉 장</b> 깔아 어느 배경에서도 테두리가 생기게 한다.
@@ -114,12 +123,12 @@ public class CountdownHUD : MonoBehaviour
         var area = new Rect(0f, h * 0.5f - 80f, w, 160f);
 
         var shade = Hud.Resize(Hud.Title, style.fontSize, TextAnchor.MiddleCenter);
-        shade.normal.textColor = new Color(0.12f, 0.09f, 0.07f, 0.75f);
+        shade.normal.textColor = new Color(Hud.Paper.r, Hud.Paper.g, Hud.Paper.b, 0.9f);
         for (int dx = -1; dx <= 1; dx += 2)
             for (int dy = -1; dy <= 1; dy += 2)
                 GUI.Label(new Rect(area.x + dx * 3f, area.y + dy * 3f, area.width, area.height), label, shade);
 
-        style.normal.textColor = go ? Hud.Brass : new Color(0.98f, 0.95f, 0.88f);
+        style.normal.textColor = go ? Hud.Brass : Hud.Ink;
         GUI.Label(area, label, style);
 
         Hud.End();
