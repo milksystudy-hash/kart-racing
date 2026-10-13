@@ -82,9 +82,16 @@ public class DialogueRunner : MonoBehaviour
         if (playOnStart) Play(followChapter ? StoryScript.SceneForChapter(StoryProgress.CurrentChapter) : sceneId);
     }
 
+    /// <summary>
+    /// 이 장면을 튼 시각(<c>unscaledTime</c>). <see cref="DialogueHUD"/> 가
+    /// «처음 보는 이야기는 조금 지나야 건너뛸 수 있다» 를 재는 데 쓴다.
+    /// </summary>
+    public float StartedAt { get; private set; } = -999f;
+
     public void Play(string id)
     {
         sceneId = id;
+        StartedAt = Time.unscaledTime;
         SceneTitle = StoryScript.TitleOf(id);
         Place = id;                       // 장면 이름이 곧 첫 배경
 

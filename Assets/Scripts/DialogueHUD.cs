@@ -138,11 +138,49 @@ public class DialogueHUD : MonoBehaviour
     ///
     /// <b>한 번 묻는다.</b> 123줄짜리 프롤로그를 손이 미끄러져 날리면 되돌릴 방법이 없다.
     /// </summary>
+    // ══════════════════════════════════════════════════════════════════
+    //  ★★ 처음 보는 이야기는 <b>바로 못 건너뛴다</b>. (2026-10-13 수연 지적)
+    //
+    //  수연: *"처음 스토리 본 플레이어가 프롤로그 볼 때 바로 건너뛰기가 있던데
+    //  (애초에 레이싱 하지도 않고 이야기 스킵. 갓 처음) 이거 고칠까."* <b>맞다.</b>
+    //  프롤로그를 건너뛴 사람은 <b>이 게임이 무슨 게임인지 모르는 채로</b> 로비에 선다.
+    //  그리고 칩이 첫 프레임부터 왼쪽 위에 떠 있으니 <b>건너뛰라고 광고하는 꼴</b>이었다.
+    //
+    //  ★ 그렇다고 아예 막지는 않는다 — <b>갇히는 게 제일 나쁘다</b>(문 바닥값 · 브리핑
+    //    25초 · 급식 4초와 같은 판단). <see cref="FirstRunGrace"/> 가 지나면 열린다.
+    //    두 번째부터는(<see cref="StoryProgress.HasSeen"/>) 처음부터 열려 있다 —
+    //    이미 본 사람을 붙잡아 두는 건 벌이다.
+    //
+    //  ★ 열리기 전에 ESC 를 눌러도 <b>아무 일도 안 일어나게 두지 않는다.</b>
+    //    «눌렀는데 아무 반응이 없다» 는 고장과 구분이 안 된다(안전 점검 훈련에서 배운 것).
+    // ══════════════════════════════════════════════════════════════════
+    const float FirstRunGrace = 60f;
+
+    float notedAt = -99f;
+
+    /// <summary>지금 건너뛸 수 있나.</summary>
+    bool CanSkip => runner != null && runner.IsPlaying
+                 && (StoryProgress.HasSeen(runner.sceneId)
+                     || Time.unscaledTime - runner.StartedAt >= FirstRunGrace);
+
     void DrawSkip(float w, float h)
     {
         if (runner == null || !runner.IsPlaying) return;
 
         float k = Mathf.Clamp(h / 720f, 0.8f, 1.8f);
+
+        if (!CanSkip)
+        {
+            askSkip = false;
+            if (Time.unscaledTime - notedAt <= 2.5f)
+            {
+                var note = new Rect(16f * k, 16f * k, 232f * k, 32f * k);
+                Hud.Chip(note);
+                GUI.Label(note, "처음 보는 이야기는 건너뛸 수 없다",
+                          Hud.Resize(Hud.Label, Mathf.RoundToInt(13 * k), TextAnchor.MiddleCenter));
+            }
+            return;
+        }
 
         if (askSkip)
         {
@@ -189,7 +227,12 @@ public class DialogueHUD : MonoBehaviour
                 if (key.escapeKey.wasPressedThisFrame) { askSkip = false; return; }
                 return;                                  // 묻는 동안은 다른 키를 안 먹는다
             }
-            if (key.escapeKey.wasPressedThisFrame) { askSkip = true; return; }
+            if (key.escapeKey.wasPressedThisFrame)
+            {
+                if (CanSkip) askSkip = true;
+                else notedAt = Time.unscaledTime;   // 왜 안 되는지는 화면이 말한다
+                return;
+            }
         }
 
         if (!Dev.Enabled || !debugKeys || runner == null) return;

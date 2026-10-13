@@ -124,6 +124,22 @@ public class CampusVictory : MonoBehaviour
         //   이야기에 들어오는 자리라, <b>건너뛸 게 남아 있지 않다</b> — 전후를 눈으로
         //   보는 용도는 그대로 살고 지름길만 사라진다.
         //   (점검할 때는 로비에서 F9 로 수집품을 채운 뒤 F8 — 두 단계라 우연히 못 누른다.)
+        // ★★ 2026-10-13 수연: *"F8 눌렀는데 모습 안 바뀌고 버그 떴다."*
+        //   <b>고장이 아니라 조건 미달이었다.</b> 로그를 따라가 보니 이야기 중에 1~5
+        //   (<see cref="DialogueHUD"/> 의 장면 고르기)를 눌러서 <b>수집품이 0~1개로 되돌아가</b>
+        //   있었다. F8 은 여덟 개를 다 모아야 듣는데, 그걸 화면에도 콘솔에도 안 알려주니
+        //   «눌렀는데 아무 일이 없다» 와 «키가 고장났다» 가 똑같이 보인다.
+        //
+        //   <b>«아무 일도 안 일어남» 을 규칙으로 쓰지 마라</b> — 안전 점검 훈련에서 배운 그 자리다.
+        if (Dev.Enabled && debugKeys && k != null && k.f8Key.wasPressedThisFrame
+            && !GrandFinal.AllCollected)
+        {
+            string why = $"F8 은 수집품을 다 모아야 먹는다 — 지금 {CollectionState.Count}/8. " +
+                         "로비에서 F9 로 채우고 다시 눌러라.";
+            Toast.Show(why);
+            Debug.Log("[연출] " + why);
+        }
+
         if (Dev.Enabled && debugKeys && GrandFinal.AllCollected && k != null && k.f8Key.wasPressedThisFrame)
         {
             if (GrandFinal.FreeRun)

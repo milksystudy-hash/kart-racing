@@ -121,9 +121,19 @@ public class LobbyHUD : MonoBehaviour
         // <b>키가 있어도 화면에 없으면 없는 것이다</b> — 이 프로젝트에서 세 번째야(G, TAB, 이번).
         if (walking && stand != null)
         {
-            var big = Hud.Resize(Hud.Text, 17, TextAnchor.MiddleCenter);
+            // ★★ 2026-10-13 수연: *"이야기 다시보기 나무패널에 캐릭터 선택 글씨가 겹친다."*
+            //   <b>겹친 게 맞다.</b> 재 보면 자리가 그대로 포개져 있었다:
+            //       안내  h−86 ~ h−62        (chip.y − 30, 높이 24)
+            //       나무판 h−108 ~ h−64      (story 버튼)
+            //   → <b>22px 겹침.</b> 게다가 바탕이 없어서 나무 무늬 위에 글자가 바로 얹혔다.
+            //
+            //   오른쪽 줄은 아래에서부터 <b>걸어다니기(h−56) · 이야기(h−108)</b> 로 쌓인다.
+            //   안내는 그 <b>위</b>로 올린다(h−138). 그리고 <see cref="Hud.Chip"/> 바탕을 깐다 —
+            //   앨범 안내가 이미 그렇게 하고 있어서 둘이 같은 물건으로 보인다.
+            var hint = new Rect(story.x - 40f, story.y - 32f, story.width + 40f, 26f);
+            Hud.Chip(hint);
+            var big = Hud.Resize(Hud.Text, 16, TextAnchor.MiddleCenter);
             big.normal.textColor = Hud.Brass;
-            var hint = new Rect(chip.x - 60f, chip.y - 30f, chip.width + 60f, 24f);
             GUI.Label(hint, $"E   {stand.Label} 고르기", big);
         }
         else if (walking && AlbumStand.Near)

@@ -70,6 +70,7 @@ public class CanteenStage : MonoBehaviour
 
         // ★ 2026-09-22 — 받은 것과 표정.
         public Transform[] food = new Transform[CanteenOrder.Slots];  // 식판 칸마다 하나
+        public bool foodMade;       // 아직 안 만들었으면 false — 시작 끊김을 없애려고 늦게 만든다
         public Transform[] brow = new Transform[2];                   // 눈썹 - 슬플 때만 켠다
         public Transform[] eye  = new Transform[2];
         public bool sad;            // 빈 식판으로 나가는 중
@@ -579,6 +580,10 @@ public class CanteenStage : MonoBehaviour
     {
         if (game == null || counter == null) return;
 
+        // ★ 식판 음식을 한 프레임에 한 손님씩 채운다 — 준비 카드가 떠 있는 동안 끝난다.
+        //   다 끝나면 아무 일도 안 하니 매 프레임 불러도 공짜다.
+        WarmFood();
+
         // ENTER 로 다시 시작하면 Served 가 0 으로 돌아간다. 그때는 줄을 통째로 다시 세운다 -
         // 안 그러면 손님들이 지난 판의 자리에 그대로 서 있는다.
         if (game.Served < servedSeen)
@@ -762,6 +767,7 @@ public class CanteenStage : MonoBehaviour
                 // 보인다."* 맞다 — 전에는 다섯 개를 통째로 켜고 껐다. 그러면 <b>무엇을 줬든
                 // 화면은 같은 그림</b>이라, 잘 담았는지 틀렸는지가 눈에 안 보인다.
                 int got = game != null ? game.LastServedTray : 0;
+                EnsureFood(c);          // 아직 안 만들었으면 지금 만든다 — 빈 식판이 나가면 안 된다
                 for (int i = 0; i < CanteenOrder.Slots; i++)
                     if (c.food[i] != null) c.food[i].gameObject.SetActive((got & (1 << i)) != 0);
 
@@ -910,17 +916,15 @@ public class CanteenStage : MonoBehaviour
         // 담긴 것 — <b>칸마다 하나씩, 받은 것만 켠다.</b> 자리는 고정이라
         // «밥 · 김치» 를 받으면 1번과 3번 칸에만 올라간다. 다섯을 통째로 켜고 끄면
         // 무엇을 줬든 같은 그림이 되고, 그건 «잔반 꽉 찬 식판» 으로 읽힌다(유저 지적).
-        var food = new Transform[CanteenOrder.Slots];
-        for (int i = 0; i < CanteenOrder.Slots; i++)
-        {
-            Vector3 at = new Vector3((i - 2) * TraySlotStep, 0.035f, 0.04f);
-            food[i] = RealFood(tray, i, at) ??
-                      Ball(tray, $"TrayFood_{i}", at + Vector3.up * 0.005f,
-                           new Vector3(0.128f, 0.072f, 0.128f), DishColors[i]);
-            food[i].name = $"TrayFood_{i}";
-            food[i].gameObject.SetActive(false);
-        }
-
+        // ★★ 2026-10-13 수연: *"급식 게임 처음 시작할 때 딜레이가 조금 있어."*
+        //   <b>여기였다.</b> 손님이 다섯(<see cref="Slots"/>+1)이고 식판 칸이 다섯이라
+        //   <b>Awake 한 프레임에 FBX 를 스물다섯 번 복제</b>하고 있었다. 식판 한 벌이
+        //   15,292 tris(그 중 밥이 9,180)라 합이 <b>7만 tris 를 넘는다.</b>
+        //
+        //   음식은 <b>나중에 만든다</b>(<see cref="EnsureFood"/>). 준비 카드가 떠 있는
+        //   동안 <see cref="Update"/> 가 <b>한 프레임에 손님 하나씩</b> 채우니, 게임이
+        //   시작될 때는 이미 다 만들어져 있고 비용은 여러 프레임으로 흩어진다.
+        //   («물건을 미리 만들어 두고 켜고 끈다» 는 <see cref="BoostPad"/> 와 같은 방식.)
         tray.gameObject.SetActive(false);
 
         return new Customer
@@ -928,7 +932,7 @@ public class CanteenStage : MonoBehaviour
             body = root,
             rig = rig,
             tray = tray,
-            food = food,
+
             brow = brows,
             eye = eyes,
             slot = index,
@@ -937,6 +941,36 @@ public class CanteenStage : MonoBehaviour
             // 크기가 섞여야 «다섯 마리» 가 된다(나무를 세 가지로 나눈 것과 같은 이유).
             build = Builds[index % Builds.Length],
         };
+    }
+
+    /// <summary>
+    /// ★ 식판에 담길 것을 <b>그때 가서</b> 만든다. 한 손님에 다섯 개, FBX 복제라 비싸다.
+    /// 이미 만들어 뒀으면 아무 일도 안 한다 — 여러 번 불러도 괜찮다.
+    /// </summary>
+    void EnsureFood(Customer c)
+    {
+        if (c == null || c.foodMade || c.tray == null) return;
+        c.foodMade = true;
+
+        for (int i = 0; i < CanteenOrder.Slots; i++)
+        {
+            Vector3 at = new Vector3((i - 2) * TraySlotStep, 0.035f, 0.04f);
+            c.food[i] = RealFood(c.tray, i, at) ??
+                        Ball(c.tray, $"TrayFood_{i}", at + Vector3.up * 0.005f,
+                             new Vector3(0.128f, 0.072f, 0.128f), DishColors[i]);
+            c.food[i].name = $"TrayFood_{i}";
+            c.food[i].gameObject.SetActive(false);
+        }
+    }
+
+    /// <summary>
+    /// 한 프레임에 <b>한 손님만</b> 채운다. 준비 카드가 떠 있는 동안 다 끝난다 —
+    /// 카드는 ENTER 를 기다리니 프레임이 넉넉하고, 그동안 화면은 멈춰 있을 일이 없다.
+    /// </summary>
+    void WarmFood()
+    {
+        foreach (var c in customers)
+            if (!c.foodMade) { EnsureFood(c); return; }
     }
 
     /// <summary>체격. ±8% 면 나란히 섰을 때 눈에 띄고 키 차이가 어색하진 않다.</summary>
