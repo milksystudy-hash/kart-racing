@@ -27,7 +27,7 @@ public static class ExhibitCatalogue
         new Entry { id = "coin", name = "기념 코인", chapter = "제1장 · 사라진 관람객", chapterIndex = 1, shape = Shape.원반,
             description = "박물관 입장 때 나눠주던 코인. 뒷면에 관람 일자가 찍혀 있어서, 모으면 그날 누가 다녀갔는지가 드러난다." },
         new Entry { id = "ledger", name = "관람 기록부", chapter = "제1장 · 사라진 관람객", chapterIndex = 1, shape = Shape.종이,
-            description = "코인에서 복원한 방문객 명단. 시에서 발표한 관람객 수보다 훨씬 많은 이름이 적혀 있었다." },
+            description = "코인에 찍힌 날짜를 보고 매표소에서 찾아낸 방문객 명단. 시에서 발표한 관람객 수보다 훨씬 많은 이름이 적혀 있었다." },
         new Entry { id = "survey", name = "안전진단서 원본", chapter = "제2장 · 조작된 안전진단", chapterIndex = 2, shape = Shape.종이,
             description = "원본의 결론은 '보수 필요' 였다. 공개된 사본에는 '즉시 철거' 로 바뀌어 있었다." },
         new Entry { id = "marker", name = "붉은 철거 표식", chapter = "제2장 · 조작된 안전진단", chapterIndex = 2, shape = Shape.상자,
@@ -41,7 +41,7 @@ public static class ExhibitCatalogue
             description = "GBD 대표 자리에 이름만 올린 사람과, 실제로 돈을 가져가는 사람 사이의 계약. "
                         + "회사의 주인이 시의원이라는 게 이 종이 한 장에 적혀 있다." },
         new Entry { id = "recorder", name = "중계 기록 장치", chapter = "마지막 장 · 철거 전야", chapterIndex = 4, shape = Shape.상자,
-            description = "어두워진 트랙을 가로질러 결승선까지 옮긴 장치. 이것으로 전말이 시 전역에 생중계됐다." },
+            description = "어두워진 트랙을 가로질러 결승선까지 옮긴 장치. 전원이 들어와 있으면 여기 잡힌 소리가 그대로 시 전역에 나간다." },
         new Entry { id = "blueprint", name = "골든베어 조감도", chapter = "프롤로그 · 철거 통지서", chapterIndex = 0, shape = Shape.종이,
             description = "박물관 자리에 세우려던 리조트 조감도. 없애지 않고 전시실에 남겨 두기로 했다." },
     };
