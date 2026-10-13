@@ -105,6 +105,14 @@ public class LobbyHUD : MonoBehaviour
             var hint = new Rect(chip.x - 60f, chip.y - 30f, chip.width + 60f, 24f);
             GUI.Label(hint, $"E   {stand.Label} 고르기", big);
         }
+        else if (walking && AlbumStand.Near)
+        {
+            var hint = new Rect(w * 0.5f - 110f, h - 92f, 220f, 26f);
+            Hud.Chip(hint);
+            var big = Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter);
+            big.normal.textColor = Hud.Brass;
+            GUI.Label(hint, "B   곰 기억 앨범", big);
+        }
         else if (walking && DeskClock.Nearest != null)
         {
             var hint = new Rect(w * 0.5f - 110f, h - 92f, 220f, 26f);

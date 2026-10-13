@@ -904,18 +904,54 @@ public static class LobbySceneBuilder
 
         // ── 좌우 벽: 받침대 원호(z −4 ~ −8.5)를 마주 보고 쉬는 자리 ──
         // 석등이 (±13, ±7~8) 이라 그 사이 빈 구간에 놓는다.
-        // ★★ 곰 기억 앨범(2026-10-12) — 지나온 이야기를 다시 보는 자리.
-        //   <b>서벽 벤치 옆</b>이다: 캠퍼스 문으로 걸어 나가는 길목이라 반드시 지나고,
-        //   받침대(캐릭터 고르기)와 접수대 시계에서 멀어서 <b>E 가 안 겹친다.</b>
-        //   앉아서 읽는 물건이니 벤치 옆이 설정에도 맞는다.
+        // ★★ 곰 기억 앨범 — 받침대 위가 아니라 <b>바닥에 선 큰 책</b>이다. (2026-10-13)
+        //
+        //   수연: *"액자가 거꾸로 뒤집혀 있어. 크기도 키우고, 공중에 떠 있는데 바닥에 닿게."*
+        //   세 개가 전부 내 잘못이다 —
+        //   · y 0.78 을 줘서 <b>띄워 놨다</b>(벤치 위에 올릴 생각이었는데 벤치보다 앞이다).
+        //   · 1.05m 는 손바닥만 해서 <b>뭔지 알아볼 수가 없다.</b>
+        //   · yaw 를 <b>짐작해서</b> 줬다 — 이 FBX 는 앞면이 Front_Title 이고,
+        //     앞면 부호는 <b>재서</b> 정해야 한다(이 프로젝트에서 세 번 틀렸다).
         {
             var album = CampusBuilder.MyModel(root, Dir + "StoryHalls/Bear_Memory_Album.fbx",
-                                              "MemoryAlbum", new Vector3(-15.8f, 0.78f, 4.6f), 1.05f);
-            if (album != null)
+                                              "MemoryAlbum", new Vector3(-14.2f, 0f, 4.6f), 1.9f);
+            if (album == null)
+                Debug.LogWarning("[로비] 곰 기억 앨범 FBX 를 못 찾았다 — My blender/StoryHalls/");
+            else
             {
-                album.localRotation = Quaternion.Euler(0f, 90f, 0f) * album.localRotation;
+                // ① 똑바로 섰나 — 귀가 꼬리보다 위에 있어야 한다.
+                Transform ears = null, tail = null, title = null;
+                foreach (var t2 in album.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t2.name.StartsWith("Bear_Ears")) ears = t2;
+                    else if (t2.name.StartsWith("Bear_Tail")) tail = t2;
+                    else if (t2.name.StartsWith("Front_")) title = t2;
+                }
+
+                if (ears != null && tail != null && ears.position.y < tail.position.y)
+                {
+                    album.localRotation = Quaternion.Euler(180f, 0f, 0f) * album.localRotation;
+                    Debug.Log("[로비] 앨범이 거꾸로 서 있어 뒤집었다");
+                }
+
+                // ② 앞면이 홀 쪽(+X)을 보게. 표지의 치우침을 재서 돌린다.
+                if (title != null)
+                {
+                    Vector3 off = album.InverseTransformPoint(title.position);
+                    float need = Mathf.Atan2(1f, 0f) * Mathf.Rad2Deg          // 홀 쪽 = +X
+                               - Mathf.Atan2(off.x, off.z) * Mathf.Rad2Deg;
+                    album.localRotation = Quaternion.Euler(0f, need, 0f) * album.localRotation;
+                    Debug.Log($"[로비] 앨범 표지 쏠림 ({off.x:0.00}, {off.z:0.00}) → {need:0}도 돌려 홀 쪽으로");
+                }
+
+                // ③ 바닥에 앉힌다 — 돌린 뒤라야 바운즈가 맞는다.
+                float low = float.MaxValue;
+                foreach (var r in album.GetComponentsInChildren<Renderer>())
+                    low = Mathf.Min(low, r.bounds.min.y);
+                if (low != float.MaxValue) album.position += Vector3.up * (root.position.y - low);
+
+                album.gameObject.AddComponent<AlbumStand>();
             }
-            else Debug.LogWarning("[로비] 곰 기억 앨범 FBX 를 못 찾았다 — My blender/StoryHalls/");
         }
 
         Put("Museum_Bench.fbx", "Bench_W", new Vector3(-15.6f, 0f, 1.6f), 1.800f, 90f);
