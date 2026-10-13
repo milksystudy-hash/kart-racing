@@ -62,6 +62,10 @@ public static class CollectionState
         // `StoryScript.CurrentScene()` 이 빈 문자열이라 <b>T 를 눌러도 아무 일도 안 났다.</b>
         // F10 은 «처음부터» 라는 뜻이니 이야기도 처음으로 가는 게 맞다.
         StoryProgress.ResetStory();
+
+        // ★ 「열린 것」 안내도 되돌린다(2026-10-13). 안 지우면 다시 아홉 판을 깨도
+        //   그 창이 두 번 다시 안 뜬다 — 「한 번만」이 「영영 안 봄」이 된다.
+        UnlockNotice.Forget();
     }
 
     /// <summary>테스트용. 전시실을 꽉 채워서 확인할 때.</summary>

@@ -164,7 +164,7 @@ public class LobbyHUD : MonoBehaviour
         // ★ 시계 돋보기가 떠 있으면 <b>그 창 하나만</b> 남기고 전부 접는다.
         // 유저: *"UI 가 겹쳐서 좀 드러워 보인다."* 안내가 대여섯 장이라 큰 창 위아래로
         // 다 삐져나온다 — 큰 패널은 한 번에 한 장만(레이스 HUD 와 같은 규칙).
-        if (!DeskClock.PanelOpen && !StoryAlbum.Open)
+        if (!DeskClock.PanelOpen && !StoryAlbum.Open && !UnlockNotice.Open)
         {
             DrawDriverPanel();
             DrawSpecSheet();
