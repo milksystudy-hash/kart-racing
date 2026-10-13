@@ -51,6 +51,20 @@ public class ClueBoard : MonoBehaviour
 
     public static bool WasRead(string id) => PlayerPrefs.GetInt(Key(id), 0) == 1;
 
+    // ── 뒷면 (2026-10-13) ────────────────────────────────────────────────────
+    //  뒷면이 있는 단서는 지금 하나뿐이다(곰의그림). 앞면을 읽은 뒤 한 번 더 누르면
+    //  뒤집히고, 그 다음에는 앞뒤가 번갈아 나온다 — <b>종이를 들고 뒤집는 것과 같다.</b>
+    static string BackKey(string id) => Key(id) + "·뒤";
+
+    /// <summary>뒷면까지 읽었나. 안 읽었으면 안내가 「뒤집어 보기」로 바뀐다.</summary>
+    public static bool BackRead(string id) => PlayerPrefs.GetInt(BackKey(id), 0) == 1;
+
+    /// <summary>이 단서에 뒷면이 있나.</summary>
+    public bool HasBack => ClueText.FindBack(id) != null;
+
+    /// <summary>지금 뒷면을 보고 있나. 카드를 닫아도 남아서 다음에 앞면부터 다시 본다.</summary>
+    bool showBack;
+
     /// <summary>몇 개나 읽었나. 화면 구석에 «n / 10» 으로 띄운다.</summary>
     public static int ReadCount
     {
@@ -65,20 +79,43 @@ public class ClueBoard : MonoBehaviour
     /// <summary>F10(처음부터)에서 같이 지운다 — 수집 기록만 비우고 단서가 남으면 상태가 어긋난다.</summary>
     public static void ClearAll()
     {
-        foreach (var note in ClueText.All) PlayerPrefs.DeleteKey(Key(note.id));
+        foreach (var note in ClueText.All)
+        {
+            PlayerPrefs.DeleteKey(Key(note.id));
+            PlayerPrefs.DeleteKey(BackKey(note.id));   // 뒷면도 같이 — 반만 지우면 상태가 어긋난다
+        }
         PlayerPrefs.Save();
     }
 
-    /// <summary>화면에 띄울 말. 읽은 것과 안 읽은 것을 가른다 — 다 돌았는지 알 수 있어야 한다.</summary>
-    public string Action => WasRead(id) ? "다시 읽기" : "읽기";
+    /// <summary>
+    /// 화면에 띄울 말. 읽은 것과 안 읽은 것을 가른다 — 다 돌았는지 알 수 있어야 한다.
+    /// ★ 뒷면이 남아 있으면 <b>「뒤집어 보기」</b> 로 바뀐다. 「다시 읽기」로 두면
+    ///   이미 본 글이라 생각하고 아무도 안 누른다.
+    /// </summary>
+    public string Action =>
+        !WasRead(id)               ? "읽기"
+        : HasBack && !BackRead(id) ? "뒤집어 보기"
+        :                            "다시 읽기";
 
     public void Read()
     {
+        bool first = !WasRead(id);
+
+        // 앞 → 뒤 → 앞 … 종이를 들고 뒤집는 것과 같다. 처음 읽을 때는 언제나 앞면.
+        showBack = !first && HasBack && !showBack;
+
         Shown = this;
         Stamp();
-        if (!WasRead(id))
+
+        if (first)
         {
             PlayerPrefs.SetInt(Key(id), 1);
+            PlayerPrefs.Save();
+            Sfx.Play("Toast", 0.7f, duckMusic: false);
+        }
+        else if (showBack && !BackRead(id))
+        {
+            PlayerPrefs.SetInt(BackKey(id), 1);
             PlayerPrefs.Save();
             Sfx.Play("Toast", 0.7f, duckMusic: false);
         }
@@ -149,7 +186,7 @@ public class ClueBoard : MonoBehaviour
         Rect screen = Hud.Begin(uiFont);
         float w = screen.width, h = screen.height;
 
-        var note = ClueText.Find(id);
+        var note = showBack ? ClueText.FindBack(id) : ClueText.Find(id);
         string title = note?.title ?? "읽을 수 없다";
         string[] lines = note?.lines ?? new[] { "글씨가 바래서 알아볼 수 없다." };
 
@@ -170,7 +207,9 @@ public class ClueBoard : MonoBehaviour
                       lines[i], body);
 
         GUI.Label(new Rect(inner.x, inner.yMax - 46f, inner.width, 20f),
-                  $"읽은 단서  {ReadCount} / {ClueText.Count}",
+                  showBack ? "뒤집어 본 종이"
+                           : (HasBack && !BackRead(id) ? "한 번 더 누르면 뒤집어 본다"
+                                                       : $"읽은 단서  {ReadCount} / {ClueText.Count}"),
                   Hud.Resize(Hud.Text, 13, TextAnchor.UpperCenter));
         GUI.Label(new Rect(inner.x, inner.yMax - 24f, inner.width, 20f),
                   "아무 키나  닫기", Hud.Resize(Hud.Text, 14, TextAnchor.UpperCenter));
