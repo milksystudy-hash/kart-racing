@@ -10,7 +10,7 @@ using UnityEngine;
 ///
 ///   Unity.exe -quit -batchmode -projectPath . -executeMethod BuildGame.Build
 ///
-/// 결과는 Build\환웅박물관_최후의_그랑프리\ 에 떨어진다 (.gitignore 에 걸려 있다).
+/// 결과는 Build\철거까지_여덟_바퀴\ 에 떨어진다 (.gitignore 에 걸려 있다).
 /// </summary>
 public static class BuildGame
 {
