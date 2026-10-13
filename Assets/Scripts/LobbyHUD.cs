@@ -30,7 +30,28 @@ public class LobbyHUD : MonoBehaviour
         var k = Keyboard.current;
         if (k == null) return;
 
-        if (k.hKey.wasPressedThisFrame) showControls = !showControls;
+        if (k.hKey.wasPressedThisFrame)
+        {
+            showControls = !showControls;
+            if (showControls) SetLore(false);   // 둘이 같이 열리면 쪽지가 숨은 채로 몸만 묶인다
+        }
+
+        // ★ 2026-10-13 — 발바닥 버튼에 「L」이라고 <b>적어 놓고 듣는 데가 없었다.</b>
+        //   「키가 있어도 화면에 없으면 없는 것」의 <b>반대 경우</b>다 —
+        //   화면에는 있는데 키가 없었다. 눌러 본 사람에게는 고장으로 보인다.
+        if (!StoryAlbum.Open && GrandFinal.FreeRun && !Lore.Empty
+            && k.lKey.wasPressedThisFrame && !showControls) SetLore(!showLore);
+
+        if (showLore)
+        {
+            // 쪽 넘기기는 <b>앨범과 같은 손짓</b>이다 — 한 번 배우면 두 군데에서 통한다.
+            if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame)
+                lorePage = (lorePage - 1 + Lore.Pages.Length) % Lore.Pages.Length;
+            if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame)
+                lorePage = (lorePage + 1) % Lore.Pages.Length;
+            if (k.escapeKey.wasPressedThisFrame) SetLore(false);
+            return;      // 읽는 동안에는 E 가 안 먹는다 — 큰 패널은 한 번에 한 장
+        }
 
         // TAB 은 WalkMode 가 직접 듣는다 — 이야기가 도는 동안 이 스크립트가 꺼져도 먹게.
 
@@ -132,7 +153,7 @@ public class LobbyHUD : MonoBehaviour
         // ★ 시계 돋보기가 떠 있으면 <b>그 창 하나만</b> 남기고 전부 접는다.
         // 유저: *"UI 가 겹쳐서 좀 드러워 보인다."* 안내가 대여섯 장이라 큰 창 위아래로
         // 다 삐져나온다 — 큰 패널은 한 번에 한 장만(레이스 HUD 와 같은 규칙).
-        if (!DeskClock.PanelOpen)
+        if (!DeskClock.PanelOpen && !StoryAlbum.Open)
         {
             DrawDriverPanel();
             DrawSpecSheet();
@@ -413,33 +434,97 @@ public class LobbyHUD : MonoBehaviour
         // 처처 <b>설정은 다 깨기 전에는 안 보인다</b>(2026-10-12 수연 결정).
         //   세계관 설정이 들어갈 자리고, 임무를 도는 동안 띄우면
         //   «아직 못 본 게 있나» 로 읽혀서 진행을 방해한다.
-        if (!GrandFinal.FreeRun) return;
+        if (!GrandFinal.FreeRun || Lore.Empty) return;
         var lore = new Rect(16f, h - 156f, 158f, 44f);
-        if (Hud.PawButton(lore, "설정   L")) showLore = !showLore;
+        if (Hud.PawButton(lore, "설정   L")) SetLore(!showLore);
     }
 
     /// <summary>
-    /// 처 <b>세계관 설정</b> — 다 깬 뒤에만 열린다(2026-10-12). 내용은 <see cref="Lore"/> 에 있고
-    /// <b>수연이 쓴다.</b> 14일까지 안 채워지면 소리 조절판으로 쓰면 된다 — 자리와 버튼은 이미 있다.
+    /// ★ <b>세계관 설정</b> — 다 깬 뒤에만 열린다(2026-10-12). 내용은 <see cref="Lore"/> 에 있고
+    /// <b>수연이 쓴다.</b>
+    ///
+    /// ★★ <b>네 쪽을 ◀▶ 로 넘긴다</b>(2026-10-13). 한 장에 다 넣으려다 재 보니
+    /// 본문이 <b>열한 줄</b>밖에 안 들어가는데 글은 <b>스물세 줄</b>이었다.
+    /// 글을 줄이는 대신 쪽을 나눴다 — 한 토막씩 읽는 쪽이 더 잘 읽히고,
+    /// <b>◀▶ 는 앨범에서 이미 배운 조작</b>이라 새로 가르칠 것이 없다.
+    ///
+    /// ★ 칸 높이를 <b>재서</b> 잡는다(<c>CalcHeight</c>). 줄 높이를 22 같은 값으로 박으면
+    /// 한글 서른 자가 두 줄로 접히는 순간 <b>아랫줄이 잘린다</b> — 눈으로는 «좀 붙었네» 로
+    /// 넘어가는 종류의 오류다. 네 쪽 중 <b>제일 긴 쪽</b>에 맞춰서 쪽을 넘겨도 칸이 안 움직인다.
     /// </summary>
     bool showLore;
+    int lorePage;
+    FirstPersonController loreHeld;
+
+    /// <summary>
+    /// ★ 여닫는 자리는 <b>여기 하나</b>다 — L · 발바닥 버튼 · ESC · H · 꺼짐이 전부 지나간다.
+    /// 읽는 동안 걷는 몸을 묶는데(앨범과 같은 이유 — 안 묶으면 글을 읽는 사이에 뒤에서
+    /// 몸이 걸어간다), <b>못 돌려주면 로비에 갇힌다.</b>
+    /// </summary>
+    void SetLore(bool on)
+    {
+        showLore = on;
+        if (on) lorePage = 0;
+        if (on && loreHeld == null) loreHeld = Object.FindFirstObjectByType<FirstPersonController>();
+        if (loreHeld != null) loreHeld.ControlEnabled = !on;
+        if (!on) loreHeld = null;
+    }
+
+    void OnDisable() => SetLore(false);
 
     void DrawLore(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 240f, h * 0.5f - 175f, 480f, 350f);
-        Hud.NoteCard(box);
-        var inner = Hud.NoteInner(box);
-
-        GUI.Label(new Rect(inner.x, inner.y + 6f, inner.width, 28f), Lore.Title, Hud.Title);
-        Hud.Rule(inner.x + 14f, inner.y + 40f, inner.width - 28f);
+        if (Lore.Empty) return;
+        lorePage = Mathf.Clamp(lorePage, 0, Lore.Pages.Length - 1);
+        var page = Lore.Pages[lorePage];
 
         var body = Hud.Resize(Hud.Text, 14, TextAnchor.UpperLeft);
         body.wordWrap = true;
-        GUI.Label(new Rect(inner.x + 16f, inner.y + 54f, inner.width - 32f, inner.height - 96f),
-                  Lore.Text, body);
 
-        GUI.Label(new Rect(inner.x, inner.yMax - 30f, inner.width, 20f),
-                  "L · ESC   닫기", Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter));
+        const float CardW = 520f, HeadH = 80f, FootH = 66f, Gap = 4f, BlankH = 10f;
+        float bw = CardW * 0.89f - 36f;
+
+        // 제일 긴 쪽에 맞춘다 — 쪽을 넘길 때마다 칸이 커졌다 작아지면 눈이 따라간다.
+        float tall = 0f;
+        foreach (var pg in Lore.Pages)
+        {
+            float t = 0f;
+            foreach (string ln in pg.lines)
+                t += ln.Length == 0 ? BlankH : body.CalcHeight(new GUIContent(ln), bw) + Gap;
+            tall = Mathf.Max(tall, t);
+        }
+
+        float need = (HeadH + tall + FootH) / 0.89f;
+        var box = new Rect(w * 0.5f - CardW * 0.5f, h * 0.5f - need * 0.5f, CardW, need);
+        Hud.NoteCard(box);
+        var inner = Hud.NoteInner(box);
+
+        GUI.Label(new Rect(inner.x, inner.y + 4f, inner.width, 28f), Lore.Title, Hud.Title);
+
+        // 쪽 이름을 <b>화살표 사이에</b> 둔다 — 넘길 수 있다는 걸 글자가 스스로 말한다.
+        GUI.Label(new Rect(inner.x, inner.y + 38f, inner.width, 24f),
+                  "◀   " + page.head + "   ▶",
+                  Hud.Resize(Hud.Text, 15, TextAnchor.MiddleCenter));
+        Hud.Rule(inner.x + 14f, inner.y + 66f, inner.width - 28f);
+
+        float y = inner.y + HeadH;
+        foreach (string ln in page.lines)
+        {
+            if (ln.Length == 0) { y += BlankH; continue; }
+            float lh = body.CalcHeight(new GUIContent(ln), bw);
+            GUI.Label(new Rect(inner.x + 18f, y, bw, lh), ln, body);
+            y += lh + Gap;
+        }
+
+        // 몇 쪽인지 — 남은 쪽이 보여야 끝까지 넘긴다.
+        string dots = "";
+        for (int i = 0; i < Lore.Pages.Length; i++) dots += i == lorePage ? "●" : "○";
+        GUI.Label(new Rect(inner.x, inner.yMax - 48f, inner.width, 20f), dots,
+                  Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter));
+
+        GUI.Label(new Rect(inner.x, inner.yMax - 26f, inner.width, 20f),
+                  "◀▶ 쪽 넘기기 · L · ESC 닫기",
+                  Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter));
     }
 
     void DrawControls(float w, float h)
