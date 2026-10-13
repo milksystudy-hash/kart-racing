@@ -370,8 +370,13 @@ public class CampusBuilder : MonoBehaviour
         foreach (var (yaw, t) in rows)
             t.localRotation = Quaternion.Euler(0f, yaw + extra, 0f) * t.localRotation;
 
-        // ★ 결승을 이기기 전에는 안 보인다. 지웠다 만들지 않고 켜고 끈다.
-        root.gameObject.SetActive(GrandFinal.FreeRun);
+        // ★★★ 2026-10-13 — <b>구울 때 끄면 안 된다.</b> 씬을 저장하는 시점의
+        //   <see cref="GrandFinal.FreeRun"/> 이 그대로 박혀서, 다 깬 상태로 구우면
+        //   <b>안 깬 사람에게도 보인다</b>(수연: 「게임 클리어 전인데 함께 찰칵이 보인다」).
+        //   「씬을 구울 때 런타임 선택에 의존하는 값을 읽지 마라」 — 이 프로젝트에서
+        //   카트 중복 · AI · 장애물 · 광고판에 이어 다섯 번째다.
+        //   <b>스스로 판단하는 컴포넌트</b>를 붙인다.
+        root.gameObject.AddComponent<FreePlayGate>();
 
         Debug.Log($"[자유마당] 소품 {placed.Count}개 · 앞면 신호 {best:+0.000;-0.000}m → {extra:0}도 · " +
                   $"지금 {(GrandFinal.FreeRun ? "켜짐" : "꺼짐")}");

@@ -301,7 +301,7 @@ public class BearNpc : MonoBehaviour
         {
             Vector2 r = Random.insideUnitCircle * patrolRadius;
             Vector3 spot = home + new Vector3(r.x, 0f, r.y);
-            if (IsClear(spot) && FarFromOtherBears(spot)) return spot;
+            if (IsClear(spot) && PathClear(spot) && FarFromOtherBears(spot)) return spot;
         }
         return transform.position;
     }
@@ -337,6 +337,43 @@ public class BearNpc : MonoBehaviour
     /// 곰이 그 위나 밑에 가서 낀다(2026-09-17 유저 제보 — 리본 곰 아래 석상에 자주 갇혔다).
     /// 자리 잡을 때와 <b>같은 규칙</b>이야: 막히는 것만 피하면 되는 게 아니라 겹쳐 보이지도 않아야 한다.
     /// </summary>
+    /// <summary>
+    /// ★★ <b>가는 길이 뚫려 있나.</b> (2026-10-13)
+    ///
+    /// 전에는 <b>도착할 자리만</b> 봤다. 그러면 벽 건너편의 빈 자리를 고르고
+    /// <b>벽을 통과해서</b> 걸어간다 — 수연이 본 그대로다.
+    ///
+    /// 두 가지로 본다:
+    /// <list type="bullet">
+    /// <item><b>콜라이더</b> — 건물 벽·담장. <c>Linecast</c> 한 번이면 된다.</item>
+    /// <item><b>콜라이더가 없는 것</b> — 못질한 판자(<see cref="CampusBoarding"/>)는 일부러
+    ///       콜라이더가 없다(있으면 열세 관을 점검 못 한다). 그래서 <see cref="Solids"/> 의
+    ///       바운즈로 <b>길을 몇 토막 내서</b> 따로 본다.</item>
+    /// </list>
+    /// </summary>
+    bool PathClear(Vector3 spot)
+    {
+        Vector3 from = transform.position + Vector3.up * 0.6f;
+        Vector3 to = spot + Vector3.up * 0.6f;
+
+        // 벽·담장 — 카트와 같은 마스크(Ignore Raycast 만 뺀다)
+        if (Physics.Linecast(from, to, out var hit, ~(1 << 2)))
+            if (hit.transform.GetComponentInParent<BearNpc>() == null && !hit.collider.isTrigger)
+                return false;
+
+        // 콜라이더 없는 판자 — 0.8m 마다 한 번씩 본다
+        float span = Vector3.Distance(from, to);
+        int steps = Mathf.Clamp(Mathf.CeilToInt(span / 0.8f), 1, 24);
+        for (int i = 1; i < steps; i++)
+        {
+            Vector3 at = Vector3.Lerp(from, to, i / (float)steps);
+            var box = new Bounds(at, new Vector3(clearance, 1.2f, clearance));
+            foreach (var solid in Solids())
+                if (solid.Intersects(box)) return false;
+        }
+        return true;
+    }
+
     bool IsClear(Vector3 spot)
     {
         var hits = Physics.OverlapSphere(spot + Vector3.up * 0.5f, clearance);
@@ -357,7 +394,28 @@ public class BearNpc : MonoBehaviour
     }
 
     // 눈에 보이는 장애물 목록. 한 번만 모아 둔다 — 매번 씬을 훑으면 곰 셋이서 비싸진다.
+    /// <summary>
+    /// ★★★ 2026-10-13 — <b>이 캐시가 씬을 넘어 살아남고 있었다.</b>
+    /// <c>static</c> 이고 지우는 자리가 없어서, 로비에서 한 번 모으면 캠퍼스에서도
+    /// <b>로비의 물건 목록</b>을 보고 길을 고른다. 그러니 캠퍼스 건물이 거기 없는 것으로 보인다.
+    /// 수연: *"막 벽에 캠퍼스 곰돌이들이 통과하는 경우가 있는데."*
+    ///
+    /// 이 프로젝트에서 <c>static</c> 이 씬을 넘어 살아남아 틀린 게 다섯 번째다
+    /// (RaceCountdown · RaceBriefing.open · RaceProgress.finishedSoFar · GameSelection · 이번).
+    /// <b>씬이 바뀌면 지운다.</b>
+    /// </summary>
     static Bounds[] solids;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void BootSolids()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= ForgetSolids;
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += ForgetSolids;
+        solids = null;
+    }
+
+    static void ForgetSolids(UnityEngine.SceneManagement.Scene s,
+                             UnityEngine.SceneManagement.LoadSceneMode m) => solids = null;
 
     static Bounds[] Solids()
     {
@@ -372,7 +430,10 @@ public class BearNpc : MonoBehaviour
             if (b.max.y < 0.35f) continue;                      // 바닥·줄눈
             if (b.min.y > 2.6f) continue;                       // 천장·들보·현판
             if (b.size.x < 0.3f && b.size.z < 0.3f) continue;   // 실오라기 같은 것
-            if (b.size.x > 25f || b.size.z > 25f) continue;     // 벽 한 장 통째 — 콜라이더가 이미 있다
+            // ★ 2026-10-13 — 넓은 것을 통째로 빼면 <b>못질한 판자</b>가 빠진다.
+            //   판자는 일부러 콜라이더가 없어서(열세 관을 점검해야 하니까) 여기서 빠지면
+            //   곰이 그대로 통과한다. <b>정말 긴 것(담장 한 줄)만</b> 뺀다.
+            if (b.size.x > 40f || b.size.z > 40f) continue;
             list.Add(b);
         }
         solids = list.ToArray();
