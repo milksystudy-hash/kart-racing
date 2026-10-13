@@ -99,12 +99,13 @@ public class LobbyHUD : MonoBehaviour
         // 받침대 앞에서도 그렇다 — 그 자리의 E 는 캐릭터 고르기가 먹는다.
         var stand = NearStand();
 
-        // 발바닥이 칸 높이만큼 정사각으로 그려진다 — 낮으면 발이 작아 보인다.
+        // ★★ 2026-10-13 — <b>「이야기 다시 보기」 버튼을 걷어냈다.</b>
+        //   <see cref="StoryAlbum"/> 이 이미 같은 일을 한다(이야기 쪽에서 장을 골라 본다).
+        //   버튼이 둘이면 «뭐가 다르지» 가 생기고, 그게 «중구난방» 의 한 조각이다.
+        //   <b>T 키는 그대로 산다</b> — 앨범 안내줄이 「T 지금 장 바로 보기」로 적어 준다.
+        //   발바닥 버튼은 넷 → 셋(조작법 · 앨범 · 설정).
         const float Tall = 44f;
-        float sw = Mathf.Max(200f, Hud.PawWidth("이야기 다시 보기   T", 14, Tall));
-        var story = new Rect(w - 16f - sw, h - 108f, sw, Tall);
-        if (Hud.PawButton(story, "이야기 다시 보기   T") && StoryStage.Live != null)
-            StoryStage.Live.Replay();
+        var story = new Rect(w - 16f - 200f, h - 108f, 200f, Tall);   // 안내 자리를 잡는 기준으로만 쓴다
 
         // ★ 이름을 <b>«걸어다니기»</b> 로 못박는다(2026-10-12 수연 요청) —
         //   키가 아니라 <b>하는 일</b>이 먼저 읽혀야 한다. TAB 도 그대로 먹는다.
@@ -180,21 +181,62 @@ public class LobbyHUD : MonoBehaviour
         Hud.End();
     }
 
-    // ---- 좌상단: 고른 드라이버 ----
+    // ---- 좌상단: 오늘 할 일 ----
+    /// <summary>
+    /// ★★★ <b>이 게임이 무슨 게임인지 말하는 유일한 줄.</b> (2026-10-13)
+    ///
+    /// 담당자님: *"게임이 되게 중구난방하다."* <b>맞는 지적이었다.</b> 로비에 들어서면
+    /// 입구가 일곱 개인데(앨범 · 조작법 · 설정 · 이야기 · 걸어다니기 · 캐릭터 · 출발문),
+    /// 화면 어디에도 <b>«여덟 판을 돌아 증거 여덟 개를 모아 철거를 막는다»</b> 가 없었다.
+    /// 전에는 여기에 「로비」와 「드라이버 정이감」만 적혀 있었다 —
+    /// <b>「로비」는 보면 아는 것</b>이고 드라이버는 방금 고른 것이라, 둘 다 새 정보가 아니다.
+    ///
+    /// 그래서 제일 큰 글씨를 <b>증거 n / 8</b> 에 준다. 그 아래 한 줄이 <b>다음에 뭘 하는지</b>다.
+    /// 1초면 «아, 여덟 번 달려서 모으는 게임이구나» 가 된다.
+    ///
+    /// ⚠ 값은 전부 <b>이미 있던 것</b>을 읽기만 한다 — <see cref="CollectionState.Count"/> ·
+    ///   <see cref="MissionManager.CurrentGoal"/> · <see cref="GrandFinal"/>.
+    ///   새로 저장하는 게 없으니 어긋날 자리도 없다.
+    /// </summary>
     void DrawDriverPanel()
     {
-        var p = new Rect(16f, 16f, 196f, 80f);
+        // 제원표(y 116)와 폭을 맞춘다 — 둘이 한 줄로 서야 «한 덩어리» 로 읽힌다.
+        var p = new Rect(16f, 16f, 248f, 92f);
         Hud.Panel(p);
 
         float x = p.x + 14f;
-        GUI.Label(new Rect(x, p.y + 12f, 160f, 26f), "로비", Hud.Resize(Hud.Value, 20));
-        Hud.Rule(x, p.y + 40f, p.width - 28f);
+        int got = CollectionState.Count;
+        int all = ExhibitCatalogue.All.Length;
 
-        // 라벨과 이름을 위아래로 겹쳐 쓰다가 글자가 부딪혔다. 한 줄에 두 칸으로 나눈다.
-        GUI.Label(new Rect(x, p.y + 48f, 58f, 22f), "드라이버", Hud.Label);
-        GUI.Label(new Rect(p.x + 76f, p.y + 46f, p.width - 90f, 24f),
-                  GameSelection.HasSelection ? GameSelection.SelectedName : "선택 안 됨",
-                  Hud.Resize(Hud.Value, 19));
+        // ── 머리줄 ───────────────────────────────────────────────────
+        if (GrandFinal.FreeRun)
+            GUI.Label(new Rect(x, p.y + 10f, p.width - 28f, 28f),
+                      "철거를 막았다", Hud.Resize(Hud.Value, 20));
+        else
+        {
+            GUI.Label(new Rect(x, p.y + 10f, 54f, 28f), "증거", Hud.Resize(Hud.Text, 16));
+            GUI.Label(new Rect(x + 56f, p.y + 8f, p.width - 70f, 28f),
+                      $"{got} / {all}", Hud.Resize(Hud.Value, 21));
+        }
+
+        Hud.Rule(x, p.y + 42f, p.width - 28f);
+
+        // ── 다음에 할 일 ─────────────────────────────────────────────
+        string next = GrandFinal.FreeRun ? "자유 주행"
+                    : GrandFinal.Available ? "결승 — 개발업자 · 시의원"
+                    : RaceVoice.Plain(MissionManager.CurrentGoal);
+
+        GUI.Label(new Rect(x, p.y + 50f, 40f, 20f), "다음", Hud.Label);
+        var nextStyle = Hud.Resize(Hud.Text, 14, TextAnchor.MiddleLeft);
+        nextStyle.wordWrap = false;
+        GUI.Label(new Rect(x + 42f, p.y + 50f, p.width - 56f, 20f), next, nextStyle);
+
+        // ── 드라이버는 작게 아래로 ───────────────────────────────────
+        //   고른 캐릭터는 받침대와 제원표가 이미 크게 보여준다. 여기서는 확인용 한 줄.
+        GUI.Label(new Rect(x, p.y + 70f, 50f, 18f), "드라이버", Hud.Resize(Hud.Label, 12));
+        GUI.Label(new Rect(x + 52f, p.y + 70f, p.width - 66f, 18f),
+                  GameSelection.HasSelection ? GameSelection.SelectedName : "아직 안 골랐다",
+                  Hud.Resize(Hud.Text, 13));
     }
 
     // ---- 제원표 ----
@@ -215,7 +257,7 @@ public class LobbyHUD : MonoBehaviour
         // 처 2026-10-12 수연: *"캐릭터 소개 패널도 키워줘."* 196x162 → <b>248x196</b>.
         //   안의 자리(<see cref="Row"/> · 가로줄 · 한 줄 소개)도 같이 옮겨야 한다 —
         //   판만 키우면 글자가 왼쪽 위에 몰려서 더 허전해 보인다.
-        var p = new Rect(16f, 104f, 248f, 196f);
+        var p = new Rect(16f, 116f, 248f, 196f);
         Hud.Panel(p);
 
         float x = p.x + 14f;

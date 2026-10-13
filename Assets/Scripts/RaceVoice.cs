@@ -22,6 +22,28 @@ public static class RaceVoice
     /// "부딪힘 없이 시간제한에 맞춰 도착하기" 처럼 길어도 안 겹친다. 세 줄 넘어가면 잘리니 거기까지만.
     /// 전에는 접기가 없어서 "무충돌로 시간 안에" 가 라벨을 파고들어 "무충룰" 로 보였다.
     /// </summary>
+    /// <summary>
+    /// ★ <b>숫자 없는 임무 이름.</b> <see cref="Title"/> 는 목표치를 읽으려고
+    /// <see cref="MissionManager"/> 를 받는데, <b>로비에는 그게 없다</b>(트랙 씬에만 있다).
+    /// 로비의 「오늘 할 일」 줄은 «몇 개» 가 아니라 «무엇을» 만 말하면 되니 이걸 쓴다.
+    ///
+    /// ⚠ 낱말은 <see cref="Title"/> 과 <b>같아야 한다.</b> 로비에서 「가속 발판 밟기」라고
+    ///   읽고 트랙에서 「순찰 등 켜기」가 뜨면 같은 임무인지 알 수가 없다
+    ///   (2026-09-17 에 같은 물건을 두 이름으로 부르다 한 번 걸렸다).
+    /// </summary>
+    public static string Plain(MissionManager.Goal goal) => goal switch
+    {
+        MissionManager.Goal.발판전부 => "가속 발판 밟기",
+        MissionManager.Goal.무충돌   => "담장 긁지 않기",
+        MissionManager.Goal.제한시간 => "시간 안에 완주하기",
+        MissionManager.Goal.장애물   => "자재 피해서 완주",
+        MissionManager.Goal.전시품   => "곰인형 싣고 완주",
+        MissionManager.Goal.광고판   => "골든베어 간판 철거",
+        MissionManager.Goal.완벽    => "담장 안 긁고 시간 안에",
+        MissionManager.Goal.결승    => "개발업자·시의원과 대결",
+        _                           => "캠퍼스 세 바퀴 돌기",
+    };
+
     public static string Title(MissionManager.Goal goal, MissionManager m) => goal switch
     {
         // 2026-09-17 유저: "임무 2 와 임무 6 에서 속도 발판을 부르는 이름이 다른데
