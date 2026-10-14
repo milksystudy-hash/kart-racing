@@ -114,6 +114,7 @@ public static class RaceBriefing
         {
             chatterShown++;
             chatterAt = Time.unscaledTime;
+            RaceCountdown.Poke();   // 읽는 중은 «멈춤» 이 아니다 — 안전장치 시계를 되감는다
             return;
         }
 
@@ -139,7 +140,7 @@ public static class RaceBriefing
         // 안 누르고 가만히 있어도 <b>12초 뒤엔 저절로 넘어간다.</b> 못 넘기는 게 제일 나쁘다
         if (Time.unscaledTime - chatterAt < ChatterTotal) return;
 
-        if (chatterShown < chatterCount) { chatterShown++; chatterAt = Time.unscaledTime; return; }
+        if (chatterShown < chatterCount) { chatterShown++; chatterAt = Time.unscaledTime; RaceCountdown.Poke(); return; }
 
         if (Dev.Enabled && debugLog) Debug.Log("[출발] 티키타카 시간 초과 → 3 · 2 · 1");
         chatterCount = 0;
@@ -236,6 +237,7 @@ public static class RaceBriefing
             chatterCount = n;
             chatterShown = 1;
             chatterAt = Time.unscaledTime;
+            RaceCountdown.Poke();   // 읽는 중은 «멈춤» 이 아니다 — 안전장치 시계를 되감는다
             if (Dev.Enabled && debugLog) Debug.Log($"[출발] 카드 닫음 → 티키타카 {n}줄 ({ChatterTotal:0.0}초)");
             return;
         }

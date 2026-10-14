@@ -1731,6 +1731,27 @@ public static class SkyDrop
         if (d.outline != null) d.outline.gameObject.SetActive(false);
         if (d.mark != null) d.mark.gameObject.SetActive(false);
 
+        // ★★★ 2026-10-15 — <b>착지하는 «그 순간» 바닥에 앉힌다.</b>
+        //
+        // 전에는 0.9초 뒤 목록에서 뺄 때만 바닥을 쟀다. 그 0.9초 동안 슬래브가
+        // <b>공중에 떠 있는 게 그대로 보인다</b> — 떨어지는 걸 보고 있던 사람에게는
+        // 제일 눈에 띄는 순간이다(수연: *"자재가 공중에 떠 있다"*).
+        //
+        // 떨어지는 높이(0.25)는 <b>표적을 놓은 자리</b> 기준인데, 코스는 평평하지 않아서
+        // 표적이 도로보다 조금 높거나 낮으면 그 차이가 그대로 «뜬 것»·«박힌 것» 이 된다.
+        // 실제 바닥을 재서 앉히면 <b>원인이 무엇이든</b> 안 뜬다.
+        //
+        // ★ 재는 기준점은 슬래브가 아니라 <b>표적 자리</b>(<c>d.at</c>)다 — 슬래브에서
+        //   위로 쏘면 제 윗면을 맞고 <b>제 키만큼 솟아오른다.</b>
+        // ★ <b>아래 «맞았나» 검사보다 먼저</b> 한다. 거기 <c>player == null</c> 조기 반환이
+        //   있어서, 뒤에 두면 플레이어가 없는 판에서는 영영 안 앉는다.
+        if (d.block != null
+            && Physics.Raycast(d.at + Vector3.up * 8f, Vector3.down, out var ground, 60f, ~(1 << 2)))
+        {
+            Vector3 p = d.block.position;
+            d.block.position = new Vector3(p.x, ground.point.y + 0.25f, p.z);
+        }
+
         if (player == null) return;
 
         Vector3 v = player.transform.position - d.at; v.y = 0f;

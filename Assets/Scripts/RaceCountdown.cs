@@ -67,7 +67,23 @@ public static class RaceCountdown
     /// <summary>레이스에 들어온 시각. <see cref="LapTracker"/> 가 찍는다.</summary>
     public static void Arm() => armedAt = Time.unscaledTime;
 
+    /// <summary>
+    /// ★★★ 2026-10-15 — <b>안전장치가 「읽는 중」을 「멈췄다」로 오해했다.</b>
+    ///
+    /// 수연: *"7~8판 티키타카 보는 중에 ↑ 를 누르니 카트가 혼자 나간다."*
+    ///
+    /// <see cref="HardStop"/> 는 <b>들어온 지 22초</b>를 쟀다. 그런데 7·8판 티키타카는
+    /// 줄이 길어서 <b>천천히 읽으면 22초가 그냥 지나간다</b> — 그 순간 <see cref="Blocked"/>
+    /// 가 풀려서, <b>화면에는 대화가 떠 있는데 카트는 이미 출발선을 떠난다.</b>
+    ///
+    /// 재는 대상을 바꾼다: «들어온 지» 가 아니라 <b>«마지막으로 뭔가 진행된 지»</b>다.
+    /// 한 줄 넘길 때마다 <see cref="Poke"/> 가 시계를 되감으니 <b>아무리 천천히 읽어도
+    /// 안 풀리고</b>, 진짜로 아무도 안 닫아 주는 상태(옛 씬)는 그대로 22초에 풀린다.
+    /// </summary>
     static bool GaveUp => Time.unscaledTime - armedAt > HardStop;
+
+    /// <summary>진행이 있었다 — 안전장치 시계를 되감는다. 카드·티키타카가 한 줄 넘길 때마다.</summary>
+    public static void Poke() => armedAt = Time.unscaledTime;
 
     /// <summary>
     /// ★★ 2026-10-07 — <b>«시작했나» 와 «보였나» 는 다른 값이다.</b>

@@ -201,12 +201,21 @@ public class StoryStage : MonoBehaviour
         // ★ 아직 안 본 게 하나 더 있으면 <b>로비로 나가지 않고</b> 바로 이어 튼다.
         //   <see cref="StoryScript.CurrentScene"/> 는 방금 본 것을 빼고 다시 고르니,
         //   «after3 → ch2» 처럼 저절로 순서가 잡힌다.
-        // 이어 붙이는 건 <b>후기 장면 뒤에서만</b>이다. 결승 뒷이야기 다음에 에필로그가
-        // 바로 붙으면 «다음 방문에 결말» 이라는 간격이 사라진다.
-        // 넘기려고 누른 사람에게 다음 장면을 이어 붙이면 두 번 눌러야 한다.
+        // ★★★ 2026-10-15 — <b>에필로그도 바로 이어 붙인다.</b>
+        //
+        // 수연: *"에필로그가 전시실 갔다 돌아와야 뜬다."* 전에는 일부러 그렇게 뒀다 —
+        // 「결승 뒷이야기 다음 방문에 결말」이라는 <b>간격</b>을 주려던 것이다.
+        //
+        // <b>그 판단이 틀렸다.</b> 결승을 이기고 뒷이야기를 보고 나면 플레이어는
+        // «끝났다» 고 생각하고 게임을 끈다. 심사하는 사람은 더더욱 그렇다 —
+        // <b>한 달 쓴 이야기의 결말을 아무도 못 보고 끝난다.</b>
+        // 간격으로 얻는 여운보다 <b>결말이 재생되는 것</b>이 훨씬 중요하다.
+        //
+        // 넘기려고 누른 사람에게 다음 장면을 이어 붙이면 두 번 눌러야 하니 그건 그대로 둔다.
         bool skipped = runner != null && runner.Skipped;
 
-        if (!skipped && chained < MaxChain && sceneId.StartsWith("after"))
+        if (!skipped && chained < MaxChain
+            && (sceneId.StartsWith("after") || sceneId == "final_after"))
         {
             string next = StoryScript.CurrentScene();
             if (!string.IsNullOrEmpty(next) && next != sceneId && !StoryProgress.HasSeen(next))
