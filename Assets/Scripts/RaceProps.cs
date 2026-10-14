@@ -143,8 +143,24 @@ public static class RaceProps
                 //   1/29 − 1/34 = 0.0051바퀴/초 × 87초 = <b>0.44바퀴</b> — 한 번도 안 마주친다.
                 //   <b>58초</b>면 1.5바퀴라 레이스 중 한두 번 <b>천천히 따라잡아 지나간다.</b>
                 //   느린 비행선을 추월하는 그림이 «감시당하는 느낌» 에도 더 맞는다.
+                // ★★★ 2026-10-15 — <b>«거꾸로 돌린다» 고 적어 놓고 안 돌리고 있었다.</b>
+                //
+                // 수연: *"1랩에 안 나오고, 2랩엔 안 보이고, 3랩엔 쫓아오지도 급강하하지도 않는다."*
+                // 넷이 전부 <b>한 원인</b>이다. 비행선 58초 · 카트 29초로 <b>같은 방향</b>이니
+                // 카트가 한 바퀴 더 돌 때마다 한 번 따라잡는데, 그 «따라잡는» 그림은
+                // <b>3인칭 백뷰에서 카메라 뒤</b>다 — 지나칠 때조차 화면에 안 들어온다.
+                //
+                // 급강하도 같은 이유로 안 걸렸다: <see cref="FlyingProp.TryDive"/> 는 비행선이
+                // <b>카트 앞 57도 안</b>에 있어야 시작하는데, 뒤에서 따라잡히는 배는 그 조건에
+                // 거의 안 든다. 소리도 늘 같은 거리라 «다가온다» 가 안 느껴졌다.
+                //
+                // <b>마주 오게 돌린다.</b> 상대속도가 1/29 + 1/58 이라 <b>19초마다 한 번</b>,
+                // 한 바퀴에 1.5번 <b>정면에서</b> 들어온다 — 코부터 보이고, 급강하 조건이
+                // 저절로 맞고, 엔진 소리가 커졌다 작아지며 지나간다.
+                // (헬기도 같은 처방이다. 둘 다 2026-10-12 주석에만 있고 인자가 없었다.)
                 Patrol(track, "R01_Director_Blimp", 11.5f, 58f, lateral: 0f, bob: 0.3f, shadow: 11f,
-                       noseBack: true, diveFromLap: 2, engine: "Blimp_Engine");
+                       noseBack: true, reverse: true, diveFromLap: 2,
+                       engine: "Blimp_Engine", engineFar: 120f);
                 break;
 
             // 3판 — 안전점검 헬기가 낮게 돈다 + 담장 위에 곰 관중이 처음 몇 마리
@@ -168,8 +184,15 @@ public static class RaceProps
                 //   내가 플레이어를 벽에 밀어 놓고 실패시키는 꼴이 된다. <b>느려지기만</b> 한다.
                 // ★ 24초는 0.62바퀴라 안 마주칠 수도 있다. <b>16초</b>면 3.2번 스쳐 간다 —
                 //   헬기는 빨라야 헬기답고, 점검등도 그만큼 자주 온다.
-                Patrol(track, "R02_Safety_Helicopter", 9.5f, 16f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
-                       noseBack: true, engine: "Heli_Rotor", engineVolume: 0.8f, beam: true);
+                // ★★★ 2026-10-15 — 비행선과 <b>같은 누락</b>이었다. 주석에는 거꾸로 돌린다고
+                //   적혀 있는데 <c>reverse</c> 를 안 넘기고 있었다.
+                //   같은 방향 16초 · 카트 29초면 상대속도가 1/16 − 1/29 이라 <b>36초에 한 번</b>,
+                //   한 바퀴에 1.2번뿐이고 그마저 <b>뒤에서 추월해 가는</b> 그림이다.
+                //   거꾸로 돌리면 1/13 + 1/29 → <b>9초마다</b>, 한 바퀴에 3.2번 정면으로 온다.
+                //   수연이 원한 «한 바퀴에 네 번쯤» 에 제일 가깝다.
+                Patrol(track, "R02_Safety_Helicopter", 9.5f, 13f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
+                       noseBack: true, reverse: true,
+                       engine: "Heli_Rotor", engineVolume: 0.8f, beam: true, engineFar: 110f);
                 Crowd(track, 8);
                 break;
 
@@ -183,15 +206,28 @@ public static class RaceProps
                 //   그 판에서만 통하는 위협이라 풍경이 처음으로 운전을 바꾼다.
                 //   목표가 여덟 중 여섯이라 <b>두 개는 잃어도 되고</b>, 떨어진 건
                 //   다음 바퀴에 주울 수 있다.
-                Side(track, "R03_Demolition_Crane", 0.17f, 26f, swing: true);
-                Side(track, "R03_Demolition_Crane", 0.63f, -28f, swing: true);
+                // ★★★ 2026-10-15 수연: *"4대가 전부 가만히 있고, 다 똑같아 보인다."*
+                //   재 보니 넷이 <b>같은 사인파</b>였다 — 빠르기와 거리만 달랐다.
+                //   곰 동작에서 배운 그대로다: <b>속도만 바꾸면 «빠름/느림» 두 가지로만
+                //   읽힌다. 쓰는 축이 달라야 한 프레임만 봐도 갈린다.</b>
+                //
+                //   먼 둘은 <b>풍경</b>이라 길에 안 닿게 반경을 따로 준다(안 그러면
+                //   26m 짜리 쇳덩이가 길을 가로질러 온다). 가까운 둘만 <b>위협</b>이다.
+                //
+                //   | 자리 t | 움직임 | 무엇이 다른가 |
+                //   | 0.17   | 회전   | 팔 끝에서 한 바퀴 — 멀어도 눈에 띈다 |
+                //   | 0.63   | 붕괴   | 들었다가 내려찍는다 — 가로가 아니라 <b>세로</b> |
+                //   | 0.40   | 길막   | 나가서 <b>버틴다</b> — 박자를 보고 지나가는 판단 |
+                //   | 0.84   | 거칠게 | 끝에서 튕긴다 — 휘두르는 것처럼 |
+                WreckingCrane(track, 0.17f, 26f, 5.8f, WreckingBall.Style.회전, reach: 6f);
+                WreckingCrane(track, 0.63f, -28f, 6.6f, WreckingBall.Style.붕괴, reach: 5f);
 
                 // ★ 2026-10-12 수연: *"포크레인에 자동차가 바로 통과된다. 막아줘.
                 //   그리고 진로를 왔다 갔다 타이밍 맞게 막게 해줘 — 슈퍼마리오 파이프처럼."*
                 //   몸통에 콜라이더를 달고(장식이 아니라 <b>구조물</b>이다) 갓길로 더 물렸다.
                 //   쇳덩이는 길을 가로질러 <b>건너갔다 돌아온다</b> — 박자를 보고 지나가면 된다.
-                WreckingCrane(track, 0.40f, 13f, 3.9f);
-                WreckingCrane(track, 0.84f, -13.5f, 4.6f);
+                WreckingCrane(track, 0.40f, 13f, 4.4f, WreckingBall.Style.길막);
+                WreckingCrane(track, 0.84f, -13.5f, 3.4f, WreckingBall.Style.거칠게);
                 break;
 
             // 5판 — 서류 폭풍. 관장 도장이 <b>몇 초마다 쿵 찍고</b> 땅울림이 코스를 쓸고 간다.
@@ -358,7 +394,9 @@ public static class RaceProps
     /// ★ <b>전투용 크레인</b> — 쇳덩이가 길을 가로질러 지나간다.
     /// <paramref name="period"/> 를 둘이 다르게 줘야 «한 박자로» 지나가지 않는다.
     /// </summary>
-    static void WreckingCrane(TrackBuilder track, float t, float offset, float period)
+    static void WreckingCrane(TrackBuilder track, float t, float offset, float period,
+                              WreckingBall.Style style = WreckingBall.Style.거칠게,
+                              float reach = 0f)
     {
         var go = Side(track, "R03_Demolition_Crane", t, offset);
         if (go == null) return;
@@ -372,8 +410,11 @@ public static class RaceProps
         }
 
         var w = go.AddComponent<WreckingBall>();
-        w.arm = arm; w.ball = ball; w.period = period;
-        w.reach = Mathf.Abs(offset) + 3.0f;      // 길 가운데를 조금 넘어간다
+        w.arm = arm; w.ball = ball; w.period = period; w.style = style;
+
+        // ★ 기본은 «길 가운데를 조금 넘어간다» 지만, <b>멀리 선 풍경 크레인</b>은
+        //   그러면 쇳덩이가 26m 를 가로질러 길까지 온다. 그런 자리는 반경을 직접 준다.
+        w.reach = reach > 0f ? reach : Mathf.Abs(offset) + 3.0f;
 
         // ★ 몸통은 <b>막는다.</b> 통과되면 그건 그림이지 장비가 아니다.
         //   CLAUDE.md 규칙대로 <b>띠를 둘러</b> «부딪히는 것» 이라고 알린다.
@@ -904,6 +945,17 @@ public class FlyingProp : MonoBehaviour
 /// </summary>
 public class WreckingBall : MonoBehaviour
 {
+    /// <summary>
+    /// ★★ <b>네 대가 각자 다른 움직임을 한다.</b> (2026-10-15 수연 요청)
+    ///
+    /// 전에는 넷이 전부 <b>같은 사인파</b>였다 — 빠르기와 거리만 달라서, 곰 동작에서
+    /// 겪은 것과 똑같이 «빠름 / 느림» 두 가지로만 읽혔다.
+    /// <b>쓰는 축이 달라야</b> 한 프레임만 봐도 갈린다: 가로(거칠게·길막) · 세로(붕괴) · 원(회전).
+    /// </summary>
+    public enum Style { 거칠게, 길막, 붕괴, 회전 }
+
+    public Style style = Style.거칠게;
+
     public Transform arm, ball;
     public float period = 4.2f;
 
@@ -928,13 +980,69 @@ public class WreckingBall : MonoBehaviour
     {
         if (RacePause.On || RaceCountdown.Blocked || ball == null) return;
 
-        // 기둥을 축으로 왔다 갔다. 끝에서 느려지는 진자 모양이라 «달려오는» 구간이 생긴다.
-        float u = Mathf.Sin(Time.time * (2f * Mathf.PI / Mathf.Max(0.5f, period)));
+        float phase = Time.time * (2f * Mathf.PI / Mathf.Max(0.5f, period));
         Vector3 out01 = transform.forward;            // Side() 가 코스 쪽을 보게 세워 준다
+        Vector3 side = transform.right;
+        Vector3 home = transform.TransformPoint(ballHome);
 
-        ball.position = transform.TransformPoint(ballHome) + out01 * (u * reach);
+        float u;            // 코스 쪽으로 나간 정도 (−1 ~ 1)
+        float lift = 0f;    // 위아래
+        float sway = 0f;    // 옆으로
+
+        switch (style)
+        {
+            // ── 거칠게 — 같은 왕복인데 <b>끝에서 튕긴다.</b> 사인파는 부드러워서
+            //    아무리 빨라도 «기계가 돈다» 로 보인다. 끝을 꺾어야 «휘두른다» 가 된다.
+            default:
+            case Style.거칠게:
+                u = Mathf.Sin(phase);
+                u = Mathf.Sign(u) * Mathf.Pow(Mathf.Abs(u), 0.55f);
+                lift = Mathf.Abs(Mathf.Sin(phase * 2f)) * -1.1f;
+                sway = Mathf.Sin(phase * 3.1f) * 0.9f;
+                break;
+
+            // ── 길막 — <b>나가서 버틴다.</b> 수연이 말한 «슈퍼마리오 파이프» 가 이거다.
+            //    사인파는 길 위에 머무는 시간이 짧아서 «피했다» 가 운처럼 느껴진다.
+            //    나가는 데 0.18 · <b>버티는 데 0.34</b> · 들어가는 데 0.18 · 쉬는 데 0.3 —
+            //    버티는 구간이 있어야 <b>박자를 보고 기다렸다 지나가는</b> 판단이 생긴다.
+            case Style.길막:
+                {
+                    float p = Mathf.Repeat(Time.time / Mathf.Max(0.5f, period), 1f);
+                    u = p < 0.18f ? Mathf.SmoothStep(0f, 1f, p / 0.18f)
+                      : p < 0.52f ? 1f
+                      : p < 0.70f ? Mathf.SmoothStep(1f, 0f, (p - 0.52f) / 0.18f)
+                      : 0f;
+                    lift = -0.4f * u;
+                }
+                break;
+
+            // ── 붕괴 — <b>들었다가 내려찍는다.</b> 가로가 아니라 <b>세로</b>로 움직여서,
+            //    한 프레임만 봐도 다른 크레인과 안 헷갈린다(곰 동작에서 배운 것 —
+            //    속도만 다르면 «빠름/느림» 두 가지로만 읽힌다).
+            case Style.붕괴:
+                {
+                    float p = Mathf.Repeat(Time.time / Mathf.Max(0.5f, period), 1f);
+                    u = 0.55f + Mathf.Sin(phase * 0.5f) * 0.12f;
+                    lift = p < 0.62f ? Mathf.SmoothStep(0f, 7.5f, p / 0.62f)      // 천천히 든다
+                         : p < 0.70f ? Mathf.Lerp(7.5f, -0.6f, (p - 0.62f) / 0.08f)  // 확 내리꽂는다
+                         : Mathf.Lerp(-0.6f, 0f, (p - 0.70f) / 0.30f);
+                    Slam(p);
+                }
+                break;
+
+            // ── 회전 — 팔 끝에서 <b>한 바퀴 돈다.</b> 멀리 있어도 눈에 띄는 건
+            //    «크다» 가 아니라 «다른 길을 그린다» 는 쪽이다.
+            case Style.회전:
+                u = 0.45f + Mathf.Cos(phase) * 0.55f;
+                lift = Mathf.Sin(phase) * reach * 0.42f;
+                break;
+        }
+
+        ball.position = home + out01 * (u * reach) + Vector3.up * lift + side * sway;
         if (arm != null)
-            arm.localRotation = Quaternion.Euler(0f, 0f, -u * 16f);
+            arm.localRotation = Quaternion.Euler(0f, 0f, -u * (style == Style.거칠게 ? 26f : 16f));
+
+        // 멀리 있는 크레인은 길에 안 닿는다 — 풍경이다. 맞음 판정은 그대로 거리로 걸러진다.
 
         var kart = PlayerKart.Current;
         if (kart == null || Time.time - lastHit < 1.2f) return;
@@ -952,6 +1060,28 @@ public class WreckingBall : MonoBehaviour
 
         if (ExhibitCargo.DropLast()) Toast.Show("쇳덩이에 맞았다 — 하나 떨어졌다");
         else Toast.Show("쇳덩이에 맞았다");
+    }
+
+    bool slammed;
+
+    /// <summary>
+    /// 내려찍는 순간 화면을 한 번 흔든다. ★ <b>가까이 있을 때만</b> —
+    /// 28m 밖 풍경이 매번 화면을 흔들면 그건 연출이 아니라 «화면 상태» 가 된다
+    /// (주행 진동을 늘 켜두면 안 되는 것과 같은 규칙).
+    /// </summary>
+    void Slam(float p)
+    {
+        if (p < 0.62f) { slammed = false; return; }
+        if (slammed || cam == null) return;
+        slammed = true;
+
+        var kart = PlayerKart.Current;
+        if (kart == null) return;
+
+        float d = Vector3.Distance(kart.transform.position, transform.position);
+        if (d > 70f) return;
+
+        cam.Wobble(Mathf.Lerp(0.5f, 0.05f, d / 70f));
     }
 }
 
