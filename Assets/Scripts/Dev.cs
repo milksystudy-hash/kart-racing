@@ -21,7 +21,7 @@
 /// </summary>
 public static class Dev
 {
-#if UNITY_EDITOR
+#if UNITY_EDITOR || DEV_BUILD
     // ★★ 2026-10-14 — 에디터에서도 <b>기본은 잠김</b>이다(수연 요청).
     //   전에는 늘 켜져 있어서 화면 아래에 「1~5 장면 고르기 · F9 전시품 전부 수집」 같은
     //   개발용 안내가 그대로 떠 있었다 — 화면을 보여줄 때마다 같이 보인다.

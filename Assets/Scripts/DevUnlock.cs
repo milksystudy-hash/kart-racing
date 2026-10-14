@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+#if UNITY_EDITOR || DEV_BUILD
 using System.Text;
 using UnityEngine;
 using UnityEngine.InputSystem;
