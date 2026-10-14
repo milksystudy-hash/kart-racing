@@ -187,6 +187,10 @@ public class MinigameFlow : MonoBehaviour
 
     void OnGUI()
     {
+        // ★ 2026-10-14 수연: *"곰밥마당 321 시작이 메뉴판 뒤로 가서 글자를 막았다."*
+        //   IMGUI 는 <b>깊이가 작을수록 위</b>다. 게임 제 HUD(급식·훈련·그리기)가
+        //   나중에 그려지면서 덮었다 — 준비 카드와 카운트다운은 <b>언제나 맨 위</b>여야 한다.
+        GUI.depth = -100;
         if (Now == Step.진행 || Now == Step.끝) return;
 
         Rect screen = Hud.Begin(font);

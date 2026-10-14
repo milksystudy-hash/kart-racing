@@ -66,8 +66,17 @@ public class RoadDebris : MonoBehaviour
             return;
         }
 
+        // ★★ 2026-10-14 (두 번째) — <b>바닥 맞추기를 여기서 한 번만 한다.</b>
+        //   어제는 <see cref="Restore"/> 안에서 바닥을 쟀는데, 그러면 되돌린 자리와
+        //   <see cref="home"/> 이 서로 달라진다. 아래 <see cref="FixedUpdate"/> 는
+        //   <b>home 에서 얼마나 벗어났나</b>로 판단하니, 둘이 1.2m 넘게 차이 나면
+        //   되돌리자마자 또 «벗어났다» 가 되어 <b>영원히 되돌리기만 반복</b>한다 —
+        //   그게 「떨어지다가 다시 위로 챱 붙는다」의 정체다.
+        //   기준점 자체를 바닥에 맞춰 두면 둘이 같은 값이라 안 싸운다.
         home = transform.position;
         homeRotation = transform.rotation;
+        home = Grounded(home);
+        transform.position = home;
 
         // ★★ 2026-10-08 — <b>카트가 자재를 타고 넘어가던 것.</b> 수연: *"자재 넘으면 바로 몸이
         //   통과되니까 못 넘어가게 막아야 할 듯."* 통과한 게 아니라 <b>올라탄 것</b>이었다.
@@ -134,7 +143,7 @@ public class RoadDebris : MonoBehaviour
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
         }
-        transform.SetPositionAndRotation(Grounded(home), homeRotation);
+        transform.SetPositionAndRotation(home, homeRotation);
     }
 
     /// <summary>
