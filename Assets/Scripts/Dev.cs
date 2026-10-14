@@ -28,8 +28,15 @@ public static class Dev
     //   <see cref="DevUnlock"/> 에 암호를 타이핑하면 열리고, 에디터를 껐다 켜면 잠긴다.
     //   ★ <b>디버그 키를 읽는 자리를 하나도 안 고쳤다</b> — 전부 이 값 뒤에 있어서 공짜다.
     public static bool Enabled => DevUnlock.Open;
+
+    // ★★ 2026-10-14 — <b>암호를 치는 동안에는 다른 모두가 키에서 손을 뗀다.</b>
+    //   수연: *"입력하는 도중에 게임 화면이 자꾸 확확 바뀐다."* <b>그럴 수밖에 없었다</b> —
+    //   BEARMASTERIG 의 B 는 앨범을 열고 T 는 이야기를 틀고 E 는 문을 연다.
+    //   <see cref="DevUnlock"/> 이 에디터 전용이라 다른 파일이 직접 못 보니 여기로 낸다.
+    public static bool Typing => DevUnlock.Typing;
 #else
     // 빌드에서는 상수라 컴파일러가 그 분기를 통째로 지운다. 암호도 필요 없다.
     public const bool Enabled = false;
+    public const bool Typing = false;
 #endif
 }

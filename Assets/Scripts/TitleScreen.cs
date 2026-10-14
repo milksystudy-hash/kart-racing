@@ -195,6 +195,7 @@ public class TitleScreen : MonoBehaviour
     // ==================================================================
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         // 암전이 다 덮인 그 순간에 사라진다 — 그때 <see cref="StoryStage"/> 가
         // 기다리던 이야기를 틀고, 막이 걷히면 이미 프롤로그가 서 있다.
         if (leaving)

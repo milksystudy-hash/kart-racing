@@ -115,6 +115,7 @@ public class MinigameFlow : MonoBehaviour
 
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         // ★★ <b>시간으로 넘어가는 자리는 키보드 없이도 돌아야 한다.</b>
         // 전에는 <c>Keyboard.current == null</c> 이면 Update 가 통째로 빠져나가서,
         // 키보드를 못 잡은 상황에서 <b>카운트다운이 영영 «시작전» 에 멈췄다</b> —

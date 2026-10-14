@@ -223,6 +223,7 @@ public class DialogueHUD : MonoBehaviour
 
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         // ★ 건너뛰기 키. 디버그 키보다 <b>앞</b>이다 — 플레이어 기능이니까.
         var key = UnityEngine.InputSystem.Keyboard.current;
         if (key != null && runner != null && runner.IsPlaying)

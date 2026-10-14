@@ -27,6 +27,7 @@ public class GalleryHUD : MonoBehaviour
 
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         TickViewer();
 
         var keys = Keyboard.current;

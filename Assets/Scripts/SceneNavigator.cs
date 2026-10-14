@@ -27,6 +27,7 @@ public class SceneNavigator : MonoBehaviour
 
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         // 플레이어는 씬을 마음대로 건너뛰면 안 된다. 에디터에서만 듣는다.
         if (!Dev.Enabled || !debugKeys) return;
 

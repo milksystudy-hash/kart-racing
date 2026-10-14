@@ -99,6 +99,7 @@ public class FirstPersonController : MonoBehaviour
 
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         // 바닥이 뚫려 있든 맵 밖으로 걸어나가든, 끝없이 떨어지지는 않게.
         // 조작이 꺼져 있어도 복구는 되도록 맨 앞에서 검사한다.
         if (transform.position.y < fallResetY)

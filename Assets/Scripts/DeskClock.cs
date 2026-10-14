@@ -77,6 +77,7 @@ public class DeskClock : MonoBehaviour
 
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         // 분이 바뀔 때만 갱신한다. 매 프레임 재질을 28번씩 갈 이유가 없다.
         if (System.DateTime.Now.Minute != shownMinute) Refresh(force: false);
 

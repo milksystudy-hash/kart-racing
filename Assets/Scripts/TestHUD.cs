@@ -60,6 +60,7 @@ public class TestHUD : MonoBehaviour
 
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         var k = Keyboard.current;
 
         // ★ 획득 연출이 떠 있는 동안에는 <b>다른 키가 하나도 안 먹는다.</b>

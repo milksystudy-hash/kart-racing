@@ -130,6 +130,7 @@ public class StoryStage : MonoBehaviour
 
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         // 첫 화면 위로 디버그 키(T · 1~5)가 새어나가면 안 된다.
         if (TitleScreen.Up) return;
 

@@ -13,6 +13,7 @@ public class CampusHUD : MonoBehaviour
 
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         var k = Keyboard.current;
         if (k == null) return;
 

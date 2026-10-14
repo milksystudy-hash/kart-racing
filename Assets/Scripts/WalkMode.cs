@@ -42,6 +42,7 @@ public class WalkMode : MonoBehaviour
     /// </summary>
     void Update()
     {
+        if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         var k = Keyboard.current;
         if (k == null) return;
         if (k.tabKey.wasPressedThisFrame) Toggle();
