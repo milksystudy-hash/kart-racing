@@ -22,8 +22,14 @@
 public static class Dev
 {
 #if UNITY_EDITOR
-    public const bool Enabled = true;
+    // ★★ 2026-10-14 — 에디터에서도 <b>기본은 잠김</b>이다(수연 요청).
+    //   전에는 늘 켜져 있어서 화면 아래에 「1~5 장면 고르기 · F9 전시품 전부 수집」 같은
+    //   개발용 안내가 그대로 떠 있었다 — 화면을 보여줄 때마다 같이 보인다.
+    //   <see cref="DevUnlock"/> 에 암호를 타이핑하면 열리고, 에디터를 껐다 켜면 잠긴다.
+    //   ★ <b>디버그 키를 읽는 자리를 하나도 안 고쳤다</b> — 전부 이 값 뒤에 있어서 공짜다.
+    public static bool Enabled => DevUnlock.Open;
 #else
+    // 빌드에서는 상수라 컴파일러가 그 분기를 통째로 지운다. 암호도 필요 없다.
     public const bool Enabled = false;
 #endif
 }

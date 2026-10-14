@@ -62,8 +62,19 @@ public class LobbyHUD : MonoBehaviour
             // 문이 먼저다. 문 앞에 곰이 서 있을 때 말만 걸리고 못 들어가면 답답하다.
             // ★ 시계가 잡혀 있으면 곰은 건너뛴다 — `DeskClock` 이 제 E 를 따로 듣기 때문에,
             // 여기서 곰까지 말하게 두면 <b>한 번 누르고 둘이 동시에 반응한다.</b>
+            // ★★ 2026-10-14 수연: *"문을 열면 안은 보이는데 들어가려면 E 를 한 번 더
+            //   눌러야 된다. 가까이 안 간 상태로 누르면 열리기만 하고."*
+            //   <b>같은 문인데 E 가 둘로 갈렸던 것</b>이다 — 조금 멀면 <see cref="SceneDoor"/>
+            //   가 안 잡히고 <see cref="HingedDoor"/> 만 잡혀서 «열기» 로 끝났다.
+            //   잡힌 문짝에 씬 문이 같이 붙어 있으면 <b>그쪽으로 넘긴다</b> —
+            //   <see cref="SceneDoor.Enter"/> 가 열고 0.55초 뒤에 들어간다.
             if (SceneDoor.Nearest != null) SceneDoor.Nearest.Enter();
-            else if (HingedDoor.Nearest != null) HingedDoor.Nearest.Toggle();
+            else if (HingedDoor.Nearest != null)
+            {
+                var exit = HingedDoor.Nearest.GetComponent<SceneDoor>();
+                if (exit != null) exit.Enter();
+                else HingedDoor.Nearest.Toggle();
+            }
             else if (DeskClock.Nearest != null) { /* 시계가 직접 연다 */ }
             else if (NearStand() is CharacterStand pick) Choose(pick);
             else if (BearNpc.Nearest != null) BearNpc.Nearest.Talk();
@@ -581,7 +592,12 @@ public class LobbyHUD : MonoBehaviour
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 168f, 400f, 336f);
+        // ★ 2026-10-14 수연: *"H 가 카트 항목 패널 줄 조금 빠져나왔다."* 재 보니 둘이었다 —
+        //   조작법 일곱째 줄(182~202)이 가로줄(194)을 <b>12px 가로지르고</b>,
+        //   카트 항목 마지막 줄 끝(312)이 종이 아래 테두리(317)에서 <b>5px</b>였다.
+        //   카드를 336 → 372 로 키우고 아래 두 덩어리를 18px 내렸다.
+        //   측정: 조작법 끝 204 < 가로줄 212 · 카트 끝 330 < 종이 끝 351.
+        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 186f, 400f, 372f);
         Hud.NoteCard(box);
 
         GUI.Label(new Rect(box.x, box.y + 14f, box.width, 24f), "조작법", Hud.Title);
@@ -612,8 +628,8 @@ public class LobbyHUD : MonoBehaviour
             };
         Rows(box, controls, box.y + 50f);
 
-        Hud.Rule(box.x + 20f, box.y + 194f, box.width - 40f);
-        GUI.Label(new Rect(box.x, box.y + 200f, box.width, 22f), "카트 항목", Hud.Resize(Hud.Title, 15));
+        Hud.Rule(box.x + 20f, box.y + 212f, box.width - 40f);
+        GUI.Label(new Rect(box.x, box.y + 218f, box.width, 22f), "카트 항목", Hud.Resize(Hud.Title, 15));
 
         // 무슨 일이 일어나는지를 적는다. 어느 카트가 좋다는 말은 여기에도 안 쓴다.
         string[,] spec =
@@ -623,7 +639,7 @@ public class LobbyHUD : MonoBehaviour
             { "출발",   "멈췄다 붙을 때 빠르다" },
             { "코너",   "높으면 안 미끄러지고 낮으면 잘 돈다" },
         };
-        Rows(box, spec, box.y + 226f);
+        Rows(box, spec, box.y + 244f);
     }
 
     void Rows(Rect box, string[,] rows, float top)

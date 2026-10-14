@@ -192,6 +192,9 @@ public class CampusHUD : MonoBehaviour
     {
         if (player == null) player = FindFirstObjectByType<FirstPersonController>();
 
+        // ★ 개발용 줄은 잠겨 있으면 아예 안 그린다(2026-10-14 수연 요청).
+        if (!Dev.Enabled) { DrawHelpChip(h); return; }
+
         var dev = new Rect(16f, h - 54f, 214f, 22f);
         Hud.Chip(dev);
 
@@ -201,32 +204,49 @@ public class CampusHUD : MonoBehaviour
         GUI.Label(new Rect(dev.x + 9f, dev.y + 4f, dev.width - 16f, 16f),
                   $"{state}  ·  F 날기  ·  F8 클리어 전/후  ·  F1 로비", tiny);
 
+        DrawHelpChip(h);
+    }
+
+    /// <summary>발바닥 버튼. H 로도 열리고 <b>마우스로도 눌린다</b> —
+    /// 키만 있으면 안 눌러본 사람에겐 없는 기능이다(G·TAB 에서 두 번 겪은 실수).</summary>
+    void DrawHelpChip(float h)
+    {
         if (showControls) return;
-        // ★ 곤 발바닥 버튼. H 로도 열리고 <b>마우스로도 눌린다</b> —
-        //   키만 있으면 안 눌러본 사람에겐 없는 기능이다(G·TAB 에서 두 번 겉은 실수).
         var chip = new Rect(16f, h - 34f, 98f, 28f);
         if (Hud.PawChip(chip)) showControls = !showControls;
     }
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 190f, h * 0.5f - 130f, 380f, 260f);
+        float tall = (56f + (Dev.Enabled ? 8 : 5) * 26f + 24f) / 0.945f;
+        var box = new Rect(w * 0.5f - 190f, h * 0.5f - tall * 0.5f, 380f, tall);
         Hud.NoteCard(box);
 
         GUI.Label(new Rect(box.x, box.y + 16f, box.width, 26f), "조작법", Hud.Title);
         Hud.Rule(box.x + 20f, box.y + 46f, box.width - 40f);
 
-        string[,] rows =
-        {
-            { "WASD", "걷기 (SHIFT 뛰기)" },
-            { "마우스", "둘러보기" },
-            { "SPACE", "뛰어넘기" },
-            { "E", "문으로 들어가기 · 곰에게 말 걸기" },
-            { "G", "벽 통과 (개발용)" },
-            { "F8", "레이싱 클리어 전 / 후 (개발용)" },
-            { "F", "날기 (개발용)" },
-            { "H", "이 창 닫기" },
-        };
+        // ★ 개발용 세 줄은 잠겨 있으면 빼고, 카드도 그만큼 줄인다 —
+        //   빈 줄이 남으면 «뭔가 안 뜬다» 로 읽힌다.
+        string[,] rows = Dev.Enabled
+            ? new[,]
+            {
+                { "WASD", "걷기 (SHIFT 뛰기)" },
+                { "마우스", "둘러보기" },
+                { "SPACE", "뛰어넘기" },
+                { "E", "문으로 들어가기 · 곰에게 말 걸기" },
+                { "G", "벽 통과 (개발용)" },
+                { "F8", "레이싱 클리어 전 / 후 (개발용)" },
+                { "F", "날기 (개발용)" },
+                { "H", "이 창 닫기" },
+            }
+            : new[,]
+            {
+                { "WASD", "걷기 (SHIFT 뛰기)" },
+                { "마우스", "둘러보기" },
+                { "SPACE", "뛰어넘기" },
+                { "E", "문으로 들어가기 · 곰에게 말 걸기" },
+                { "H", "이 창 닫기" },
+            };
 
         var key = Hud.Resize(Hud.Text, 14);
         key.fontStyle = FontStyle.Bold;

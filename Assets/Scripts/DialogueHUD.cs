@@ -146,22 +146,21 @@ public class DialogueHUD : MonoBehaviour
     //  프롤로그를 건너뛴 사람은 <b>이 게임이 무슨 게임인지 모르는 채로</b> 로비에 선다.
     //  그리고 칩이 첫 프레임부터 왼쪽 위에 떠 있으니 <b>건너뛰라고 광고하는 꼴</b>이었다.
     //
-    //  ★ 그렇다고 아예 막지는 않는다 — <b>갇히는 게 제일 나쁘다</b>(문 바닥값 · 브리핑
-    //    25초 · 급식 4초와 같은 판단). <see cref="FirstRunGrace"/> 가 지나면 열린다.
-    //    두 번째부터는(<see cref="StoryProgress.HasSeen"/>) 처음부터 열려 있다 —
-    //    이미 본 사람을 붙잡아 두는 건 벌이다.
+    //  ★★ 2026-10-14 — <b>60초 유예를 걷어냈다.</b> 수연: *"몇 초 이상 가만히 두면
+    //    ESC 건너뛰기 패널이 자동으로 생겨. 아직 게임 깨지도 않았는데."*
+    //    <b>맞는 지적이다.</b> 가만히 있으면 저절로 생기는 건 «열렸다» 가 아니라
+    //    «뭔가 고장났다» 로 읽히고, 처음 보는 사람에게는 애초에 줄 물건이 아니었다.
+    //    이제 <b>이미 본 장면에만</b> 열린다(<see cref="StoryProgress.HasSeen"/>) —
+    //    다시 보기(T · 앨범)와 두 번째 플레이가 그 길이다.
     //
     //  ★ 열리기 전에 ESC 를 눌러도 <b>아무 일도 안 일어나게 두지 않는다.</b>
     //    «눌렀는데 아무 반응이 없다» 는 고장과 구분이 안 된다(안전 점검 훈련에서 배운 것).
     // ══════════════════════════════════════════════════════════════════
-    const float FirstRunGrace = 60f;
-
     float notedAt = -99f;
 
-    /// <summary>지금 건너뛸 수 있나.</summary>
+    /// <summary>지금 건너뛸 수 있나. <b>이미 본 장면만</b>.</summary>
     bool CanSkip => runner != null && runner.IsPlaying
-                 && (StoryProgress.HasSeen(runner.sceneId)
-                     || Time.unscaledTime - runner.StartedAt >= FirstRunGrace);
+                 && StoryProgress.HasSeen(runner.sceneId);
 
     void DrawSkip(float w, float h)
     {

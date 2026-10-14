@@ -109,10 +109,14 @@ public class FirstPersonController : MonoBehaviour
 
         if (!ControlEnabled) return;
 
-        if (Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame)
+        // ★★ 2026-10-14 — <b>이 둘에 게이트가 없었다.</b> 빌드에서도 G 를 누르면
+        //   담장을 통과하고 F 로 날 수 있었다 — 점검용으로 만든 것이 그대로 나갈 뻔했다.
+        //   (<see cref="Dev"/> 는 빌드에서 상수 false 라 컴파일 단계에서 사라지고,
+        //    에디터에서도 <see cref="DevUnlock"/> 암호를 넣어야 열린다.)
+        if (Dev.Enabled && Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame)
             ToggleFly();
 
-        if (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame)
+        if (Dev.Enabled && Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame)
             ToggleGhost();
 
         CursorLock.HandleEscapeAndClick();

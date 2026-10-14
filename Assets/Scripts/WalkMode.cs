@@ -43,7 +43,15 @@ public class WalkMode : MonoBehaviour
     void Update()
     {
         var k = Keyboard.current;
-        if (k != null && k.tabKey.wasPressedThisFrame) Toggle();
+        if (k == null) return;
+        if (k.tabKey.wasPressedThisFrame) Toggle();
+
+        // ★★ 2026-10-14 수연: *"걷다가 다시 3인칭으로 봐야 할 때 버튼을 마우스로
+        //   누르면 먹통."* <b>커서가 잠겨 있어서다</b> — 걷기 모드는 시점을 돌리려고
+        //   커서를 가두니 발바닥 버튼을 누를 수가 없다. 그래서 ESC 로 커서를 풀고
+        //   <b>또</b> 마우스로 눌러야 했다. 두 동작을 하나로 합친다 —
+        //   <b>걷는 중 ESC 가 곧 둘러보기</b>. 돌아가면 커서는 저절로 풀린다.
+        if (Walking && k.escapeKey.wasPressedThisFrame) Toggle();
     }
 
     public void Toggle()
