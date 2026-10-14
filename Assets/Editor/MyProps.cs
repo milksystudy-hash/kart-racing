@@ -41,6 +41,36 @@ public static class MyProps
     }
 
     /// <summary>
+    /// ★★ <b>플레이 중에는 씬을 못 짓는다.</b> (2026-10-14)
+    ///
+    /// ▶ 가 켜진 채로 「로비 씬 만들기」가 눌려서 터졌다:
+    /// <c>InvalidOperationException: This cannot be used during play mode</c>
+    /// (<see cref="Collect"/> 의 <c>EditorSceneManager.OpenScene</c>).
+    /// 유니티가 플레이 도중의 씬 열기를 막기 때문이고, <b>고칠 수 있는 종류가 아니다.</b>
+    ///
+    /// 문제는 그게 <b>빨간 예외</b>로 떴다는 것이다 — 「지금은 안 되는 일」과
+    /// 「고장」이 화면에서 똑같이 생겼다. 이 프로젝트가 계속 지켜 온 규칙대로
+    /// <b>왜 안 되는지를 말하고</b> 조용히 물러난다.
+    ///
+    /// ★ 다행히 터진 자리가 <see cref="Collect"/>(제일 첫 단계)라 씬은 안 망가졌다.
+    ///   더 뒤에서 터졌으면 <b>반쯤 지어진 씬이 저장될 뻔했다.</b>
+    /// </summary>
+    public static bool Playing(string what)
+    {
+        if (!EditorApplication.isPlaying) return false;
+
+        EditorUtility.DisplayDialog(
+            "플레이 중에는 못 만듭니다",
+            "▶ 를 먼저 끄고 다시 눌러 주세요.\n\n"
+            + "유니티가 플레이 도중에는 씬을 여는 것을 막습니다.\n"
+            + "(" + what + ")",
+            "알겠다");
+
+        Debug.LogWarning("[" + what + "] 플레이 모드라 중단했다. ▶ 를 끄고 다시.");
+        return true;
+    }
+
+    /// <summary>
     /// 씬을 새로 짓기 <b>전</b>에 부른다. 지금 열린 씬(또는 <paramref name="scenePath"/>)에서
     /// 유저가 놓은 것을 찾아 기록한다.
     /// </summary>

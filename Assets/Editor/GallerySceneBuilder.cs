@@ -56,6 +56,8 @@ public static class GallerySceneBuilder
     [MenuItem("Racing/전시실 씬 만들기", false, 3)]
     public static void BuildGallery()
     {
+        if (MyProps.Playing("전시실 씬 만들기")) return;
+
         Directory.CreateDirectory(SceneFolder);
 
         // ★ 유저가 손으로 놓은 것은 다시 세워 준다 — 캠퍼스와 같은 방식(2026-09-23).

@@ -36,6 +36,8 @@ public static class CampusSceneBuilder
     [MenuItem("Racing/캠퍼스 씬 만들기", false, 4)]
     public static void BuildCampus()
     {
+        if (MyProps.Playing("캠퍼스 씬 만들기")) return;
+
         // ★ 2026-09-23 <b>유저가 손으로 놓은 것을 먼저 기억한다.</b> 여태는 빌더를 돌리는
         // 순간 통째로 날아가서, 소품 배치를 전부 나한테 시켜야 했다 — 유저 말대로
         // «배치하는 데만 크레딧을 너무 많이 쓰는» 구조였어.

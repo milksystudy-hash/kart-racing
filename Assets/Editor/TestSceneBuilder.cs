@@ -53,6 +53,8 @@ public static class TestSceneBuilder
     [MenuItem("Racing/트랙 씬 만들기", false, 1)]
     public static void BuildAll()
     {
+        if (MyProps.Playing("트랙 씬 만들기")) return;
+
         Directory.CreateDirectory(SceneFolder);
         Directory.CreateDirectory(MaterialFolder);
 

@@ -72,6 +72,8 @@ public static class LobbySceneBuilder
     [MenuItem("Racing/로비 씬 만들기", false, 2)]
     public static void BuildLobby()
     {
+        if (MyProps.Playing("로비 씬 만들기")) return;
+
         // ★ 유저가 손으로 놓은 것은 빌더가 안 지운다(2026-09-23 캠퍼스와 같은 방식).
         //   로비를 다시 구울 일이 생겼으니(문을 열리게 하려면 정적 배칭을 풀어야 한다)
         //   여기도 같이 건다 — 안 그러면 드래그해 놓은 FBX 가 통째로 날아간다.

@@ -22,6 +22,9 @@ public static class BuildGame
     [MenuItem("Racing/윈도우 빌드 뽑기")]
     public static void Build()
     {
+        // ★ 플레이 중에는 빌드도 안 된다 — 씬을 읽어야 하니 같은 벽에 부딪힌다.
+        if (Application.isBatchMode == false && MyProps.Playing("윈도우 빌드 뽑기")) return;
+
         // 빌드 설정에 켜져 있는 씬만. 순서는 F1 로비 · F2 트랙 · F3 전시실 · F4 캠퍼스.
         string[] scenes = EditorBuildSettings.scenes
             .Where(s => s.enabled)
