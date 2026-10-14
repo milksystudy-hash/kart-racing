@@ -47,6 +47,7 @@ public class DevUnlock : MonoBehaviour
     static readonly StringBuilder box = new();     // 암호 칸에 친 것
     static float shownAt = -99f;
     static string note = "";
+    static string banner = "";
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Boot()
@@ -68,9 +69,27 @@ public class DevUnlock : MonoBehaviour
         bool ctrl = k.leftCtrlKey.isPressed || k.rightCtrlKey.isPressed;
         bool shift = k.leftShiftKey.isPressed || k.rightShiftKey.isPressed;
 
+        // Ctrl + Shift + X — 도로 잠근다. 다시 열려면 암호를 또 넣어야 한다.
+        if (ctrl && shift && k.xKey.wasPressedThisFrame)
+        {
+            if (Open)
+            {
+                Open = false;
+                Typing = false;
+                box.Clear();
+                typed.Clear();
+                Say("그래 이감아, 거기서 좋은 시간 보내.");
+            }
+            return;
+        }
+
         // Ctrl + Shift + D — 칸을 열고 닫는다.
         if (ctrl && shift && k.dKey.wasPressedThisFrame)
         {
+            // ★ 이미 열려 있으면 칸을 또 띄우지 않는다. 두 번 넣을 이유가 없고,
+            //   열린 줄 모르고 다시 치다가 뒤에서 뭐가 또 열리는 게 더 나쁘다.
+            if (Open) { Say("이감아 이미 열려져 있어. 그만해도 돼."); return; }
+
             Typing = !Typing;
             box.Clear();
             note = "";
@@ -129,16 +148,23 @@ public class DevUnlock : MonoBehaviour
     static void Unlock()
     {
         Open = true;
-        shownAt = Time.unscaledTime;
         typed.Clear();
         box.Clear();
         note = "";
-        Debug.Log("[개발] 개발용 키가 열렸다. ▶ 를 다시 켜면 잠긴다.");
+        Say("개발용 키 열림");
+        Debug.Log("[개발] 개발용 키가 열렸다. Ctrl+Shift+X 로 잠그고, ▶ 를 다시 켜도 잠긴다.");
+    }
+
+    /// <summary>화면 왼쪽 위에 3초 띄운다. 눌렀는데 아무 말이 없으면 고장과 구분이 안 된다.</summary>
+    static void Say(string line)
+    {
+        banner = line;
+        shownAt = Time.unscaledTime;
     }
 
     void OnGUI()
     {
-        if (!Typing && (!Open || Time.unscaledTime - shownAt > 3f)) return;
+        if (!Typing && Time.unscaledTime - shownAt > 3f) return;
 
         var screen = Hud.Begin(Resources.Load<Font>("HudFont"));
 
@@ -166,9 +192,11 @@ public class DevUnlock : MonoBehaviour
         }
         else
         {
-            var chip = new Rect(16f, 16f, 196f, 30f);
+            var style = Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter);
+            float wide = Mathf.Max(196f, style.CalcSize(new GUIContent(banner)).x + 28f);
+            var chip = new Rect(16f, 16f, wide, 30f);
             Hud.Chip(chip);
-            GUI.Label(chip, "개발용 키 열림", Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter));
+            GUI.Label(chip, banner, style);
         }
 
         Hud.End();
