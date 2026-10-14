@@ -158,8 +158,17 @@ public class DialogueHUD : MonoBehaviour
     // ══════════════════════════════════════════════════════════════════
     float notedAt = -99f;
 
-    /// <summary>지금 건너뛸 수 있나. <b>이미 본 장면만</b>.</summary>
+    /// <summary>
+    /// 지금 건너뛸 수 있나.
+    /// ★★ 2026-10-14 (두 번째) — <b>프롤로그는 예외 없이 안 된다.</b>
+    ///   수연: *"초반부터 다시 하니까 여전히 ESC 건너뛰기 패널이 있다. 첫 시작이잖아."*
+    ///   「이미 본 장면이면 열린다」로 뒀더니, 개발하며 수십 번 본 프롤로그는
+    ///   <b>늘 열린 상태</b>였다 — 받아 보는 사람에게는 <b>게임의 첫 화면</b>인데.
+    ///   프롤로그는 이 게임이 무슨 게임인지 말하는 유일한 자리라 건너뛸 물건이 아니다.
+    ///   (다시 보고 싶으면 앨범이 있다.)
+    /// </summary>
     bool CanSkip => runner != null && runner.IsPlaying
+                 && runner.sceneId != "prologue"
                  && StoryProgress.HasSeen(runner.sceneId);
 
     void DrawSkip(float w, float h)

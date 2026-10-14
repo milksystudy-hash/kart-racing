@@ -308,8 +308,19 @@ public class LobbyHUD : MonoBehaviour
         var style = Hud.Resize(Hud.Label, 12, TextAnchor.UpperLeft);
         style.wordWrap = true;
 
+        // ★★ 2026-10-14 수연: *"캐릭터 이름이 나무패널 밖으로 나올려고 한다."*
+        //   줄 높이를 17 로 박아 놨는데 <b>글이 길어지면 두 줄로 접힌다</b> —
+        //   그러면 아랫줄이 잘리고 종이도 그만큼 모자란다.
+        //   이제 <b>재서</b> 잡는다(<c>CalcHeight</c>) — 글을 더 길게 써도 안 넘친다.
         float w = spec.width;
-        float h = 20f + data.profile.Length * 17f;
+        float textW = w - 24f;
+
+        float need = 0f;
+        foreach (var ln in data.profile)
+            if (!string.IsNullOrEmpty(ln))
+                need += Mathf.Max(17f, style.CalcHeight(new GUIContent(ln), textW));
+
+        float h = 20f + need;
         var p = new Rect(spec.x, spec.yMax + 8f, w, h);
 
         // 종이 한 장 — 나무 판 없이 종이만. 제원표와 질감이 달라야 다른 물건으로 읽힌다
@@ -324,8 +335,9 @@ public class LobbyHUD : MonoBehaviour
         foreach (var line in data.profile)
         {
             if (string.IsNullOrEmpty(line)) continue;
-            GUI.Label(new Rect(p.x + 14f, y, p.width - 24f, 17f), line, style);
-            y += 17f;
+            float lh = Mathf.Max(17f, style.CalcHeight(new GUIContent(line), textW));
+            GUI.Label(new Rect(p.x + 14f, y, textW, lh), line, style);
+            y += lh;
         }
     }
 

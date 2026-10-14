@@ -37,7 +37,7 @@ public class DevUnlock : MonoBehaviour
     public static bool Open { get; private set; }
 
     // ★ 암호의 SHA-256 해시. <b>평문은 여기에도, 커밋에도, 문서에도 없다.</b>
-    const string Hash = "f343aeefeca2df2a6f6d4b30ea8cb6572dc73f119f1f9c72732d688c55530df3";
+    const string Hash = "6173fb31d5b9cc831021d50f2df24cfdef44b70abe0b96f5ec5db20e01a92ba6";
 
     const int Window = 24;         // 최근 이만큼만 들고 본다 — 길게 쌓을 이유가 없다
     static readonly StringBuilder typed = new();

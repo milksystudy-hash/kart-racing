@@ -1543,6 +1543,27 @@ public static class SkyDrop
     }
 
     static readonly List<Drop> live = new();
+
+    /// <summary>
+    /// ★★★ 2026-10-14 — <b>떨어진 슬래브를 여기 모은다.</b>
+    ///
+    /// 수연: *"자재가 공중에 뜬다"* · *"나보고 어떻게 지나가라고. 계속 전에 임무 실패한 게 쌓인다."*
+    ///
+    /// <b>원인:</b> 착지한 슬래브는 «길에 쌓이는 게 연출» 이라 일부러 남겼는데
+    /// (2026-10-06), 그때 <see cref="live"/> 목록에서 <b>빼</b> 버렸다.
+    /// <see cref="Clear"/> 는 그 목록만 비우니 <b>이미 떨어진 것은 손이 안 닿는다</b> —
+    /// 다시 하기를 누를 때마다 길 위에 한 겹씩 더 쌓였다. 결국 벽이 된다.
+    ///
+    /// 이제 전용 통에 담는다. 판이 바뀌거나 다시 시작하면 <b>통째로 치운다.</b>
+    /// 한 판 안에서도 <see cref="MaxLanded"/> 개를 넘으면 오래된 것부터 지운다 —
+    /// 세 바퀴에 스물다섯 개가 떨어지는데 그게 다 남으면 그 판만 길이 좁아진다.
+    /// </summary>
+    static readonly List<Transform> landed = new();
+    static Transform landedRoot;
+
+    /// <summary>길에 남길 수 있는 슬래브 수. 이걸 넘으면 오래된 것부터 지운다.</summary>
+    const int MaxLanded = 12;
+
     static float nextAt;
     static KartController player;
     static KartCamera cam;
@@ -1552,6 +1573,13 @@ public static class SkyDrop
     {
         foreach (var d in live) if (d.mark != null) Object.Destroy(d.mark.parent.gameObject);
         live.Clear();
+
+        // ★ 떨어져서 길에 남아 있던 것까지 치운다 — 여기가 빠져서 판마다 쌓였다.
+        foreach (var t in landed) if (t != null) Object.Destroy(t.gameObject);
+        landed.Clear();
+        if (landedRoot != null) Object.Destroy(landedRoot.gameObject);
+        landedRoot = null;
+
         nextAt = 0f;
     }
 
@@ -1673,7 +1701,26 @@ public static class SkyDrop
         //   목록에서만 빼고 <b>슬래브는 그 자리에 둔다</b>(판이 바뀌면 Clear 가 치운다).
         if (age > Telegraph + 0.9f)
         {
-            if (d.block != null) d.block.SetParent(RaceProps.Root, true);
+            if (d.block != null)
+            {
+                // ★ 바닥에 앉힌다. 떨어지는 길에 뭔가에 걸리면 <b>공중에 선 채로</b> 남는데,
+                //   그건 연출이 아니라 고장으로 보인다. 재서 내려놓으면 원인이 뭐든 안 뜬다.
+                Vector3 at = d.block.position;
+                if (Physics.Raycast(at + Vector3.up * 6f, Vector3.down, out var floor, 40f, ~(1 << 2)))
+                    d.block.position = new Vector3(at.x, floor.point.y + 0.25f, at.z);
+
+                if (landedRoot == null)
+                    landedRoot = new GameObject("SkyDropLanded").transform;
+                d.block.SetParent(landedRoot, true);
+                landed.Add(d.block);
+
+                // 너무 쌓이면 길이 막힌다 — 오래된 것부터 치운다.
+                while (landed.Count > MaxLanded)
+                {
+                    if (landed[0] != null) Object.Destroy(landed[0].gameObject);
+                    landed.RemoveAt(0);
+                }
+            }
             if (d.mark != null) Object.Destroy(d.mark.parent.gameObject);
             live.RemoveAt(index);
         }

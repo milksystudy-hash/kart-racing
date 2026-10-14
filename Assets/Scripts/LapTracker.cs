@@ -82,7 +82,10 @@ public class LapTracker : MonoBehaviour
         // 카운트 중에는 시계도 안 간다. 안 그러면 제한시간 판이 3초를 손해 본다.
         // ESC 로 멈춘 동안도 마찬가지 — <b>고민하는 시간이 기록에 들어가면 안 된다.</b>
         RaceBriefing.Tick();
-        if (RaceCountdown.Blocked || RacePause.On) return;
+        // ★★ 2026-10-14 수연: *"시우랑 진이 대화하는데도 108초 타이머가 계속 줄어든다."*
+        //   카운트다운은 이미 막고 있었는데 <b>그 뒤에 이어지는 출발 잡담</b>은 안 막았다.
+        //   읽는 동안 흐른 시간이 기록에 들어가면 제한시간 판이 그만큼 손해를 본다.
+        if (RaceCountdown.Blocked || RacePause.On || RaceBriefing.Chatting) return;
 
         if (!progress.Finished)
         {
