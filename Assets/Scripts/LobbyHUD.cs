@@ -54,6 +54,34 @@ public class LobbyHUD : MonoBehaviour
             return;      // 읽는 동안에는 E 가 안 먹는다 — 큰 패널은 한 번에 한 장
         }
 
+        // ── ESC — 게임 종료 (2026-10-14 수연) ────────────────────────────
+        // 수연: *"ESC 누르니까 게임 종료가 안 되는데(빌드 파일 기준)."*
+        // <b>나가는 길이 타이틀의 「나가기」 하나뿐이었다</b> — 한 번 시작하면 창을
+        // 닫는 것 말고는 끄는 방법이 없었다. 전체화면이면 그마저 어렵다.
+        //
+        // ★ <b>로비에서만</b> 연다. 트랙 ESC 는 이미 「로비로/다시/계속」 메뉴고,
+        //   걷는 중 ESC 는 「둘러보기로」다 — 같은 키에 주인이 셋이면 안 된다.
+        //   그래서 걷는 중이면(<see cref="WalkMode.Afoot"/>) 비켜선다.
+        // ★ 바로 안 끈다. <b>잘못 눌렀을 때 되돌릴 수 있어야 한다</b> —
+        //   트랙 ESC 를 두 번 누르게 만든 것과 같은 판단(2026-09-16).
+        if (askQuit)
+        {
+            if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) quitYes = true;
+            if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) quitYes = false;
+            if (k.escapeKey.wasPressedThisFrame) askQuit = false;
+            if (Keys.Confirm(k)) { if (quitYes) QuitGame(); else askQuit = false; }
+            return;      // 큰 패널은 한 번에 한 장
+        }
+
+        if (k.escapeKey.wasPressedThisFrame && !WalkMode.Afoot && !showControls)
+        {
+            askQuit = true;
+            quitYes = false;      // 기본은 「아니요」 — 잘못 눌러 ENTER 를 또 치면 안 꺼진다
+            return;
+        }
+
+        if (k.escapeKey.wasPressedThisFrame && showControls) { showControls = false; return; }
+
         // TAB 은 WalkMode 가 직접 듣는다 — 이야기가 도는 동안 이 스크립트가 꺼져도 먹게.
 
         // 동물의 숲처럼 <b>버튼을 눌러야</b> 말한다. 가까이 갔다고 저절로 떠들면
@@ -176,6 +204,14 @@ public class LobbyHUD : MonoBehaviour
         // ★ 시계 돋보기가 떠 있으면 <b>그 창 하나만</b> 남기고 전부 접는다.
         // 유저: *"UI 가 겹쳐서 좀 드러워 보인다."* 안내가 대여섯 장이라 큰 창 위아래로
         // 다 삐져나온다 — 큰 패널은 한 번에 한 장만(레이스 HUD 와 같은 규칙).
+        // ★ 종료 물음은 <b>가장 위</b>다. 뒤에 안내가 비치면 고르는 화면으로 안 읽힌다.
+        if (askQuit)
+        {
+            DrawQuit(w, h);
+            Hud.End();
+            return;
+        }
+
         if (!DeskClock.PanelOpen && !StoryAlbum.Open && !UnlockNotice.Open)
         {
             DrawDriverPanel();
@@ -531,6 +567,83 @@ public class LobbyHUD : MonoBehaviour
     bool showLore;
     int lorePage;
     FirstPersonController loreHeld;
+
+    // ── 게임 종료 물음 ───────────────────────────────────────────────────
+    bool askQuit;
+    bool quitYes;
+
+    static void QuitGame()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+    /// <summary>
+    /// 「게임을 종료할까요?」 — <b>예 / 아니요</b> 두 칸.
+    ///
+    /// ★ 수연이 «게임을 종료할까곰?» 을 생각해 봤는데, <b>여기는 담백한 쪽이 맞다.</b>
+    ///   2026-09-16 에 HUD 문구를 시비 거는 투로 썼다가 되돌린 것과 같은 이유 —
+    ///   <b>고르는 화면에서는 농담이 한 박자를 잡아먹는다.</b> 곰 말장난은 이미
+    ///   건물 이름(곰손관·곰밥마당·참잘했어요관)이 잔뜩 하고 있어서 부족하지도 않다.
+    ///   바꾸고 싶으면 아래 문자열 한 줄이다.
+    ///
+    /// ★ 기본 커서는 <b>「아니요」</b>. ESC 를 잘못 눌렀을 때 ENTER 를 또 치면
+    ///   그냥 닫히지, 게임이 꺼지면 안 된다.
+    /// </summary>
+    void DrawQuit(float w, float h)
+    {
+        Hud.Fill(new Rect(0f, 0f, w, h), new Color(0.03f, 0.03f, 0.05f, 0.62f));
+
+        var box = new Rect(w * 0.5f - 230f, h * 0.5f - 96f, 460f, 192f);
+        Hud.Panel(box);
+        Rect inner = Hud.Inner(box);
+
+        GUI.Label(new Rect(inner.x, inner.y + 6f, inner.width, 32f), "게임을 종료할까요?",
+                  Hud.Resize(Hud.Title, 23, TextAnchor.MiddleCenter));
+        Hud.Rule(inner.x + inner.width * 0.28f, inner.y + 46f, inner.width * 0.44f);
+
+        // 두 칸을 나란히. 고른 칸은 <b>나무 판</b>, 안 고른 칸은 <b>옅은 쪽지</b> —
+        // 색만 바꾸면 어느 게 잡혔는지 안 갈린다(타이틀 메뉴와 같은 규칙).
+        const float bw = 168f, bh = 46f, gap = 20f;
+        float y = inner.y + 64f;
+        var yes = new Rect(inner.center.x - bw - gap * 0.5f, y, bw, bh);
+        var no = new Rect(inner.center.x + gap * 0.5f, y, bw, bh);
+
+        Pick(yes, "예", quitYes);
+        Pick(no, "아니요", !quitYes);
+
+        if (Hud.MouseOver(yes)) quitYes = true;
+        if (Hud.MouseOver(no)) quitYes = false;
+        if (ClickedOn(yes)) QuitGame();
+        if (ClickedOn(no)) askQuit = false;
+
+        GUI.Label(new Rect(inner.x, inner.yMax - 32f, inner.width, 24f),
+                  "←  →   고르기      ENTER   확인      ESC   돌아가기",
+                  Hud.Resize(Hud.Label, 13, TextAnchor.MiddleCenter));
+    }
+
+    /// <summary>
+    /// 이 칸을 눌렀나. ★ <b>그리는 패스에서만 한 번</b> 돌려준다 —
+    /// OnGUI 는 한 프레임에 두 번 돌고(Layout·Repaint) <c>wasPressedThisFrame</c> 은
+    /// 그 내내 참이라, 안 막으면 한 번 누른 게 두 번으로 센다
+    /// (<see cref="Hud.PawButton"/> 이 같은 함정에 2026-10-12 에 걸렸다).
+    /// </summary>
+    static bool ClickedOn(Rect r)
+    {
+        var m = UnityEngine.InputSystem.Mouse.current;
+        return Hud.MouseOver(r) && m != null && m.leftButton.wasPressedThisFrame
+               && Event.current != null && Event.current.type == EventType.Repaint;
+    }
+
+    static void Pick(Rect r, string text, bool on)
+    {
+        if (on) Hud.Panel(r); else Hud.Chip(r);
+        var s = Hud.Resize(on ? Hud.Title : Hud.Text, on ? 20 : 18, TextAnchor.MiddleCenter);
+        GUI.Label(r, text, s);
+    }
 
     /// <summary>
     /// ★ 여닫는 자리는 <b>여기 하나</b>다 — L · 발바닥 버튼 · ESC · H · 꺼짐이 전부 지나간다.

@@ -33,7 +33,19 @@ public class WalkMode : MonoBehaviour
 
     public bool Walking { get; private set; }
 
+    /// <summary>
+    /// 지금 걷는 중인가 — <b>씬 어디서든 물어볼 수 있게</b> 정적으로도 둔다.
+    /// 2026-10-14: 로비 ESC(게임 종료)가 <b>걷는 중일 때는 비켜야</b> 해서 필요해졌다.
+    /// 걷는 중 ESC 는 「둘러보기로 돌아가기」가 먼저다.
+    /// </summary>
+    public static bool Afoot { get; private set; }
+
     void Start() => Apply(false);
+
+    // ★ static 은 씬을 갈아타도 살아남는다 — 걷는 채로 트랙에 가면 그 다음 로비에서
+    //   「아직 걷는 중」으로 남는다. 이 프로젝트에서 여덟 번 겪은 자리라 들어올 때
+    //   맞추고 나갈 때 끈다.
+    void OnDisable() => Afoot = false;
 
     /// <summary>
     /// <b>키를 여기서 직접 듣는다.</b> 전에는 LobbyHUD 가 들었는데, 이야기 장면이 도는 동안
@@ -64,6 +76,7 @@ public class WalkMode : MonoBehaviour
     void Apply(bool walking)
     {
         Walking = walking;
+        Afoot = walking;
 
         if (player != null)
         {

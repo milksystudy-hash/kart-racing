@@ -175,7 +175,10 @@ public class DialogueHUD : MonoBehaviour
     {
         if (runner == null || !runner.IsPlaying) return;
 
-        float k = Mathf.Clamp(h / 720f, 0.8f, 1.8f);
+        // ★ 전에는 여기서 혼자 화면 크기를 재서 곱하고 있었다. 이제 <see cref="OnGUI"/> 가
+        //   <see cref="Hud.Begin"/> 으로 통째로 늘리니 <b>두 번 늘리면 안 된다.</b>
+        //   곱하는 모양은 남겨 둔다 — 지우면 아래 열 줄을 전부 건드려야 한다.
+        const float k = 1f;
 
         if (!CanSkip)
         {
@@ -212,13 +215,12 @@ public class DialogueHUD : MonoBehaviour
         GUI.Label(chip, "건너뛰기   ESC",
                   Hud.Resize(Hud.Label, Mathf.RoundToInt(13 * k), TextAnchor.MiddleCenter));
 
+        // ★ 칸이 이제 가상 좌표라 마우스도 같이 내려야 한다 — <see cref="Hud.MouseOver"/> 가
+        //   그 나눗셈을 들고 있다. 날것으로 비교하면 1080p 에서 칩이 엉뚱한 데 있게 된다.
         var m = UnityEngine.InputSystem.Mouse.current;
         if (m != null && m.leftButton.wasPressedThisFrame
-            && Event.current != null && Event.current.type == EventType.Repaint)
-        {
-            Vector2 v = m.position.ReadValue();
-            if (chip.Contains(new Vector2(v.x, Screen.height - v.y))) askSkip = true;
-        }
+            && Event.current != null && Event.current.type == EventType.Repaint
+            && Hud.MouseOver(chip)) askSkip = true;
     }
 
     void Update()
@@ -344,7 +346,11 @@ public class DialogueHUD : MonoBehaviour
     /// </summary>
     Rect PortraitRect(Rect box, float w)
     {
-        float pw = Mathf.Clamp(w * 0.17f, 132f, 224f);
+        // ★ 2026-10-14 — 0.17 / 224 였다. 날것 좌표일 때는 <b>1920 에서도 224px 로 잘려서</b>
+        //   인물이 화면의 11% 밖에 안 됐다(수연: *"캐릭터들이 너무 작게 출력된다"*).
+        //   이제 가상 1280 기준이라 <b>비율이 곧 화면 비율</b>이다 — 0.22 면 1080p 에서
+        //   422 × 515px, 비주얼 노벨이 쓰는 크기다. 위 칸(<c>room</c>)은 그대로 지킨다.
+        float pw = Mathf.Clamp(w * 0.22f, 132f, 300f);
         float ph = pw * 1.22f;
 
         float room = box.y - 4f;      // r.y = box.y - ph + 10 이 14 밑으로 안 내려가게
@@ -367,15 +373,15 @@ public class DialogueHUD : MonoBehaviour
         var font = HudFont.Resolve(uiFont);
 
         textStyle = HudFont.With(new GUIStyle(GUI.skin.label)
-        { fontSize = 20, wordWrap = true, richText = true }, font);
+        { fontSize = 22, wordWrap = true, richText = true }, font);
         textStyle.normal.textColor = new Color(0.97f, 0.96f, 0.92f);
 
         narrateStyle = HudFont.With(new GUIStyle(GUI.skin.label)
-        { fontSize = 19, wordWrap = true, richText = true, alignment = TextAnchor.MiddleCenter }, font);
+        { fontSize = 21, wordWrap = true, richText = true, alignment = TextAnchor.MiddleCenter }, font);
         narrateStyle.normal.textColor = new Color(0.86f, 0.85f, 0.79f);
 
         nameStyle = HudFont.With(new GUIStyle(GUI.skin.label)
-        { fontSize = 17, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }, font);
+        { fontSize = 19, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }, font);
         nameStyle.normal.textColor = Color.white;
 
         titleStyle = HudFont.With(new GUIStyle(GUI.skin.label) { fontSize = 14 }, font);
@@ -407,13 +413,33 @@ public class DialogueHUD : MonoBehaviour
                   $"전시실·캠퍼스도 그 상태로 바뀐다.");
     }
 
+    /// <summary>
+    /// ★★★ 2026-10-14 — <b>이야기 화면만 「가상 1280×720」을 안 쓰고 있었다.</b>
+    ///
+    /// 수연: *"막상 빌드 파일 보니까 캐릭터들이랑 대사가 너무 작게 출력된다."*
+    ///
+    /// 원인은 폰트 크기가 아니라 <b>좌표계</b>다. 이 프로젝트의 HUD 는 전부
+    /// <see cref="Hud.Begin"/> 으로 <c>GUI.matrix</c> 를 화면 높이에 맞춰 늘리고
+    /// 1280×720 기준으로 그린다(2026-09-16에 세운 규칙). <b>여기만 빠져 있었다</b> —
+    /// <c>Screen.width/height</c> 를 날것으로 읽어서, 창이 커지면 <b>칸만 커지고
+    /// 글자는 그대로</b>였다. 1080p 에서는 1.5배 작게 보인다.
+    ///
+    /// 고치는 법은 폰트 숫자를 키우는 게 아니라 <b>같은 자리로 들어오는 것</b>이다 —
+    /// 그래야 어느 해상도에서나 한 가지로 보이고, 다음에 또 어긋나지 않는다.
+    /// (<see cref="DrawSkip"/> 은 혼자 <c>k</c> 로 흉내내고 있었다. 이제 필요 없다.)
+    /// </summary>
     void OnGUI()
     {
         if (runner == null) return;
         if (!stylesReady) BuildStyles();
 
-        float w = Screen.width, h = Screen.height;
+        var screen = Hud.Begin(HudFont.Resolve(uiFont));
+        Draw(screen.width, screen.height);
+        Hud.End();
+    }
 
+    void Draw(float w, float h)
+    {
         var line = runner.Current;
         bool hasLine = !string.IsNullOrEmpty(line.text);
 

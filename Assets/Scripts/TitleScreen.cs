@@ -481,7 +481,7 @@ public class TitleScreen : MonoBehaviour
     void DrawSettings(float w, float h)
     {
         float pw = Mathf.Min(520f, w - 60f);
-        float ph = Mathf.Min(228f, h - 80f);
+        float ph = Mathf.Min(276f, h - 80f);   // 화면 줄이 들어와서 228 → 276
         var box = new Rect((w - pw) * 0.5f, (h - ph) * 0.5f, pw, ph);
         Hud.Panel(box);
         Rect inner = Hud.Inner(box);
@@ -496,11 +496,26 @@ public class TitleScreen : MonoBehaviour
         DrawMusicRow(new Rect(inner.x + (inner.width - rowW) * 0.5f - 34f,
                               inner.y + 58f, rowW + 40f, 48f), true);
 
-        GUI.Label(new Rect(inner.x, inner.y + 120f, inner.width, 22f),
+        GUI.Label(new Rect(inner.x, inner.y + 114f, inner.width, 22f),
                   "←  →   또는   −  =   로 소리 조절",
                   Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter));
-        GUI.Label(new Rect(inner.x, inner.y + 144f, inner.width, 22f),
-                  "게임 중에도  −  =  로 바꿀 수 있다",
+
+        // ── 화면 (2026-10-14 수연: *"전체화면, 창화면 그것도 만들고 싶은데"*) ──────
+        // ★ ←→ 를 여기서 또 듣지 않는다. 이 창의 ←→ 는 이미 소리 주인이고,
+        //   <b>키 하나에 주인은 하나</b>다(2026-10-02 에 −/= 가 두 번 불려서 겪은 것).
+        //   그래서 화면은 <b>F11</b> 로 가른다 — 게임 중에도 같은 키라 외울 게 하나다.
+        Hud.Rule(inner.x + inner.width * 0.3f, inner.y + 146f, inner.width * 0.4f);
+
+        var mode = Hud.Resize(Hud.Text, 19, TextAnchor.MiddleCenter);
+        mode.normal.textColor = Hud.Ink;
+        GUI.Label(new Rect(inner.x, inner.y + 158f, inner.width, 26f),
+                  "화면   " + ScreenMode.Label, mode);
+
+        GUI.Label(new Rect(inner.x, inner.y + 188f, inner.width, 22f),
+                  "F11   전체화면 ↔ 창모드",
+                  Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter));
+        GUI.Label(new Rect(inner.x, inner.y + 212f, inner.width, 22f),
+                  "게임 중에도  F11  로 바꿀 수 있다",
                   Hud.Resize(Hud.Tiny, 13, TextAnchor.MiddleCenter));
 
         var back = Hud.Resize(Hud.Text, 16, TextAnchor.MiddleCenter);

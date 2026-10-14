@@ -16,7 +16,8 @@ using UnityEngine.InputSystem;
 ///
 /// ── 여는 법 ────────────────────────────────────────────────────────────
 /// <b>Ctrl + Shift + D</b> → 암호 칸이 열린다 → 치고 <b>ENTER</b>. ESC 로 닫는다.
-/// (칸을 안 열고 <b>그냥 타이핑</b>해도 걸린다 — 손에 익으면 그쪽이 빠르다.)
+/// ★ <b>Ctrl+Shift+D 가 유일한 입구다.</b> 칸 없이 그냥 치는 길은 2026-10-14 에 걷어냈다 —
+/// 치는 글자가 게임에도 먹혀서 혼자 문이 열리고 경기장으로 넘어갔다.
 ///
 /// ★★ <b>영문으로만 받는다.</b> 한글은 IME 를 거쳐서 <b>키 이벤트로 안 들어온다</b> —
 ///   이 프로젝트는 Input System 전용이라 <c>GUI.TextField</c> 도 글자를 못 받는다
@@ -43,7 +44,6 @@ public class DevUnlock : MonoBehaviour
     const string Hash = "ff4666180671cb78abcb8381b62a9e36b984e8d712e0847c28bab637c5466a7a";
 
     const int Window = 32;
-    static readonly StringBuilder typed = new();   // 칸 없이 그냥 칠 때
     static readonly StringBuilder box = new();     // 암호 칸에 친 것
     static float shownAt = -99f;
     static string note = "";
@@ -54,7 +54,7 @@ public class DevUnlock : MonoBehaviour
     {
         Open = false;              // ▶ 를 다시 누르면 잠긴다
         Typing = false;
-        typed.Clear();
+
         box.Clear();
         note = "";
         if (Object.FindFirstObjectByType<DevUnlock>() == null)
@@ -77,7 +77,7 @@ public class DevUnlock : MonoBehaviour
                 Open = false;
                 Typing = false;
                 box.Clear();
-                typed.Clear();
+
                 Say("그래 이감아, 거기서 좋은 시간 보내.");
             }
             return;
@@ -96,10 +96,7 @@ public class DevUnlock : MonoBehaviour
             return;
         }
 
-        if (Typing) { TypeInBox(k); return; }
-        if (Open) return;
-
-        ListenQuietly(k);
+        if (Typing) TypeInBox(k);
     }
 
     // ── 암호 칸 ──────────────────────────────────────────────────────────
@@ -120,19 +117,18 @@ public class DevUnlock : MonoBehaviour
         Grab(k, box);
     }
 
-    // ── 칸 없이 그냥 치기 ────────────────────────────────────────────────
-    void ListenQuietly(Keyboard k)
-    {
-        if (!k.anyKey.wasPressedThisFrame) return;
-        if (DeskClock.PanelOpen) { typed.Clear(); return; }
-
-        Grab(k, typed);
-        if (typed.Length == 0) return;
-
-        string s = typed.ToString();
-        for (int cut = 0; cut < s.Length; cut++)
-            if (Sha(s.Substring(cut)) == Hash) { Unlock(); return; }
-    }
+    // ★★★ 2026-10-14 — <b>「칸 없이 그냥 치기」를 걷어냈다.</b>
+    //
+    // 수연: *"키 입력할 때 저절로 레이싱으로 들어오고 혼자 조작이 돼."*
+    //
+    // <b>그럴 수밖에 없었다.</b> 칸을 안 열고 치면 그 글자가 <b>게임에도 그대로 먹힌다</b> —
+    // <c>E</c> 는 남쪽 문을 열어 경기장으로 보내고, <c>A</c>·<c>D</c> 는 걷고,
+    // <c>R</c> 은 카트를 되돌리고, <c>T</c> 는 이야기를 튼다.
+    // <see cref="Dev.Typing"/> 가 다른 Update 를 멈추긴 하는데 그건 <b>칸이 열려 있을 때만</b>이라
+    // 이 경로는 처음부터 보호 밖이었다.
+    //
+    // 「손에 익으면 그쪽이 빠르다」고 넣었던 편의인데, <b>치는 동안 게임이 제멋대로 움직이는</b>
+    // 대가를 치른다. 여는 길은 <b>Ctrl+Shift+D 하나</b>면 충분하다.
 
     /// <summary>A~Z 와 0~9 만 모은다. 한글은 여기까지 안 온다(IME 가 먹는다).</summary>
     static void Grab(Keyboard k, StringBuilder into)
@@ -148,7 +144,7 @@ public class DevUnlock : MonoBehaviour
     static void Unlock()
     {
         Open = true;
-        typed.Clear();
+
         box.Clear();
         note = "";
         Say("개발용 키 열림");
