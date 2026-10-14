@@ -40,7 +40,7 @@ public class DevUnlock : MonoBehaviour
     public static bool Typing { get; private set; }
 
     // ★ 암호의 SHA-256 해시. <b>평문은 여기에도, 커밋에도, 문서에도 없다.</b>
-    const string Hash = "6173fb31d5b9cc831021d50f2df24cfdef44b70abe0b96f5ec5db20e01a92ba6";
+    const string Hash = "ff4666180671cb78abcb8381b62a9e36b984e8d712e0847c28bab637c5466a7a";
 
     const int Window = 32;
     static readonly StringBuilder typed = new();   // 칸 없이 그냥 칠 때
