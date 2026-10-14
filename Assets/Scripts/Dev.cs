@@ -31,7 +31,7 @@ public static class Dev
 
     // ★★ 2026-10-14 — <b>암호를 치는 동안에는 다른 모두가 키에서 손을 뗀다.</b>
     //   수연: *"입력하는 도중에 게임 화면이 자꾸 확확 바뀐다."* <b>그럴 수밖에 없었다</b> —
-    //   BEARMASTERIG 의 B 는 앨범을 열고 T 는 이야기를 틀고 E 는 문을 연다.
+    //   암호에 들어가는 글자들이 각각 앨범을 열고 이야기를 틀고 문을 연다.
     //   <see cref="DevUnlock"/> 이 에디터 전용이라 다른 파일이 직접 못 보니 여기로 낸다.
     public static bool Typing => DevUnlock.Typing;
 #else
