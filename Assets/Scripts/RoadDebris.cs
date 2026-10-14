@@ -134,7 +134,30 @@ public class RoadDebris : MonoBehaviour
             body.linearVelocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
         }
-        transform.SetPositionAndRotation(home, homeRotation);
+        transform.SetPositionAndRotation(Grounded(home), homeRotation);
+    }
+
+    /// <summary>
+    /// ★★ 2026-10-14 수연: *"모든 자재들이 아예 바닥에 없고 다 위쪽으로 떠 있어."*
+    ///
+    /// <see cref="home"/> 은 <b>빌더가 놓은 자리</b>를 Awake 에 적어 둔 값이다.
+    /// 그 자리가 길 표면보다 조금 위면, 처음에는 중력으로 내려앉지만
+    /// <b>되돌릴 때마다 다시 그 높이로 올라간다</b> — 바퀴가 넘어갈 때마다 한 번씩
+    /// (<see cref="RestoreAll"/>) 떠오르는 셈이라 결국 전부 공중에 선다.
+    ///
+    /// 그래서 <b>되돌릴 때 바닥을 재서</b> 내려놓는다. 코스를 고치거나 자재를 옮겨도
+    /// 다시 안 틀린다 — 「좌표로 찍지 말고 재라」 와 같은 판단이야.
+    /// 바닥을 못 찾으면 적어 둔 자리를 그대로 쓴다(없는 것보다 낫다).
+    /// </summary>
+    Vector3 Grounded(Vector3 want)
+    {
+        float half = 0.45f;
+        var r = GetComponentInChildren<Renderer>();
+        if (r != null) half = r.bounds.extents.y;
+
+        if (Physics.Raycast(want + Vector3.up * 5f, Vector3.down, out var floor, 40f, ~(1 << 2)))
+            return new Vector3(want.x, floor.point.y + half, want.z);
+        return want;
     }
 
     /// <summary>
