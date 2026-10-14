@@ -147,6 +147,26 @@ public static class RaceBriefing
     }
 
     /// <summary>레이스를 시작할 자리에서 부른다. 카드를 띄우거나, 바로 카운트다운으로 넘긴다.</summary>
+    /// <summary>
+    /// ★★ 2026-10-14 수연: *"레이싱 들어갔다가 로비로 나오고 다시 들어가면
+    /// 티키타카가 안 뜬다."* <b>맞다.</b> <see cref="lastShown"/> 이 static 이라
+    /// 씬을 갈아타도 살아남아서, 같은 판으로 돌아오면 «방금 본 것» 으로 친다.
+    ///
+    /// 「같은 판을 다시 할 때는 안 띄운다」는 <b>ENTER 재시작</b>을 막으려던 규칙이었다
+    /// (2026-09-21). 그건 그대로 두고, <b>씬을 새로 열면 잊는다</b> —
+    /// 로비를 거쳐 돌아온 건 「다시 하기」가 아니라 <b>새로 들어온 것</b>이니까.
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void Boot()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= Forget;
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += Forget;
+        lastShown = -999;
+    }
+
+    static void Forget(UnityEngine.SceneManagement.Scene s,
+                       UnityEngine.SceneManagement.LoadSceneMode m) => lastShown = -999;
+
     public static void Begin()
     {
         int goal = (int)MissionManager.CurrentGoal;
