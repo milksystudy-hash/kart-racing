@@ -464,6 +464,16 @@ public static class RaceProps
 
         go.transform.SetPositionAndRotation(at, Quaternion.LookRotation(-Vector3.Cross(Vector3.up, fwd)));
 
+        // ★★★ 2026-10-15 수연: *"포크레인이 다 땅이나 벽에 박혀 있다."*
+        //
+        //   <b>세우는 높이를 코스 중앙선에서 가져오고 있었다.</b> 26m 옆은 길이 아니라
+        //   캠퍼스 땅이고, 거기는 높이가 다르다 — 땅이 높으면 <b>묻히고</b> 낮으면 뜬다.
+        //   길 옆에 세우는 <b>모든 소품</b>이 같은 함정에 있었다.
+        //
+        //   <see cref="Ground"/> 로 <b>그 자리의 실제 바닥</b>을 재서 앉힌다.
+        //   제 콜라이더는 빼고 재니 «제 윗면을 바닥으로 읽는» 사고도 안 난다.
+        go.transform.position = Ground.Sit(go.transform, at);
+
         if (swing)
         {
             var ball = Deep(go.transform, "Ball") ?? Deep(go.transform, "Boom");
@@ -1833,11 +1843,10 @@ public static class SkyDrop
         {
             if (d.block != null)
             {
-                // ★ 바닥에 앉힌다. 떨어지는 길에 뭔가에 걸리면 <b>공중에 선 채로</b> 남는데,
-                //   그건 연출이 아니라 고장으로 보인다. 재서 내려놓으면 원인이 뭐든 안 뜬다.
-                Vector3 at = d.block.position;
-                if (Physics.Raycast(at + Vector3.up * 6f, Vector3.down, out var floor, 40f, ~(1 << 2)))
-                    d.block.position = new Vector3(at.x, floor.point.y + 0.25f, at.z);
+                // ★ 한 번 더 앉힌다. 착지 뒤 0.9초 사이에 뭔가에 밀렸을 수 있다.
+                //   <see cref="Ground"/> 가 제 몸을 빼고 재니 «제 윗면을 바닥으로 읽고
+                //   제 키만큼 솟는» 사고가 안 난다 — 그게 자재가 뜨던 원인이었다.
+                d.block.position = Ground.Sit(d.block, d.block.position, sink: 0.1f);
 
                 if (landedRoot == null)
                     landedRoot = new GameObject("SkyDropLanded").transform;
@@ -1875,12 +1884,10 @@ public static class SkyDrop
         //   위로 쏘면 제 윗면을 맞고 <b>제 키만큼 솟아오른다.</b>
         // ★ <b>아래 «맞았나» 검사보다 먼저</b> 한다. 거기 <c>player == null</c> 조기 반환이
         //   있어서, 뒤에 두면 플레이어가 없는 판에서는 영영 안 앉는다.
-        if (d.block != null
-            && Physics.Raycast(d.at + Vector3.up * 8f, Vector3.down, out var ground, 60f, ~(1 << 2)))
-        {
-            Vector3 p = d.block.position;
-            d.block.position = new Vector3(p.x, ground.point.y + 0.25f, p.z);
-        }
+        // ★ <see cref="Ground"/> 가 <b>제 콜라이더를 빼고</b> 재고, 올리는 양도
+        //   원점이 아니라 <b>메시 맨 밑</b>에서 뽑는다 — 슬래브 원점이 가운데여도 맞는다.
+        //   조금(0.1) 묻어서 앉힌다: 딱 0 이면 바닥과 같은 평면이라 지지직거린다.
+        if (d.block != null) d.block.position = Ground.Sit(d.block, d.block.position, sink: 0.1f);
 
         if (player == null) return;
 

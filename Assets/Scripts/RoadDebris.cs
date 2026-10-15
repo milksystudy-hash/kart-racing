@@ -73,10 +73,24 @@ public class RoadDebris : MonoBehaviour
         //   되돌리자마자 또 «벗어났다» 가 되어 <b>영원히 되돌리기만 반복</b>한다 —
         //   그게 「떨어지다가 다시 위로 챱 붙는다」의 정체다.
         //   기준점 자체를 바닥에 맞춰 두면 둘이 같은 값이라 안 싸운다.
-        home = transform.position;
+        // ★★★ 2026-10-15 (세 번째) — <b>바닥을 재던 광선이 제 몸을 맞고 있었다.</b>
+        //
+        //   수연이 «자재가 공중에 떠 있다» 를 세 번 신고했고, 세 번 다 이것이었다.
+        //   위에서 아래로 쏘면 <b>제 윗면이 제일 먼저</b> 걸린다. 그 높이를 «바닥» 으로
+        //   읽고 거기에 반높이를 또 더하니 <b>제 키만큼 솟는다.</b> 되돌릴 때마다
+        //   그 자리로 돌아가니 영영 공중이다.
+        //
+        //   ★ 레이어로도 안 걸러졌다 — 아래 <c>layer = 2</c>(Ignore Raycast)가
+        //     <b>이 줄보다 나중</b>이라, 재는 시점에는 아직 Default 였다.
+        //     순서를 바꾸는 것만으로도 되지만, 그러면 «순서를 지켜야 맞는 코드» 가 된다.
+        //     <see cref="Ground"/> 가 <b>자기 자신을 빼고</b> 재니 순서에 안 흔들린다.
+        //
+        //   ★ 올리는 양도 반높이가 아니라 <b>원점에서 메시 맨 밑까지</b>다 —
+        //     원점이 가운데인 자재와 바닥인 자재가 섞여 있어도 둘 다 맞는다.
+        gameObject.layer = 2;      // 재기 전에 먼저 — 광선이든 서스펜션이든 안 걸린다
+
         homeRotation = transform.rotation;
-        home = Grounded(home);
-        transform.position = home;
+        Settle(transform.position);
 
         // ★★ 2026-10-08 — <b>카트가 자재를 타고 넘어가던 것.</b> 수연: *"자재 넘으면 바로 몸이
         //   통과되니까 못 넘어가게 막아야 할 듯."* 통과한 게 아니라 <b>올라탄 것</b>이었다.
@@ -88,7 +102,7 @@ public class RoadDebris : MonoBehaviour
         //   <b>Ignore Raycast(2)로 보내면 광선만 안 맞고 충돌은 그대로</b>다.
         //   그래서 올라타는 대신 <b>부딪혀서 막힌다</b> — 수연이 원한 그 동작이야.
         //   카트 자신이 레이어 2 에 있는 것과 같은 이유고, 같은 해결이다.
-        gameObject.layer = 2;
+        //   (★ 실제로 거는 자리는 위로 옮겼다 — 바닥을 재기 <b>전</b>이어야 한다.)
 
         body = GetComponent<Rigidbody>();
         if (body == null) body = gameObject.AddComponent<Rigidbody>();
@@ -158,15 +172,24 @@ public class RoadDebris : MonoBehaviour
     /// 다시 안 틀린다 — 「좌표로 찍지 말고 재라」 와 같은 판단이야.
     /// 바닥을 못 찾으면 적어 둔 자리를 그대로 쓴다(없는 것보다 낫다).
     /// </summary>
-    Vector3 Grounded(Vector3 want)
-    {
-        float half = 0.45f;
-        var r = GetComponentInChildren<Renderer>();
-        if (r != null) half = r.bounds.extents.y;
+    bool grounded;
 
-        if (Physics.Raycast(want + Vector3.up * 5f, Vector3.down, out var floor, 40f, ~(1 << 2)))
-            return new Vector3(want.x, floor.point.y + half, want.z);
-        return want;
+    /// <summary>바닥에 앉히고 그 자리를 <see cref="home"/> 으로 삼는다.</summary>
+    void Settle(Vector3 want)
+    {
+        grounded = Ground.FloorUnder(want, transform, out _);
+        home = grounded ? Ground.Sit(transform, want) : want;
+        transform.position = home;
+    }
+
+    /// <summary>
+    /// ★ 코스는 <see cref="TrackBuilder"/> 가 <b>Awake 에</b> 짓는다. 자재가 먼저 깨면
+    /// 그 밑에 아직 길이 없어서 바닥을 못 찾는다 — 그러면 빌더가 놓은 높이 그대로 뜬다.
+    /// <c>Start</c> 는 <b>모든 Awake 뒤</b>라 거기서 한 번 더 잰다.
+    /// </summary>
+    void Start()
+    {
+        if (!grounded) Settle(home);
     }
 
     /// <summary>
