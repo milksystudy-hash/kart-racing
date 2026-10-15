@@ -84,11 +84,14 @@ public class BroadcastBoard : MonoBehaviour
         holder.SetParent(transform, false);
         holder.localPosition = new Vector3(0.30f, 0f, 0f);     // 판(0.22+0.06) 바로 앞
 
-        // ★ 홀 한가운데를 보게 — 판이 서쪽 벽에 붙어 있어 +X 가 트인 쪽이다.
+        // ★★ <b>TextMesh 는 제 forward 의 «반대쪽» 에서 읽힌다.</b>
+        //   그래서 보는 사람(홀 한가운데)을 <b>등지게</b> 돌려야 글자가 바로 보인다 —
+        //   홀 쪽으로 돌리면 뒤에서 본 꼴이라 좌우가 뒤집힌다(2026-10-15 수연 제보).
+        //   <see cref="BuildingSign.Label"/> 이 180도를 더하는 것과 같은 이유다.
         Vector3 toHall = new Vector3(0f, transform.position.y, 0f) - transform.position;
         toHall.y = 0f;
         if (toHall.sqrMagnitude > 0.01f)
-            holder.rotation = Quaternion.LookRotation(toHall.normalized, Vector3.up);
+            holder.rotation = Quaternion.LookRotation(-toHall.normalized, Vector3.up);
 
         // 제목 한 줄 + 본문 세 줄. 제목만 크고 밝다.
         const float Title = 0.62f, Body = 0.40f, Gap = 0.58f;

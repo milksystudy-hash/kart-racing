@@ -102,39 +102,8 @@ public class BuildingSign : MonoBehaviour
                   size, TextAnchor.MiddleCenter);
         }
 
-        FaceOpenSide(holder);
     }
 
-    /// <summary>
-    /// ★★★ 2026-10-15 — <b>글자가 어느 쪽을 보는지 재서 맞춘다.</b>
-    ///
-    /// 수연: *"캠퍼스 표지판이 뒤집어졌다."* 로비 문패가 거울 글씨였다.
-    ///
-    /// <see cref="Label"/> 은 글자를 <b>늘 판의 −Z 로</b> 돌려 단다(2026-09-17, 캠퍼스
-    /// 현판을 그렇게 고쳤다). 그런데 그 규칙은 <b>문이 건물 밖을 볼 때만</b> 맞는다 —
-    /// 로비 문은 <b>홀 안쪽</b>을 보게 세우니 같은 규칙이 반대로 작용한다.
-    /// 두 가지 규칙을 손으로 관리하면 <b>셋째 경우에서 또 틀린다.</b>
-    ///
-    /// 그래서 <b>짐작하지 않고 잰다</b> — 판에서 앞뒤로 짧게 광선을 쏴서
-    /// <b>막힌 쪽이 아니라 트인 쪽</b>을 보게 돌린다. 글자가 읽히는 자리는
-    /// 언제나 <b>사람이 설 수 있는 쪽</b>이고, 그쪽이 트인 쪽이다.
-    /// 캠퍼스(바깥이 트임)도 로비(안쪽이 트임)도 같은 한 줄로 맞는다.
-    ///
-    /// ★ 양쪽 다 트였거나 양쪽 다 막혔으면 <b>건드리지 않는다</b> — 판단할 근거가 없으면
-    ///   지금 것을 그대로 두는 게 맞다(바꿔서 더 나빠지는 걸 막는다).
-    /// </summary>
-    static void FaceOpenSide(Transform holder)
-    {
-        Vector3 at = holder.position + Vector3.up * 0.05f;
-        Vector3 dir = holder.rotation * Vector3.back;      // 글자가 보는 쪽(판의 −Z)
-
-        const float Reach = 1.4f;
-        bool frontBlocked = Physics.Raycast(at, dir, Reach, ~(1 << 2));
-        bool backBlocked = Physics.Raycast(at, -dir, Reach, ~(1 << 2));
-
-        if (frontBlocked && !backBlocked)
-            holder.localRotation = Quaternion.Euler(0f, 180f, 0f) * holder.localRotation;
-    }
 
     [Tooltip("한 줄이 이보다 커지지는 않는다(m)")]
     public float maxLine = 0.5f;
