@@ -82,8 +82,28 @@ public class CampusBoarding : MonoBehaviour
     /// 되돌리려면 <see cref="onlyAfterFinal"/> 을 끄면 수집품에 따라 한 동씩 걷히는
     /// 예전 방식으로 돌아간다.
     /// </summary>
+    /// <summary>
+    /// ★★★ 2026-10-16 — <b>껐다.</b> 수연: *"3개가 다 오픈될 동안 뭐 하게. 근데 열리지도 않아."*
+    ///
+    /// 켜 두면 <b>결승을 이기기 전까지 12동 전부</b> 판자다. 어제까지는 판자에 콜라이더가
+    /// 없어서 <b>그냥 통과</b>됐으니 티가 안 났는데, 내가 <b>막는 판</b>을 넣으면서
+    /// 겉보기 설정이 <b>하드 락</b>이 됐다 — 게임을 다 깰 때까지 미니게임 건물 넷
+    /// 말고는 아무 데도 못 들어가고, <b>단서 10종 중 7종이 영영 안 잡힌다.</b>
+    ///
+    /// <b>한 장치를 고치면 그 장치에 기대고 있던 설정을 다시 보라</b> —
+    /// 「막지 않는다」를 전제로 켜 둔 값이었다.
+    /// </summary>
     [Tooltip("켜면 결승을 이기기 전까지 전부 막힌다. 끄면 수집품마다 한 동씩 걷힌다")]
-    public bool onlyAfterFinal = true;
+    public bool onlyAfterFinal;
+
+    /// <summary>
+    /// 아무것도 못 모았을 때 <b>미리 열려 있는 비율.</b>
+    /// 0 이면 <c>round(12 × 0) = 0</c> 이라 <b>시작할 때 한 동도 안 열린다</b> —
+    /// 캠퍼스에 걸어 들어갈 데가 미니게임 건물 넷뿐이고, 그러면 수연 말대로
+    /// <b>«하루 종일 미니게임만 돌리는»</b> 모양이 된다.
+    /// 0.30 이면 네 동이 미리 열려 있고 나머지 여덟 동이 증거를 따라 걷힌다.
+    /// </summary>
+    const float Floor = 0.30f;
 
     /// <summary>
     /// 절대 안 막는 곳. 화장실은 곰과 대화하는 자리라 늘 열려 있다.
@@ -156,9 +176,11 @@ public class CampusBoarding : MonoBehaviour
         float t = onlyAfterFinal
             ? (GrandFinal.Cleared ? 1f : 0f)
             : (ExhibitCatalogue.Count <= 0 ? 0f
-               : Mathf.Clamp01(CollectionState.Count / (float)ExhibitCatalogue.Count));
+               : Mathf.Clamp01(Floor + (1f - Floor)
+                                      * CollectionState.Count / ExhibitCatalogue.Count));
 
         // 살아남은 건물 수 = 전체 × 진행도.
+        // ★ 바닥값이 없으면 0/8 일 때 <b>한 동도 안 열린다</b>(round(12 × 0) = 0).
         int open = Mathf.RoundToInt(boards.Count * t);
 
         for (int i = 0; i < boards.Count; i++)
