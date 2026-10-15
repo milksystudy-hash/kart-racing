@@ -1012,78 +1012,88 @@ public class WreckingBall : MonoBehaviour
     /// 부모가 몇 겹이든 안 틀리는 방법은 <b>월드 좌표를 그대로 적어 두는 것</b>이다.
     /// 크레인은 제자리에 서 있으니 기준점이 움직일 일도 없다.
     /// </summary>
+    Vector3 pivot, armPos;
+    Quaternion armRot;
+
     void Start()
     {
-        if (arm != null) armHome = arm.localPosition;
-        if (ball != null) ballHome = ball.position;      // ★ 월드
+        pivot = transform.position;                     // 기둥이 서 있는 자리
+        if (arm != null) { armRot = arm.rotation; armPos = arm.position; }
         cam = Object.FindFirstObjectByType<KartCamera>();
     }
 
+    /// <summary>
+    /// ★★★ 2026-10-15 (두 번째) — <b>줄을 옮기는 게 아니라 붐을 돌린다.</b>
+    ///
+    /// 수연: *"공이 다 떠 있고 포크레인은 안 움직인다."* 스크린샷에 답이 있었다 —
+    /// 공이 <b>허공에 뚝 떨어져</b> 있고 줄이 붐에서 끊겨 있었다.
+    ///
+    /// 앞서 <c>Cable</c> 을 통째로 평행이동시켰는데, 그러면 줄 윗끝이 붐 끝에서
+    /// <b>떨어져 나간다.</b> 땅속에서 공중으로 올라왔을 뿐 여전히 틀린 그림이다.
+    ///
+    /// <b>크레인은 줄을 옮기는 물건이 아니라 붐을 돌리는 물건이다.</b>
+    /// 붐만 돌리면 줄도 공도 <b>자식이라 알아서 따라오고</b>, 끊어질 일이 없다.
+    ///
+    /// ★ 돌리는 축은 <b>월드 기준</b>으로 잡는다(<c>Vector3.up</c> · <c>transform.right</c>).
+    ///   붐의 로컬 축이 어느 쪽인지는 FBX 마다 다르고, 이 프로젝트에서 축을 짐작하다
+    ///   틀린 게 여러 번이다. 기둥 자리를 중심으로 <b>통째로 회전</b>시키면 못 틀린다.
+    ///
+    /// ★ 쉬는 자리에서 공은 <b>−Z</b>(코스 반대쪽)에 매달려 있다. 그래서 길 쪽으로
+    ///   보내려면 요를 <b>160도쯤</b> 돌려야 한다 — 0도가 아니다.
+    /// </summary>
     void Update()
     {
-        if (RacePause.On || RaceCountdown.Blocked || ball == null) return;
+        if (RacePause.On || RaceCountdown.Blocked || arm == null) return;
 
-        float phase = Time.time * (2f * Mathf.PI / Mathf.Max(0.5f, period));
-        Vector3 out01 = transform.forward;            // Side() 가 코스 쪽을 보게 세워 준다
-        Vector3 side = transform.right;
-        Vector3 home = ballHome;      // ★ 이미 월드다
-
-        float u;            // 코스 쪽으로 나간 정도 (−1 ~ 1)
-        float lift = 0f;    // 위아래
-        float sway = 0f;    // 옆으로
+        float p = Mathf.Repeat(Time.time / Mathf.Max(0.5f, period), 1f);
+        float yaw, pitch = 0f;
 
         switch (style)
         {
-            // ── 거칠게 — 같은 왕복인데 <b>끝에서 튕긴다.</b> 사인파는 부드러워서
-            //    아무리 빨라도 «기계가 돈다» 로 보인다. 끝을 꺾어야 «휘두른다» 가 된다.
+            // 팔 끝이 기둥을 중심으로 <b>한 바퀴</b> 돈다. 멀리서도 «돈다» 가 보인다.
             default:
-            case Style.거칠게:
-                u = Mathf.Sin(phase);
-                u = Mathf.Sign(u) * Mathf.Pow(Mathf.Abs(u), 0.55f);
-                lift = Mathf.Abs(Mathf.Sin(phase * 2f)) * -1.1f;
-                sway = Mathf.Sin(phase * 3.1f) * 0.9f;
-                break;
-
-            // ── 길막 — <b>나가서 버틴다.</b> 수연이 말한 «슈퍼마리오 파이프» 가 이거다.
-            //    사인파는 길 위에 머무는 시간이 짧아서 «피했다» 가 운처럼 느껴진다.
-            //    나가는 데 0.18 · <b>버티는 데 0.34</b> · 들어가는 데 0.18 · 쉬는 데 0.3 —
-            //    버티는 구간이 있어야 <b>박자를 보고 기다렸다 지나가는</b> 판단이 생긴다.
-            case Style.길막:
-                {
-                    float p = Mathf.Repeat(Time.time / Mathf.Max(0.5f, period), 1f);
-                    u = p < 0.18f ? Mathf.SmoothStep(0f, 1f, p / 0.18f)
-                      : p < 0.52f ? 1f
-                      : p < 0.70f ? Mathf.SmoothStep(1f, 0f, (p - 0.52f) / 0.18f)
-                      : 0f;
-                    lift = -0.4f * u;
-                }
-                break;
-
-            // ── 붕괴 — <b>들었다가 내려찍는다.</b> 가로가 아니라 <b>세로</b>로 움직여서,
-            //    한 프레임만 봐도 다른 크레인과 안 헷갈린다(곰 동작에서 배운 것 —
-            //    속도만 다르면 «빠름/느림» 두 가지로만 읽힌다).
-            case Style.붕괴:
-                {
-                    float p = Mathf.Repeat(Time.time / Mathf.Max(0.5f, period), 1f);
-                    u = 0.55f + Mathf.Sin(phase * 0.5f) * 0.12f;
-                    lift = p < 0.62f ? Mathf.SmoothStep(0f, 7.5f, p / 0.62f)      // 천천히 든다
-                         : p < 0.70f ? Mathf.Lerp(7.5f, -0.6f, (p - 0.62f) / 0.08f)  // 확 내리꽂는다
-                         : Mathf.Lerp(-0.6f, 0f, (p - 0.70f) / 0.30f);
-                    Slam(p);
-                }
-                break;
-
-            // ── 회전 — 팔 끝에서 <b>한 바퀴 돈다.</b> 멀리 있어도 눈에 띄는 건
-            //    «크다» 가 아니라 «다른 길을 그린다» 는 쪽이다.
             case Style.회전:
-                u = 0.45f + Mathf.Cos(phase) * 0.55f;
-                lift = Mathf.Sin(phase) * reach * 0.42f;
+                yaw = p * 360f;
+                pitch = Mathf.Sin(p * Mathf.PI * 2f) * 5f;
+                break;
+
+            // 길 쪽으로 돌아가서 <b>버틴다.</b> 버티는 구간이 있어야
+            // «박자를 보고 지나간다» 는 판단이 생긴다(마리오 파이프).
+            case Style.길막:
+                yaw = p < 0.20f ? Mathf.SmoothStep(0f, 160f, p / 0.20f)
+                    : p < 0.56f ? 160f
+                    : p < 0.76f ? Mathf.SmoothStep(160f, 0f, (p - 0.56f) / 0.20f)
+                    : 0f;
+                break;
+
+            // 길 쪽에서 좌우로 <b>휘두른다.</b> 끝에서 꺾여야 «기계가 돈다» 가 아니라
+            // «휘두른다» 로 보인다.
+            case Style.거칠게:
+                {
+                    float sw = Mathf.Sin(p * Mathf.PI * 2f);
+                    sw = Mathf.Sign(sw) * Mathf.Pow(Mathf.Abs(sw), 0.55f);
+                    yaw = 150f + sw * 55f;
+                    pitch = Mathf.Sin(p * Mathf.PI * 4f) * 7f;
+                }
+                break;
+
+            // 들었다가 <b>내리꽂는다.</b> 가로가 아니라 세로로 움직여서 한 프레임만
+            // 봐도 다른 크레인과 안 헷갈린다.
+            // ★ 요를 90도에 둔다 — 쉬는 자리(0도)면 공이 길 반대편 건물 쪽으로 간다.
+            case Style.붕괴:
+                yaw = 90f + Mathf.Sin(p * Mathf.PI * 2f) * 8f;
+                pitch = p < 0.62f ? Mathf.SmoothStep(0f, -34f, p / 0.62f)
+                      : p < 0.70f ? Mathf.Lerp(-34f, 6f, (p - 0.62f) / 0.08f)
+                      : Mathf.Lerp(6f, 0f, (p - 0.70f) / 0.30f);
+                Slam(p);
                 break;
         }
 
-        ball.position = home + out01 * (u * reach) + Vector3.up * lift + side * sway;
-        if (arm != null)
-            arm.localRotation = Quaternion.Euler(0f, 0f, -u * (style == Style.거칠게 ? 26f : 16f));
+        var spin = Quaternion.AngleAxis(yaw, Vector3.up)
+                 * Quaternion.AngleAxis(pitch, transform.right);
+
+        arm.rotation = spin * armRot;
+        arm.position = pivot + spin * (armPos - pivot);
 
         // 멀리 있는 크레인은 길에 안 닿는다 — 풍경이다. 맞음 판정은 그대로 거리로 걸러진다.
 
@@ -1182,10 +1192,10 @@ public class SearchBeam : MonoBehaviour
     public float flash;
     float flashAt = -9f;
 
-    /// <summary>빛 안에 들어온 시각. −1 이면 지금 밖이다.</summary>
-    float insideSince = -1f;
+    /// <summary>빛 안에 있던 시간의 <b>합</b>. 빛을 벗어나도 안 지운다.</summary>
+    float caught;
 
-    /// <summary>이만큼 계속 머물면 기회 하나. 스쳐 지나가는 건 안 센다.</summary>
+    /// <summary>합이 이만큼 쌓일 때마다 기회 하나. 한 번 스친 건 공짜다.</summary>
     const float CaughtSeconds = 1.5f;
 
     Transform shaft, ring;
@@ -1304,16 +1314,23 @@ public class SearchBeam : MonoBehaviour
             //   대신 <b>1.5초 넘게 머무는 건 명백히 플레이어 선택</b>이다.
             //   피할 수 있고, 배울 수 있고, 왜 깎였는지도 안다.
             //   깎고 나서 시계를 다시 재니 <b>계속 있으면 1.5초마다 하나</b>다.
-            if (insideSince < 0f) insideSince = Time.time;
-            else if (Time.time - insideSince >= CaughtSeconds)
+            // ★★ 2026-10-15 (두 번째) — <b>«연속 1.5초» 는 영영 안 채워진다.</b>
+            //   수연: *"헬기가 슉 하고 지나가서 1.5초 머무를 시간이 없다."* 맞다 —
+            //   헬기는 13초에 한 바퀴를 거꾸로 도니 <b>스쳐 지나가는 게 전부</b>고,
+            //   한 번에 1.5초를 머무는 건 애초에 불가능하다.
+            //
+            //   그래서 <b>쌓아서</b> 센다. 빛을 벗어나도 안 지워지고, 합이 1.5초를
+            //   넘을 때마다 하나. <b>한 번 스친 건 공짜지만 계속 잡히면 값을 치른다</b> —
+            //   의도는 같고, 이쪽은 실제로 일어난다.
+            caught += Time.deltaTime;
+            if (caught >= CaughtSeconds)
             {
-                insideSince = Time.time;
+                caught -= CaughtSeconds;
                 player.TakeChance();
                 Toast.Show("점검등에 잡혔다 — 기회 하나");
                 Sfx.Play("MissionFail", 0.30f, duckMusic: false);
             }
         }
-        else insideSince = -1f;
 
         var c = inside ? Caught : Lamp;
         ringMat.SetColor("_BaseColor", new Color(c.r, c.g, c.b, inside ? 0.80f : 0.62f));
