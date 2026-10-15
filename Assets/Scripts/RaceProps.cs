@@ -195,7 +195,7 @@ public static class RaceProps
                 //   ★ 17초도 빨랐다(수연: *"어려워"*). <b>24초</b>면 상대속도가
                 //   1/24 + 1/29 → <b>12.9초마다, 한 바퀴에 2.2번.</b>
                 //   빛이 기회를 깎는 판이니 <b>오는 걸 보고 비킬 수 있어야</b> 한다.
-                Patrol(track, "R02_Safety_Helicopter", 9.5f, 24f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
+                Patrol(track, "R02_Safety_Helicopter", 9.5f, 32f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
                        noseBack: true, reverse: true,
                        engine: "Heli_Rotor", engineVolume: 0.8f, beam: true, engineFar: 110f);
                 Crowd(track, 8);
@@ -1017,48 +1017,47 @@ public class WreckingBall : MonoBehaviour
     /// 부모가 몇 겹이든 안 틀리는 방법은 <b>월드 좌표를 그대로 적어 두는 것</b>이다.
     /// 크레인은 제자리에 서 있으니 기준점이 움직일 일도 없다.
     /// </summary>
-    Vector3 pivot, armPos;
-    Quaternion armRot;
+    /// <summary>
+    /// ★★★★ 2026-10-15 (네 번째) — <b>붐은 아예 안 건드린다. 줄과 공만 휘두른다.</b>
+    ///
+    /// 수연: *"왜 몸통이랑 팔 부분이 떨어져 있니. 부착한 상태로 공과 줄만 휘두르면 안 될까."*
+    /// <b>그게 정답이고, 내가 먼 길을 돌았다.</b>
+    ///
+    /// ── 왜 붐을 돌리면 떨어졌나 ────────────────────────────────────────
+    /// 회전축을 «붐 기하의 제일 낮은 점» 으로 잡았는데, 이 붐은 <b>비스듬히 누운 팔</b>이라
+    /// 제일 낮은 점이 기둥 쪽이 아니라 <b>팔 끝</b>이다. 팔 끝을 축으로 돌렸으니
+    /// <b>몸통 쪽이 통째로 날아갔다.</b> 축을 어디로 잡든 같은 종류의 사고가 또 난다 —
+    /// <b>모델이 알려주지 않는 값을 내가 짐작하고 있었기 때문</b>이다.
+    ///
+    /// ── 모델이 이미 알려주는 값 ───────────────────────────────────────
+    /// <c>Ball.localPosition = (0, −8.57, 0)</c> — 공은 <c>Cable</c> 원점에서
+    /// <b>8.57m 아래</b>에 매달려 있다. 즉 <b>Cable 의 원점이 곧 붐 끝</b>이다.
+    /// 짐작할 게 하나도 없다.
+    ///
+    /// 그래서 <b>Cable 을 제 원점에서 회전시키기만</b> 한다:
+    /// <list type="bullet">
+    /// <item>붐은 <b>한 번도 안 건드리니</b> 몸통에서 떨어질 수가 없다</item>
+    /// <item>줄 윗끝은 <b>늘 붐 끝</b>이다 — 위치를 아예 안 바꾸니까</item>
+    /// <item>공은 줄의 자식이라 <b>알아서 따라온다</b></item>
+    /// </list>
+    /// 이게 실제 철거 크레인이 하는 동작이기도 하다 — 붐은 서 있고 쇳덩이가 흔들린다.
+    /// </summary>
+    Transform rig;              // Cable — 붐 끝에 달린 줄
+    Quaternion rigRest;
+    Vector3 rigTop;             // 붐 끝. 끝까지 안 움직인다
 
     void Start()
     {
-        // ★★★ 2026-10-15 (세 번째) — <b>회전축을 땅바닥에 잡고 있었다.</b>
-        //
-        //   수연: *"돌아갈 때 붐 팔이 아예 본체랑 떼어진다."* 진단으로 <b>움직임 자체는
-        //   멀쩡하다</b>는 걸 확인했으니(네 대 다 붐이 27~160도 돌았다), 남은 건 이것뿐이다.
-        //
-        //   축을 <c>transform.position</c>(기둥 <b>밑동</b>)에 잡으면, 요(좌우)는 그 수직선이
-        //   기둥 축과 같아서 괜찮은데 <b>피치(위아래)가 붐을 통째로 들어올려</b> 본체에서
-        //   떼어낸다. 실제 크레인은 <b>붐이 본체에 얹힌 자리</b>를 축으로 든다.
-        //
-        //   그 자리를 재서 쓴다 — 기둥의 x·z 에, 높이는 <b>붐 기하의 제일 낮은 점</b>.
-        //   모델이 바뀌어도 재서 쓰니 안 틀린다.
-        pivot = transform.position;
-        if (arm != null)
-        {
-            var rs = arm.GetComponentsInChildren<Renderer>();
-            if (rs.Length > 0)
-            {
-                var b = rs[0].bounds;
-                for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
-                pivot = new Vector3(transform.position.x, b.min.y, transform.position.z);
-            }
-        }
-
-        if (arm != null) { armRot = arm.rotation; armPos = arm.position; }
+        rig = ball;                       // 빌더가 Cable 을 넣어 준다
+        if (rig != null) { rigRest = rig.rotation; rigTop = rig.position; }
         cam = Object.FindFirstObjectByType<KartCamera>();
 
 #if UNITY_EDITOR
-        Probe("준비", $"arm {Name(arm)} · ball {Name(ball)} · hit {Name(hitPoint)} · 기둥 {Fmt(pivot)}");
+        Probe("준비", $"{style} · 줄 {Name(rig)} · 공 {Name(hitPoint)} · 붐끝 {Fmt(rigTop)}");
 #endif
     }
 
 #if UNITY_EDITOR
-    // ★★ 2026-10-15 — <b>추측을 멈추고 게임이 스스로 재게 한다.</b>
-    //   크레인을 네 번 고쳤는데 네 번 다 「그대로다」 였다. 배치모드 플레이 탐침은
-    //   이 프로젝트에서 안 돌아서(11분 매달려 있었다), <b>실제로 노는 그 판에서</b>
-    //   재서 파일에 적는다. 4판을 한 번만 돌면 답이 나온다.
-    //   <c>#if UNITY_EDITOR</c> 라 빌드에는 이 코드가 없다.
     float probeAt = -1f;
     bool probed;
     Quaternion probeRot;
@@ -1080,117 +1079,95 @@ public class WreckingBall : MonoBehaviour
         catch { }
     }
 
-    /// <summary>움직임이 실제로 일어났는지 2.5초 재서 한 번만 적는다.</summary>
+    /// <summary>줄이 붐 끝에 붙어 있는지 · 공이 실제로 움직이는지 2.5초 재서 한 번만 적는다.</summary>
     void Watch()
     {
         if (probed) return;
-
         if (probeAt < 0f)
         {
             probeAt = Time.time;
-            probeRot = arm != null ? arm.rotation : Quaternion.identity;
+            probeRot = rig != null ? rig.rotation : Quaternion.identity;
             probeBall = hitPoint != null ? hitPoint.position : Vector3.zero;
             return;
         }
         if (Time.time - probeAt < 2.5f) return;
         probed = true;
 
-        float deg = arm != null ? Quaternion.Angle(probeRot, arm.rotation) : -1f;
+        float deg = rig != null ? Quaternion.Angle(probeRot, rig.rotation) : -1f;
         float moved = hitPoint != null ? Vector3.Distance(probeBall, hitPoint.position) : -1f;
+        float drift = rig != null ? Vector3.Distance(rigTop, rig.position) : -1f;
 
         string where = "—";
         if (hitPoint != null)
         {
             float g = Physics.Raycast(hitPoint.position + Vector3.up * 40f, Vector3.down,
                                       out var hit, 120f, ~(1 << 2)) ? hit.point.y : float.NaN;
-            var r = hitPoint.GetComponent<Renderer>();
-            where = $"철구 {Fmt(hitPoint.position)} · 바닥에서 {hitPoint.position.y - g:+0.00;-0.00}m" +
-                    (r == null ? " · Renderer없음" : $" · 보임 {r.enabled}");
+            where = $"공 바닥에서 {hitPoint.position.y - g:+0.00;-0.00}m";
         }
 
-        Probe(probed && deg < 1f && moved < 0.2f ? "★안움직임" : "움직임",
-              $"{style} · 붐 {deg:F1}° · 철구 {moved:F2}m · {where}");
+        Probe(deg < 1f && moved < 0.2f ? "★안움직임" : "움직임",
+              $"{style} · 줄 {deg:F1}° · 공 {moved:F2}m · 줄끝 어긋남 {drift:F3}m · {where}");
     }
 #endif
 
-    /// <summary>
-    /// ★★★ 2026-10-15 (두 번째) — <b>줄을 옮기는 게 아니라 붐을 돌린다.</b>
-    ///
-    /// 수연: *"공이 다 떠 있고 포크레인은 안 움직인다."* 스크린샷에 답이 있었다 —
-    /// 공이 <b>허공에 뚝 떨어져</b> 있고 줄이 붐에서 끊겨 있었다.
-    ///
-    /// 앞서 <c>Cable</c> 을 통째로 평행이동시켰는데, 그러면 줄 윗끝이 붐 끝에서
-    /// <b>떨어져 나간다.</b> 땅속에서 공중으로 올라왔을 뿐 여전히 틀린 그림이다.
-    ///
-    /// <b>크레인은 줄을 옮기는 물건이 아니라 붐을 돌리는 물건이다.</b>
-    /// 붐만 돌리면 줄도 공도 <b>자식이라 알아서 따라오고</b>, 끊어질 일이 없다.
-    ///
-    /// ★ 돌리는 축은 <b>월드 기준</b>으로 잡는다(<c>Vector3.up</c> · <c>transform.right</c>).
-    ///   붐의 로컬 축이 어느 쪽인지는 FBX 마다 다르고, 이 프로젝트에서 축을 짐작하다
-    ///   틀린 게 여러 번이다. 기둥 자리를 중심으로 <b>통째로 회전</b>시키면 못 틀린다.
-    ///
-    /// ★ 쉬는 자리에서 공은 <b>−Z</b>(코스 반대쪽)에 매달려 있다. 그래서 길 쪽으로
-    ///   보내려면 요를 <b>160도쯤</b> 돌려야 한다 — 0도가 아니다.
-    /// </summary>
     void Update()
     {
-        if (RacePause.On || RaceCountdown.Blocked || arm == null) return;
+        if (RacePause.On || RaceCountdown.Blocked || rig == null) return;
 
         float p = Mathf.Repeat(Time.time / Mathf.Max(0.5f, period), 1f);
-        float yaw, pitch = 0f;
+        float swing, spin = 0f;        // swing = 앞뒤(길 쪽), spin = 수직축 회전
 
         switch (style)
         {
-            // ④ 곰테크관 — 팔 끝이 <b>한 바퀴</b> 돈다. 멀리서도 «돈다» 가 보인다.
+            // ④ 곰테크관 — 줄이 비스듬히 선 채 <b>수직축으로 한 바퀴</b>.
+            //    공이 넓은 원을 그린다. 붐은 그대로 서 있다.
             default:
             case Style.회전:
-                yaw = p * 360f;
-                pitch = Mathf.Sin(p * Mathf.PI * 2f) * 12f;   // 돌면서 위아래로도 출렁
+                swing = 34f;
+                spin = p * 360f;
                 break;
 
-            // 길 쪽으로 돌아가서 <b>버틴다.</b> 버티는 구간이 있어야
-            // «박자를 보고 지나간다» 는 판단이 생긴다(마리오 파이프).
+            // ② 곰머리관 — 길 쪽으로 <b>크게 넘어와서 버틴다.</b>
+            //    공이 길 위에 머무는 동안 지나가면 안 되는 구간이 생긴다.
             case Style.길막:
-                yaw = p < 0.20f ? Mathf.SmoothStep(0f, 160f, p / 0.20f)
-                    : p < 0.56f ? 160f
-                    : p < 0.76f ? Mathf.SmoothStep(160f, 0f, (p - 0.56f) / 0.20f)
-                    : 0f;
+                swing = p < 0.20f ? Mathf.SmoothStep(0f, 62f, p / 0.20f)
+                      : p < 0.56f ? 62f
+                      : p < 0.76f ? Mathf.SmoothStep(62f, 0f, (p - 0.56f) / 0.20f)
+                      : 0f;
                 break;
 
-            // 길 쪽에서 좌우로 <b>휘두른다.</b> 끝에서 꺾여야 «기계가 돈다» 가 아니라
-            // «휘두른다» 로 보인다.
+            // ① 곰밥마당 — <b>일하는 중장비.</b> 크게 한 번 넘겼다가 반대로 때린다.
+            //    단순 진자가 아니라 <b>되돌아올 때 더 빠르게</b> — 끝에서 꺾인다.
             case Style.거칠게:
                 {
                     float sw = Mathf.Sin(p * Mathf.PI * 2f);
-                    sw = Mathf.Sign(sw) * Mathf.Pow(Mathf.Abs(sw), 0.55f);
-                    yaw = 150f + sw * 55f;
-                    // ① 곰밥마당 — <b>들었다가 내리친다.</b> 휘두르는 것과 겹쳐서 크게 보인다.
-                    pitch = p < 0.45f ? Mathf.SmoothStep(0f, -26f, p / 0.45f)
-                          : p < 0.55f ? Mathf.Lerp(-26f, 10f, (p - 0.45f) / 0.10f)
-                          : Mathf.Lerp(10f, 0f, (p - 0.55f) / 0.45f);
+                    sw = Mathf.Sign(sw) * Mathf.Pow(Mathf.Abs(sw), 0.6f);
+                    swing = sw * 46f;
+                    spin = Mathf.Sin(p * Mathf.PI * 4f) * 16f;   // 좌우로도 약간 비튼다
                 }
                 break;
 
-            // 들었다가 <b>내리꽂는다.</b> 가로가 아니라 세로로 움직여서 한 프레임만
-            // 봐도 다른 크레인과 안 헷갈린다.
-            // ★ 요를 90도에 둔다 — 쉬는 자리(0도)면 공이 길 반대편 건물 쪽으로 간다.
+            // ③ 곰누리관 — <b>네 대 중 제일 과격하게.</b> 크게 들어 올렸다가
+            //    건물 쪽으로 <b>때려 박는다.</b> 때린 뒤 되튕기는 잔진동까지.
             case Style.붕괴:
-                // ③ 곰누리관 — <b>네 대 중 제일 과격하게.</b> 들어올리는 각도도 제일 크고,
-                //   내리치는 순간 요까지 한 번 꺾여서 «건물을 때린다» 로 보인다.
-                yaw = 90f + Mathf.Sin(p * Mathf.PI * 2f) * 14f
-                          + (p >= 0.62f && p < 0.70f ? 18f : 0f);
-                pitch = p < 0.62f ? Mathf.SmoothStep(0f, -48f, p / 0.62f)
-                      : p < 0.70f ? Mathf.Lerp(-48f, 12f, (p - 0.62f) / 0.08f)
-                      : Mathf.Lerp(12f, 0f, (p - 0.70f) / 0.30f);
+                swing = p < 0.55f ? Mathf.SmoothStep(0f, -68f, p / 0.55f)
+                      : p < 0.64f ? Mathf.Lerp(-68f, 24f, (p - 0.55f) / 0.09f)
+                      : Mathf.Lerp(24f, 0f, (p - 0.64f) / 0.36f)
+                        + Mathf.Sin((p - 0.64f) * 34f) * Mathf.Lerp(9f, 0f, (p - 0.64f) / 0.36f);
+                spin = Mathf.Sin(p * Mathf.PI * 2f) * 10f;
                 Slam(p);
                 break;
         }
 
-        var spin = Quaternion.AngleAxis(yaw, Vector3.up)
-                 * Quaternion.AngleAxis(pitch, transform.right);
+        // ★ 줄의 <b>원점은 그대로 두고 회전만</b> 준다 — 붐 끝에서 절대 안 떨어진다.
+        rig.rotation = Quaternion.AngleAxis(spin, Vector3.up)
+                     * Quaternion.AngleAxis(swing, transform.right)
+                     * rigRest;
+        rig.position = rigTop;
 
-        arm.rotation = spin * armRot;
-        arm.position = pivot + spin * (armPos - pivot);
+#if UNITY_EDITOR
+        Watch();
+#endif
 
 #if UNITY_EDITOR
         Watch();
@@ -1314,7 +1291,7 @@ public class SearchBeam : MonoBehaviour
     float lastCaught = -99f;
 
     /// <summary>한 번 걸리면 이 동안은 다시 안 센다 — 한 번 지나갈 때 한 번만.</summary>
-    const float CaughtCooldown = 3.5f;   // 2.2 → 3.5. 한 바퀴에 한 번꼴
+    const float CaughtCooldown = 5.0f;   // 3.5 → 5.0. 한 바퀴에 한 번도 안 깎일 수 있다
 
     Transform shaft, ring;
     Material shaftMat, ringMat;
