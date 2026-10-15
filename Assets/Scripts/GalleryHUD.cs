@@ -108,10 +108,21 @@ public class GalleryHUD : MonoBehaviour
         if (viewer != null) { Destroy(viewer); viewer = null; }
     }
 
+    /// <summary>
+    /// ★★★ 2026-10-15 — <b>전시실도 「가상 1280×720」 밖에 있었다.</b>
+    ///
+    /// <see cref="DialogueHUD"/> 와 <b>똑같은 버그</b>다. 이 프로젝트의 HUD 는 전부
+    /// <see cref="Hud.Begin"/> 으로 화면 높이에 맞춰 늘려 그리는데(2026-09-16 규칙),
+    /// 여기만 <c>Screen.width/height</c> 를 날것으로 읽었다 —
+    /// 창이 커지면 <b>칸만 커지고 글자는 그대로</b>라 1080p 에서 1.5배 작게 보인다.
+    /// 제출 전 점검에서 잡았다. 들여놓기만 하면 되고 안의 좌표는 하나도 안 바뀐다.
+    /// </summary>
     void OnGUI()
     {
         if (!ready) BuildStyles();
-        float w = Screen.width, h = Screen.height;
+
+        var screen = Hud.Begin(HudFont.Resolve(uiFont));
+        float w = screen.width, h = screen.height;
 
         DrawProgress();
         DrawViewer(w, h);
@@ -123,6 +134,8 @@ public class GalleryHUD : MonoBehaviour
         // 줄글로 설명할 게 아니었고, 전시실은 "가만히 보는 방" 이라 글자가 적을수록 낫다.
         // 개발용 단축키는 사라진 게 아니라 여전히 듣는다 — 목록은 프로젝트 루트의
         // 개발자_단축키.md 에 있다.
+
+        Hud.End();
     }
 
     ExhibitViewer viewer;
