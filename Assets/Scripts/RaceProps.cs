@@ -1020,7 +1020,71 @@ public class WreckingBall : MonoBehaviour
         pivot = transform.position;                     // 기둥이 서 있는 자리
         if (arm != null) { armRot = arm.rotation; armPos = arm.position; }
         cam = Object.FindFirstObjectByType<KartCamera>();
+
+#if UNITY_EDITOR
+        Probe("준비", $"arm {Name(arm)} · ball {Name(ball)} · hit {Name(hitPoint)} · 기둥 {Fmt(pivot)}");
+#endif
     }
+
+#if UNITY_EDITOR
+    // ★★ 2026-10-15 — <b>추측을 멈추고 게임이 스스로 재게 한다.</b>
+    //   크레인을 네 번 고쳤는데 네 번 다 「그대로다」 였다. 배치모드 플레이 탐침은
+    //   이 프로젝트에서 안 돌아서(11분 매달려 있었다), <b>실제로 노는 그 판에서</b>
+    //   재서 파일에 적는다. 4판을 한 번만 돌면 답이 나온다.
+    //   <c>#if UNITY_EDITOR</c> 라 빌드에는 이 코드가 없다.
+    float probeAt = -1f;
+    bool probed;
+    Quaternion probeRot;
+    Vector3 probeBall;
+
+    static string Name(Transform t) => t == null ? "★null" : t.name;
+    static string Fmt(Vector3 v) => $"({v.x:F1}, {v.y:F1}, {v.z:F1})";
+
+    static void Probe(string tag, string body)
+    {
+        string line = $"[크레인·{tag}] {body}";
+        Debug.Log(line);
+        try
+        {
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), "crane_live.txt"),
+                line + System.Environment.NewLine);
+        }
+        catch { }
+    }
+
+    /// <summary>움직임이 실제로 일어났는지 2.5초 재서 한 번만 적는다.</summary>
+    void Watch()
+    {
+        if (probed) return;
+
+        if (probeAt < 0f)
+        {
+            probeAt = Time.time;
+            probeRot = arm != null ? arm.rotation : Quaternion.identity;
+            probeBall = hitPoint != null ? hitPoint.position : Vector3.zero;
+            return;
+        }
+        if (Time.time - probeAt < 2.5f) return;
+        probed = true;
+
+        float deg = arm != null ? Quaternion.Angle(probeRot, arm.rotation) : -1f;
+        float moved = hitPoint != null ? Vector3.Distance(probeBall, hitPoint.position) : -1f;
+
+        string where = "—";
+        if (hitPoint != null)
+        {
+            float g = Physics.Raycast(hitPoint.position + Vector3.up * 40f, Vector3.down,
+                                      out var hit, 120f, ~(1 << 2)) ? hit.point.y : float.NaN;
+            var r = hitPoint.GetComponent<Renderer>();
+            where = $"철구 {Fmt(hitPoint.position)} · 바닥에서 {hitPoint.position.y - g:+0.00;-0.00}m" +
+                    (r == null ? " · Renderer없음" : $" · 보임 {r.enabled}");
+        }
+
+        Probe(probed && deg < 1f && moved < 0.2f ? "★안움직임" : "움직임",
+              $"{style} · 붐 {deg:F1}° · 철구 {moved:F2}m · {where}");
+    }
+#endif
 
     /// <summary>
     /// ★★★ 2026-10-15 (두 번째) — <b>줄을 옮기는 게 아니라 붐을 돌린다.</b>
@@ -1094,6 +1158,10 @@ public class WreckingBall : MonoBehaviour
 
         arm.rotation = spin * armRot;
         arm.position = pivot + spin * (armPos - pivot);
+
+#if UNITY_EDITOR
+        Watch();
+#endif
 
         // 멀리 있는 크레인은 길에 안 닿는다 — 풍경이다. 맞음 판정은 그대로 거리로 걸러진다.
 
