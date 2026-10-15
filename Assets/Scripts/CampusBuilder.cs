@@ -2355,6 +2355,39 @@ public class CampusBuilder : MonoBehaviour
         ("재주관", "C10_Bears_Museum_Drawing",        "곰의그림",    -6.5f, 0f,  3.0f,  20f, 0.62f),
     };
 
+    /// <summary>
+    /// ★ <b>단서가 너무 작으면 키운다 — 지금은 한 번도 안 걸린다.</b> (2026-10-15)
+    ///
+    /// 수연: *"단서 10종 다 배치된 거 맞아? 왜 난 안 보이지."*
+    /// <b>재 보니 열 개 다 서 있었고 크기도 멀쩡했다</b> — 0.58 ~ 1.34m.
+    ///
+    /// ⚠ <b>내 첫 측정이 틀렸다.</b> <c>GetComponentInChildren&lt;Renderer&gt;()</c> 는
+    ///   <b>첫 조각 하나</b>만 돌려준다. 단서는 조각이 3~6개라, 작은 부속 하나를 재고
+    ///   «12cm 짜리가 바닥에 있다» 고 잘못 읽었다.
+    ///   <b>조각이 여럿인 모델은 바운즈를 전부 합쳐서 재라</b> — 이 프로젝트에서
+    ///   월드 AABB 로 네 번 틀린 것과 같은 종류다.
+    ///
+    /// 그래서 이 함수는 <b>지금 아무 일도 안 한다.</b> 남겨 두는 이유는 나중에 작은
+    /// 모델을 끼워 넣었을 때 <b>조용히 안 보이는 일을 막는 바닥값</b>이어서다.
+    /// 키우기만 하고 줄이지는 않는다 — 큰 것을 더 키우면 「전시물」이 되어
+    /// 대놓고 가리키는 꼴이 된다.
+    /// </summary>
+    static void MakeFindable(Transform t)
+    {
+        const float Least = 0.52f;      // 사람 눈높이에서 «저기 뭐가 있네» 가 되는 최소
+
+        var rs = t.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) return;
+
+        var box = rs[0].bounds;
+        for (int i = 1; i < rs.Length; i++) box.Encapsulate(rs[i].bounds);
+
+        float big = Mathf.Max(box.size.x, Mathf.Max(box.size.y, box.size.z));
+        if (big <= 0.0001f || big >= Least) return;
+
+        t.localScale *= Least / big;
+    }
+
     /// <summary>이 관 몫의 단서를 세운다. 관마다 <see cref="Interior"/> 끝에서 한 번 부른다.</summary>
     void Clues(Transform t, string hall)
     {
@@ -2380,7 +2413,10 @@ public class CampusBuilder : MonoBehaviour
             // ★ 읽을 수 있게 만든다. 라벨이 곧 <see cref="ClueText"/> 의 id 라
             //   글을 고치려면 그 파일 한 곳만 보면 된다.
             if (placed[i] != null)
+            {
                 placed[i].gameObject.AddComponent<ClueBoard>().id = p.label;
+                MakeFindable(placed[i]);
+            }
         }
 
         foreach (var m in placed)
