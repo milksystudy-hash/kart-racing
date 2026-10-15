@@ -246,7 +246,7 @@ public static class RaceProps
                 //   붐이 지붕 가장자리 위로 뻗고, 줄이 8.8m 안쪽 — <b>처마 바로 안</b>,
                 //   철구가 <b>지붕 높이(y 8.97)</b> 에 대롱대롱 매달린다.
                 //   옛 구도를 그대로 얻으면서 <b>본체는 건물 밖 땅 위</b>다.
-                WreckingCrane(track, 0.63f, -13.0f, 6.6f, WreckingBall.Style.붕괴,
+                WreckingCrane(track, 0.60f, -16.0f, 6.6f, WreckingBall.Style.붕괴,
                               reach: 5f, boomTo: new Vector3(74f, 0f, 80f));
 
                 // ★ 2026-10-12 수연: *"포크레인에 자동차가 바로 통과된다. 막아줘.

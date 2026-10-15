@@ -17,7 +17,7 @@ public static class _Crane
     static readonly (float t, float offset, string name)[] Spots =
     {
         (0.17f,  29.0f, "회전(먼 쪽)"),
-        (0.63f, -13.0f, "붕괴(먼 쪽)"),
+        (0.60f, -16.0f, "붕괴(먼 쪽)"),
         (0.40f,  13f,   "길막(길 옆)"),
         (0.84f, -13.5f, "거칠게(길 옆)"),
     };
@@ -71,6 +71,24 @@ public static class _Crane
             sb.AppendLine($"── {name}   t={t}  offset={offset}");
             sb.AppendLine($"   코스 위 좌표 ({at.x:F1}, {at.y:F1}, {at.z:F1})");
 
+            // ★★ 2026-10-15 — <b>도로 폭을 안 쟀다.</b> 수연: *"발판이 포크레인한테 박혔다."*
+            //   아래 겹침 검사는 <b>높이 1.5m 미만을 바닥으로 보고 거른다</b> — 도로도
+            //   발판도 납작해서 통째로 빠졌다. 길에서 얼마나 떨어졌는지는 <b>따로 재야</b> 한다.
+            float roadHalf = track.WidthOnPath(t) * 0.5f;
+            float roadGap = Mathf.Abs(offset) - roadHalf - 4.81f;
+            sb.AppendLine($"   도로 반폭 {roadHalf:F1}m · 본체 가장자리까지 {roadGap:+0.0;-0.0}m" +
+                          (roadGap < 1.0f ? "   ★ 길을 물고 있다" : ""));
+
+            float padNear = 999f;
+            foreach (var pad in Object.FindObjectsByType<BoostPad>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                float d = Vector3.Distance(new Vector3(at.x, 0f, at.z),
+                                           new Vector3(pad.transform.position.x, 0f, pad.transform.position.z));
+                if (d < padNear) padNear = d;
+            }
+            if (padNear < 900f)
+                sb.AppendLine($"   제일 가까운 발판 {padNear:F1}m" + (padNear < 6f ? "   ★ 발판을 물고 있다" : ""));
+
             // 바닥
             if (Physics.Raycast(at + Vector3.up * 40f, Vector3.down, out var hit, 120f, ~(1 << 2)))
                 sb.AppendLine($"   바닥 y {hit.point.y:F2}  ({Path(hit.transform)})   ← 코스 y 와 차이 {hit.point.y - at.y:+0.00;-0.00}");
@@ -108,6 +126,44 @@ public static class _Crane
             }
             sb.AppendLine();
         }
+
+        // ── 붕괴 크레인을 코스 따라 어디로 옮길까 ──────────────────────
+        //   발판(t 0.63)과 같은 지점이라 밟는 순간 크레인이 바로 옆이다.
+        //   곰누리관(74, 80)에서 멀어지지 않으면서 발판에서 떨어진 t 를 찾는다.
+        var pads = new[] { 0.11f, 0.26f, 0.45f, 0.63f, 0.88f };
+        var hall = new Vector3(74f, 0f, 80f);
+        sb.AppendLine("── 붕괴 크레인 자리 찾기 (offset -13 고정) ──────────");
+        for (float tt = 0.54f; tt <= 0.76f; tt += 0.01f)
+        {
+            Vector3 f2 = track.TangentOnPath(tt);
+            Vector3 s2 = Vector3.Cross(Vector3.up, f2);
+            Vector3 at2 = track.transform.position + track.PointOnPath(tt) + s2 * -13f;
+
+            float padGap = 999f;
+            foreach (float pt in pads)
+            {
+                Vector3 pf = track.TangentOnPath(pt);
+                Vector3 ps = Vector3.Cross(Vector3.up, pf);
+                float w = track.WidthOnPath(pt);
+                float lane = pt == 0.11f ? 0.55f : pt == 0.26f ? -0.50f
+                           : pt == 0.45f ? 0.00f : pt == 0.63f ? -0.55f : 0.50f;
+                Vector3 pp = track.transform.position + track.PointOnPath(pt) + ps * (lane * w * 0.5f);
+                padGap = Mathf.Min(padGap, Vector3.Distance(new Vector3(at2.x, 0, at2.z),
+                                                            new Vector3(pp.x, 0, pp.z)));
+            }
+
+            var box2 = new Bounds(new Vector3(at2.x, at2.y + size.y * 0.5f, at2.z),
+                                  new Vector3(9.62f, size.y, 9.62f));
+            bool clash = false; string who = "";
+            foreach (var (b, nm) in solids)
+                if (b.Intersects(box2)) { clash = true; who = nm; break; }
+
+            float roadGap2 = 13f - track.WidthOnPath(tt) * 0.5f - 4.81f;
+            sb.AppendLine($"   t {tt:F2}  건물까지 {Vector3.Distance(new Vector3(at2.x,0,at2.z), hall):F1}m" +
+                          $"  발판까지 {padGap:F1}m  길에서 {roadGap2:+0.0;-0.0}m" +
+                          (clash ? "   ★겹침 " + who.Substring(who.LastIndexOf('/') + 1) : "   비었다"));
+        }
+        sb.AppendLine();
 
         Dump(sb);
     }
