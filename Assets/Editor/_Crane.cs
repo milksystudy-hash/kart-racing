@@ -16,8 +16,8 @@ public static class _Crane
     // RaceProps 의 호출과 같은 값이어야 한다.
     static readonly (float t, float offset, string name)[] Spots =
     {
-        (0.17f,  27.5f, "회전(먼 쪽)"),
-        (0.63f, -14.5f, "붕괴(먼 쪽)"),
+        (0.17f,  29.0f, "회전(먼 쪽)"),
+        (0.63f, -13.0f, "붕괴(먼 쪽)"),
         (0.40f,  13f,   "길막(길 옆)"),
         (0.84f, -13.5f, "거칠게(길 옆)"),
     };
@@ -78,7 +78,7 @@ public static class _Crane
                 sb.AppendLine("   ★ 바닥을 못 찾았다 — 허공이다");
 
             // 겹침
-            const float half = 4.0f;      // 기둥 반폭 — 붐은 공중이라 건물 위를 지나가도 된다
+            const float half = 4.81f;     // 본체 6.00 x 7.52 의 반대각선 — 돌려세워도 안 틀린다
             var box = new Bounds(new Vector3(at.x, at.y + size.y * 0.5f, at.z),
                                  new Vector3(half * 2f, size.y, half * 2f));
             int n = 0;

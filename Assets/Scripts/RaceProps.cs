@@ -235,7 +235,7 @@ public static class RaceProps
                 //
                 //   ★ 붐(팔)은 밑이 2.43m 라 <b>공중</b>이다. 건물 위를 지나가는 건
                 //     철거 크레인다운 그림이라 겹침 검사에서 뺐다 — 기둥만 본다.
-                WreckingCrane(track, 0.17f, 27.5f, 5.8f, WreckingBall.Style.회전, reach: 6f);
+                WreckingCrane(track, 0.17f, 29.0f, 5.8f, WreckingBall.Style.회전, reach: 6f);
                 // ★★ 곰누리관(74, 80) — <b>자리는 그대로, 돌려만 세운다.</b> (2026-10-15)
                 //   재 보니 지금 자리가 <b>겹치지 않는 한계선</b>이다:
                 //   처마 반지름 12.25 + 본체 반대각선 4.81 = <b>17.06m</b>, 지금 17.0m.
@@ -246,7 +246,7 @@ public static class RaceProps
                 //   붐이 지붕 가장자리 위로 뻗고, 줄이 8.8m 안쪽 — <b>처마 바로 안</b>,
                 //   철구가 <b>지붕 높이(y 8.97)</b> 에 대롱대롱 매달린다.
                 //   옛 구도를 그대로 얻으면서 <b>본체는 건물 밖 땅 위</b>다.
-                WreckingCrane(track, 0.63f, -14.5f, 6.6f, WreckingBall.Style.붕괴,
+                WreckingCrane(track, 0.63f, -13.0f, 6.6f, WreckingBall.Style.붕괴,
                               reach: 5f, boomTo: new Vector3(74f, 0f, 80f));
 
                 // ★ 2026-10-12 수연: *"포크레인에 자동차가 바로 통과된다. 막아줘.
