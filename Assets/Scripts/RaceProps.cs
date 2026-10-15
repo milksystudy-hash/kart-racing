@@ -1257,13 +1257,11 @@ public class SearchBeam : MonoBehaviour
     /// 4.4 → <b>2.8</b>. 길 반폭이 3.5~6m 라 2.8 이면 <b>한쪽으로 비키면 피해진다.</b>
     /// </summary>
     /// <summary>
-    /// ★★ 2026-10-15 — <b>2.8m 였다. 그 고리에 들어가는 일이 거의 없었다.</b>
-    ///   수연: *"헬기가 지나가고 순간이 짧아서 기회가 안 줄어든다."*
-    ///   길 폭이 7~12m 인데 고리가 지름 5.6m 면 <b>길의 절반도 안 덮는다</b> —
-    ///   마주 오는 헬기가 1초도 안 되는 사이에 지나가니 걸릴 확률이 거의 0 이다.
-    ///   <b>5.5m(지름 11m)</b> 로 넓힌다 — 길을 거의 덮으니 «비켜라» 가 뜻이 생긴다.
+    /// ★★★ 2026-10-15 (세 번째) — <b>5.5m 로 넓혔다가 되돌린다.</b>
+    ///   수연: *"불빛이 왜 이리 커."* 맞다 — 길을 통째로 덮으면 피할 데가 없고,
+    ///   피할 수 없는 건 기믹이 아니라 벌이다. <b>3.0m</b> — 레이저 점이다.
     /// </summary>
-    public float radius = 5.5f;
+    public float radius = 3.0f;
 
     /// <summary>기체보다 얼마나 앞을 비추나. 마주 오니 이만큼 먼저 온다.</summary>
     public float leadMetres = 20f;
@@ -1295,14 +1293,11 @@ public class SearchBeam : MonoBehaviour
     public float flash;
     float flashAt = -9f;
 
-    /// <summary>빛 안에 있던 시간의 <b>합</b>. 빛을 벗어나도 안 지운다.</summary>
-    float caught;
-#if UNITY_EDITOR
-    bool toldProbe;
-#endif
+    /// <summary>마지막으로 걸린 시각.</summary>
+    float lastCaught = -99f;
 
-    /// <summary>합이 이만큼 쌓일 때마다 기회 하나. 한 번 스친 건 공짜다.</summary>
-    const float CaughtSeconds = 1.0f;   // 1.5 → 1.0. 스쳐 가는 판이라 합이 잘 안 쌓인다
+    /// <summary>한 번 걸리면 이 동안은 다시 안 센다 — 한 번 지나갈 때 한 번만.</summary>
+    const float CaughtCooldown = 2.2f;
 
     Transform shaft, ring;
     Material shaftMat, ringMat;
@@ -1408,7 +1403,7 @@ public class SearchBeam : MonoBehaviour
             if (!toldOnce && player.SpeedKph > 12f)
             {
                 toldOnce = true;
-                Toast.Show("점검등 — 오래 잡혀 있으면 기록된다");
+                Toast.Show("점검등 — 빛에 닿으면 기회가 깎인다");
             }
 
             // ★★★ 2026-10-15 수연: *"헬기가 빛만 비추고 해를 안 끼친다."*
@@ -1428,15 +1423,22 @@ public class SearchBeam : MonoBehaviour
             //   그래서 <b>쌓아서</b> 센다. 빛을 벗어나도 안 지워지고, 합이 1.5초를
             //   넘을 때마다 하나. <b>한 번 스친 건 공짜지만 계속 잡히면 값을 치른다</b> —
             //   의도는 같고, 이쪽은 실제로 일어난다.
-            caught += Time.deltaTime;
-#if UNITY_EDITOR
-            if (!toldProbe) { toldProbe = true; Debug.Log("[점검등] 빛 안에 들어왔다 — 여기부터 쌓인다"); }
-#endif
-            if (caught >= CaughtSeconds)
+            // ★★★ 2026-10-15 (네 번째) — <b>닿으면 그 자리에서 하나.</b>
+            //
+            //   수연: *"똑같이 맞아도 어떨 땐 깎이고 어떨 땐 안 깎인다. 판단 기준이 뭐냐."*
+            //   <b>맞는 지적이고 내 설계가 틀렸다.</b> 「합이 1초를 넘으면」은
+            //   플레이어에게 <b>보이지 않는 저금통</b>이라, 같은 행동의 결과가 매번 다르다.
+            //   보이지 않는 규칙은 규칙이 아니라 운이다.
+            //
+            //   <b>고양이 레이저 포인터</b>로 간다(수연 제안) — <b>닿으면 그 자리에서 하나.</b>
+            //   대신 고리를 3m 로 줄여 피할 수 있게 하고, 한 번 물리면
+            //   <see cref="CaughtCooldown"/> 동안은 다시 안 센다 — <b>한 번 지나갈 때
+            //   한 번만</b>이다(벽 부딪힘을 0.7초로 묶은 것과 같은 판단).
+            if (Time.time - lastCaught >= CaughtCooldown)
             {
-                caught -= CaughtSeconds;
+                lastCaught = Time.time;
                 player.TakeChance();
-                Toast.Show("점검등에 잡혔다 — 기회 하나");
+                Toast.Show("점검등에 걸렸다 — 기회 하나");
                 Sfx.Play("MissionFail", 0.30f, duckMusic: false);
             }
         }
