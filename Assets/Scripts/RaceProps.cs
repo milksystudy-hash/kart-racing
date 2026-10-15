@@ -236,7 +236,18 @@ public static class RaceProps
                 //   ★ 붐(팔)은 밑이 2.43m 라 <b>공중</b>이다. 건물 위를 지나가는 건
                 //     철거 크레인다운 그림이라 겹침 검사에서 뺐다 — 기둥만 본다.
                 WreckingCrane(track, 0.17f, 27.5f, 5.8f, WreckingBall.Style.회전, reach: 6f);
-                WreckingCrane(track, 0.63f, -14.5f, 6.6f, WreckingBall.Style.붕괴, reach: 5f);
+                // ★★ 곰누리관(74, 80) — <b>자리는 그대로, 돌려만 세운다.</b> (2026-10-15)
+                //   재 보니 지금 자리가 <b>겹치지 않는 한계선</b>이다:
+                //   처마 반지름 12.25 + 본체 반대각선 4.81 = <b>17.06m</b>, 지금 17.0m.
+                //   옛 −28 은 중심에서 5.1m — <b>건물 속</b>이라 벽·지붕·전시물을 뚫었다.
+                //
+                //   못 보이던 진짜 이유는 거리가 아니라 <b>방향</b>이었다. 코스를 보고
+                //   서 있어서 붐이 건물 반대쪽을 향했다. <b>건물을 등지게</b> 세우면
+                //   붐이 지붕 가장자리 위로 뻗고, 줄이 8.8m 안쪽 — <b>처마 바로 안</b>,
+                //   철구가 <b>지붕 높이(y 8.97)</b> 에 대롱대롱 매달린다.
+                //   옛 구도를 그대로 얻으면서 <b>본체는 건물 밖 땅 위</b>다.
+                WreckingCrane(track, 0.63f, -14.5f, 6.6f, WreckingBall.Style.붕괴,
+                              reach: 5f, boomTo: new Vector3(74f, 0f, 80f));
 
                 // ★ 2026-10-12 수연: *"포크레인에 자동차가 바로 통과된다. 막아줘.
                 //   그리고 진로를 왔다 갔다 타이밍 맞게 막게 해줘 — 슈퍼마리오 파이프처럼."*
@@ -247,7 +258,7 @@ public static class RaceProps
                 //   <b>간판 쪽으로</b> 넘어가게 한다. 주기도 곰누리관(6.6초)과 다르게 줘서
                 //   둘이 같은 박자로 안 움직인다.
                 WreckingCrane(track, 0.40f, 13f, 5.2f, WreckingBall.Style.붕괴,
-                              faceWorld: new Vector3(-90f, 0f, 42f));
+                              boomTo: new Vector3(-90f, 0f, 42f));
                 WreckingCrane(track, 0.84f, -13.5f, 3.4f, WreckingBall.Style.거칠게);
                 break;
 
@@ -417,7 +428,8 @@ public static class RaceProps
     /// </summary>
     static void WreckingCrane(TrackBuilder track, float t, float offset, float period,
                               WreckingBall.Style style = WreckingBall.Style.거칠게,
-                              float reach = 0f, Vector3? faceWorld = null)
+                              float reach = 0f, Vector3? faceWorld = null,
+                              Vector3? boomTo = null)
     {
         var go = Side(track, "R03_Demolition_Crane", t, offset);
         if (go == null) return;
@@ -427,9 +439,17 @@ public static class RaceProps
         //   <see cref="Side"/> 는 기본으로 <b>코스</b>를 보게 세운다. 쇳덩이는
         //   <c>transform.right</c> 를 축으로 흔들리니, <b>보는 쪽으로 넘어간다.</b>
         //   건물을 보게 돌리면 그 한 대만 «건물을 때리는» 그림이 된다.
-        if (faceWorld.HasValue)
+        // ★★ <paramref name="boomTo"/> — <b>붐을 저쪽으로 뻗는다.</b> (2026-10-15)
+        //   쉬는 자리에서 공은 크레인의 <b>−Z</b> 쪽에 매달려 있다. 즉 <b>붐은 등 쪽</b>이다.
+        //   그래서 붐을 건물 위로 뻗으려면 <b>건물을 등지게</b> 세워야 한다.
+        //   그러면 흔들림(<c>transform.right</c> 축, <b>양수</b>)이 곧 <b>건물 쪽</b>이 된다 —
+        //   네 대가 같은 부호 규칙을 쓰게 되어 동작을 섞어 써도 안 틀린다.
+        Vector3? look = boomTo.HasValue
+            ? go.transform.position * 2f - boomTo.Value      // 반대편을 본다
+            : faceWorld;
+        if (look.HasValue)
         {
-            Vector3 toward = faceWorld.Value - go.transform.position;
+            Vector3 toward = look.Value - go.transform.position;
             toward.y = 0f;
             if (toward.sqrMagnitude > 0.01f)
                 go.transform.rotation = Quaternion.LookRotation(toward.normalized, Vector3.up);
@@ -1168,10 +1188,15 @@ public class WreckingBall : MonoBehaviour
             // ③ 곰누리관 — <b>네 대 중 제일 과격하게.</b> 크게 들어 올렸다가
             //    건물 쪽으로 <b>때려 박는다.</b> 때린 뒤 되튕기는 잔진동까지.
             case Style.붕괴:
-                swing = p < 0.55f ? Mathf.SmoothStep(0f, -68f, p / 0.55f)
-                      : p < 0.64f ? Mathf.Lerp(-68f, 24f, (p - 0.55f) / 0.09f)
-                      : Mathf.Lerp(24f, 0f, (p - 0.64f) / 0.36f)
-                        + Mathf.Sin((p - 0.64f) * 34f) * Mathf.Lerp(9f, 0f, (p - 0.64f) / 0.36f);
+                // ★ <b>양수가 건물 쪽</b>이다(<c>boomTo</c> 로 등을 돌려세웠으니).
+                //   천천히 뒤로 들었다가 → 때리고 → <b>되튕긴다.</b>
+                //   벽에 닿는 순간 <b>멈췄다 반대로 밀리는</b> 구간(0.58~0.66)이 있어야
+                //   «통과했다» 가 아니라 «맞고 돌아왔다» 로 보인다.
+                swing = p < 0.50f ? Mathf.SmoothStep(0f, -58f, p / 0.50f)          // 뒤로 든다
+                      : p < 0.58f ? Mathf.Lerp(-58f, 34f, (p - 0.50f) / 0.08f)      // 때린다
+                      : p < 0.66f ? Mathf.Lerp(34f, 9f, (p - 0.58f) / 0.08f)        // 되튕긴다
+                      : Mathf.Lerp(9f, 0f, (p - 0.66f) / 0.34f)
+                        + Mathf.Sin((p - 0.66f) * 30f) * Mathf.Lerp(7f, 0f, (p - 0.66f) / 0.34f);
                 spin = Mathf.Sin(p * Mathf.PI * 2f) * 10f;
                 Slam(p);
                 break;
@@ -1220,17 +1245,61 @@ public class WreckingBall : MonoBehaviour
     /// </summary>
     void Slam(float p)
     {
-        if (p < 0.62f) { slammed = false; return; }
-        if (slammed || cam == null) return;
+        if (p < 0.58f) { slammed = false; return; }
+        if (slammed) return;
         slammed = true;
 
+        Dust();          // ★ 맞은 자리에 먼지. 카메라가 멀어도 먼지는 난다
+
         var kart = PlayerKart.Current;
-        if (kart == null) return;
+        if (kart == null || cam == null) return;
 
         float d = Vector3.Distance(kart.transform.position, transform.position);
         if (d > 70f) return;
 
         cam.Wobble(Mathf.Lerp(0.5f, 0.05f, d / 70f));
+    }
+
+    ParticleSystem dust;
+
+    /// <summary>
+    /// 때린 자리에 먼지 한 번. ★ <see cref="SmokePuff"/> 가 이미 있어서 <b>새 에셋이 0개</b>다
+    /// (카트 배기 · 급식 김과 같은 재질). 재질을 못 찾으면 조용히 포기한다.
+    /// </summary>
+    void Dust()
+    {
+        if (hitPoint == null) return;
+
+        if (dust == null)
+        {
+            var mat = SmokePuff.Material();
+            if (mat == null) return;
+
+            var go = new GameObject("CraneDust");
+            go.transform.SetParent(transform, false);
+            dust = go.AddComponent<ParticleSystem>();
+
+            var main = dust.main;
+            main.startLifetime = 1.4f;
+            main.startSpeed = 2.4f;
+            main.startSize = 1.7f;
+            main.startColor = new Color(0.74f, 0.70f, 0.62f, 0.50f);
+            main.gravityModifier = -0.08f;                 // 살짝 떠오른다
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.playOnAwake = false;
+            main.maxParticles = 60;
+
+            var em = dust.emission; em.enabled = false;     // 터뜨릴 때만
+            var sh = dust.shape;
+            sh.shapeType = ParticleSystemShapeType.Sphere;
+            sh.radius = 0.9f;
+
+            dust.GetComponent<ParticleSystemRenderer>().material = mat;
+            dust.Stop();
+        }
+
+        dust.transform.position = hitPoint.position;
+        dust.Emit(16);
     }
 }
 
