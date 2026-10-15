@@ -1017,7 +1017,29 @@ public class WreckingBall : MonoBehaviour
 
     void Start()
     {
-        pivot = transform.position;                     // 기둥이 서 있는 자리
+        // ★★★ 2026-10-15 (세 번째) — <b>회전축을 땅바닥에 잡고 있었다.</b>
+        //
+        //   수연: *"돌아갈 때 붐 팔이 아예 본체랑 떼어진다."* 진단으로 <b>움직임 자체는
+        //   멀쩡하다</b>는 걸 확인했으니(네 대 다 붐이 27~160도 돌았다), 남은 건 이것뿐이다.
+        //
+        //   축을 <c>transform.position</c>(기둥 <b>밑동</b>)에 잡으면, 요(좌우)는 그 수직선이
+        //   기둥 축과 같아서 괜찮은데 <b>피치(위아래)가 붐을 통째로 들어올려</b> 본체에서
+        //   떼어낸다. 실제 크레인은 <b>붐이 본체에 얹힌 자리</b>를 축으로 든다.
+        //
+        //   그 자리를 재서 쓴다 — 기둥의 x·z 에, 높이는 <b>붐 기하의 제일 낮은 점</b>.
+        //   모델이 바뀌어도 재서 쓰니 안 틀린다.
+        pivot = transform.position;
+        if (arm != null)
+        {
+            var rs = arm.GetComponentsInChildren<Renderer>();
+            if (rs.Length > 0)
+            {
+                var b = rs[0].bounds;
+                for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+                pivot = new Vector3(transform.position.x, b.min.y, transform.position.z);
+            }
+        }
+
         if (arm != null) { armRot = arm.rotation; armPos = arm.position; }
         cam = Object.FindFirstObjectByType<KartCamera>();
 
@@ -1114,11 +1136,11 @@ public class WreckingBall : MonoBehaviour
 
         switch (style)
         {
-            // 팔 끝이 기둥을 중심으로 <b>한 바퀴</b> 돈다. 멀리서도 «돈다» 가 보인다.
+            // ④ 곰테크관 — 팔 끝이 <b>한 바퀴</b> 돈다. 멀리서도 «돈다» 가 보인다.
             default:
             case Style.회전:
                 yaw = p * 360f;
-                pitch = Mathf.Sin(p * Mathf.PI * 2f) * 5f;
+                pitch = Mathf.Sin(p * Mathf.PI * 2f) * 12f;   // 돌면서 위아래로도 출렁
                 break;
 
             // 길 쪽으로 돌아가서 <b>버틴다.</b> 버티는 구간이 있어야
@@ -1137,7 +1159,10 @@ public class WreckingBall : MonoBehaviour
                     float sw = Mathf.Sin(p * Mathf.PI * 2f);
                     sw = Mathf.Sign(sw) * Mathf.Pow(Mathf.Abs(sw), 0.55f);
                     yaw = 150f + sw * 55f;
-                    pitch = Mathf.Sin(p * Mathf.PI * 4f) * 7f;
+                    // ① 곰밥마당 — <b>들었다가 내리친다.</b> 휘두르는 것과 겹쳐서 크게 보인다.
+                    pitch = p < 0.45f ? Mathf.SmoothStep(0f, -26f, p / 0.45f)
+                          : p < 0.55f ? Mathf.Lerp(-26f, 10f, (p - 0.45f) / 0.10f)
+                          : Mathf.Lerp(10f, 0f, (p - 0.55f) / 0.45f);
                 }
                 break;
 
@@ -1145,10 +1170,13 @@ public class WreckingBall : MonoBehaviour
             // 봐도 다른 크레인과 안 헷갈린다.
             // ★ 요를 90도에 둔다 — 쉬는 자리(0도)면 공이 길 반대편 건물 쪽으로 간다.
             case Style.붕괴:
-                yaw = 90f + Mathf.Sin(p * Mathf.PI * 2f) * 8f;
-                pitch = p < 0.62f ? Mathf.SmoothStep(0f, -34f, p / 0.62f)
-                      : p < 0.70f ? Mathf.Lerp(-34f, 6f, (p - 0.62f) / 0.08f)
-                      : Mathf.Lerp(6f, 0f, (p - 0.70f) / 0.30f);
+                // ③ 곰누리관 — <b>네 대 중 제일 과격하게.</b> 들어올리는 각도도 제일 크고,
+                //   내리치는 순간 요까지 한 번 꺾여서 «건물을 때린다» 로 보인다.
+                yaw = 90f + Mathf.Sin(p * Mathf.PI * 2f) * 14f
+                          + (p >= 0.62f && p < 0.70f ? 18f : 0f);
+                pitch = p < 0.62f ? Mathf.SmoothStep(0f, -48f, p / 0.62f)
+                      : p < 0.70f ? Mathf.Lerp(-48f, 12f, (p - 0.62f) / 0.08f)
+                      : Mathf.Lerp(12f, 0f, (p - 0.70f) / 0.30f);
                 Slam(p);
                 break;
         }
@@ -1228,7 +1256,14 @@ public class SearchBeam : MonoBehaviour
     /// 잡히는 반지름. ★ 2026-10-12 수연: *"점검등이 너무 크고 요란하다."*
     /// 4.4 → <b>2.8</b>. 길 반폭이 3.5~6m 라 2.8 이면 <b>한쪽으로 비키면 피해진다.</b>
     /// </summary>
-    public float radius = 2.8f;
+    /// <summary>
+    /// ★★ 2026-10-15 — <b>2.8m 였다. 그 고리에 들어가는 일이 거의 없었다.</b>
+    ///   수연: *"헬기가 지나가고 순간이 짧아서 기회가 안 줄어든다."*
+    ///   길 폭이 7~12m 인데 고리가 지름 5.6m 면 <b>길의 절반도 안 덮는다</b> —
+    ///   마주 오는 헬기가 1초도 안 되는 사이에 지나가니 걸릴 확률이 거의 0 이다.
+    ///   <b>5.5m(지름 11m)</b> 로 넓힌다 — 길을 거의 덮으니 «비켜라» 가 뜻이 생긴다.
+    /// </summary>
+    public float radius = 5.5f;
 
     /// <summary>기체보다 얼마나 앞을 비추나. 마주 오니 이만큼 먼저 온다.</summary>
     public float leadMetres = 20f;
@@ -1262,9 +1297,12 @@ public class SearchBeam : MonoBehaviour
 
     /// <summary>빛 안에 있던 시간의 <b>합</b>. 빛을 벗어나도 안 지운다.</summary>
     float caught;
+#if UNITY_EDITOR
+    bool toldProbe;
+#endif
 
     /// <summary>합이 이만큼 쌓일 때마다 기회 하나. 한 번 스친 건 공짜다.</summary>
-    const float CaughtSeconds = 1.5f;
+    const float CaughtSeconds = 1.0f;   // 1.5 → 1.0. 스쳐 가는 판이라 합이 잘 안 쌓인다
 
     Transform shaft, ring;
     Material shaftMat, ringMat;
@@ -1391,6 +1429,9 @@ public class SearchBeam : MonoBehaviour
             //   넘을 때마다 하나. <b>한 번 스친 건 공짜지만 계속 잡히면 값을 치른다</b> —
             //   의도는 같고, 이쪽은 실제로 일어난다.
             caught += Time.deltaTime;
+#if UNITY_EDITOR
+            if (!toldProbe) { toldProbe = true; Debug.Log("[점검등] 빛 안에 들어왔다 — 여기부터 쌓인다"); }
+#endif
             if (caught >= CaughtSeconds)
             {
                 caught -= CaughtSeconds;
