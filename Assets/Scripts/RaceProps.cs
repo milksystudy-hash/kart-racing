@@ -190,7 +190,11 @@ public static class RaceProps
                 //   한 바퀴에 1.2번뿐이고 그마저 <b>뒤에서 추월해 가는</b> 그림이다.
                 //   거꾸로 돌리면 1/13 + 1/29 → <b>9초마다</b>, 한 바퀴에 3.2번 정면으로 온다.
                 //   수연이 원한 «한 바퀴에 네 번쯤» 에 제일 가깝다.
-                Patrol(track, "R02_Safety_Helicopter", 9.5f, 13f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
+                // ★ 2026-10-15 — 13초는 <b>너무 빨라서 읽을 틈이 없었다.</b>
+                //   수연: *"너무 빠르고 범위도 넓은데 담장도 안 긁어야 된다."*
+                //   17초면 상대속도가 1/17 + 1/29 → 10.7초마다, 한 바퀴에 2.7번.
+                //   여전히 자주 오지만 <b>오는 게 보이고 비킬 틈이 있다.</b>
+                Patrol(track, "R02_Safety_Helicopter", 9.5f, 17f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
                        noseBack: true, reverse: true,
                        engine: "Heli_Rotor", engineVolume: 0.8f, beam: true, engineFar: 110f);
                 Crowd(track, 8);
@@ -1261,7 +1265,7 @@ public class SearchBeam : MonoBehaviour
     ///   수연: *"불빛이 왜 이리 커."* 맞다 — 길을 통째로 덮으면 피할 데가 없고,
     ///   피할 수 없는 건 기믹이 아니라 벌이다. <b>3.0m</b> — 레이저 점이다.
     /// </summary>
-    public float radius = 3.0f;
+    public float radius = 2.2f;   // 3.0 → 2.2. 피할 수 있어야 기믹이다
 
     /// <summary>기체보다 얼마나 앞을 비추나. 마주 오니 이만큼 먼저 온다.</summary>
     public float leadMetres = 20f;
@@ -1297,7 +1301,7 @@ public class SearchBeam : MonoBehaviour
     float lastCaught = -99f;
 
     /// <summary>한 번 걸리면 이 동안은 다시 안 센다 — 한 번 지나갈 때 한 번만.</summary>
-    const float CaughtCooldown = 2.2f;
+    const float CaughtCooldown = 3.5f;   // 2.2 → 3.5. 한 바퀴에 한 번꼴
 
     Transform shaft, ring;
     Material shaftMat, ringMat;

@@ -509,7 +509,7 @@ Narrate("첫 번째 주행이 시작됐다."),
                 .OnlyIf(When.Has("contract")),
             Say("세운", Mood.당황, "……권대호?")
                 .OnlyIf(When.Has("contract")),
-            Say("시우", "시의원 이름이 왜 여기 있어.")
+            Say("시우", Mood.당황, "……권 의원님 이름이 계약서에 있다고?")
                 .OnlyIf(When.Has("contract")),
             Say("세진", "관장 하나로 끝나는 얘기가 아니었네.")
                 .OnlyIf(When.Has("contract")),
@@ -563,7 +563,7 @@ Narrate("첫 번째 주행이 시작됐다."),
             Say("이감", "그럼 이제 뭐 해."),
             Say("시우", "남아 있어야지."),
 
-            Say("이감", "여기 텁텁한 우리에서 계속?"),
+            Say("이감", "여기 텁텁한 곰 우리에서 계속?"),
             Say("시우", "응."),
 
             Say("세운", Mood.당황, "오늘 안에 마지막 실사도 온다고 했잖아."),

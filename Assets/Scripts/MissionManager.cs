@@ -45,6 +45,23 @@ public class MissionManager : MonoBehaviour
     [Tooltip("무충돌 임무에서 봐주는 충돌 횟수. 0 이면 한 번도 안 된다")]
     public int allowedHits = 2;
 
+    /// <summary>
+    /// ★★★ 2026-10-15 — <b>3판은 점검등 때문에 기회를 더 준다.</b>
+    ///
+    /// 수연: *"점검등 미션 사람이 깰 수 있는 게 맞나. 피하니까 바로 컷 당한다."*
+    ///
+    /// <b>내가 내 규칙을 어겼다.</b> CLAUDE.md 에 «이 판은 담장 긁지 않기라 밀거나
+    /// 비틀면 안 된다 — 그건 내가 플레이어를 벽에 밀어 놓고 실패시키는 것» 이라고
+    /// 적어 놓고, <b>빛을 피하면 벽에 긁히는</b> 구조를 만들었다.
+    /// 빛도 벽도 <b>같은 기회 칸</b>을 깎으니 이중 처벌이다.
+    ///
+    /// 칸을 둘로 나누면 화면에 숫자가 둘이 되고 둘이 어긋난다(이 프로젝트에서 겪은 것).
+    /// 그래서 <b>칸은 하나로 두고 3판만 여유를 더 준다</b> — 빛 두 번 + 담장 두 번.
+    /// ★ 씬에 구워진 <see cref="allowedHits"/> 는 안 건드린다. 인스펙터 값을 바꾸면
+    ///   씬을 다시 구워야만 고쳐진다(이 프로젝트에서 다섯 번 겪었다).
+    /// </summary>
+    int Allowed => goal == Goal.무충돌 ? allowedHits + 2 : allowedHits;
+
     // 한 바퀴가 464 -> 535m 로 15% 길어져서(2026-09-16 직선 추가) 전부 비례로 옮겼다.
     // 난이도는 그대로 둔 값이야 — 실제 랩타임을 재면 그때 조인다.
     // ★ 2026-09-18 유저: *"121초 임무는 어차피 발판 밟으면 단축되는데 의미가 없지 않나."* 맞다.
@@ -274,7 +291,7 @@ public class MissionManager : MonoBehaviour
 
         // 판이 끝나기 전에 이미 글러버린 것들은 그 자리에서 알려준다.
         // 실패한 줄 모르고 두 바퀴를 더 도는 게 제일 허탈하다.
-        if ((goal == Goal.무충돌 || goal == Goal.완벽) && kart.WallHits > allowedHits)
+        if ((goal == Goal.무충돌 || goal == Goal.완벽) && kart.WallHits > Allowed)
             Fail(RaceVoice.WallHit(kart.WallHits));
         if (goal == Goal.제한시간 && tracker.TotalTime > timeLimit) Fail(RaceVoice.OutOfTime());
 
@@ -290,7 +307,7 @@ public class MissionManager : MonoBehaviour
             // <b>전부</b>가 아니라 <b>목표치</b>다(2026-09-18). 하나 놓쳤다고 실패하면
             // 그 판은 감점제가 되고, 감점제만 여덟 판이면 게임이 안 신난다.
             Goal.발판전부 => padsTotal > 0 && BoostPad.TakenCount() >= PadQuota,
-            Goal.무충돌   => kart.WallHits <= allowedHits,
+            Goal.무충돌   => kart.WallHits <= Allowed,
             Goal.제한시간 => tracker.TotalTime <= timeLimit,
             Goal.장애물   => RoadDebris.Hits <= allowedDebris,
             Goal.전시품   => CargoQuota > 0 && ExhibitCargo.Loaded >= CargoQuota,
@@ -441,7 +458,7 @@ public class MissionManager : MonoBehaviour
     };
 
     // 칸이 54px 라 "남은 기회 2"(77px)는 넘친다. 짧게.
-    string ChanceLabel => allowedHits > 0 ? $"기회 {Chances(allowedHits, WallHits)}"
+    string ChanceLabel => Allowed > 0 ? $"기회 {Chances(Allowed, WallHits)}"
                                           : (WallHits > 0 ? "0" : "깨끗");
 
     /// <summary>
