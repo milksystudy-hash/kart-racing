@@ -1182,6 +1182,12 @@ public class SearchBeam : MonoBehaviour
     public float flash;
     float flashAt = -9f;
 
+    /// <summary>빛 안에 들어온 시각. −1 이면 지금 밖이다.</summary>
+    float insideSince = -1f;
+
+    /// <summary>이만큼 계속 머물면 기회 하나. 스쳐 지나가는 건 안 센다.</summary>
+    const float CaughtSeconds = 1.5f;
+
     Transform shaft, ring;
     Material shaftMat, ringMat;
     KartController player;
@@ -1286,9 +1292,28 @@ public class SearchBeam : MonoBehaviour
             if (!toldOnce && player.SpeedKph > 12f)
             {
                 toldOnce = true;
-                Toast.Show("점검등 — 빛에 잡히면 눈이 먼다");
+                Toast.Show("점검등 — 오래 잡혀 있으면 기록된다");
+            }
+
+            // ★★★ 2026-10-15 수연: *"헬기가 빛만 비추고 해를 안 끼친다."*
+            //
+            //   <b>스치는 건 그대로 느려지기만</b> 한다 — 순간 걸린 걸 벌하면
+            //   «랜덤으로 깎인다» 가 되고, 이 판은 「담장 긁지 않기」라
+            //   벽을 안 긁었는데 실패하는 게 제일 억울하다.
+            //
+            //   대신 <b>1.5초 넘게 머무는 건 명백히 플레이어 선택</b>이다.
+            //   피할 수 있고, 배울 수 있고, 왜 깎였는지도 안다.
+            //   깎고 나서 시계를 다시 재니 <b>계속 있으면 1.5초마다 하나</b>다.
+            if (insideSince < 0f) insideSince = Time.time;
+            else if (Time.time - insideSince >= CaughtSeconds)
+            {
+                insideSince = Time.time;
+                player.TakeChance();
+                Toast.Show("점검등에 잡혔다 — 기회 하나");
+                Sfx.Play("MissionFail", 0.30f, duckMusic: false);
             }
         }
+        else insideSince = -1f;
 
         var c = inside ? Caught : Lamp;
         ringMat.SetColor("_BaseColor", new Color(c.r, c.g, c.b, inside ? 0.80f : 0.62f));

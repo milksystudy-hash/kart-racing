@@ -523,6 +523,16 @@ public class KartController : MonoBehaviour
     }
 
     /// <summary>레이스를 다시 시작할 때 임무 판정이 불러준다.</summary>
+    /// <summary>
+    /// ★ <b>벽 말고 다른 이유로 기회를 하나 깎는다.</b> (2026-10-15)
+    ///
+    /// 지금 쓰는 곳은 <see cref="SearchBeam"/> 뿐이다 — 점검등 안에 1.5초 넘게
+    /// 머물면 한 번. 무충돌 임무의 판정과 화면 표시가 <see cref="WallHits"/> 하나를
+    /// 보고 있어서, <b>같은 칸으로 흘려보내야</b> 「기회 n」이 거짓말을 안 한다.
+    /// (칸을 새로 만들면 화면에 숫자가 둘이 되고, 둘이 어긋나기 시작한다.)
+    /// </summary>
+    public void TakeChance() => WallHits++;
+
     public void ResetWallHits()
     {
         WallHits = 0;
