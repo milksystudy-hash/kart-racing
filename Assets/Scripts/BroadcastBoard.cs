@@ -27,9 +27,9 @@ public class BroadcastBoard : MonoBehaviour
     static readonly string[] Before =
     {
         "철거 예정 안내",
-        "본 시설은 안전진단 결과에 따라",
-        "금월 내 철거될 예정입니다",
-        "관람객 여러분의 양해를 바랍니다",
+        "안전진단 결과에 따라",
+        "금월 내 철거 예정",
+        "양해를 바랍니다",
     };
 
     static readonly string[] After =
@@ -37,7 +37,7 @@ public class BroadcastBoard : MonoBehaviour
         "재개관 안내",
         "철거 계획이 백지화되었습니다",
         "전시실을 다시 엽니다",
-        "그동안 찾아주셔서 고맙습니다",
+        "찾아주셔서 고맙습니다",
     };
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -82,16 +82,18 @@ public class BroadcastBoard : MonoBehaviour
 
         var holder = new GameObject("Lines").transform;
         holder.SetParent(transform, false);
-        holder.localPosition = new Vector3(0.30f, 0f, 0f);     // 판(0.22+0.06) 바로 앞
+        holder.localPosition = new Vector3(0.36f, 0f, 0f);     // 판 앞면(0.28)에서 8cm
 
-        // ★★ <b>TextMesh 는 제 forward 의 «반대쪽» 에서 읽힌다.</b>
-        //   그래서 보는 사람(홀 한가운데)을 <b>등지게</b> 돌려야 글자가 바로 보인다 —
-        //   홀 쪽으로 돌리면 뒤에서 본 꼴이라 좌우가 뒤집힌다(2026-10-15 수연 제보).
-        //   <see cref="BuildingSign.Label"/> 이 180도를 더하는 것과 같은 이유다.
-        Vector3 toHall = new Vector3(0f, transform.position.y, 0f) - transform.position;
-        toHall.y = 0f;
-        if (toHall.sqrMagnitude > 0.01f)
-            holder.rotation = Quaternion.LookRotation(-toHall.normalized, Vector3.up);
+        // ★★ <b>TextMesh 는 제 forward 의 «반대쪽» 에서 읽힌다.</b> 보는 사람을
+        //   <b>등지게</b> 돌려야 글자가 바로 보인다 — 홀 쪽으로 돌리면 뒤에서 본 꼴이라
+        //   좌우가 뒤집힌다. <see cref="BuildingSign.Label"/> 이 180도를 더하는 것과 같은 이유.
+        //
+        // ★★★ 2026-10-15 — <b>홀 한가운데가 아니라 「판 자신의 축」에 맞춘다.</b>
+        //   수연: *"글자 잘렸어."* 한가운데를 보게 돌렸더니 화면이 z −2 에 있어서
+        //   정면이 아니라 <b>6.5도 비뚤어졌다.</b> 5.6m 짜리 줄이면 끝이 0.32m 밀리는데
+        //   글자는 판에서 0.02m 밖에 안 떠 있었으니 <b>오른쪽 끝이 판 속으로 파고들었다.</b>
+        //   판은 +X 를 보고 납작하게 서 있으니 글자는 <b>정확히 −X</b> 를 보면 된다.
+        holder.localRotation = Quaternion.LookRotation(Vector3.left, Vector3.up);
 
         // 제목 한 줄 + 본문 세 줄. 제목만 크고 밝다.
         const float Title = 0.62f, Body = 0.40f, Gap = 0.58f;
