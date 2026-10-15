@@ -242,7 +242,12 @@ public static class RaceProps
                 //   그리고 진로를 왔다 갔다 타이밍 맞게 막게 해줘 — 슈퍼마리오 파이프처럼."*
                 //   몸통에 콜라이더를 달고(장식이 아니라 <b>구조물</b>이다) 갓길로 더 물렸다.
                 //   쇳덩이는 길을 가로질러 <b>건너갔다 돌아온다</b> — 박자를 보고 지나가면 된다.
-                WreckingCrane(track, 0.40f, 13f, 4.4f, WreckingBall.Style.길막);
+                // ★ 곰머리관(−90, 42) 옆 — 넷 중 그 건물에 제일 가깝다(40.8m).
+                //   이 한 대만 <b>건물을 보게</b> 세워서, 쇳덩이가 코스가 아니라
+                //   <b>간판 쪽으로</b> 넘어가게 한다. 주기도 곰누리관(6.6초)과 다르게 줘서
+                //   둘이 같은 박자로 안 움직인다.
+                WreckingCrane(track, 0.40f, 13f, 5.2f, WreckingBall.Style.붕괴,
+                              faceWorld: new Vector3(-90f, 0f, 42f));
                 WreckingCrane(track, 0.84f, -13.5f, 3.4f, WreckingBall.Style.거칠게);
                 break;
 
@@ -412,10 +417,23 @@ public static class RaceProps
     /// </summary>
     static void WreckingCrane(TrackBuilder track, float t, float offset, float period,
                               WreckingBall.Style style = WreckingBall.Style.거칠게,
-                              float reach = 0f)
+                              float reach = 0f, Vector3? faceWorld = null)
     {
         var go = Side(track, "R03_Demolition_Crane", t, offset);
         if (go == null) return;
+
+        // ★ 2026-10-15 — <b>무엇을 보고 서 있을지 고를 수 있다.</b>
+        //   수연: *"곰머리관 옆 포크레인만 건물 간판을 부수는 느낌으로."*
+        //   <see cref="Side"/> 는 기본으로 <b>코스</b>를 보게 세운다. 쇳덩이는
+        //   <c>transform.right</c> 를 축으로 흔들리니, <b>보는 쪽으로 넘어간다.</b>
+        //   건물을 보게 돌리면 그 한 대만 «건물을 때리는» 그림이 된다.
+        if (faceWorld.HasValue)
+        {
+            Vector3 toward = faceWorld.Value - go.transform.position;
+            toward.y = 0f;
+            if (toward.sqrMagnitude > 0.01f)
+                go.transform.rotation = Quaternion.LookRotation(toward.normalized, Vector3.up);
+        }
 
         var arm = Deep(go.transform, "Boom");
 
