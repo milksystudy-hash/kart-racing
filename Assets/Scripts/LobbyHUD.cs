@@ -82,6 +82,18 @@ public class LobbyHUD : MonoBehaviour
 
         if (k.escapeKey.wasPressedThisFrame && showControls) { showControls = false; return; }
 
+        // ── 개발용: 몇 판째인지 한 칸씩 옮긴다 (2026-10-15) ──────────────
+        // ★ <b>고친 기믹을 보려고 레이스를 세 번 깰 수는 없다.</b> 포크레인은 4판,
+        //   헬기는 3판, 비행선은 2판이라 지금은 거기까지 가는 데만 5분이 든다.
+        //   <c>[</c> 와 <c>]</c> 로 증거 수를 한 개씩 늘리고 줄인다 — 그게 곧 판 번호다
+        //   (<see cref="MissionManager"/> 가 수집 기록만 보고 판을 고른다).
+        // ★ <see cref="Dev.Enabled"/> 뒤에 있으니 빌드에서는 컴파일 단계에서 사라진다.
+        if (Dev.Enabled)
+        {
+            if (k.leftBracketKey.wasPressedThisFrame) StepCollection(-1);
+            if (k.rightBracketKey.wasPressedThisFrame) StepCollection(1);
+        }
+
         // TAB 은 WalkMode 가 직접 듣는다 — 이야기가 도는 동안 이 스크립트가 꺼져도 먹게.
 
         // 동물의 숲처럼 <b>버튼을 눌러야</b> 말한다. 가까이 갔다고 저절로 떠들면
@@ -567,6 +579,27 @@ public class LobbyHUD : MonoBehaviour
     bool showLore;
     int lorePage;
     FirstPersonController loreHeld;
+
+    /// <summary>
+    /// 개발용 — 증거 수를 <paramref name="step"/> 만큼 옮긴다. <b>그게 곧 몇 판째인지</b>다.
+    ///
+    /// <c>ExhibitCatalogue.All</c> 의 <b>앞에서부터</b> 채운다 — 진행 순서가 그 순서라
+    /// (<see cref="MissionManager.NextReward"/>), 그래야 임무 번호와 딱 맞는다.
+    /// </summary>
+    static void StepCollection(int step)
+    {
+        int want = Mathf.Clamp(CollectionState.Count + step, 0, ExhibitCatalogue.Count);
+
+        CollectionState.ClearAll();
+        for (int i = 0; i < want; i++) CollectionState.Collect(ExhibitCatalogue.All[i].id);
+
+        string goal = want >= ExhibitCatalogue.Count
+            ? (GrandFinal.Cleared ? "자유 주행" : "결승")
+            : $"{want + 1}판 · {RaceVoice.Plain(MissionManager.GoalForReward(ExhibitCatalogue.All[want].id))}";
+
+        Toast.Show($"[개발] 증거 {want} / {ExhibitCatalogue.Count}   →   {goal}");
+        SceneNavigator.Reload();
+    }
 
     // ── 게임 종료 물음 ───────────────────────────────────────────────────
     bool askQuit;
