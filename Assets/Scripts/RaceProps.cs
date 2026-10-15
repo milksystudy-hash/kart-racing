@@ -413,7 +413,11 @@ public static class RaceProps
         if (go == null) return;
 
         var arm = Deep(go.transform, "Boom");
-        var ball = Deep(go.transform, "Ball");
+
+        // ★★★ 2026-10-15 — <b>움직이는 것은 Cable 이다.</b>
+        //   계층이 Root > Boom > Cable > (Ball · Ball_Paw) 라, 공만 옮기면
+        //   줄과 발바닥이 제자리에 남아 <b>끊어져 보인다.</b> 줄을 옮기면 셋이 같이 간다.
+        var ball = Deep(go.transform, "Cable") ?? Deep(go.transform, "Ball");
         if (arm == null || ball == null)
         {
             Debug.LogWarning("[풍경] 크레인 부품(Boom/Ball)을 못 찾았다 — R03 의 이름을 봐라.");
@@ -422,6 +426,7 @@ public static class RaceProps
 
         var w = go.AddComponent<WreckingBall>();
         w.arm = arm; w.ball = ball; w.period = period; w.style = style;
+        w.hitPoint = Deep(go.transform, "Ball") ?? ball;   // 맞음 판정은 쇳덩이 자리에서
 
         // ★ 기본은 «길 가운데를 조금 넘어간다» 지만, <b>멀리 선 풍경 크레인</b>은
         //   그러면 쇳덩이가 26m 를 가로질러 길까지 온다. 그런 자리는 반경을 직접 준다.
@@ -986,14 +991,31 @@ public class WreckingBall : MonoBehaviour
     /// <summary>맞았다고 치는 거리.</summary>
     public float hitRadius = 2.6f;
 
+    /// <summary>맞았는지 재는 자리 — 줄이 아니라 <b>쇳덩이</b>다.</summary>
+    public Transform hitPoint;
+
     Vector3 armHome, ballHome;
     KartCamera cam;
     float lastHit = -9f;
 
+    /// <summary>
+    /// ★★★ 2026-10-15 — <b>쇳덩이를 땅속으로 보내고 있었다.</b>
+    ///
+    /// 수연: *"포크레인이 움직이지도 않고 땅에 박혀 있다."*
+    ///
+    /// 계층이 <c>Root &gt; Boom &gt; Cable &gt; Ball</c> 인데, 여기서 <c>localPosition</c> 을
+    /// 적어 두고 <c>루트.TransformPoint(그것)</c> 으로 되돌리고 있었다.
+    /// <b>그 둘은 같은 공간이 아니다</b> — 적은 값은 <c>Cable</c> 기준
+    /// <c>(0, −8.57, 0)</c> 인데 루트 기준으로 읽으니 <b>땅속 8.5m</b> 가 된다.
+    /// 박혀 있으니 아무리 흔들어도 화면에는 아무 일도 안 일어난다.
+    ///
+    /// 부모가 몇 겹이든 안 틀리는 방법은 <b>월드 좌표를 그대로 적어 두는 것</b>이다.
+    /// 크레인은 제자리에 서 있으니 기준점이 움직일 일도 없다.
+    /// </summary>
     void Start()
     {
         if (arm != null) armHome = arm.localPosition;
-        if (ball != null) ballHome = ball.localPosition;
+        if (ball != null) ballHome = ball.position;      // ★ 월드
         cam = Object.FindFirstObjectByType<KartCamera>();
     }
 
@@ -1004,7 +1026,7 @@ public class WreckingBall : MonoBehaviour
         float phase = Time.time * (2f * Mathf.PI / Mathf.Max(0.5f, period));
         Vector3 out01 = transform.forward;            // Side() 가 코스 쪽을 보게 세워 준다
         Vector3 side = transform.right;
-        Vector3 home = transform.TransformPoint(ballHome);
+        Vector3 home = ballHome;      // ★ 이미 월드다
 
         float u;            // 코스 쪽으로 나간 정도 (−1 ~ 1)
         float lift = 0f;    // 위아래
@@ -1071,7 +1093,7 @@ public class WreckingBall : MonoBehaviour
         var body = kart.GetComponent<KartController>();
         if (body == null) return;
 
-        Vector3 gap = kart.transform.position - ball.position;
+        Vector3 gap = kart.transform.position - (hitPoint != null ? hitPoint.position : ball.position);
         gap.y = 0f;
         if (gap.sqrMagnitude > hitRadius * hitRadius) return;
 
