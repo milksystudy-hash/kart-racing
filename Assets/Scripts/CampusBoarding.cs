@@ -216,6 +216,25 @@ public class CampusBoarding : MonoBehaviour
         Plank(root, "Cross_B", new Vector3(0f, h * 0.5f, 0.06f), -angle, diagonal);
         Plank(root, "Bar", new Vector3(0f, h * 0.34f, 0.12f), 0f, w * 0.96f);
 
+        // ★★★ 2026-10-15 — <b>판자가 진짜로 막는다.</b>
+        //
+        // 수연: *"나무판자가 덮여 있는데 다 통과가 된다. 그럼 게임 끝나는 거지 뭐."*
+        // <b>맞는 지적이고 내 설계 구멍이다.</b> 판자에 콜라이더를 일부러 안 달았는데
+        // (2026-09-18, 「진짜로 막으면 건물 열셋을 점검 못 한다」), 그건 <b>내 점검 편의</b>지
+        // 플레이어가 겪을 일이 아니다. 문도 콜라이더가 없어서(벽이 막으니까)
+        // <b>판자가 박힌 건물에 그냥 걸어 들어갈 수 있었다</b> — 증거를 모아 열리는
+        // 연출이 통째로 장식이 된다.
+        //
+        // 판자 하나하나에 다는 대신 <b>문 구멍을 덮는 보이지 않는 판 하나</b>를 둔다:
+        // 판자가 걷히면 이 루트가 통째로 꺼지니 <b>막는 것도 같이 사라진다</b> —
+        // 켜고 끄는 자리가 하나라 어긋날 수가 없다.
+        // ★ 점검은 <b>G(유령 모드)</b>로 한다 — 이미 있는 개발용 키다.
+        var block = new GameObject("Blocker");
+        block.transform.SetParent(root, false);
+        block.transform.localPosition = new Vector3(0f, h * 0.5f, 0f);
+        var box = block.AddComponent<BoxCollider>();
+        box.size = new Vector3(w * 1.05f, h, 0.5f);
+
         return root;
     }
 
