@@ -192,9 +192,10 @@ public static class RaceProps
                 //   수연이 원한 «한 바퀴에 네 번쯤» 에 제일 가깝다.
                 // ★ 2026-10-15 — 13초는 <b>너무 빨라서 읽을 틈이 없었다.</b>
                 //   수연: *"너무 빠르고 범위도 넓은데 담장도 안 긁어야 된다."*
-                //   17초면 상대속도가 1/17 + 1/29 → 10.7초마다, 한 바퀴에 2.7번.
-                //   여전히 자주 오지만 <b>오는 게 보이고 비킬 틈이 있다.</b>
-                Patrol(track, "R02_Safety_Helicopter", 9.5f, 17f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
+                //   ★ 17초도 빨랐다(수연: *"어려워"*). <b>24초</b>면 상대속도가
+                //   1/24 + 1/29 → <b>12.9초마다, 한 바퀴에 2.2번.</b>
+                //   빛이 기회를 깎는 판이니 <b>오는 걸 보고 비킬 수 있어야</b> 한다.
+                Patrol(track, "R02_Safety_Helicopter", 9.5f, 24f, lateral: -4.5f, bob: 0.6f, shadow: 6f,
                        noseBack: true, reverse: true,
                        engine: "Heli_Rotor", engineVolume: 0.8f, beam: true, engineFar: 110f);
                 Crowd(track, 8);
@@ -1265,16 +1266,28 @@ public class SearchBeam : MonoBehaviour
     ///   수연: *"불빛이 왜 이리 커."* 맞다 — 길을 통째로 덮으면 피할 데가 없고,
     ///   피할 수 없는 건 기믹이 아니라 벌이다. <b>3.0m</b> — 레이저 점이다.
     /// </summary>
-    public float radius = 2.2f;   // 3.0 → 2.2. 피할 수 있어야 기믹이다
+    /// <summary>
+    /// ★★★ 2026-10-15 — <b>재 보니 피할 데가 구조적으로 없었다.</b>
+    ///
+    /// 제일 좁은 길이 폭 7m(반폭 3.5)인데, 고리가 <c>반폭 × 0.52</c> 만큼 좌우로
+    /// 쓸고 반지름이 2.2 였다. 합치면 <b>1.82 + 2.2 = 4.02</b> — <b>길 반폭보다 넓다.</b>
+    /// 한쪽 끝에 왔을 때 그쪽은 통째로 막히고, 2.8초마다 반대쪽으로 넘어온다.
+    /// <b>카트 폭이 1.1m 인데 남는 틈이 그만큼도 안 됐다.</b>
+    ///
+    /// 셋을 같이 줄인다 — 고리 1.6 · 흔들림 0.30 · 왕복 4.6초.
+    /// 최대로 뻗어도 <b>2.65 &lt; 3.5</b> 라 <b>어느 순간에도 길 한쪽은 열려 있고</b>,
+    /// 가운데 있을 때는 양쪽에 1.9m 씩 남는다.
+    /// </summary>
+    public float radius = 1.6f;
 
     /// <summary>기체보다 얼마나 앞을 비추나. 마주 오니 이만큼 먼저 온다.</summary>
-    public float leadMetres = 20f;
+    public float leadMetres = 34f;   // 20 → 34. 더 멀리서 보여야 비킬 틈이 생긴다
 
     /// <summary>길 반폭의 몇 배까지 좌우로 쓸까. 1 이면 길을 통째로 막는다.</summary>
-    public float sweep = 0.52f;
+    public float sweep = 0.30f;      // 0.52 → 0.30. 길 한쪽은 늘 열려 있어야 한다
 
     /// <summary>좌우로 한 번 왕복하는 데 걸리는 시간.</summary>
-    public float period = 2.8f;
+    public float period = 4.6f;      // 2.8 → 4.6. 느려야 어디로 가는지 읽힌다
 
     /// <summary>안에 있을 때 1초에 남는 속도.</summary>
     public float keepPerSecond = 0.42f;
