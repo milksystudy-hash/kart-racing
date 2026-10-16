@@ -118,6 +118,18 @@ public static class BuildGame
             return;
         }
 
+        // ★★ 2026-10-16 — <b>유니티가 남기는 「DoNotShip」 폴더를 지운다.</b>
+        //   Burst 컴파일러가 네이티브로 바꾼 목록을 텍스트로 남기는데(192KB, 파일 한 장),
+        //   게임은 그걸 안 읽는다. 유니티가 <b>폴더 이름에 「배포하지 마라」를 박아</b> 뒀고,
+        //   제출본에 그런 이름이 섞여 있으면 받는 쪽이 한 번 멈칫한다.
+        //   매 빌드마다 다시 생기니 손으로 지우면 다음 빌드에서 또 있다.
+        foreach (string dir in Directory.GetDirectories(outDir))
+            if (dir.EndsWith("_DoNotShip"))
+            {
+                Directory.Delete(dir, true);
+                Debug.Log($"[빌드·{tag}] 디버그 찌꺼기 지움 → {Path.GetFileName(dir)}");
+            }
+
         Debug.Log($"[빌드·{tag}] 성공 → {Path.GetFullPath(options.locationPathName)}");
         EditorApplication.Exit(0);
     }
