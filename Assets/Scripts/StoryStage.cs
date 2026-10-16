@@ -138,7 +138,10 @@ public class StoryStage : MonoBehaviour
         {
             string queued = pending;
             pending = null;
-            EnterFresh(queued);
+            // ★ 2026-10-16 <b>본 것은 안 튼다.</b> 전에는 «게임 시작은 일부러 누른 것이니
+            //   본 것이어도 튼다» 였는데, 그러면 <b>이어하기를 누를 때마다 같은 장면</b>이 뜬다.
+            //   처음 켠 사람에게는 어차피 아무것도 안 봤으니 프롤로그가 그대로 나온다.
+            if (!StoryProgress.HasSeen(queued)) EnterFresh(queued);
             return;
         }
 
@@ -191,6 +194,13 @@ public class StoryStage : MonoBehaviour
         runner.enabled = true;
         hud.enabled = true;
         runner.onSceneFinished = OnFinished;
+
+        // ★★ 2026-10-16 <b>«봤다»를 끝이 아니라 시작에 찍는다.</b>
+        //   전에는 <see cref="OnFinished"/> 에서만 찍어서, 중간에 레이스로 가거나
+        //   창을 닫으면 <b>영영 안 찍히고 다음에 또 나왔다.</b>
+        //   시작한 장면은 이미 본 것으로 치는 게 맞다 — 또 보여주는 쪽이 훨씬 나쁘고,
+        //   다시 보고 싶으면 <b>T</b> 와 곰 기억 앨범이 있다.
+        StoryProgress.MarkSeen(sceneId);
         runner.Play(sceneId);
     }
 
