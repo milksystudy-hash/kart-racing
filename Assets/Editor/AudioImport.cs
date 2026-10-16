@@ -33,7 +33,7 @@ public class AudioImport : AssetPostprocessor
     const string SfxFolder = "Assets/Resources/Sfx/";
 
     /// <summary>0.7 ≈ 112kbps. 배경음악에 충분하다.</summary>
-    const float MusicQuality = 0.7f;
+    const float MusicQuality = 0.85f;
 
     /// <summary>효과음은 짧아서 품질을 조금 더 줘도 용량이 안 는다.</summary>
     const float SfxQuality = 0.8f;
@@ -44,7 +44,7 @@ public class AudioImport : AssetPostprocessor
     ///   <b>.meta 는 옛 설정 그대로</b>였다 — 고친 게 게임에 하나도 안 들어갔다.
     ///   <b>이 파일의 설정을 건드리면 반드시 같이 올려라.</b>
     /// </summary>
-    public override uint GetVersion() => 4;
+    public override uint GetVersion() => 5;
 
     void OnPreprocessAudio()
     {
@@ -59,15 +59,22 @@ public class AudioImport : AssetPostprocessor
         //   디코딩이 없어서 <b>누른 순간 바로 난다.</b> 압축은 음악에만 의미가 있다.
         s.compressionFormat = music ? AudioCompressionFormat.Vorbis : AudioCompressionFormat.PCM;
         s.quality = music ? MusicQuality : SfxQuality;
-                // ★★ 2026-10-16 제작자: *"게임 킬 때 지지직 소리가 나고, 전체화면과 창 모드에서
-        //   다르게 난다."* <b>스트리밍이 원인이다.</b> 스트리밍은 재생하면서 디스크에서
-        //   읽어 그때그때 푸는데, 씬을 짓느라 CPU 가 바쁘면 <b>오디오 스레드가 굶는다</b> —
-        //   그게 지지직이고, 전체화면과 창 모드에서 부하가 달라 소리도 다르게 난다.
+                // ★★★ 2026-10-16 (두 번째) — <b>실시간 디코딩을 아예 없앤다.</b>
         //
-        //   <b>CompressedInMemory</b> 는 압축된 채로 메모리에 올려 두고 거기서 푼다.
-        //   디스크를 안 타니 끊길 데가 없다. 3분짜리 Vorbis 가 3MB 안팎이고
-        //   동시에 트는 곡이 한둘이라 메모리도 문제가 안 된다.
-        s.loadType = music ? AudioClipLoadType.CompressedInMemory : AudioClipLoadType.DecompressOnLoad;
+        //   제작자: *"지지직이 컷씬 볼 때 계속 나오고, 전체화면이든 창이든 똑같다."*
+        //   첫 수정(Streaming → CompressedInMemory)으로 조금 줄었을 뿐 안 없어졌다.
+        //   둘 다 <b>재생하면서 Vorbis 를 푼다</b>는 점은 같아서다 — 디스크를 안 탈 뿐
+        //   오디오 스레드가 계속 디코딩을 한다. 곡이 바뀔 때는 크로스페이드로
+        //   <b>두 곡을 동시에</b> 푸니 약한 노트북에서 그 몫이 모자란다. 그게 지지직이다.
+        //
+        //   <b>DecompressOnLoad</b> 는 올릴 때 한 번 통째로 풀어 PCM 으로 들고 있는다.
+        //   재생 중에는 메모리를 읽기만 하니 <b>끊길 데가 구조적으로 없다</b> —
+        //   효과음이 한 번도 지지직거린 적 없는 이유가 이것이다.
+        //
+        //   값: 3분 스테레오 44.1kHz = 약 31MB. 한 번에 올라오는 곡이 한둘이라 60MB 안쪽이고,
+        //   <b>디스크 용량은 그대로다</b>(파일은 Vorbis 로 압축된 채 들어간다).
+        //   씬을 열 때 0.5초쯤 더 걸리는 게 전부야.
+        s.loadType = AudioClipLoadType.DecompressOnLoad;
         // ★ 음악도 <b>미리 올린다.</b> CompressedInMemory 로 바꾸면서 같이 바뀐 조건이야 —
         //   미리 안 올리면 Play 를 부른 뒤에야 읽기 시작해서 <b>첫 몇 초가 비거나 끊긴다.</b>
         //   압축된 채로 들고 있으니 한 곡에 3MB 안팎이고, 한 번에 한두 곡만 올라온다.

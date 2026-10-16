@@ -43,7 +43,40 @@ public class TitleScreen : MonoBehaviour
 
     const string Placeholder = "제목 미정";
 
-    static readonly string[] Items = { "게임 시작", "환경설정", "나가기" };
+    /// <summary>
+    /// ★★ 2026-10-16 제작자: *"키자마자 프롤로그를 봤는데 이미 기념 코인이 있고
+    /// 레이스를 한 바퀴 돈 셈이 돼 있다. 저장 시스템을 만들어야 하나."*
+    ///
+    /// <b>저장은 이미 되고 있다</b>(PlayerPrefs). 없던 건 <b>지우는 길</b>이야 —
+    /// 한 번 플레이하면 그 다음부터는 영영 1/8 에서 시작하고, 처음부터 보려면
+    /// 방법이 없었다. 심사위원 컴퓨터에서는 0/8 로 깨끗하게 시작하지만,
+    /// <b>영상을 찍는 우리 컴퓨터에서는 그게 문제가 된다.</b>
+    ///
+    /// 그래서 진행이 있으면 칸이 갈린다 — <b>이어하기 / 처음부터.</b>
+    /// 없으면 전처럼 「게임 시작」 하나다(처음 켠 사람에게 고를 거리를 안 만든다).
+    /// </summary>
+    string[] items;
+
+    static bool HasProgress =>
+        CollectionState.Count > 0 || StoryProgress.CurrentChapter > 0 || GrandFinal.Cleared;
+
+    /// <summary>칸 수. <see cref="PlaqueRect"/> 가 static 이라 따로 들고 있는다.</summary>
+    static int shownItems = 4;
+
+    string[] Items
+    {
+        get
+        {
+            if (items == null)
+            {
+                items = HasProgress
+                    ? new[] { "이어하기", "처음부터", "만든 것들", "환경설정", "나가기" }
+                    : new[] { "게임 시작", "만든 것들", "환경설정", "나가기" };
+                shownItems = items.Length;
+            }
+            return items;
+        }
+    }
 
     /// <summary>
     /// 환경설정 칸. 2026-10-01 유저: *"소리를 바로 게임 시작 밑에 넣지 말고
@@ -53,10 +86,17 @@ public class TitleScreen : MonoBehaviour
     /// 소리 칸만 <b>왼쪽 정렬</b>(스피커 + 막대)이라 나머지 둘과 축이 안 맞았다.
     /// 설정을 창으로 빼면 세 칸이 전부 가운데 글자가 되어 저절로 맞는다.
     /// </summary>
-    const int SettingsRow = 1;
-
     /// <summary>환경설정 창이 열려 있나.</summary>
     bool settings;
+
+    /// <summary>만든 것들(크레딧) 창이 열려 있나.</summary>
+    bool credits;
+
+    /// <summary>
+    /// 「처음부터」를 누르고 되묻는 중. <b>한 번에 지우지 않는다</b> —
+    /// 지운 걸 되돌릴 방법이 없어서, 실수로 누르면 여덟 판이 통째로 날아간다.
+    /// </summary>
+    bool confirmReset;
 
     /// <summary>게임 시작을 누르고 암전을 기다리는 중.</summary>
     bool leaving;
@@ -224,6 +264,31 @@ public class TitleScreen : MonoBehaviour
             return;
         }
 
+        // 「만든 것들」도 같은 규칙 — 열려 있으면 그 창만 듣는다.
+        if (credits)
+        {
+            if (k.escapeKey.wasPressedThisFrame || Keys.Confirm(k)) credits = false;
+            return;
+        }
+
+        // 「처음부터」 되묻기. <b>Y 를 따로 요구한다</b> — ENTER 로 넘기면
+        // 메뉴에서 누르던 손가락이 그대로 이어져서 실수로 지운다.
+        if (confirmReset)
+        {
+            if (k.yKey.wasPressedThisFrame)
+            {
+                CollectionState.ClearAll();
+                items = null;                 // 칸이 「게임 시작」으로 돌아간다
+                cursor = 0;
+                confirmReset = false;
+                Sfx.Play("UiSelect");
+                return;
+            }
+            if (k.escapeKey.wasPressedThisFrame || k.nKey.wasPressedThisFrame
+                || Keys.Confirm(k)) confirmReset = false;
+            return;
+        }
+
         if (k.downArrowKey.wasPressedThisFrame || k.sKey.wasPressedThisFrame) Move(1);
         if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame) Move(-1);
 
@@ -269,7 +334,7 @@ public class TitleScreen : MonoBehaviour
         // 뜨자마자 눌린 키 하나로 닫히는 걸 막는다 — 앞 화면에서 누르던 키가 넘어온다.
         if (Time.unscaledTime - bornAt < 0.25f) return;
 
-        if (index == 0)
+        if (Items[index] == "게임 시작" || Items[index] == "이어하기")
         {
             // ★ 바로 지우지 않는다. <b>화면이 캄캄해진 뒤에</b> 사라져야
             //   그 밑에서 시작하는 이야기의 첫 줄이 어둠 속에서 흘러가지 않는다
@@ -279,7 +344,12 @@ public class TitleScreen : MonoBehaviour
             return;
         }
 
-        if (index == SettingsRow) { settings = true; return; }
+        switch (Items[index])
+        {
+            case "처음부터":  confirmReset = true; return;
+            case "만든 것들": credits = true; return;
+            case "환경설정":  settings = true; return;
+        }
 
         Quit();
     }
@@ -324,7 +394,7 @@ public class TitleScreen : MonoBehaviour
         float ph = Mathf.Clamp(h * 0.21f, 110f, 150f);
 
         float block = ph + MenuGap(h)
-                    + Items.Length * ItemH + (Items.Length - 1) * ItemGap
+                    + shownItems * ItemH + (shownItems - 1) * ItemGap
                     + 40f;                                  // 아래 안내 한 줄
         float top = Mathf.Max(h * 0.03f, (h - block) * 0.5f);
         return new Rect((w - pw) * 0.5f, top, pw, ph);
@@ -353,7 +423,9 @@ public class TitleScreen : MonoBehaviour
         Dim(w, h, bg != null);
         Plaque(w, h);
 
-        if (settings) { DrawSettings(w, h); Hud.End(); return; }
+        if (settings)     { DrawSettings(w, h); Hud.End(); return; }
+        if (credits)      { DrawCredits(w, h);  Hud.End(); return; }
+        if (confirmReset) { DrawReset(w, h);    Hud.End(); return; }
 
         for (int i = 0; i < Items.Length; i++) DrawItem(i, ItemRect(i, w, h));
 
@@ -478,6 +550,92 @@ public class TitleScreen : MonoBehaviour
     /// 환경설정 창. 지금은 소리 하나뿐이고, <b>조절하는 키를 창 안에 적어 둔다</b> —
     /// 2026-10-01 유저 요청. 「키가 있어도 화면에 없으면 없는 것이다」.
     /// </summary>
+    // ══════════════════════════════════════════════════════════════
+    //  만든 것들 — 2026-10-16 제작자: *"크레딧은 필요 없는가."*
+    //
+    //  <b>필요하다.</b> 공모전에서 저작권을 확인할 때 제일 먼저 보는 게 이 화면이고,
+    //  <b>게임 안에 있는 것</b>이 따로 낸 문서보다 세다 — 문서는 안 읽힐 수 있다.
+    //
+    //  ★ <b>도구 이름을 적는다.</b> 「제가 작곡했습니다」보다 「바르코로 생성」이
+    //    사실에 가깝고, 나중에 되물어도 설명이 된다.
+    //  ★ 실명을 안 적는다 — 공개 저장소에서 실명을 걷어낸 것과 같은 이유.
+    //    제출할 때 이름을 넣고 싶으면 <see cref="Credits"/> 의 첫 줄만 고치면 된다.
+    // ══════════════════════════════════════════════════════════════
+    static readonly (string what, string who)[] Credits =
+    {
+        ("기획 · 레벨 · 대사 · 배치",   "제작자"),
+        ("초상화 · 배경 그림",          "ChatGPT 로 생성 · 제작자 보정"),
+        ("3D 모델 248개",               "아스트라 · 바르코 3D"),
+        ("배경 음악 17곡",              "바르코 사운드"),
+        ("효과음 30개",                 "픽사베이 · 직접 제작 5"),
+        ("「출발!」 음성",               "SpeechGen"),
+        ("코드 · 코드로 지은 기하",      "Claude"),
+    };
+
+    void DrawCredits(float w, float h)
+    {
+        float pw = Mathf.Min(560f, w - 60f);
+        float ph = Mathf.Min(74f + Credits.Length * 30f + 56f, h - 60f);
+        var box = new Rect((w - pw) * 0.5f, (h - ph) * 0.5f, pw, ph);
+        Hud.Panel(box);
+        Rect inner = Hud.Inner(box);
+
+        GUI.Label(new Rect(inner.x, inner.y + 4f, inner.width, 30f), "만든 것들",
+                  Hud.Resize(Hud.Title, 24, TextAnchor.MiddleCenter));
+        Hud.Rule(inner.x + inner.width * 0.3f, inner.y + 40f, inner.width * 0.4f);
+
+        var what = Hud.Resize(Hud.Label, 15, TextAnchor.MiddleLeft);
+        var who = Hud.Resize(Hud.Text, 15, TextAnchor.MiddleRight);
+        who.normal.textColor = Hud.Ink;
+
+        float y = inner.y + 54f;
+        foreach (var (a2, b2) in Credits)
+        {
+            GUI.Label(new Rect(inner.x + 10f, y, inner.width * 0.52f, 26f), a2, what);
+            GUI.Label(new Rect(inner.x + inner.width * 0.48f - 10f, y,
+                               inner.width * 0.52f, 26f), b2, who);
+            y += 30f;
+        }
+
+        GUI.Label(new Rect(inner.x, y + 4f, inner.width, 20f),
+                  "Unity 6000.3 · Universal Render Pipeline",
+                  Hud.Resize(Hud.Tiny, 12, TextAnchor.MiddleCenter));
+
+        var back = Hud.Resize(Hud.Text, 16, TextAnchor.MiddleCenter);
+        back.normal.textColor = Hud.Brass;
+        GUI.Label(new Rect(inner.x, inner.yMax - 28f, inner.width, 24f), "ESC   돌아가기", back);
+    }
+
+    /// <summary>「처음부터」 되묻기. <b>무엇이 날아가는지 숫자로</b> 보여준다.</summary>
+    void DrawReset(float w, float h)
+    {
+        float pw = Mathf.Min(460f, w - 60f);
+        var box = new Rect((w - pw) * 0.5f, (h - 196f) * 0.5f, pw, 196f);
+        Hud.Panel(box);
+        Rect inner = Hud.Inner(box);
+
+        GUI.Label(new Rect(inner.x, inner.y + 4f, inner.width, 30f), "처음부터",
+                  Hud.Resize(Hud.Title, 23, TextAnchor.MiddleCenter));
+        Hud.Rule(inner.x + inner.width * 0.3f, inner.y + 40f, inner.width * 0.4f);
+
+        var line = Hud.Resize(Hud.Text, 16, TextAnchor.MiddleCenter);
+        line.normal.textColor = Hud.Ink;
+        GUI.Label(new Rect(inner.x, inner.y + 56f, inner.width, 24f),
+                  $"모은 증거 {CollectionState.Count} / {ExhibitCatalogue.Count} 가 지워진다", line);
+        GUI.Label(new Rect(inner.x, inner.y + 82f, inner.width, 22f),
+                  "본 이야기와 읽은 단서도 처음으로 돌아간다",
+                  Hud.Resize(Hud.Label, 14, TextAnchor.MiddleCenter));
+        GUI.Label(new Rect(inner.x, inner.y + 106f, inner.width, 22f),
+                  "달린 기록은 남는다",
+                  Hud.Resize(Hud.Tiny, 13, TextAnchor.MiddleCenter));
+
+        var yes = Hud.Resize(Hud.Text, 17, TextAnchor.MiddleCenter);
+        yes.normal.textColor = Hud.Brass;
+        GUI.Label(new Rect(inner.x, inner.yMax - 52f, inner.width, 24f), "Y   지운다", yes);
+        GUI.Label(new Rect(inner.x, inner.yMax - 28f, inner.width, 24f),
+                  "ESC   그만두기", Hud.Resize(Hud.Label, 15, TextAnchor.MiddleCenter));
+    }
+
     void DrawSettings(float w, float h)
     {
         float pw = Mathf.Min(520f, w - 60f);

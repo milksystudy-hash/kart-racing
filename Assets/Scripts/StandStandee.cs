@@ -75,8 +75,9 @@ public static class StandStandee
             // ★ <b>앞뒤로 한 장씩</b> 둔다. 유니티 Quad 는 한쪽 면만 보여서, 한 장만 세우면
             //   반대쪽에서 <b>통째로 사라진다</b> — 이 프로젝트에서 방향을 다섯 번 틀렸으니
             //   «어느 쪽이 앞인가» 를 아예 안 묻는 쪽으로 짓는다.
-            Face(root, "Front", art, w, 0f);
-            Face(root, "Back", art, w, 180f);
+            // ★ 2026-10-16 <b>한 장으로 줄였다.</b> 새 셰이더가 Cull Off 라 뒤에서도 보인다 —
+            //   두 장을 같은 자리에 세우면 깊이가 같아 지지직거린다.
+            Face(root, "Art", art, w, 0f);
 
             // 발밑 받침 — 종이 스탠디는 받침이 있어야 선다. 없으면 바닥에 뜬 그림이다
             var foot = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -101,7 +102,8 @@ public static class StandStandee
         q.transform.localScale = new Vector3(w, Height, 1f);
 
         // 언릿 — 홀 조명이 어두워도 얼굴이 또렷해야 «누군지 알아보는» 일을 한다.
-        // 투명 설정을 해야 인물 둘레의 빈칸이 흰 상자로 안 보인다.
+        // ★★ 전용 셰이더다. URP/Unlit 에 투명·알파컷 설정을 코드로 쑤셔 넣다가
+        //   <b>회색 상자</b>가 나왔다(2026-10-16) — <see href="Assets/Shaders/Standee.shader"/> 참고.
         // ★★ 2026-10-16 제작자: *"실루엣에 왜 회색 테두리 박스가 있어."*
         //
         //   <b>투명(_Surface 1)과 알파컷(_AlphaClip)을 동시에 켜 둔 게 원인이다.</b>
@@ -111,19 +113,11 @@ public static class StandStandee
         //
         //   종이 스탠디는 <b>잘라낸 판</b>이지 반투명한 물건이 아니다.
         //   불투명 + 알파컷 하나로만 간다 — 경계가 딱 떨어지고 정렬 문제도 없다.
-        var m = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-        m.SetFloat("_Surface", 0f);                 // 불투명
-        m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
-        m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
-        m.SetInt("_ZWrite", 1);
-        m.SetFloat("_AlphaClip", 1f);
-        m.SetFloat("_Cutoff", 0.5f);                // 0.35 면 둘레의 흐린 띠가 남는다
-        m.EnableKeyword("_ALPHATEST_ON");
-        m.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
-        m.SetOverrideTag("RenderType", "TransparentCutout");
-        m.renderQueue = 2450;
-        m.SetTexture("_BaseMap", art);
-        m.SetColor("_BaseColor", Color.white);
+        var sh = Shader.Find("Racing/Standee");
+        var m = new Material(sh != null ? sh : Shader.Find("Universal Render Pipeline/Unlit"));
+        m.SetTexture("_MainTex", art);
+        m.SetTexture("_BaseMap", art);     // 폴백으로 URP/Unlit 이 잡혔을 때
+        m.SetFloat("_Cutoff", 0.5f);
 
         q.GetComponent<MeshRenderer>().sharedMaterial = m;
     }
