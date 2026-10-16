@@ -38098,7 +38098,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FirstPersonController
   walkSpeed: 4
-  sprintSpeed: 8
+  sprintSpeed: 12
   jumpHeight: 1.1
   gravity: -22
   lookSensitivity: 0.11

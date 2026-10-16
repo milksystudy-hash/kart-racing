@@ -467,7 +467,7 @@ public class TestHUD : MonoBehaviour
         // 동작은 그대로 아무 키나 먹고, <b>적어 두는 것만</b> 하나로 골랐다.
         var go = Hud.Resize(Hud.Text, 15, TextAnchor.MiddleCenter);
         go.normal.textColor = Hud.InkSoft;
-        GUI.Label(new Rect(inner.x, inner.yMax - 30f, inner.width, 24f), "SPACE   출발", go);
+        GUI.Label(new Rect(inner.x, inner.yMax - 30f, inner.width, 24f), "ENTER   출발", go);
     }
 
     // ---- 랩과 시간 ----

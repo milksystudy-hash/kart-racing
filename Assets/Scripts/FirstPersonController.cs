@@ -15,7 +15,7 @@ public class FirstPersonController : MonoBehaviour
 {
     [Header("걷기")]
     public float walkSpeed = 4f;
-    public float sprintSpeed = 8f;
+    public float sprintSpeed = 12f;
     public float jumpHeight = 1.1f;
     public float gravity = -22f;
 

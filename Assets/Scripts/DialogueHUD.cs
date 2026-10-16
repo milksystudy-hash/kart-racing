@@ -374,11 +374,11 @@ public class DialogueHUD : MonoBehaviour
 
         textStyle = HudFont.With(new GUIStyle(GUI.skin.label)
         { fontSize = 22, wordWrap = true, richText = true }, font);
-        textStyle.normal.textColor = new Color(0.97f, 0.96f, 0.92f);
+        textStyle.normal.textColor = new Color(0.98f, 0.98f, 0.98f);
 
         narrateStyle = HudFont.With(new GUIStyle(GUI.skin.label)
         { fontSize = 21, wordWrap = true, richText = true, alignment = TextAnchor.MiddleCenter }, font);
-        narrateStyle.normal.textColor = new Color(0.86f, 0.85f, 0.79f);
+        narrateStyle.normal.textColor = new Color(0.90f, 0.90f, 0.90f);
 
         nameStyle = HudFont.With(new GUIStyle(GUI.skin.label)
         { fontSize = 19, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }, font);

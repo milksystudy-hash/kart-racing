@@ -31,7 +31,10 @@ public static class RaceBriefing
     /// ★ 2026-10-06 25초에서 <b>14초로</b> 내렸다. 이건 «안 누르면» 의 안전장치지
     /// 읽는 시간이 아니다 — 카드 한 장에 40자다. 25초를 기다리는 건 고장으로 읽힌다.
     /// </summary>
-    const float Timeout = 14f;
+    // ★★ 2026-10-16 수연: *"자동 넘기기 하지말고 ENTER 누르면 바뀌는걸로."*
+    //   14 → 60. <b>이건 읽는 시간이 아니라 「아무도 안 닫아줄 때」의 마지막 탈출구</b>다.
+    //   14초면 읽는 도중에 저절로 넘어가서 그게 곧 「자동 넘기기」였다.
+    const float Timeout = 60f;
 
     static bool open;
     static float openedAt = -99f;
@@ -64,7 +67,8 @@ public static class RaceBriefing
     /// 이건 «안 누르면» 의 안전장치지 기본 속도가 아니다 — <b>4.5초</b>면 한 줄을 읽기에
     /// 충분하고, 끝까지 가만히 있어도 12초 안에 출발한다.
     /// </summary>
-    const float LineSeconds = 4.5f;
+    // ★★ 2026-10-16 — 4.5 → 60. 같은 이유다. <b>한 줄은 눌러야 넘어간다.</b>
+    const float LineSeconds = 60f;
 
     /// <summary>마지막 줄을 읽고 나서 숫자가 뜨기까지의 숨. 바로 넘어가면 쫓기는 느낌이다.</summary>
     const float ChatterTail = 0.5f;
