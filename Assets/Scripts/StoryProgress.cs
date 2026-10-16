@@ -106,6 +106,16 @@ public static class StoryProgress
         }
     }
 
+    /// <summary>
+    /// 이야기를 하나라도 봤나. <b>첫 화면이 「게임 시작」과 「이어하기」를 가를 때 쓴다.</b>
+    ///
+    /// ★ 2026-10-16 — 수집품만 보면 <b>프롤로그만 보고 끈 사람</b>이 「게임 시작」을
+    /// 다시 보게 된다. 눌러도 프롤로그는 이미 본 것이라 아무 일도 안 나고(맞는 동작이다),
+    /// 「처음부터」도 안 떠서 <b>다시 볼 길이 사라진다.</b>
+    /// 한 줄이라도 봤으면 그건 진행이다.
+    /// </summary>
+    public static bool AnySeen => Seen.Count > 0;
+
     public static bool HasSeen(string sceneId) =>
         !string.IsNullOrEmpty(sceneId) && Seen.Contains(sceneId);
 

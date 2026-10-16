@@ -58,7 +58,13 @@ public class TitleScreen : MonoBehaviour
     string[] items;
 
     static bool HasProgress =>
-        CollectionState.Count > 0 || StoryProgress.CurrentChapter > 0 || GrandFinal.Cleared;
+        CollectionState.Count > 0 || StoryProgress.CurrentChapter > 0 || GrandFinal.Cleared
+        // ★ 2026-10-16 — <b>본 이야기도 진행이다.</b> 제작자: *"처음부터 하고 창 닫고
+        //   다시 켜면 프롤로그가 안 뜨는데 정상 맞지?"* 동작은 맞다(한 번 본 건 안 튼다).
+        //   그런데 그 상태에서 칸이 「게임 시작」이면, 눌러도 아무 일이 안 나는 데다
+        //   「처음부터」가 없어서 <b>프롤로그를 두 번 다시 못 본다.</b>
+        //   프롤로그만 보고 껐어도 「이어하기 / 처음부터」가 맞는다.
+        || StoryProgress.AnySeen;
 
     /// <summary>칸 수. <see cref="PlaqueRect"/> 가 static 이라 따로 들고 있는다.</summary>
     static int shownItems = 4;
