@@ -943,6 +943,9 @@ public class CampusBuilder : MonoBehaviour
     }
 #endif
 
+    /// <summary>방 바닥 슬래브의 <b>윗면</b> 높이. <see cref="Hollow"/> 와 여기서 같이 쓴다.</summary>
+    public const float InFloorTop = 0.1f;
+
     public static Transform MyModel(Transform parent, string assetPath, string name, Vector3 at, float targetWidth,
                       float maxHeight = 0f)
     {
@@ -1088,6 +1091,20 @@ public class CampusBuilder : MonoBehaviour
 
         // <b>원점이 바닥이 아니어도 바닥에 앉힌다.</b> 블렌더에서 원점을 가운데 둔 모델이
         // 많고, 그걸 매번 고쳐 오라고 하는 게 이 프로젝트의 방식이 아니야.
+        // ★★★ 2026-10-16 제작자: *"단서가 땅에 박혔는데."* <b>단서만이 아니었다 —
+        //   건물 안 소품 136개가 전부 정확히 0.1m 씩 파묻혀 있었다.</b>
+        //
+        //   배치 표의 <c>y</c> 는 «방 바닥에서 이만큼» 이라는 뜻으로 적었는데(대개 0),
+        //   <b>방 바닥 윗면은 y 0 이 아니라 <see cref="InFloorTop"/></b> 다 —
+        //   <see cref="Hollow"/> 가 두께 0.1 짜리 슬래브를 깔기 때문이다.
+        //   그래서 「바닥에 앉혔다」가 실제로는 「바닥 속에 앉혔다」였다.
+        //
+        //   표 열 개를 전부 고치는 대신 <b>여기 한 줄</b>로 올린다. 이름이 «In_» 으로
+        //   시작하는 것이 곧 «건물 안» 이라는 규칙은 빌더가 이미 지키고 있다(열 자리 전부).
+        //   벽에 거는 것(급식추이표 y 1.0)도 같이 0.1 올라가는데, 그게 맞는다 —
+        //   «바닥에서 1m» 가 원래 뜻이었으니까.
+        if (name.StartsWith("In_")) at.y += InFloorTop;
+
         float bottom = (bounds.min.y - go.transform.position.y) * scale;
         go.transform.localPosition = at - new Vector3(0f, bottom, 0f);
 
@@ -1202,8 +1219,10 @@ public class CampusBuilder : MonoBehaviour
             Block(t, "WallOverDoor", new Vector3(0f, h - lintel * 0.5f, halfD - wall * 0.5f),
                   Quaternion.identity, new Vector3(gap, lintel, wall), ColCream);
 
-        Block(t, "InFloor", new Vector3(0f, 0.05f, 0f), Quaternion.identity,
-              new Vector3(w - wall * 2f, 0.1f, d - wall * 2f), ColPlaza);
+        // ★★ 방 바닥은 <b>두께가 있다.</b> 윗면이 y 0 이 아니라 <see cref="InFloorTop"/> 이다 —
+        //   <see cref="MyModel"/> 이 그만큼 올려서 앉힌다. 둘이 어긋나면 소품이 파묻힌다.
+        Block(t, "InFloor", new Vector3(0f, InFloorTop * 0.5f, 0f), Quaternion.identity,
+              new Vector3(w - wall * 2f, InFloorTop, d - wall * 2f), ColPlaza);
         Block(t, "InCeiling", new Vector3(0f, h - 0.2f, 0f), Quaternion.identity,
               new Vector3(w - wall * 2f, 0.4f, d - wall * 2f), ColWood, noCollider: true);
 
@@ -2439,7 +2458,10 @@ public class CampusBuilder : MonoBehaviour
                 low = Mathf.Min(low, r.bounds.min.y);
             if (low == float.MaxValue) return;
 
-            float floor = t.position.y + wantY;
+            // ★ 방 바닥 윗면은 건물 원점이 아니라 그보다 InFloorTop 위다.
+            //   이 한 줄이 빠져서 <see cref="MyModel"/> 의 보정을 <b>도로 덮고 있었다</b> —
+            //   단서 아홉 개만 0.1m 씩 파묻혀 있던 이유다(2026-10-16).
+            float floor = t.position.y + wantY + InFloorTop;
             if (low < floor - 0.002f || low > floor + 0.05f)
                 m.position += Vector3.up * (floor - low);
         }
