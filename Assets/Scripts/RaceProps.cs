@@ -305,11 +305,16 @@ public static class RaceProps
             // 8판 — ★ <b>사람이 처음 나타난다.</b> 철거 심사단이 서서 보고 있다.
             //   곰은 사람 앞에서 움직일 수 없다 — 그래서 카트만 나간다. 그 규칙이 눈앞에서 증명된다
             case MissionManager.Goal.완벽:
-                Side(track, "R08_Inspection_Car", 0.02f, 14f);
-                Side(track, "R08_Inspection_Car", 0.05f, 16.5f);
-                Side(track, "R08_Inspection_Car", 0.52f, -15f);
-                People(track, 0.03f, 12.5f, 3);
-                People(track, 0.50f, -13f, 3);
+                // ★ 2026-10-16 — <b>여기만 기믹이 없었다.</b> 세워 둔 차와 사람뿐이라
+                //   제일 중요한 판이 제일 조용했다. <see cref="PressFlash"/> 로
+                //   지나갈 때 사진이 찍힌다 — <b>판정에는 손대지 않는다.</b>
+                //   8판은 이미 담장과 시간 둘을 동시에 요구해서, 피할 것을 더하면 벌이 된다.
+                PressFlash.Forget();
+                Watcher(Side(track, "R08_Inspection_Car", 0.02f, 14f));
+                Watcher(Side(track, "R08_Inspection_Car", 0.05f, 16.5f));
+                Watcher(Side(track, "R08_Inspection_Car", 0.52f, -15f));
+                Watcher(People(track, 0.03f, 12.5f, 3));
+                Watcher(People(track, 0.50f, -13f, 3));
                 break;
 
             // 9판 결승 — 담장이 곰인형 관중으로 가득 차고 비행선 둘이 뜬다
@@ -591,20 +596,31 @@ public static class RaceProps
         }
     }
 
+    /// <summary>
+    /// 지나갈 때 사진이 찍히게 한다. <see cref="PressFlash"/> 를 붙이는 한 줄 —
+    /// 붙일 게 없으면(프리팹을 못 찾았으면) 아무 일도 안 한다.
+    /// </summary>
+    static void Watcher(GameObject go)
+    {
+        if (go != null && go.GetComponent<PressFlash>() == null) go.AddComponent<PressFlash>();
+    }
+
     /// <summary>철거 심사단. 서서 보고 있기만 한다.</summary>
-    static void People(TrackBuilder track, float t, float offset, int count)
+    static GameObject People(TrackBuilder track, float t, float offset, int count)
     {
         var prefab = Resources.Load<GameObject>(Folder + "R10_Inspector_Figure");
-        if (prefab == null) return;
+        if (prefab == null) return null;
 
         string[] pose = { "Person_Stand", "Person_Clipboard", "Person_Point" };
         Vector3 fwd = track.TangentOnPath(t);
         Vector3 side = Vector3.Cross(Vector3.up, fwd);
         Vector3 at = track.transform.position + track.PointOnPath(t) + side * offset;
 
+        GameObject last = null;
         for (int i = 0; i < count; i++)
         {
             var go = Object.Instantiate(prefab, root);
+            last = go;
             go.name = $"Inspector_{i}";
             // 코스를 보게 세운다 — 보고 있다는 게 이 판의 전부야
             go.transform.SetPositionAndRotation(
@@ -619,6 +635,9 @@ public static class RaceProps
                 if (child != null) child.gameObject.SetActive(p == keep);
             }
         }
+
+        // 무리의 자리로 쓴다 — 셋이 1.6m 간격이라 어느 하나를 잡아도 같은 자리다
+        return last;
     }
 }
 

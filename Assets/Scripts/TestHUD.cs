@@ -275,7 +275,7 @@ public class TestHUD : MonoBehaviour
             float y0 = Mathf.Round(h * i / 10f);
             float y1 = Mathf.Round(h * (i + 1) / 10f);
             Hud.Fill(new Rect(0f, y0, w, y1 - y0),
-                     new Color(0.03f, 0.03f, 0.05f, Mathf.Lerp(0.10f, 0.52f, t) * stage));
+                     new Color(0.03f, 0.03f, 0.05f, Mathf.Lerp(0.05f, 0.52f, t) * stage));
         }
 
         float cx = w * ItemReveal.BeamX;
