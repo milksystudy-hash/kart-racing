@@ -773,6 +773,7 @@ public class LobbyHUD : MonoBehaviour
                 { "E", "문 · 곰에게 말 걸기 · 받침대에서 카트 고르기" },
                 { "TAB", "돌아가서 둘러보기" },
                 { "−  =", "음악 줄이기 · 키우기" },
+                { "F11", "전체화면 ↔ 창모드" },
                 { "H", "이 창 닫기" },
             }
             : new[,]
@@ -783,6 +784,7 @@ public class LobbyHUD : MonoBehaviour
                 { "클릭", "카트 고르기 / 출발문 열기" },
                 { "TAB", "걸어다니기" },
                 { "−  =", "음악 줄이기 · 키우기" },
+                { "F11", "전체화면 ↔ 창모드" },
                 { "H", "이 창 닫기" },
             };
         Rows(box, controls, box.y + 50f);

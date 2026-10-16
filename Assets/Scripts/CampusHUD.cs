@@ -219,7 +219,7 @@ public class CampusHUD : MonoBehaviour
 
     void DrawControls(float w, float h)
     {
-        float tall = (56f + (Dev.Enabled ? 8 : 5) * 26f + 24f) / 0.945f;
+        float tall = (56f + (Dev.Enabled ? 9 : 6) * 26f + 24f) / 0.945f;
         var box = new Rect(w * 0.5f - 190f, h * 0.5f - tall * 0.5f, 380f, tall);
         Hud.NoteCard(box);
 
@@ -238,6 +238,7 @@ public class CampusHUD : MonoBehaviour
                 { "G", "벽 통과 (개발용)" },
                 { "F8", "레이싱 클리어 전 / 후 (개발용)" },
                 { "F", "날기 (개발용)" },
+                { "F11", "전체화면 ↔ 창모드" },
                 { "H", "이 창 닫기" },
             }
             : new[,]
@@ -246,6 +247,7 @@ public class CampusHUD : MonoBehaviour
                 { "마우스", "둘러보기" },
                 { "SPACE", "뛰어넘기" },
                 { "E", "문 열기 · 들어가기 · 말 걸기" },
+                { "F11", "전체화면 ↔ 창모드" },
                 { "H", "이 창 닫기" },
             };
 

@@ -902,7 +902,9 @@ public class TestHUD : MonoBehaviour
 
     void DrawControls(float w, float h)
     {
-        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 157f, 400f, 314f);
+        // ★ 2026-10-16 F11 줄이 늘어서 314 → 340. 「조작법 카드에 줄을 더하면
+        //   카드 높이도 같이 늘려라」 — 아홉째 줄 끝이 y+290 이라 340 안에 든다.
+        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 170f, 400f, 340f);
         Hud.NoteCard(box);
 
         GUI.Label(new Rect(box.x, box.y + 16f, box.width, 26f), "조작법", Hud.Title);
@@ -918,6 +920,7 @@ public class TestHUD : MonoBehaviour
             { "TAB", "내려서 걷기 (개발용)" },
             { "V", "이펙트 끄기 / 켜기" },
             { "ESC", "두 번 누르면 로비로" },
+            { "F11", "전체화면 ↔ 창모드" },
             { "H", "이 창 닫기" },
         };
 
