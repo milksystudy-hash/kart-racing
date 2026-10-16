@@ -52,7 +52,11 @@ public class StartGate : MonoBehaviour
         // ★ 이야기가 도는 동안·첫 화면이 떠 있는 동안·획득 연출 중에는 <b>아무 것도 안 듣는다.</b>
         //   출발 키(ENTER·클릭)가 대사를 넘기는 키와 같아서, 안 막으면
         //   <b>대사를 읽다가 레이스가 시작된다</b>(2026-10-02 유저 제보).
-        if (StoryStage.Talking || TitleScreen.Up)
+        // ★★ 2026-10-16 — <b>로비의 큰 창들도 막는다.</b> 종료 물음·조작법·설정 쪽지·
+        //   곰 기억 앨범·시계 돋보기·획득 연출. 전부 ENTER 를 쓰는 창이라,
+        //   안 막으면 그 ENTER 가 <b>출발 신호로 샌다</b>(제작자: «종료할까요에서 레이싱으로 워프»).
+        if (StoryStage.Talking || TitleScreen.Up || ItemReveal.Open
+            || LobbyHUD.PanelUp || StoryAlbum.Open || DeskClock.PanelOpen)
         {
             Hovered = false;
             if (appliedHover) { appliedHover = false; ApplyColor(); }

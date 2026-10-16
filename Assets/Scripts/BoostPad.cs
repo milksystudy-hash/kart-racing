@@ -80,8 +80,6 @@ public class BoostPad : MonoBehaviour
         // 이게 없으면 발판 위에서 벽에 박힌 카트한테 Stay 가 1초마다 부스트를 계속 먹여서,
         // "풀린다!" 가 영영 안 끝나고 게이지가 톱니처럼 오르내리고, 앞으로 미는 힘이
         // 계속 걸려서 조작이 죽는다. 실제로 그렇게 됐다(2026-09-16).
-        if (kart.IsBoosting) return;
-
         // 서 있거나 뒤로 가는 카트한테는 안 먹인다.
         // 발판은 앞으로 밀어주는 물건이라, 후진 중에 먹으면 뒤로 튀어나간다. 그건 발판이 아니라 함정이야.
         if (kart.SpeedKph < 5f) return;
@@ -92,10 +90,24 @@ public class BoostPad : MonoBehaviour
         if (lastTaken.TryGetValue(kart, out float when) && Time.time - when < retriggerDelay) return;
         lastTaken[kart] = Time.time;
 
-        kart.ApplyBoost(boostAmount, duration);
-        if (kart.GetComponent<PlayerKart>() != null) Sfx.Play("Boost", 1f, duckMusic: false);
+        // ★★★ 2026-10-16 제작자: *"이미 시프트로 달리고 있을 때 발판을 밟으면
+        //   밟았다고 카운트를 안 쳐준다. 이거 고의야?"* <b>고의가 아니라 버그다.</b>
+        //
+        //   무한 부스트를 막으려고 맨 위에 <c>if (kart.IsBoosting) return;</c> 을 뒀는데
+        //   (2026-09-16 — 벽에 박힌 카트한테 Stay 가 계속 부스트를 먹이던 것),
+        //   그 한 줄이 <b>「밟았다」 기록까지 같이 막고 있었다.</b>
+        //   태엽을 풀고 달리는 사람은 발판을 밟아도 2판이 안 깨진다 —
+        //   <b>잘 달릴수록 손해</b>라 규칙이 거꾸로다.
+        //
+        //   둘은 다른 일이다. <b>밟은 건 언제나 센다</b>(앞으로, 제 방향으로 지나갔으면).
+        //   <b>부스트만</b> 이미 걸려 있을 때 건너뛴다 — 무한 부스트는 그대로 막힌다.
+        if (kart.GetComponent<PlayerKart>() != null)
+        {
+            TakenByPlayer = true;
+            Sfx.Play("Boost", 1f, duckMusic: false);
+        }
 
-        // 임무 판정은 플레이어 것만 센다. AI 가 밟은 걸 같이 세면 가만히 있어도 임무가 깨진다.
-        if (kart.GetComponent<PlayerKart>() != null) TakenByPlayer = true;
+        if (kart.IsBoosting) return;
+        kart.ApplyBoost(boostAmount, duration);
     }
 }

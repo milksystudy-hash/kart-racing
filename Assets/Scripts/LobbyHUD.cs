@@ -25,8 +25,24 @@ public class LobbyHUD : MonoBehaviour
 
     bool showControls;
 
+    /// <summary>
+    /// ★★ <b>로비에 큰 창이 떠 있나.</b> (2026-10-16)
+    ///
+    /// 제작자: *"게임을 종료할까요? 라고 묻는 상황에 갑자기 레이싱 하기로 워프된다."*
+    ///
+    /// <see cref="StartGate"/> 가 <b>ENTER 를 아무 데서나</b> 받는다. 종료 창에서
+    /// 「아니요」를 확인하는 ENTER 가 그대로 <b>출발 신호</b>가 됐다 —
+    /// 이 스크립트는 큰 창이 뜨면 제 입력을 막지만, 출발문은 <b>다른 컴포넌트</b>라
+    /// 그 막이 안 걸린다. 「키 하나에 주인은 하나」가 또 깨진 자리다.
+    ///
+    /// 그래서 «창이 떠 있다» 를 밖에서도 볼 수 있게 내놓는다.
+    /// </summary>
+    public static bool PanelUp { get; private set; }
+
     void Update()
     {
+        PanelUp = askQuit || showControls || showLore;
+
         if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         var k = Keyboard.current;
         if (k == null) return;
@@ -692,7 +708,7 @@ public class LobbyHUD : MonoBehaviour
         if (!on) loreHeld = null;
     }
 
-    void OnDisable() => SetLore(false);
+    void OnDisable() { SetLore(false); PanelUp = false; }
 
     void DrawLore(float w, float h)
     {
