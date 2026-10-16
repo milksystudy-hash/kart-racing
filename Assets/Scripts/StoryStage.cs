@@ -74,7 +74,12 @@ public class StoryStage : MonoBehaviour
     /// 첫 화면(<see cref="TitleScreen"/>) 때문에 미뤄 둔 장면. 타이틀이 로비 <b>안에서</b>
     /// 도니까, 그게 떠 있는 동안 Enter 를 부르면 대사가 <b>타이틀에 가려진 채로 흘러간다.</b>
     /// </summary>
-    string pending;
+    /// <summary>
+    /// ★★ 첫 화면이 닫히기를 기다리는 중. <b>장면 이름이 아니라 «봐야 한다»는 사실만</b>
+    /// 들고 있는다 — 이름을 담아 두면 그 사이에 「처음부터」로 상태가 바뀌었을 때
+    /// 옛 값을 그대로 쓴다. 「값은 사건이 일어나는 자리에서 박아라」와 같은 판단이야.
+    /// </summary>
+    bool waitingForTitle;
 
     /// <summary>
     /// ★★ <b>한 방문에 장면 둘까지 연달아 튼다.</b> (2026-10-12)
@@ -109,21 +114,22 @@ public class StoryStage : MonoBehaviour
 
         // ★ 장 번호만 보면 결말이 어긋난다(2026-09-21) — 결승 장면이 영영 안 나오고,
         // 에필로그가 7판 뒤에 떴다. CurrentScene 이 «결승을 깼는가» 까지 보고 고른다.
+        // ★★ 2026-10-16 — <b>여기서 장면을 고르지 않는다.</b>
+        //   제작자: *"처음부터로 다 지웠는데 게임 시작을 눌러도 프롤로그가 안 뜬다."*
+        //   로비가 열릴 때 골라서 담아 두면, 그 뒤에 첫 화면에서 「처음부터」를 눌러
+        //   상태가 바뀌어도 <b>담아 둔 건 바뀌기 전 것</b>이다. 그때 고른 게
+        //   빈 문자열이었으면 담기지도 않아서 <b>영영 아무 일도 안 난다.</b>
+        //   첫 화면이 닫히는 프레임에 <b>그 자리에서 다시 고른다.</b>
+        if (TitleScreen.Up) { waitingForTitle = true; return; }
+
+        PlayIfUnseen();
+    }
+
+    /// <summary>지금 상태로 틀 장면을 고르고, 아직 안 본 것이면 튼다.</summary>
+    void PlayIfUnseen()
+    {
         string sceneId = StoryScript.CurrentScene();
         if (string.IsNullOrEmpty(sceneId)) return;
-
-        // ★★ 2026-10-02 유저: *"게임 키자마자 대화씬이 안 뜨더라. 게임 시작 누르면
-        //   바로 로비로 가고, T 를 눌러야 읽을 수 있다."* 원인은 <b>이미 본 것</b>이라
-        //   <see cref="StoryProgress.HasSeen"/> 가 막고 있던 것.
-        //
-        //   «게임 시작» 은 플레이어가 <b>일부러 누른 것</b>이라 다르게 봐야 한다 —
-        //   지금 장 이야기를 <b>본 것이어도</b> 튼다. 레이스를 마치고 로비로 돌아오는 길은
-        //   그대로 «안 본 것만» 이다(매번 같은 장면이 또 뜨면 안내가 아니라 장애물이 된다).
-        //
-        //   첫 화면이 떠 있으면 적어 뒀다가 <b>타이틀이 닫히는 프레임</b>에 튼다 —
-        //   그래야 프롤로그를 한 줄도 안 놓친다.
-        if (TitleScreen.Up) { pending = sceneId; return; }
-
         if (StoryProgress.HasSeen(sceneId)) return;
         EnterFresh(sceneId);
     }
@@ -134,14 +140,13 @@ public class StoryStage : MonoBehaviour
         // 첫 화면 위로 디버그 키(T · 1~5)가 새어나가면 안 된다.
         if (TitleScreen.Up) return;
 
-        if (pending != null)
+        if (waitingForTitle)
         {
-            string queued = pending;
-            pending = null;
+            waitingForTitle = false;
             // ★ 2026-10-16 <b>본 것은 안 튼다.</b> 전에는 «게임 시작은 일부러 누른 것이니
             //   본 것이어도 튼다» 였는데, 그러면 <b>이어하기를 누를 때마다 같은 장면</b>이 뜬다.
             //   처음 켠 사람에게는 어차피 아무것도 안 봤으니 프롤로그가 그대로 나온다.
-            if (!StoryProgress.HasSeen(queued)) EnterFresh(queued);
+            PlayIfUnseen();
             return;
         }
 
