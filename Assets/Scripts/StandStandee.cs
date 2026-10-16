@@ -27,7 +27,9 @@ public static class StandStandee
     ///   궤도 카메라가 11m 밖에서 도니 사람 키만 하면 화면에서 작게 잡힌다.
     ///   받침대 위라 바닥에서는 2.1m 쯤 — 홀 천장이 7m 라 충분히 들어간다.
     /// </summary>
-    const float Height = 1.72f;
+    // ★ 2026-10-16 1.72 → 1.52. 글자와 같은 이유 — 아침에 키운 게 Full HD 에서 과했다.
+    //   받침대(0.9m) 위라 바닥에서 2.4m 고, 7m 천장 안에 넉넉히 들어간다.
+    const float Height = 1.52f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Install()
@@ -100,14 +102,25 @@ public static class StandStandee
 
         // 언릿 — 홀 조명이 어두워도 얼굴이 또렷해야 «누군지 알아보는» 일을 한다.
         // 투명 설정을 해야 인물 둘레의 빈칸이 흰 상자로 안 보인다.
+        // ★★ 2026-10-16 제작자: *"실루엣에 왜 회색 테두리 박스가 있어."*
+        //
+        //   <b>투명(_Surface 1)과 알파컷(_AlphaClip)을 동시에 켜 둔 게 원인이다.</b>
+        //   URP/Unlit 은 둘 중 하나로 돌게 돼 있는데, 키워드 없이 숫자만 넣으면
+        //   섞인 상태가 되어 <b>그림 둘레의 반투명 띠가 그대로 그려진다</b> —
+        //   그 띠가 쿼드 가장자리까지 이어지니 「회색 상자」로 보인다.
+        //
+        //   종이 스탠디는 <b>잘라낸 판</b>이지 반투명한 물건이 아니다.
+        //   불투명 + 알파컷 하나로만 간다 — 경계가 딱 떨어지고 정렬 문제도 없다.
         var m = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-        m.SetFloat("_Surface", 1f);
-        m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-        m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        m.SetFloat("_Surface", 0f);                 // 불투명
+        m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+        m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
         m.SetInt("_ZWrite", 1);
         m.SetFloat("_AlphaClip", 1f);
-        m.SetFloat("_Cutoff", 0.35f);
+        m.SetFloat("_Cutoff", 0.5f);                // 0.35 면 둘레의 흐린 띠가 남는다
         m.EnableKeyword("_ALPHATEST_ON");
+        m.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        m.SetOverrideTag("RenderType", "TransparentCutout");
         m.renderQueue = 2450;
         m.SetTexture("_BaseMap", art);
         m.SetColor("_BaseColor", Color.white);

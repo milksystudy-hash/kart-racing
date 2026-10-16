@@ -24,7 +24,17 @@ public static class Hud
     ///   1080p 에서 1.50 → <b>1.69</b>(+12.5%). 칸도 글자도 같은 비율로 커져서
     ///   <b>넘침이 새로 생기지 않는다</b> — 글자만 키우면 칸을 뚫는다.
     /// </summary>
-    public const float DesignHeight = 640f;
+    // ★★ 2026-10-16 <b>640 에서 720 으로 되돌렸다.</b> 아침에 강사님의 "글씨가 작다" 를
+    //   받아 640 으로 내렸는데(= 12.5% 확대), 제작자가 Full HD 빌드를 보고
+    //   *"화면을 씹어먹을 것 같다"* 고 했다. <b>재 보니 제작자가 맞다:</b>
+    //
+    //     1080p 에서 배율 = 1080 / 기준높이
+    //     640 → 1.69  ·  대사 글자 37.1px  (권장 28~34 를 넘는다)
+    //     720 → 1.50  ·  대사 글자 33.0px  ·  이름표 28.5px   ← 둘 다 권장 안
+    //
+    //   <b>이 숫자 하나가 HUD 전체를 같은 비율로 키우고 줄인다</b> — 글자만 줄이면
+    //   칸이 그대로라 빈칸이 생기고, 칸만 줄이면 글자가 넘친다.
+    public const float DesignHeight = 720f;
 
     // ---- 색 ----
     public static readonly Color Wood     = new Color32(0xC9, 0xAC, 0x8A, 0xFF);   // 판 테두리
@@ -62,7 +72,7 @@ public static class Hud
     {
         Ensure(preferred);
 
-        float s = Mathf.Clamp(Screen.height / DesignHeight, 0.8f, 2.0f);
+        float s = Mathf.Clamp(Screen.height / DesignHeight, 0.8f, 1.8f);
         ScaleFactor = s;
         GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(s, s, 1f));
         return new Rect(0f, 0f, Screen.width / s, Screen.height / s);
