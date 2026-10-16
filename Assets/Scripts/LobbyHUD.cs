@@ -763,7 +763,7 @@ public class LobbyHUD : MonoBehaviour
         //
         //   측정: 둘러보기 8줄 끝 224 < 가로줄 234 · 걷기 7줄 끝 202 < 234 ·
         //        카트 항목 끝 352 < 카드 아래 394(여백 42, 전과 같다).
-        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 208f, 400f, 416f);
+        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 219f, 400f, 438f);
         Hud.NoteCard(box);
 
         GUI.Label(new Rect(box.x, box.y + 14f, box.width, 24f), "조작법", Hud.Title);
@@ -778,6 +778,7 @@ public class LobbyHUD : MonoBehaviour
                 { "WASD", "걷기 (SHIFT 뛰기)" },
                 { "마우스", "둘러보기" },
                 { "E", "문 · 곰에게 말 걸기 · 받침대에서 카트 고르기" },
+                { "B", "곰 기억 앨범 — 이야기 · 곁이야기 · 단서" },
                 { "TAB", "돌아가서 둘러보기" },
                 { "−  =", "음악 줄이기 · 키우기" },
                 { "F11", "전체화면 ↔ 창모드" },
@@ -791,14 +792,15 @@ public class LobbyHUD : MonoBehaviour
                 { "클릭", "카트 고르기 / 출발문 열기" },
                 { "TAB", "걸어다니기" },
                 { "E", "걸어가서 — 문 열기 · 곰에게 말 걸기" },
+                { "B", "곰 기억 앨범 — 이야기 · 곁이야기 · 단서" },
                 { "−  =", "음악 줄이기 · 키우기" },
                 { "F11", "전체화면 ↔ 창모드" },
                 { "H", "이 창 닫기" },
             };
         Rows(box, controls, box.y + 50f);
 
-        Hud.Rule(box.x + 20f, box.y + 256f, box.width - 40f);
-        GUI.Label(new Rect(box.x, box.y + 262f, box.width, 22f), "카트 항목", Hud.Resize(Hud.Title, 15));
+        Hud.Rule(box.x + 20f, box.y + 278f, box.width - 40f);
+        GUI.Label(new Rect(box.x, box.y + 284f, box.width, 22f), "카트 항목", Hud.Resize(Hud.Title, 15));
 
         // 무슨 일이 일어나는지를 적는다. 어느 카트가 좋다는 말은 여기에도 안 쓴다.
         string[,] spec =
@@ -808,7 +810,7 @@ public class LobbyHUD : MonoBehaviour
             { "출발",   "멈췄다 붙을 때 빠르다" },
             { "코너",   "높으면 안 미끄러지고 낮으면 잘 돈다" },
         };
-        Rows(box, spec, box.y + 288f);
+        Rows(box, spec, box.y + 310f);
     }
 
     void Rows(Rect box, string[,] rows, float top)

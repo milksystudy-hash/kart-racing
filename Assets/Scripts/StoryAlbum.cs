@@ -45,9 +45,37 @@ public class StoryAlbum : MonoBehaviour
         ("epilogue",     "에필로그 · 다시 여는 박물관"),
     };
 
-    readonly List<int> openPages = new();
+    /// <summary>
+    /// ★★ <b>곁이야기</b> — 판마다 붙는 짧은 대화. (2026-10-16)
+    ///
+    /// 제작자: *"게임 끝나고 「저건 뭐지 풍선?」 하는 짤막한 대화들도 보고 싶은 사람들을
+    /// 위해 앨범에 넣어야 하지 않을까. 미니드라마. 사이드 스토리처럼 보이게."*
+    ///
+    /// 본편과 <b>같은 목록에 섞지 않는다.</b> 열여섯 줄이 되면 「— 아직」이 화면을 덮고,
+    /// 무엇이 본편인지도 안 보인다. 쪽을 하나 더 두면 둘 다 짧게 유지된다.
+    /// </summary>
+    static readonly (string id, string title)[] Side =
+    {
+        ("after1", "첫 판을 마치고"),
+        ("after2", "두 번째 판을 마치고 · 풍선"),
+        ("after3", "세 번째 판을 마치고"),
+        ("after4", "네 번째 판을 마치고 · 포크레인"),
+        ("after5", "다섯 번째 판을 마치고 · 도장"),
+        ("after6", "여섯 번째 판을 마치고"),
+        ("after7", "일곱 번째 판을 마치고 · 드론"),
+        ("after8", "여덟 번째 판을 마치고"),
+    };
+
+    /// <summary>0 이야기 · 1 곁이야기 · 2 단서.</summary>
+    int tab;
+
+    readonly List<int> openMain = new();
+    readonly List<int> openSide = new();
+
     int pick;
-    bool clueTab;
+
+    (string id, string title)[] CurBook => tab == 1 ? Side : Book;
+    List<int> CurOpen => tab == 1 ? openSide : openMain;
 
     /// <summary>책 모형이 없어도 돈다 — 스스로 씬에 들어온다.</summary>
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -108,15 +136,20 @@ public class StoryAlbum : MonoBehaviour
 
     public void OpenBook()
     {
-        openPages.Clear();
+        openMain.Clear();
+        openSide.Clear();
 
         string now = StoryScript.CurrentScene();
         for (int i = 0; i < Book.Length; i++)
             if (StoryProgress.HasSeen(Book[i].id) || Book[i].id == now)
-                openPages.Add(i);
+                openMain.Add(i);
+        for (int i = 0; i < Side.Length; i++)
+            if (StoryProgress.HasSeen(Side[i].id) || Side[i].id == now)
+                openSide.Add(i);
 
         pick = 0;
-        clueTab = openPages.Count == 0;      // 볼 이야기가 없으면 단서 쪽으로 연다
+        // 볼 게 있는 쪽으로 연다 — 빈 쪽을 먼저 보여주면 «아무 것도 없네» 가 된다
+        tab = openMain.Count > 0 ? 0 : openSide.Count > 0 ? 1 : 2;
         Open = true;
         Hold(true);
     }
@@ -127,12 +160,12 @@ public class StoryAlbum : MonoBehaviour
         //   <b>맞다 — 쪽이 좌우로 놓여 있으니 손도 좌우로 가야 한다.</b>
         //   TAB 은 그대로 두되(손이 익었으면 쓰라고) 화살표가 본길이다.
         if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame)
-        { if (clueTab) { clueTab = false; pick = 0; } }
+        { if (tab > 0) { tab--; pick = 0; } }
         if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame)
-        { if (!clueTab) { clueTab = true; pick = 0; } }
-        if (k.tabKey.wasPressedThisFrame) { clueTab = !clueTab; pick = 0; }
+        { if (tab < 2) { tab++; pick = 0; } }
+        if (k.tabKey.wasPressedThisFrame) { tab = (tab + 1) % 3; pick = 0; }
 
-        int rows = clueTab ? ClueText.All.Length : openPages.Count;
+        int rows = tab == 2 ? ClueText.All.Length : CurOpen.Count;
         if (rows > 0)
         {
             if (Keys.Up(k)) pick = (pick - 1 + rows) % rows;
@@ -142,10 +175,11 @@ public class StoryAlbum : MonoBehaviour
         if (k.escapeKey.wasPressedThisFrame || k.bKey.wasPressedThisFrame) { Close(); return; }
 
         // 단서 쪽은 읽기만 한다 — 틀 장면이 없다.
-        if (!clueTab && Keys.Confirm(k) && openPages.Count > 0)
+        if (tab != 2 && Keys.Confirm(k) && CurOpen.Count > 0)
         {
+            var book = CurBook; var open = CurOpen;
             Close();
-            if (StoryStage.Live != null) StoryStage.Live.Enter(Book[openPages[pick]].id);
+            if (StoryStage.Live != null) StoryStage.Live.Enter(book[open[Mathf.Min(pick, open.Count - 1)]].id);
         }
     }
 
@@ -183,7 +217,7 @@ public class StoryAlbum : MonoBehaviour
         //   머리(제목 + 쪽 이름 + 가로줄) · 줄 · 발(안내) <b>셋을 더해서</b> 잡는다.
         //   <see cref="Hud.NoteInner"/> 가 테두리로 5.5% 씩 먹으니 그만큼 되돌려 키운다.
         const float Head = 92f, RowH = 28f, Foot = 40f;
-        int rows = clueTab ? ClueText.All.Length : Book.Length;
+        int rows = tab == 2 ? ClueText.All.Length : CurBook.Length;
         float need = Head + rows * RowH + Foot;
         var box = new Rect(w * 0.5f - 270f, h * 0.5f - need / 0.89f * 0.5f,
                            540f, need / 0.89f);
@@ -193,26 +227,30 @@ public class StoryAlbum : MonoBehaviour
         GUI.Label(new Rect(inner.x, inner.y + 4f, inner.width, 28f), "곰 기억 앨범", Hud.Title);
 
         // 쪽 두 개 — 이야기 · 단서. 지금 보고 있는 쪽이 진하다.
-        var tabStory = Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter);
-        var tabClue = Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter);
+        // 쪽 셋 — 이야기 · 곁이야기 · 단서. 자리 순서가 ◀▶ 방향과 같아야 헷갈리지 않는다.
         var dim = new Color(Hud.InkSoft.r, Hud.InkSoft.g, Hud.InkSoft.b, 0.5f);
-        if (clueTab) tabStory.normal.textColor = dim; else tabClue.normal.textColor = dim;
-
-        // 왼쪽이 이야기, 오른쪽이 단서 — 화살표 방향과 자리가 같아야 헷갈리지 않는다.
-        GUI.Label(new Rect(inner.x, inner.y + 40f, inner.width * 0.5f, 24f),
-                  (clueTab ? "" : "◀  ") + "이야기", tabStory);
-        GUI.Label(new Rect(inner.x + inner.width * 0.5f, inner.y + 40f, inner.width * 0.5f, 24f),
-                  $"단서  {ClueBoard.ReadCount} / {ClueText.Count}" + (clueTab ? "" : "  ▶"), tabClue);
+        string[] names = { "이야기", "곁이야기", $"단서  {ClueBoard.ReadCount} / {ClueText.Count}" };
+        float tw = inner.width / 3f;
+        for (int t = 0; t < 3; t++)
+        {
+            var st = Hud.Resize(Hud.Text, 14, TextAnchor.MiddleCenter);
+            if (t != tab) st.normal.textColor = dim;
+            string label = (t == tab - 1 ? "◀  " : "") + names[t] + (t == tab + 1 ? "  ▶" : "");
+            GUI.Label(new Rect(inner.x + t * tw, inner.y + 40f, tw, 24f), label, st);
+        }
         Hud.Rule(inner.x + 14f, inner.y + 70f, inner.width - 28f);
 
         float y = inner.y + Head - 12f;
-        if (!clueTab)
-            for (int i = 0; i < Book.Length; i++)
+        if (tab != 2)
+        {
+            var book = CurBook; var open = CurOpen;
+            for (int i = 0; i < book.Length; i++)
             {
-                bool unlocked = openPages.Contains(i);
-                bool on = unlocked && openPages.Count > 0 && openPages[pick] == i;
-                Row(inner, ref y, on, unlocked, unlocked ? Book[i].title : "— 아직");
+                bool unlocked = open.Contains(i);
+                bool on = unlocked && open.Count > 0 && open[Mathf.Min(pick, open.Count - 1)] == i;
+                Row(inner, ref y, on, unlocked, unlocked ? book[i].title : "— 아직");
             }
+        }
         else
             for (int i = 0; i < ClueText.All.Length; i++)
             {
@@ -223,7 +261,7 @@ public class StoryAlbum : MonoBehaviour
             }
 
         GUI.Label(new Rect(inner.x, inner.yMax - 24f, inner.width, 20f),
-                  clueTab ? "◀▶ 쪽 넘기기 · ↑↓ 고르기 · ESC 닫기"
+                  tab == 2 ? "◀▶ 쪽 넘기기 · ↑↓ 고르기 · ESC 닫기"
                           : "◀▶ 쪽 · ↑↓ 고르기 · ENTER 보기 · ESC 닫기",
                   Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter));
 
