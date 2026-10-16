@@ -22,7 +22,12 @@ using UnityEngine.SceneManagement;
 public static class StandStandee
 {
     /// <summary>서 있는 키. 기획서의 3등신 1.25m 를 그대로 쓴다.</summary>
-    const float Height = 1.42f;
+    /// <summary>
+    /// ★ 2026-10-16 — <b>1.42 → 1.72m.</b> 강사님: *"실루엣이 작다."*
+    ///   궤도 카메라가 11m 밖에서 도니 사람 키만 하면 화면에서 작게 잡힌다.
+    ///   받침대 위라 바닥에서는 2.1m 쯤 — 홀 천장이 7m 라 충분히 들어간다.
+    /// </summary>
+    const float Height = 1.72f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Install()

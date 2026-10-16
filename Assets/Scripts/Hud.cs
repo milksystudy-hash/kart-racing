@@ -18,7 +18,13 @@ using UnityEngine;
 public static class Hud
 {
     /// <summary>모든 HUD 좌표의 기준 해상도. 기획서 §7.6 의 성능 목표와 같은 숫자다.</summary>
-    public const float DesignHeight = 720f;
+    /// <summary>
+    /// ★★ 2026-10-16 — <b>720 → 640.</b> 강사님: *"글씨가 여전히 작다."*
+    ///   화면 높이를 이 값으로 나눠 배율을 잡으니 <b>이 숫자를 줄이면 전부 커진다.</b>
+    ///   1080p 에서 1.50 → <b>1.69</b>(+12.5%). 칸도 글자도 같은 비율로 커져서
+    ///   <b>넘침이 새로 생기지 않는다</b> — 글자만 키우면 칸을 뚫는다.
+    /// </summary>
+    public const float DesignHeight = 640f;
 
     // ---- 색 ----
     public static readonly Color Wood     = new Color32(0xC9, 0xAC, 0x8A, 0xFF);   // 판 테두리
@@ -56,7 +62,7 @@ public static class Hud
     {
         Ensure(preferred);
 
-        float s = Mathf.Clamp(Screen.height / DesignHeight, 0.8f, 1.8f);
+        float s = Mathf.Clamp(Screen.height / DesignHeight, 0.8f, 2.0f);
         ScaleFactor = s;
         GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(s, s, 1f));
         return new Rect(0f, 0f, Screen.width / s, Screen.height / s);

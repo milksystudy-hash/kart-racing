@@ -363617,7 +363617,7 @@ MonoBehaviour:
   neverClosed: "\uC6C5\uC9C0\uAD00"
   plankColor: {r: 0.47843137, g: 0.3529412, b: 0.22745098, a: 1}
   nailColor: {r: 0.2901961, g: 0.2509804, b: 0.21960784, a: 1}
-  onlyAfterFinal: 0
+  onlyAfterFinal: 1
   alwaysOpen:
   - "\uD654\uC7A5\uC2E4"
   - "\uC6C5\uC9C0\uAD00"

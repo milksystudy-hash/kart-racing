@@ -94,7 +94,7 @@ public class CampusBoarding : MonoBehaviour
     /// 「막지 않는다」를 전제로 켜 둔 값이었다.
     /// </summary>
     [Tooltip("켜면 결승을 이기기 전까지 전부 막힌다. 끄면 수집품마다 한 동씩 걷힌다")]
-    public bool onlyAfterFinal;
+    public bool onlyAfterFinal = true;   // ★ 2026-10-16 강사님 지시로 다시 켰다
 
     /// <summary>
     /// 아무것도 못 모았을 때 <b>미리 열려 있는 비율.</b>
@@ -103,7 +103,7 @@ public class CampusBoarding : MonoBehaviour
     /// <b>«하루 종일 미니게임만 돌리는»</b> 모양이 된다.
     /// 0.30 이면 네 동이 미리 열려 있고 나머지 여덟 동이 증거를 따라 걷힌다.
     /// </summary>
-    const float Floor = 0.30f;
+    const float Floor = 0f;   // 2026-10-16 — onlyAfterFinal 로 돌아가서 쓰지 않는다
 
     /// <summary>
     /// 절대 안 막는 곳. 화장실은 곰과 대화하는 자리라 늘 열려 있다.
@@ -114,7 +114,11 @@ public class CampusBoarding : MonoBehaviour
     /// 하고 있고, 플레이어는 0/8 에 캠퍼스를 한 바퀴 돌면서 이걸 먼저 본다.
     /// </summary>
     [Tooltip("절대 안 막는 곳. 화장실은 대화 자리, 웅지관은 복선이다")]
-    public string[] alwaysOpen = { "화장실", "웅지관" };
+    /// <summary>
+    /// ★★★ 2026-10-16 강사님 지시 — <b>레이싱을 다 깨기 전까지 화장실 말고 전부 잠근다.</b>
+    ///   웅지관을 뺐다. 화장실은 칸 둘이 따로 문이라 같이 적는다.
+    /// </summary>
+    public string[] alwaysOpen = { "화장실", "왼쪽 칸", "오른쪽 칸" };
 
     readonly List<Transform> boards = new();
     readonly List<Transform> notices = new();
