@@ -85,10 +85,12 @@ public class TestHUD : MonoBehaviour
         // 카드를 닫으려다 이펙트가 꺼지거나 조작법이 열린다 —
         // "큰 패널은 한 번에 한 장" 을 입력 쪽에도 적용한 것(2026-09-18).
         // ★ 마우스로도 넘어간다. <b>닫는 길은 많을수록 좋다</b> — 못 닫는 게 제일 나쁘다
-        var tapMouse = UnityEngine.InputSystem.Mouse.current;
-        bool tap = k.anyKey.wasPressedThisFrame
-                || (tapMouse != null && (tapMouse.leftButton.wasPressedThisFrame
-                                      || tapMouse.rightButton.wasPressedThisFrame));
+        // ★★ 2026-10-16 수연: *"화살표 누르거나 양옆 아무거나 눌러도 다 되는데."*
+        //   <b>ENTER 하나로 좁혔다.</b> 아무 키나 먹으면 화면에 «ENTER» 라고 써 놓은 게
+        //   거짓말이 되고, 무엇보다 <b>넘기려던 게 아닌데 넘어간다</b> —
+        //   이펙트를 끄려고 V 를 누른 순간 출발해 버리는 식이다.
+        //   못 넘기는 걱정은 60초 안전장치가 받는다(<see cref="RaceBriefing"/>).
+        bool tap = Keys.Enter(k);
 
         if (RaceBriefing.Open)
         {
@@ -844,7 +846,7 @@ public class TestHUD : MonoBehaviour
         var next = Hud.Resize(Hud.Label, 17, TextAnchor.MiddleRight);
         next.normal.textColor = new Color(0.86f, 0.78f, 0.62f, blink);
         GUI.Label(new Rect(panel.x, panel.yMax - 26f, panel.width - padH, 22f),
-                  RaceBriefing.ChatterHasNext ? "다음  ▼" : "시작  ▼", next);
+                  RaceBriefing.ChatterHasNext ? "ENTER   다음  ▼" : "ENTER   시작  ▼", next);
     }
 
 

@@ -54,6 +54,14 @@ public static class Keys
                    || k.numpadEnterKey.wasPressedThisFrame
                    || k.spaceKey.wasPressedThisFrame);
 
+    /// <summary>
+    /// <b>ENTER 만.</b> 화면에 「ENTER」라고 적어 둔 자리에 쓴다 —
+    /// 아무 키나 먹으면 그 글자가 거짓말이 되고, 넘기려던 게 아닌데 넘어간다.
+    /// 고를 게 있는 메뉴에는 <see cref="Confirm"/>(SPACE 포함)를 그대로 쓴다.
+    /// </summary>
+    public static bool Enter(Keyboard k) =>
+        k != null && (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame);
+
     /// <summary>「나가기·멈춤」. ESC 하나뿐이다 — 이것까지 여러 개면 실수로 나가진다.</summary>
     public static bool Escape(Keyboard k) => k != null && k.escapeKey.wasPressedThisFrame;
 
