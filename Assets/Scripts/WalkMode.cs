@@ -57,7 +57,12 @@ public class WalkMode : MonoBehaviour
         if (Dev.Typing) return;   // 암호 치는 중 — 키를 건드리지 않는다
         var k = Keyboard.current;
         if (k == null) return;
-        if (k.tabKey.wasPressedThisFrame) Toggle();
+        // ★★ 2026-10-16 <b>앨범이 떠 있으면 TAB 을 양보한다.</b>
+        //   <see cref="StoryAlbum"/> 이 TAB 으로 「이야기 ↔ 단서」 탭을 바꾸는데,
+        //   여기서도 같이 먹으면 <b>탭을 넘기는 순간 걷기 모드로 바뀐다</b> —
+        //   앨범은 그대로 떠 있으니 「왜 갑자기 움직이지」가 된다.
+        //   「큰 패널이 떠 있으면 그 패널만 듣는다」를 입력 쪽에 적용한 것이야.
+        if (!StoryAlbum.Open && k.tabKey.wasPressedThisFrame) Toggle();
 
         // ★★ 2026-10-14 수연: *"걷다가 다시 3인칭으로 봐야 할 때 버튼을 마우스로
         //   누르면 먹통."* <b>커서가 잠겨 있어서다</b> — 걷기 모드는 시점을 돌리려고

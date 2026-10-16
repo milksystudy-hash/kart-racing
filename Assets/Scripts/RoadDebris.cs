@@ -136,7 +136,35 @@ public class RoadDebris : MonoBehaviour
 
         Vector3 d = transform.position - home;
         if (d.y > StrayUp || new Vector2(d.x, d.z).sqrMagnitude > StrayFlat * StrayFlat)
+        {
+            // ★★ 2026-10-16 수연: *"박힌 자재가 가만히 있다가 그대로 사라진다."*
+            //   <b>사라진 게 아니라 순간이동이다.</b> 집에서 6m 넘게 밀려났으면
+            //   제자리로 되돌리는데, 그 «제자리» 가 6m 밖이라 <b>보고 있는 동안
+            //   없어진 걸로 보인다.</b> 되돌리는 것 자체는 맞다 — 안 하면 날아간 자재가
+            //   코스 밖이나 벽 속에서 끝난다.
+            //
+            //   <b>플레이어가 가까이 있으면 미룬다.</b> 지나가고 나서 되돌리면
+            //   눈에 안 띄고, 다음 바퀴에는 제자리에 서 있다.
+            //   AI 를 되돌릴 때 «사람 카트가 8m 안에 있으면 안 한다» 와 같은 판단이야.
+            if (PlayerWatching()) return;
             Restore();
+        }
+    }
+
+    /// <summary>되돌리는 게 <b>눈에 보일</b> 거리인가. 28m 는 3인칭 카메라에서 한 화면이다.</summary>
+    const float WatchRange = 28f;
+
+    static Transform player;
+
+    bool PlayerWatching()
+    {
+        if (player == null)
+        {
+            var kart = FindFirstObjectByType<PlayerKart>();
+            player = kart != null ? kart.transform : null;
+        }
+        return player != null &&
+               (player.position - transform.position).sqrMagnitude < WatchRange * WatchRange;
     }
 
     /// <summary>자재가 낼 수 있는 최고 속도(m/s). 이보다 빠르면 날아간 것이다.</summary>

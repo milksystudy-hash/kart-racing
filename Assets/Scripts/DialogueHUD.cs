@@ -280,8 +280,11 @@ public class DialogueHUD : MonoBehaviour
             runner.Replay();
         }
 
-        // F11 — 결승만 토글. «8개는 모았지만 아직 결승 전» 을 보려면 이쪽
-        if (k.f11Key.wasPressedThisFrame)
+        // F12 — 결승만 토글. «8개는 모았지만 아직 결승 전» 을 보려면 이쪽
+        // ★★ 2026-10-16 F11 에서 옮겼다 — <see cref="ScreenMode"/> 가 F11 로
+        //   전체화면을 토글해서 <b>같은 프레임에 둘 다 먹었다.</b>
+        //   <see cref="GalleryHUD"/> 도 같은 자리에서 같이 고쳤다.
+        if (k.f12Key.wasPressedThisFrame)
         {
             if (GrandFinal.Cleared) GrandFinal.Reset(); else GrandFinal.MarkCleared();
             Toast.Show(GrandFinal.Cleared ? "결승 클리어 ON" : "결승 클리어 OFF");
