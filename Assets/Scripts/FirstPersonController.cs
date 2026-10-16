@@ -234,7 +234,7 @@ public class FirstPersonController : MonoBehaviour
         if (controller.isGrounded && keyboard.spaceKey.wasPressedThisFrame)
         {
             verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
-            // 처 2026-10-12 수연 요청 — 레이스에서 호핑할 때와 <b>같은 소리</b>다.
+            // 처 2026-10-12 제작자 요청 — 레이스에서 호핑할 때와 <b>같은 소리</b>다.
             //   같은 동작에 다른 소리가 나면 그건 다른 동작으로 배운다.
             Sfx.Play("Hop", 0.7f, duckMusic: false);
         }

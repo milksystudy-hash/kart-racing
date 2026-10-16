@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// ★★★ <b>3 · 2 · 1 · 출발!</b> — 숫자와 소리를 같이 맡는다. (2026-10-12)
 ///
-/// 전에는 이게 <see cref="TestHUD"/> 안에 있었고, 수연이 <b>세 번</b> 같은 신고를 했다:
+/// 전에는 이게 <see cref="TestHUD"/> 안에 있었고, 제작자가 <b>세 번</b> 같은 신고를 했다:
 /// *"이야기 보고 레이싱 들어가면 321 표시도 음성도 안 뜬다."* 두 번 고쳤는데 또 나왔다.
 /// 같은 증상을 두 번 고쳐서 안 되면 <b>고치는 대신 방법이 맞는지</b> 물어야 한다.
 ///
@@ -58,7 +58,7 @@ public class CountdownHUD : MonoBehaviour
         string was = lastLabel;
         lastLabel = cd;
 
-        // 수연이 구한 음원은 «삐 · 삐 · 삐 · 빵» 이 <b>한 파일에</b> 들어 있다.
+        // 제작자가 구한 음원은 «삐 · 삐 · 삐 · 빵» 이 <b>한 파일에</b> 들어 있다.
         // 숫자마다 틀면 넷이 겹쳐서 뭉갠다 — 셀 때 한 번이다.
         if (string.IsNullOrEmpty(was) && !string.IsNullOrEmpty(cd))
             Sfx.Play("Countdown", 0.9f, duckMusic: false);

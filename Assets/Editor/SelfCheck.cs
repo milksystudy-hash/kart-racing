@@ -222,7 +222,7 @@ public static class SelfCheck
         if (step < food) { log.AppendLine("  ★ 칸 간격이 음식보다 좁다 — 서로 파고든다"); bad++; }
 
         // ── ④ 숫자키가 <b>두 줄 다</b> 잡히나 ──
-        // 수연이 두 번 짚은 자리다: *"넘버패드있는쪽은 안되고."*
+        // 제작자가 두 번 짚은 자리다: *"넘버패드있는쪽은 안되고."*
         string keys = System.IO.File.ReadAllText("Assets/Scripts/Keys.cs");
         bool bothRows = keys.Contains("numpad") && keys.Contains("digit");
         log.AppendLine(bothRows ? "  Keys 가 숫자열과 키패드를 둘 다 읽는다"

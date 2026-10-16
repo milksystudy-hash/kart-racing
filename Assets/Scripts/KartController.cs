@@ -435,7 +435,7 @@ public class KartController : MonoBehaviour
         Vector3 forward = transform.forward;
         float forwardSpeed = Vector3.Dot(rb.linearVelocity, forward);
 
-        // ★★ 2026-10-12 수연: *"321 하기 전인데 개발업자랑 시의원 차량이 먼저 앞서 나간다."*
+        // ★★ 2026-10-12 제작자: *"321 하기 전인데 개발업자랑 시의원 차량이 먼저 앞서 나간다."*
         //   <c>Drive</c> 에서 입력을 막고 있었는데, 입력이 0 이어도 <b>이미 실린 속도</b>나
         //   되돌려 놓을 때 생긴 미끄러짐은 그대로 남는다.
         //   <b>출발 전에는 가로 속도를 아예 0 으로 붙잡는다</b> — 값이 들어가는 마지막 자리다.

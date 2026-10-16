@@ -193,7 +193,7 @@ public class CampusHUD : MonoBehaviour
     {
         if (player == null) player = FindFirstObjectByType<FirstPersonController>();
 
-        // ★ 개발용 줄은 잠겨 있으면 아예 안 그린다(2026-10-14 수연 요청).
+        // ★ 개발용 줄은 잠겨 있으면 아예 안 그린다(2026-10-14 제작자 요청).
         if (!Dev.Enabled) { DrawHelpChip(h); return; }
 
         var dev = new Rect(16f, h - 54f, 214f, 22f);
