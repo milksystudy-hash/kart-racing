@@ -78,8 +78,11 @@ public class StoryStage : MonoBehaviour
     /// ★★ 첫 화면이 닫히기를 기다리는 중. <b>장면 이름이 아니라 «봐야 한다»는 사실만</b>
     /// 들고 있는다 — 이름을 담아 두면 그 사이에 「처음부터」로 상태가 바뀌었을 때
     /// 옛 값을 그대로 쓴다. 「값은 사건이 일어나는 자리에서 박아라」와 같은 판단이야.
+    ///
+    /// ★ <see cref="Start"/> 는 <b>조건 없이</b> 이걸 켠다. 첫 화면이 Start 보다
+    /// 나중에 생겨서, 여기서 «떴나»를 물어봐야 답이 틀리기 때문이다.
     /// </summary>
-    bool waitingForTitle;
+    bool waitingForTitle;   // Start 가 켠다 — playUnseenOnEnter 가 꺼져 있으면 안 켠다
 
     /// <summary>
     /// ★★ <b>한 방문에 장면 둘까지 연달아 튼다.</b> (2026-10-12)
@@ -114,23 +117,39 @@ public class StoryStage : MonoBehaviour
 
         // ★ 장 번호만 보면 결말이 어긋난다(2026-09-21) — 결승 장면이 영영 안 나오고,
         // 에필로그가 7판 뒤에 떴다. CurrentScene 이 «결승을 깼는가» 까지 보고 고른다.
-        // ★★ 2026-10-16 — <b>여기서 장면을 고르지 않는다.</b>
+        // ★★★ 2026-10-16 (두 번째) — <b>여기서는 아무것도 안 한다. 무조건 미룬다.</b>
+        //
+        //   앞 수정은 <c>TitleScreen.Up</c> 을 보고 갈랐는데, <b>그 값이 여기서는 아직
+        //   false 다.</b> 첫 화면은 <c>RuntimeInitializeOnLoadMethod(AfterSceneLoad)</c> 로
+        //   생기고, 그건 씬 오브젝트의 <c>Start</c> 보다 <b>나중</b>이다.
+        //   그래서 게임을 켠 직후에는 이 줄이 «첫 화면 없음» 으로 읽고 곧바로
+        //   프롤로그를 틀면서 <b>「봤다」까지 찍어 버렸다</b> — 그 위에 첫 화면이 덮이고,
+        //   「처음부터」로 지워도 이미 Enter 가 돌아 버린 뒤라 다시 안 나온다.
+        //   제작자: *"쌩 초반으로 하면 프롤로그가 생략되고 바로 로비로 뛴다."*
+        //
+        //   <b>순서에 기대지 않는다.</b> 무조건 한 프레임 미루고, Update 가
+        //   «첫 화면이 없는 첫 프레임»에 고른다 — 첫 화면이 떴든 안 떴든 맞는다.
+        //
+        //   [옛 주석] 여기서 장면을 고르지 않는다.
         //   제작자: *"처음부터로 다 지웠는데 게임 시작을 눌러도 프롤로그가 안 뜬다."*
         //   로비가 열릴 때 골라서 담아 두면, 그 뒤에 첫 화면에서 「처음부터」를 눌러
         //   상태가 바뀌어도 <b>담아 둔 건 바뀌기 전 것</b>이다. 그때 고른 게
         //   빈 문자열이었으면 담기지도 않아서 <b>영영 아무 일도 안 난다.</b>
         //   첫 화면이 닫히는 프레임에 <b>그 자리에서 다시 고른다.</b>
-        if (TitleScreen.Up) { waitingForTitle = true; return; }
-
-        PlayIfUnseen();
+        waitingForTitle = true;
     }
 
     /// <summary>지금 상태로 틀 장면을 고르고, 아직 안 본 것이면 튼다.</summary>
     void PlayIfUnseen()
     {
         string sceneId = StoryScript.CurrentScene();
-        if (string.IsNullOrEmpty(sceneId)) return;
-        if (StoryProgress.HasSeen(sceneId)) return;
+        bool seen = !string.IsNullOrEmpty(sceneId) && StoryProgress.HasSeen(sceneId);
+
+        // ★ 제출본에도 남긴다. 「왜 안 떴는지」는 로그 한 줄이면 끝나는데,
+        //   없으면 이번처럼 코드를 네 번 읽어야 한다. 한 씬에 한 번뿐이라 공짜다.
+        Debug.Log($"[이야기] 고른 장면 '{sceneId}' · 증거 {CollectionState.Count} · 본 것 {seen}");
+
+        if (string.IsNullOrEmpty(sceneId) || seen) return;
         EnterFresh(sceneId);
     }
 
