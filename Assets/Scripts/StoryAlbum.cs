@@ -224,7 +224,7 @@ public class StoryAlbum : MonoBehaviour
 
         GUI.Label(new Rect(inner.x, inner.yMax - 24f, inner.width, 20f),
                   clueTab ? "◀▶ 쪽 넘기기 · ↑↓ 고르기 · ESC 닫기"
-                          : "◀▶ 쪽 · ↑↓ 고르기 · ENTER 보기 · T 지금 장 · ESC 닫기",
+                          : "◀▶ 쪽 · ↑↓ 고르기 · ENTER 보기 · ESC 닫기",
                   Hud.Resize(Hud.Label, 12, TextAnchor.MiddleCenter));
 
         Hud.End();

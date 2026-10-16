@@ -182,22 +182,13 @@ public class StoryStage : MonoBehaviour
         // 키가 고장 난 건지 조건이 안 맞는 건지 구분할 방법이 없었다.
         //
         // <b>디버그 키는 뭐라도 나와야 한다</b> — 못 고르면 프롤로그로 떨어진다.
-        if (k.tKey.wasPressedThisFrame) Replay();
-    }
-
-    /// <summary>이번 장 이야기를 다시 튼다. T 키와 로비의 발바닥 버튼이 같이 쓴다.</summary>
-    public void Replay()
-    {
-        {
-            string again = StoryScript.CurrentScene();
-            if (string.IsNullOrEmpty(again))
-            {
-                again = "prologue";
-                Debug.Log($"[이야기] 지금 장({StoryProgress.CurrentChapter})에 걸린 장면이 없어 " +
-                          $"프롤로그를 튼다. 수집품 {CollectionState.Count}/8");
-            }
-            EnterFresh(again);
-        }
+        // ★ 2026-10-16 <b>T(이야기 다시 보기)를 뺐다.</b> 제작자: *"앨범이 있는데
+        //   굳이 T 가 필요할까."* 맞는 말이다 — <b>곰 기억 앨범(B)이 상위집합</b>이다.
+        //   앨범은 본 장면을 전부 목록으로 띄우고 ENTER 로 고른 것을 튼다.
+        //   T 는 그 중 「지금 장」 하나를 바로 트는 지름길이었는데,
+        //   <b>어느 조작법 카드에도 안 적혀 있었다</b> — 「키가 있어도 화면에 없으면 없는 것」.
+        //   게다가 「봤다」를 장면 시작에 찍게 바꾼 뒤로는 시작한 장면이 전부 앨범에 남아서
+        //   T 로만 닿는 자리가 아예 없다.
     }
 
     /// <summary>이야기를 튼다. 임무 판정이 붙으면 "필수 임무 성공 → 여기" 로 이어진다.</summary>
