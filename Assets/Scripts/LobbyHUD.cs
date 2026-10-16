@@ -756,7 +756,14 @@ public class LobbyHUD : MonoBehaviour
         //   카트 항목 마지막 줄 끝(312)이 종이 아래 테두리(317)에서 <b>5px</b>였다.
         //   카드를 336 → 372 로 키우고 아래 두 덩어리를 18px 내렸다.
         //   측정: 조작법 끝 204 < 가로줄 212 · 카트 끝 330 < 종이 끝 351.
-        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 186f, 400f, 372f);
+        // ★★ 2026-10-16 F11 줄을 넣으면서 <b>줄 수를 잘못 셌다.</b> 둘러보기 쪽은
+        //   원래 일곱 줄이라 여덟 줄이 됐고, 여덟째(H)가 y+204~224 인데 가로줄이
+        //   y+212 라 <b>글자를 가로질렀다.</b> 아래 덩어리를 통째로 22px 내리고
+        //   카드도 그만큼 키운다 — 「줄을 더하면 높이도 같이 늘려라」.
+        //
+        //   측정: 둘러보기 8줄 끝 224 < 가로줄 234 · 걷기 7줄 끝 202 < 234 ·
+        //        카트 항목 끝 352 < 카드 아래 394(여백 42, 전과 같다).
+        var box = new Rect(w * 0.5f - 200f, h * 0.5f - 197f, 400f, 394f);
         Hud.NoteCard(box);
 
         GUI.Label(new Rect(box.x, box.y + 14f, box.width, 24f), "조작법", Hud.Title);
@@ -789,8 +796,8 @@ public class LobbyHUD : MonoBehaviour
             };
         Rows(box, controls, box.y + 50f);
 
-        Hud.Rule(box.x + 20f, box.y + 212f, box.width - 40f);
-        GUI.Label(new Rect(box.x, box.y + 218f, box.width, 22f), "카트 항목", Hud.Resize(Hud.Title, 15));
+        Hud.Rule(box.x + 20f, box.y + 234f, box.width - 40f);
+        GUI.Label(new Rect(box.x, box.y + 240f, box.width, 22f), "카트 항목", Hud.Resize(Hud.Title, 15));
 
         // 무슨 일이 일어나는지를 적는다. 어느 카트가 좋다는 말은 여기에도 안 쓴다.
         string[,] spec =
@@ -800,7 +807,7 @@ public class LobbyHUD : MonoBehaviour
             { "출발",   "멈췄다 붙을 때 빠르다" },
             { "코너",   "높으면 안 미끄러지고 낮으면 잘 돈다" },
         };
-        Rows(box, spec, box.y + 244f);
+        Rows(box, spec, box.y + 266f);
     }
 
     void Rows(Rect box, string[,] rows, float top)
