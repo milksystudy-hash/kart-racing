@@ -71,5 +71,15 @@ Shader "Racing/PlaqueText"
         }
     }
 
-    Fallback "GUI/Text Shader"
+    // ★★ 2026-10-16 <b>Fallback 을 뺐다 — 이것 때문에 빌드가 통째로 실패했다.</b>
+    //
+    //   "GUI/Text Shader" 는 <c>Library/unity default resources</c> 에 들어 있고
+    //   <b>HideFlags.DontSave</b> 로 표시돼 있다. 이 셰이더를 「항상 포함」 목록에
+    //   넣는 순간 빌드가 <b>폴백까지 끌어오려다</b> 터진다:
+    //
+    //     Building Resources/unity_builtin_extra: An asset is marked with
+    //     HideFlags.DontSave but is included in the build: GUI/Text Shader
+    //
+    //   폴백은 <b>위 SubShader 가 하나도 안 돌 때</b>만 쓰인다. 여기는 평범한 URP 패스라
+    //   윈도우 D3D11 에서 반드시 컴파일된다 — 없어도 되는 보험이었고, 그 보험이 비쌌다.
 }
