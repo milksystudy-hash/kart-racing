@@ -55,8 +55,14 @@ public class GalleryHUD : MonoBehaviour
             selector.RecountCollected();
         }
 
-        // F11 — <b>결승만</b> 켜고 끈다. «8개는 모았지만 아직 결승 전» 을 보려면 이쪽.
-        if (Keyboard.current.f11Key.wasPressedThisFrame)
+        // F12 — <b>결승만</b> 켜고 끈다. «8개는 모았지만 아직 결승 전» 을 보려면 이쪽.
+        //
+        // ★★ 2026-10-16 <b>F11 에서 옮겼다.</b> <see cref="ScreenMode"/> 가 F11 로
+        //   전체화면을 토글하는데, 개발 키가 켜져 있으면 <b>둘이 같은 프레임에 같이 먹는다</b> —
+        //   화면을 키우려고 눌렀는데 결승 클리어가 꺼지는 식이다. 제출 빌드에서는
+        //   <see cref="Dev.Enabled"/> 가 상수 false 라 안 겹치지만, <b>영상 녹화는
+        //   개발판으로 한다</b>(F9 로 전·후를 한 번에 보여줘야 하니까) — 거기서 터진다.
+        if (Keyboard.current.f12Key.wasPressedThisFrame)
         {
             if (GrandFinal.Cleared) GrandFinal.Reset(); else GrandFinal.MarkCleared();
             Toast.Show(GrandFinal.Cleared ? "결승 클리어 ON" : "결승 클리어 OFF");
